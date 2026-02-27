@@ -71,7 +71,7 @@ fun ExpenseItem(
 
             // Amount
             Text(
-                text = CurrencyFormatter.format(expense.amount),
+                text = CurrencyFormatter.format(expense.amountCents),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary
             )

@@ -31,7 +31,7 @@ fun OverviewPage(
     modifier: Modifier = Modifier
 ) {
     val previousExpensesTotal = remember(previousCycleExpenses) {
-        previousCycleExpenses.sumOf { it.amount }
+        previousCycleExpenses.sumOf { it.amountCents }
     }
 
     LazyColumn(
@@ -62,9 +62,9 @@ fun OverviewPage(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     AnimatedCounter(
-                        amount = budgetState.remainingToday,
+                        amountCents = budgetState.remainingTodayCents,
                         textStyle = MaterialTheme.typography.displayLarge,
-                        color = if (budgetState.remainingToday >= 0) {
+                        color = if (budgetState.remainingTodayCents >= 0L) {
                             MaterialTheme.colorScheme.onPrimaryContainer
                         } else {
                             MaterialTheme.colorScheme.error
@@ -92,7 +92,7 @@ fun OverviewPage(
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                             Text(
-                                text = CurrencyFormatter.format(budgetState.spentToday),
+                                text = CurrencyFormatter.format(budgetState.spentTodayCents),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
@@ -105,7 +105,7 @@ fun OverviewPage(
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                             Text(
-                                text = CurrencyFormatter.format(budgetState.dailyBudget),
+                                text = CurrencyFormatter.format(budgetState.dailyBudgetCents),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
@@ -140,7 +140,7 @@ fun OverviewPage(
                             style = MaterialTheme.typography.labelSmall
                         )
                         Text(
-                            text = CurrencyFormatter.format(budgetState.totalSpentThisCycle),
+                            text = CurrencyFormatter.format(budgetState.totalSpentThisCycleCents),
                             style = MaterialTheme.typography.titleLarge
                         )
                     }
@@ -148,12 +148,12 @@ fun OverviewPage(
             }
         }
 
-        if (budgetState.cumulativeSavings != 0.0) {
+        if (budgetState.cumulativeSavingsCents != 0L) {
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (budgetState.cumulativeSavings > 0) {
+                        containerColor = if (budgetState.cumulativeSavingsCents > 0L) {
                             MaterialTheme.colorScheme.tertiaryContainer
                         } else {
                             MaterialTheme.colorScheme.errorContainer
@@ -168,13 +168,13 @@ fun OverviewPage(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Overall ${if (budgetState.cumulativeSavings > 0) "Savings" else "Deficit"}",
+                            text = "Overall ${if (budgetState.cumulativeSavingsCents > 0L) "Savings" else "Deficit"}",
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            text = CurrencyFormatter.format(abs(budgetState.cumulativeSavings)),
+                            text = CurrencyFormatter.format(abs(budgetState.cumulativeSavingsCents)),
                             style = MaterialTheme.typography.titleLarge,
-                            color = if (budgetState.cumulativeSavings > 0) {
+                            color = if (budgetState.cumulativeSavingsCents > 0L) {
                                 MaterialTheme.colorScheme.onTertiaryContainer
                             } else {
                                 MaterialTheme.colorScheme.onErrorContainer

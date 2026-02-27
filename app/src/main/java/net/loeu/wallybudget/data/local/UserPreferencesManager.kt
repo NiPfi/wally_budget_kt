@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -18,7 +17,7 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 class UserPreferencesManager(private val context: Context) {
 
     private object PreferenceKeys {
-        val MONTHLY_BUDGET = doublePreferencesKey("monthly_budget")
+        val MONTHLY_BUDGET_CENTS = longPreferencesKey("monthly_budget_cents")
         val PAYDAY_DATE = intPreferencesKey("payday_date")
         val LAST_RESET_TIMESTAMP = longPreferencesKey("last_reset_timestamp")
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
@@ -26,16 +25,16 @@ class UserPreferencesManager(private val context: Context) {
 
     val userSettings: Flow<UserSettings> = context.dataStore.data.map { preferences ->
         UserSettings(
-            monthlyBudget = preferences[PreferenceKeys.MONTHLY_BUDGET] ?: 0.0,
+            monthlyBudgetCents = preferences[PreferenceKeys.MONTHLY_BUDGET_CENTS] ?: 0L,
             paydayDate = preferences[PreferenceKeys.PAYDAY_DATE] ?: 1,
             lastResetTimestamp = preferences[PreferenceKeys.LAST_RESET_TIMESTAMP] ?: 0L,
             isOnboardingCompleted = preferences[PreferenceKeys.ONBOARDING_COMPLETED] ?: false
         )
     }
 
-    suspend fun updateMonthlyBudget(amount: Double) {
+    suspend fun updateMonthlyBudget(amountCents: Long) {
         context.dataStore.edit { preferences ->
-            preferences[PreferenceKeys.MONTHLY_BUDGET] = amount
+            preferences[PreferenceKeys.MONTHLY_BUDGET_CENTS] = amountCents
         }
     }
 
@@ -59,7 +58,7 @@ class UserPreferencesManager(private val context: Context) {
 
     suspend fun updateSettings(settings: UserSettings) {
         context.dataStore.edit { preferences ->
-            preferences[PreferenceKeys.MONTHLY_BUDGET] = settings.monthlyBudget
+            preferences[PreferenceKeys.MONTHLY_BUDGET_CENTS] = settings.monthlyBudgetCents
             preferences[PreferenceKeys.PAYDAY_DATE] = settings.paydayDate
             preferences[PreferenceKeys.LAST_RESET_TIMESTAMP] = settings.lastResetTimestamp
             preferences[PreferenceKeys.ONBOARDING_COMPLETED] = settings.isOnboardingCompleted

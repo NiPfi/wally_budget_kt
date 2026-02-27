@@ -11,7 +11,7 @@ import java.time.Instant
 data class Expense(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-    val amount: Double,
+    val amountCents: Long,
     val description: String,
     val timestamp: Long = Instant.now().toEpochMilli(),
     val icon: ExpenseIcon? = null

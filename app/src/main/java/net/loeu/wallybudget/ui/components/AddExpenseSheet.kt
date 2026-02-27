@@ -16,21 +16,24 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import net.loeu.wallybudget.data.model.ExpenseIcon
+import net.loeu.wallybudget.util.CurrencyFormatter
 import net.loeu.wallybudget.util.IconMapper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddExpenseSheet(
     onDismiss: () -> Unit,
-    onSubmitExpense: (amount: Double, description: String, icon: ExpenseIcon?) -> Unit,
+    onSubmitExpense: (amountCents: Long, description: String, icon: ExpenseIcon?) -> Unit,
     title: String = "Add Expense",
     confirmButtonText: String = "Add Expense",
-    initialAmount: Double? = null,
+    initialAmountCents: Long? = null,
     initialDescription: String = "",
     initialIcon: ExpenseIcon? = null,
     modifier: Modifier = Modifier
 ) {
-    var amountText by remember(initialAmount) { mutableStateOf(initialAmount?.toString().orEmpty()) }
+    var amountText by remember(initialAmountCents) {
+        mutableStateOf(initialAmountCents?.let { CurrencyFormatter.centsToDecimalString(it) }.orEmpty())
+    }
     var description by remember(initialDescription) { mutableStateOf(initialDescription) }
     var selectedIcon by remember(initialIcon) { mutableStateOf(initialIcon) }
     var showError by remember { mutableStateOf(false) }
@@ -117,14 +120,14 @@ fun AddExpenseSheet(
 
             Button(
                 onClick = {
-                    val amount = amountText.toDoubleOrNull()
-                    if (amount != null && amount > 0) {
+                    val amountCents = CurrencyFormatter.parseAmountToCents(amountText)
+                    if (amountCents != null && amountCents > 0L) {
                         val finalDescription = when {
                             description.isNotBlank() -> description
                             selectedIcon != null -> defaultDescriptionFor(selectedIcon!!)
                             else -> "Expense"
                         }
-                        onSubmitExpense(amount, finalDescription, selectedIcon)
+                        onSubmitExpense(amountCents, finalDescription, selectedIcon)
                     } else {
                         showError = true
                     }

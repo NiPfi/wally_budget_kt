@@ -30,10 +30,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.data.model.Expense
 import net.loeu.wallybudget.ui.components.ExpenseItem
@@ -104,6 +104,13 @@ fun ExpensesPage(
     val allExpenses = remember(todayExpenses, previousCycleExpenses) {
         todayExpenses + previousCycleExpenses
     }
+    val expensesByDate = remember(allExpenses) {
+        allExpenses.groupBy { expense ->
+            java.time.Instant.ofEpochMilli(expense.timestamp)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate()
+        }
+    }
 
     Column(
         modifier = modifier.background(MaterialTheme.colorScheme.surface)
@@ -117,19 +124,14 @@ fun ExpensesPage(
             val currentDate = cycleStart.plusDays(page.toLong())
             val isToday = currentDate == today
 
-            val dayExpenses = remember(allExpenses, currentDate) {
-                allExpenses.filter { expense ->
-                    val expenseDate = java.time.Instant.ofEpochMilli(expense.timestamp)
-                        .atZone(ZoneId.systemDefault())
-                        .toLocalDate()
-                    expenseDate == currentDate
-                }
+            val dayExpenses = remember(expensesByDate, currentDate) {
+                expensesByDate[currentDate].orEmpty()
             }
 
             val dayTotalSpent = remember(dayExpenses) {
-                dayExpenses.sumOf { it.amount }
+                dayExpenses.sumOf { it.amountCents }
             }
-            val dayRemaining = budgetState.dailyBudget - dayTotalSpent
+            val dayRemaining = budgetState.dailyBudgetCents - dayTotalSpent
 
             Column(modifier = Modifier.fillMaxSize()) {
                 Column(

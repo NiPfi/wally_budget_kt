@@ -90,8 +90,8 @@ fun BudgetApp(
     ) {
         composable(Screen.Onboarding.route) {
             OnboardingScreen(
-                onComplete = { budget, payday, cycleStartDate, previousExpenses ->
-                    viewModel.completeOnboarding(budget, payday, cycleStartDate, previousExpenses)
+                onComplete = { budgetCents, payday, cycleStartDate, previousExpensesCents ->
+                    viewModel.completeOnboarding(budgetCents, payday, cycleStartDate, previousExpensesCents)
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Onboarding.route) { inclusive = true }
                     }
@@ -104,8 +104,8 @@ fun BudgetApp(
                 budgetState = budgetState,
                 todayExpenses = todayExpenses,
                 previousCycleExpenses = previousCycleExpenses,
-                onAddExpense = { amount, description, icon, date ->
-                    viewModel.addExpense(amount, description, icon, date)
+                onAddExpense = { amountCents, description, icon, date ->
+                    viewModel.addExpense(amountCents, description, icon, date)
                 },
                 onUpdateExpense = { expense ->
                     viewModel.updateExpense(expense)
@@ -128,8 +128,8 @@ fun BudgetApp(
         composable(Screen.Settings.route) {
             SettingsScreen(
                 userSettings = userSettings,
-                onUpdateBudget = { budget ->
-                    viewModel.updateMonthlyBudget(budget)
+                onUpdateBudget = { budgetCents ->
+                    viewModel.updateMonthlyBudget(budgetCents)
                 },
                 onUpdatePayday = { payday ->
                     viewModel.updatePaydayDate(payday)

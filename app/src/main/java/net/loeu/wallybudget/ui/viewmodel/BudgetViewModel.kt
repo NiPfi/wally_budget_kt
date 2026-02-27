@@ -39,13 +39,13 @@ class BudgetViewModel(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = BudgetState(
-                monthlyBudget = 0.0,
-                totalSpentThisCycle = 0.0,
-                dailyBudget = 0.0,
-                spentToday = 0.0,
-                remainingToday = 0.0,
+                monthlyBudgetCents = 0L,
+                totalSpentThisCycleCents = 0L,
+                dailyBudgetCents = 0L,
+                spentTodayCents = 0L,
+                remainingTodayCents = 0L,
                 daysRemainingInCycle = 0,
-                cumulativeSavings = 0.0,
+                cumulativeSavingsCents = 0L,
                 paydayDate = 1,
                 cycleStartDate = LocalDate.now()
             )
@@ -92,7 +92,7 @@ class BudgetViewModel(
     /**
      * Add a new expense
      */
-    fun addExpense(amount: Double, description: String, icon: ExpenseIcon? = null, date: LocalDate = LocalDate.now()) {
+    fun addExpense(amountCents: Long, description: String, icon: ExpenseIcon? = null, date: LocalDate = LocalDate.now()) {
         viewModelScope.launch {
             val timestamp = if (date == LocalDate.now()) {
                 Instant.now().toEpochMilli()
@@ -100,7 +100,7 @@ class BudgetViewModel(
                 date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
             }
             val expense = Expense(
-                amount = amount,
+                amountCents = amountCents,
                 description = description,
                 icon = icon,
                 timestamp = timestamp
@@ -146,17 +146,17 @@ class BudgetViewModel(
      * Complete onboarding with initial settings
      */
     fun completeOnboarding(
-        monthlyBudget: Double,
+        monthlyBudgetCents: Long,
         paydayDate: Int,
         cycleStartDate: LocalDate,
-        previousExpenses: Double
+        previousExpensesCents: Long
     ) {
         viewModelScope.launch {
             repository.completeOnboarding(
-                monthlyBudget = monthlyBudget,
+                monthlyBudgetCents = monthlyBudgetCents,
                 paydayDate = paydayDate,
                 cycleStartDate = cycleStartDate,
-                previousExpenses = previousExpenses
+                previousExpensesCents = previousExpensesCents
             )
         }
     }
@@ -164,9 +164,9 @@ class BudgetViewModel(
     /**
      * Update monthly budget
      */
-    fun updateMonthlyBudget(amount: Double) {
+    fun updateMonthlyBudget(amountCents: Long) {
         viewModelScope.launch {
-            repository.updateMonthlyBudget(amount)
+            repository.updateMonthlyBudget(amountCents)
         }
     }
 

@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,7 +52,7 @@ fun HomeScreen(
     budgetState: BudgetState,
     todayExpenses: List<Expense>,
     previousCycleExpenses: List<Expense>,
-    onAddExpense: (Double, String, net.loeu.wallybudget.data.model.ExpenseIcon?, LocalDate) -> Unit,
+    onAddExpense: (Long, String, net.loeu.wallybudget.data.model.ExpenseIcon?, LocalDate) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
     onNavigateToSettings: () -> Unit,
@@ -61,7 +62,8 @@ fun HomeScreen(
     onHideAddExpenseSheet: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var selectedDateForExpense by remember { mutableStateOf(LocalDate.now()) }
+    var selectedDateForExpenseEpochDay by rememberSaveable { mutableStateOf(LocalDate.now().toEpochDay()) }
+    val selectedDateForExpense = LocalDate.ofEpochDay(selectedDateForExpenseEpochDay)
     var expenseBeingEdited by remember { mutableStateOf<Expense?>(null) }
 
     Scaffold(
@@ -117,7 +119,7 @@ fun HomeScreen(
                         isVisible = snapController.isExpanded,
                         onEditExpense = { expenseBeingEdited = it },
                         onDeleteExpense = onDeleteExpense,
-                        onDateSelected = { selectedDateForExpense = it },
+                        onDateSelected = { selectedDateForExpenseEpochDay = it.toEpochDay() },
                         modifier = Modifier
                             .fillMaxSize()
                             .offset { IntOffset(0, pageHeightPx.roundToInt()) }
@@ -209,8 +211,8 @@ fun HomeScreen(
     if (showAddExpenseSheet) {
         AddExpenseSheet(
             onDismiss = onHideAddExpenseSheet,
-            onSubmitExpense = { amount, description, icon ->
-                onAddExpense(amount, description, icon, selectedDateForExpense)
+            onSubmitExpense = { amountCents, description, icon ->
+                onAddExpense(amountCents, description, icon, selectedDateForExpense)
             }
         )
     }
@@ -218,10 +220,10 @@ fun HomeScreen(
     expenseBeingEdited?.let { editingExpense ->
         AddExpenseSheet(
             onDismiss = { expenseBeingEdited = null },
-            onSubmitExpense = { amount, description, icon ->
+            onSubmitExpense = { amountCents, description, icon ->
                 onUpdateExpense(
                     editingExpense.copy(
-                        amount = amount,
+                        amountCents = amountCents,
                         description = description,
                         icon = icon
                     )
@@ -230,7 +232,7 @@ fun HomeScreen(
             },
             title = "Edit Expense",
             confirmButtonText = "Save Changes",
-            initialAmount = editingExpense.amount,
+            initialAmountCents = editingExpense.amountCents,
             initialDescription = editingExpense.description,
             initialIcon = editingExpense.icon
         )
