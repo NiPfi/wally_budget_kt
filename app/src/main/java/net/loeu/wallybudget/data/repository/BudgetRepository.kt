@@ -86,29 +86,6 @@ class BudgetRepository(
     }
 
     /**
-     * Get expenses for a date range
-     */
-    fun getExpensesInRange(startTime: Long, endTime: Long): Flow<List<Expense>> {
-        return expenseDao.getExpensesByDateRange(startTime, endTime)
-    }
-
-    /**
-     * Get all expenses for the current cycle
-     */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    fun getCurrentCycleExpenses(): Flow<List<Expense>> {
-        return combine(userSettings, currentDateFlow()) { settings, now ->
-            val cycleStart = budgetCalculationService.getCycleStartDate(now, settings.paydayDate)
-            val cycleEnd = budgetCalculationService.getNextCycleStartDate(now, settings.paydayDate)
-            val startTime = cycleStart.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            val endTime = cycleEnd.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            startTime to endTime
-        }.flatMapLatest { (startTime, endTime) ->
-            expenseDao.getExpensesByDateRange(startTime, endTime)
-        }
-    }
-
-    /**
      * Get expenses for today
      */
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -149,13 +126,6 @@ class BudgetRepository(
                 effectiveEndTime = effectiveEndTime
             )
         }
-    }
-
-    /**
-     * Update user settings
-     */
-    suspend fun updateSettings(settings: UserSettings) {
-        userPreferencesManager.updateSettings(settings)
     }
 
     /**
@@ -298,11 +268,5 @@ class BudgetRepository(
         }
     }
 
-    /**
-     * Get cumulative savings
-     */
-    suspend fun getCumulativeSavings(): Long {
-        return monthlyHistoryDao.getCumulativeSavings() ?: 0L
-    }
 }
 
