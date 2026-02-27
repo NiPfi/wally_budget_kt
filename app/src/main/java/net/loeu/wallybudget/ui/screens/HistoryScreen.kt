@@ -13,7 +13,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import net.loeu.wallybudget.data.model.MonthlyHistory
 import net.loeu.wallybudget.util.CurrencyFormatter
-import java.time.Month
 import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,12 +74,6 @@ private fun MonthlyHistoryCard(
     history: MonthlyHistory,
     modifier: Modifier = Modifier
 ) {
-    val monthName = try {
-        Month.of(history.month).name.lowercase().replaceFirstChar { it.uppercase() }
-    } catch (e: Exception) {
-        "Month ${history.month}"
-    }
-
     val isOverBudget = history.surplusCents < 0L
 
     Card(
@@ -104,7 +97,7 @@ private fun MonthlyHistoryCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "$monthName ${history.year}",
+                    text = history.getDisplayName(),
                     style = MaterialTheme.typography.titleLarge
                 )
 

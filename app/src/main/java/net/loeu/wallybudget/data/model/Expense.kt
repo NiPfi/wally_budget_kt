@@ -1,13 +1,19 @@
 package net.loeu.wallybudget.data.model
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.time.Instant
 
 /**
  * Represents a single expense entry
  */
-@Entity(tableName = "expenses")
+@Entity(
+    tableName = "expenses",
+    indices = [
+        Index(value = ["timestamp"])
+    ]
+)
 data class Expense(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,

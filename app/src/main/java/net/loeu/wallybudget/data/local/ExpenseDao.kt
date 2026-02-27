@@ -19,11 +19,14 @@ interface ExpenseDao {
     @Delete
     suspend fun delete(expense: Expense)
 
-    @Query("SELECT * FROM expenses ORDER BY timestamp DESC")
-    fun getAllExpenses(): Flow<List<Expense>>
+    @Query("SELECT COUNT(*) FROM expenses")
+    fun observeExpenseCount(): Flow<Int>
 
     @Query("SELECT * FROM expenses WHERE timestamp >= :startTime AND timestamp < :endTime ORDER BY timestamp DESC")
     fun getExpensesByDateRange(startTime: Long, endTime: Long): Flow<List<Expense>>
+
+    @Query("SELECT * FROM expenses WHERE timestamp >= :startTime AND timestamp < :endTime AND timestamp < :beforeTime ORDER BY timestamp DESC")
+    fun getExpensesByDateRangeBeforeTime(startTime: Long, endTime: Long, beforeTime: Long): Flow<List<Expense>>
 
     @Query("SELECT SUM(amountCents) FROM expenses WHERE timestamp >= :startTime AND timestamp < :endTime")
     suspend fun getTotalSpentInRange(startTime: Long, endTime: Long): Long?
