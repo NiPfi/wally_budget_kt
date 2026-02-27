@@ -128,6 +128,12 @@ class BudgetViewModel(
         }
     }
 
+    fun restoreDeletedExpense(expense: Expense) {
+        viewModelScope.launch {
+            repository.addExpense(expense.copy(id = 0L))
+        }
+    }
+
     /**
      * Show add expense sheet
      */

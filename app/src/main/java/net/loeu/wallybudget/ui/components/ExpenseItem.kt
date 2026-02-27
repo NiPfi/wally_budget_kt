@@ -2,8 +2,6 @@ package net.loeu.wallybudget.ui.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,12 +18,9 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun ExpenseItem(
     expense: Expense,
-    onDelete: () -> Unit,
     onEdit: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    var showDeleteDialog by remember { mutableStateOf(false) }
-
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -75,41 +70,7 @@ fun ExpenseItem(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary
             )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Delete button
-            IconButton(onClick = { showDeleteDialog = true }) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete expense",
-                    tint = MaterialTheme.colorScheme.error
-                )
-            }
         }
-    }
-
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Expense?") },
-            text = { Text("Are you sure you want to delete this expense?") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onDelete()
-                        showDeleteDialog = false
-                    }
-                ) {
-                    Text("Delete")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
     }
 }
 

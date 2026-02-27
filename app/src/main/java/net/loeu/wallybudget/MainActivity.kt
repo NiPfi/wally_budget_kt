@@ -107,6 +107,9 @@ fun BudgetApp(
                 onAddExpense = { amountCents, description, icon, date ->
                     viewModel.addExpense(amountCents, description, icon, date)
                 },
+                onRestoreExpense = { expense ->
+                    viewModel.restoreDeletedExpense(expense)
+                },
                 onUpdateExpense = { expense ->
                     viewModel.updateExpense(expense)
                 },
