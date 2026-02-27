@@ -2,6 +2,7 @@ package net.loeu.wallybudget.data.model
 
 import androidx.room.Entity
 import java.time.LocalDate
+import java.time.format.DateTimeParseException
 
 /**
  * Historical record of monthly budget cycles
@@ -20,13 +21,29 @@ data class MonthlyHistory(
 ) {
     /**
      * Parse cycleStartDate to LocalDate
+     *
+     * @throws IllegalStateException if cycleStartDate is not a valid ISO-8601 date
      */
-    fun getCycleStart(): LocalDate = LocalDate.parse(cycleStartDate)
+    fun getCycleStart(): LocalDate {
+        return try {
+            LocalDate.parse(cycleStartDate)
+        } catch (exception: DateTimeParseException) {
+            throw IllegalStateException("Invalid cycleStartDate: '$cycleStartDate'", exception)
+        }
+    }
 
     /**
      * Parse cycleEndDate to LocalDate
+     *
+     * @throws IllegalStateException if cycleEndDate is not a valid ISO-8601 date
      */
-    fun getCycleEnd(): LocalDate = LocalDate.parse(cycleEndDate)
+    fun getCycleEnd(): LocalDate {
+        return try {
+            LocalDate.parse(cycleEndDate)
+        } catch (exception: DateTimeParseException) {
+            throw IllegalStateException("Invalid cycleEndDate: '$cycleEndDate'", exception)
+        }
+    }
 
     /**
      * Get display name for the cycle (e.g., "Jan 15 - Feb 14, 2026")

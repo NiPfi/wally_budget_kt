@@ -85,6 +85,10 @@ abstract class BudgetDatabase : RoomDatabase() {
 
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
+                // NOTE: Historical records before schema v3 do not store payday/cycle-length metadata.
+                // The cycleStartDate generated below is therefore an approximation based on endTimestamp.
+                // For edge cases (e.g., payday = 31 and February), reconstructed start dates may be shifted.
+                // This affects only legacy migrated history labels; spending totals remain unchanged.
                 db.execSQL(
                     """
                     CREATE TABLE `monthly_history_new` (
@@ -143,8 +147,10 @@ abstract class BudgetDatabase : RoomDatabase() {
                     """.trimIndent()
                 )
 
-                // Migrate existing data - estimate cycleStartDate from year/month
-                // This is approximate but necessary for migration
+                // Migrate existing data - estimate cycleStartDate from year/month.
+                // This remains approximate because legacy rows lack payday/cycle-length information.
+                // Example limitation: payday on the 31st across February cannot be reconstructed exactly.
+                // The approximation is used only to preserve uniqueness and avoid data loss.
                 db.execSQL(
                     """
                     INSERT OR IGNORE INTO `monthly_history_new` (

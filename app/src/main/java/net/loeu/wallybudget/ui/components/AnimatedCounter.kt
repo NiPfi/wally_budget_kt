@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -90,7 +91,7 @@ private fun AnimatedCounterWithAnimation(
             maxLines = 1,
             softWrap = false,
             textAlign = TextAlign.Center,
-            modifier = Modifier
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }
