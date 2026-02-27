@@ -63,6 +63,7 @@ fun OverviewPage(
 
                     AnimatedCounter(
                         amountCents = budgetState.remainingTodayCents,
+                        modifier = Modifier.fillMaxWidth(),
                         textStyle = MaterialTheme.typography.displayLarge,
                         color = if (budgetState.remainingTodayCents >= 0L) {
                             MaterialTheme.colorScheme.onPrimaryContainer

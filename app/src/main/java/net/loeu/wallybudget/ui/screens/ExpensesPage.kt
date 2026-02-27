@@ -51,6 +51,7 @@ fun ExpensesPage(
     todayExpenses: List<Expense>,
     previousCycleExpenses: List<Expense>,
     isVisible: Boolean,
+    resetToLatestTrigger: Int,
     onEditExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
     onDateSelected: (LocalDate) -> Unit,
@@ -68,6 +69,8 @@ fun ExpensesPage(
     val lifecycleOwner = LocalLifecycleOwner.current
     var wasPaused by remember { mutableStateOf(false) }
     var shouldResetToTodayOnOpen by remember { mutableStateOf(false) }
+    var hasOpenedExpensesAtLeastOnce by remember { mutableStateOf(false) }
+    var lastHandledExternalResetTrigger by remember { mutableStateOf(resetToLatestTrigger) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -89,10 +92,17 @@ fun ExpensesPage(
         }
     }
 
-    LaunchedEffect(isVisible, daysInCycleSoFar, shouldResetToTodayOnOpen) {
-        if (isVisible && shouldResetToTodayOnOpen) {
-            pagerState.scrollToPage(daysInCycleSoFar - 1)
-            shouldResetToTodayOnOpen = false
+    LaunchedEffect(isVisible, daysInCycleSoFar, shouldResetToTodayOnOpen, resetToLatestTrigger) {
+        if (isVisible) {
+            val hasExternalResetRequest = resetToLatestTrigger != lastHandledExternalResetTrigger
+            val shouldResetToLatest =
+                !hasOpenedExpensesAtLeastOnce || shouldResetToTodayOnOpen || hasExternalResetRequest
+            if (shouldResetToLatest) {
+                pagerState.scrollToPage(daysInCycleSoFar - 1)
+                shouldResetToTodayOnOpen = false
+                lastHandledExternalResetTrigger = resetToLatestTrigger
+            }
+            hasOpenedExpensesAtLeastOnce = true
         }
     }
 
@@ -236,8 +246,7 @@ fun ExpensesPage(
                         items(dayExpenses, key = { it.id }) { expense ->
                             ExpenseItem(
                                 expense = expense,
-                                onEdit = { onEditExpense(expense) },
-                                onDelete = { onDeleteExpense(expense) }
+                                onEdit = { onEditExpense(expense) }
                             )
                         }
                     }

@@ -25,12 +25,18 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -43,6 +49,8 @@ import androidx.compose.ui.unit.dp
 import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.data.model.Expense
 import net.loeu.wallybudget.ui.components.AddExpenseSheet
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import kotlin.math.roundToInt
 
@@ -53,6 +61,7 @@ fun HomeScreen(
     todayExpenses: List<Expense>,
     previousCycleExpenses: List<Expense>,
     onAddExpense: (Long, String, net.loeu.wallybudget.data.model.ExpenseIcon?, LocalDate) -> Unit,
+    onRestoreExpense: (Expense) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
     onNavigateToSettings: () -> Unit,
@@ -65,8 +74,16 @@ fun HomeScreen(
     var selectedDateForExpenseEpochDay by rememberSaveable { mutableStateOf(LocalDate.now().toEpochDay()) }
     val selectedDateForExpense = LocalDate.ofEpochDay(selectedDateForExpenseEpochDay)
     var expenseBeingEdited by remember { mutableStateOf<Expense?>(null) }
+    var isExpensesVisible by remember { mutableStateOf(false) }
+    var addSheetOpenedFromOverview by rememberSaveable { mutableStateOf(false) }
+    var resetExpensesToLatestTrigger by rememberSaveable { mutableStateOf(0) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
+        },
         topBar = {
             TopAppBar(
                 title = { Text("WallyBudget") },
@@ -82,7 +99,15 @@ fun HomeScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = onShowAddExpenseSheet,
+                onClick = {
+                    if (!isExpensesVisible) {
+                        selectedDateForExpenseEpochDay = LocalDate.now().toEpochDay()
+                        addSheetOpenedFromOverview = true
+                    } else {
+                        addSheetOpenedFromOverview = false
+                    }
+                    onShowAddExpenseSheet()
+                },
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add expense")
@@ -98,6 +123,10 @@ fun HomeScreen(
             val pageHeightPx = constraints.maxHeight.toFloat().coerceAtLeast(1f)
             val snapController = rememberVerticalSnapController(containerHeightPx = pageHeightPx)
             val effectiveOffset = snapController.offsetPx
+
+            SideEffect {
+                isExpensesVisible = snapController.isExpanded
+            }
 
             Box(
                 modifier = Modifier.fillMaxSize()
@@ -117,6 +146,7 @@ fun HomeScreen(
                         todayExpenses = todayExpenses,
                         previousCycleExpenses = previousCycleExpenses,
                         isVisible = snapController.isExpanded,
+                        resetToLatestTrigger = resetExpensesToLatestTrigger,
                         onEditExpense = { expenseBeingEdited = it },
                         onDeleteExpense = onDeleteExpense,
                         onDateSelected = { selectedDateForExpenseEpochDay = it.toEpochDay() },
@@ -210,9 +240,16 @@ fun HomeScreen(
 
     if (showAddExpenseSheet) {
         AddExpenseSheet(
-            onDismiss = onHideAddExpenseSheet,
+            onDismiss = {
+                addSheetOpenedFromOverview = false
+                onHideAddExpenseSheet()
+            },
             onSubmitExpense = { amountCents, description, icon ->
                 onAddExpense(amountCents, description, icon, selectedDateForExpense)
+                if (addSheetOpenedFromOverview) {
+                    resetExpensesToLatestTrigger += 1
+                }
+                addSheetOpenedFromOverview = false
             }
         )
     }
@@ -228,6 +265,31 @@ fun HomeScreen(
                         icon = icon
                     )
                 )
+                expenseBeingEdited = null
+            },
+            onDeleteExpense = {
+                onDeleteExpense(editingExpense)
+                coroutineScope.launch {
+                    val dismissJob = launch {
+                        delay(5000)
+                        snackbarHostState.currentSnackbarData?.dismiss()
+                    }
+                    val result = snackbarHostState.showSnackbar(
+                        message = if (editingExpense.description.isNotBlank()) {
+                            "${editingExpense.description} deleted"
+                        } else {
+                            "Entry deleted"
+                        },
+                        actionLabel = "UNDO",
+                        withDismissAction = true,
+                        duration = SnackbarDuration.Indefinite
+                    )
+                    dismissJob.cancel()
+
+                    if (result == SnackbarResult.ActionPerformed) {
+                        onRestoreExpense(editingExpense)
+                    }
+                }
                 expenseBeingEdited = null
             },
             title = "Edit Expense",
