@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,8 +38,8 @@ fun OverviewPage(
     LazyColumn(
         modifier = modifier,
         userScrollEnabled = false,
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 120.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
             Card(
@@ -50,171 +51,152 @@ fun OverviewPage(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(28.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .padding(horizontal = 18.dp, vertical = 16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(
+                                text = "Days Left",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                text = budgetState.daysRemainingInCycle.toString(),
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "Cycle Left",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                text = CurrencyFormatter.format(abs(budgetState.remainingCycleCents)),
+                                style = MaterialTheme.typography.titleLarge,
+                                color = if (budgetState.remainingCycleCents >= 0L) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.error
+                                }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Today's Budget",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        AnimatedCounter(
+                            amountCents = budgetState.remainingTodayCents,
+                            modifier = Modifier.fillMaxWidth(),
+                            textStyle = MaterialTheme.typography.displayLarge,
+                            color = if (budgetState.remainingTodayCents >= 0L) {
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.error
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = "Daily allowance: ${CurrencyFormatter.format(budgetState.dailyBudgetCents)}",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp)
                 ) {
                     Text(
-                        text = "Today's Budget",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    AnimatedCounter(
-                        amountCents = budgetState.remainingTodayCents,
-                        modifier = Modifier.fillMaxWidth(),
-                        textStyle = MaterialTheme.typography.displayLarge,
-                        color = if (budgetState.remainingTodayCents >= 0L) {
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.error
-                        }
+                        text = "Cycle Spending",
+                        style = MaterialTheme.typography.titleMedium
                     )
 
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "remaining",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        text = CurrencyFormatter.format(budgetState.totalSpentThisCycleCents),
+                        style = MaterialTheme.typography.headlineMedium
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column {
                             Text(
-                                text = "Spent Today",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                text = "Before today",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                            Text(
+                                text = CurrencyFormatter.format(previousExpensesTotal),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "Today",
+                                style = MaterialTheme.typography.labelSmall
                             )
                             Text(
                                 text = CurrencyFormatter.format(budgetState.spentTodayCents),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "Daily Allowance",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Text(
-                                text = CurrencyFormatter.format(budgetState.dailyBudgetCents),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                style = MaterialTheme.typography.bodyLarge
                             )
                         }
                     }
-                }
-            }
-        }
 
-        item {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text(
-                            text = "Days Remaining",
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                        Text(
-                            text = budgetState.daysRemainingInCycle.toString(),
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                    }
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            text = "This Cycle",
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                        Text(
-                            text = CurrencyFormatter.format(budgetState.totalSpentThisCycleCents),
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                    }
-                }
-            }
-        }
-
-        if (budgetState.cumulativeSavingsCents != 0L) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (budgetState.cumulativeSavingsCents > 0L) {
-                            MaterialTheme.colorScheme.tertiaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.errorContainer
-                        }
-                    )
-                ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = "Overall ${if (budgetState.cumulativeSavingsCents > 0L) "Savings" else "Deficit"}",
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.labelSmall
                         )
                         Text(
                             text = CurrencyFormatter.format(abs(budgetState.cumulativeSavingsCents)),
-                            style = MaterialTheme.typography.titleLarge,
+                            style = MaterialTheme.typography.bodyLarge,
                             color = if (budgetState.cumulativeSavingsCents > 0L) {
-                                MaterialTheme.colorScheme.onTertiaryContainer
+                                MaterialTheme.colorScheme.tertiary
+                            } else if (budgetState.cumulativeSavingsCents < 0L) {
+                                MaterialTheme.colorScheme.error
                             } else {
-                                MaterialTheme.colorScheme.onErrorContainer
+                                MaterialTheme.colorScheme.onSurface
                             }
-                        )
-                    }
-                }
-            }
-        }
-
-        item {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(18.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "Previous Expenses",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Text(
-                            text = "This cycle before today",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            text = CurrencyFormatter.format(previousExpensesTotal),
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        Text(
-                            text = "Total spent",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }

@@ -15,5 +15,8 @@ data class BudgetState(
     val cumulativeSavingsCents: Long, // Overall savings/deficit across all months
     val paydayDate: Int,
     val cycleStartDate: LocalDate
-)
+) {
+    val remainingCycleCents: Long
+        get() = monthlyBudgetCents - totalSpentThisCycleCents
+}
 

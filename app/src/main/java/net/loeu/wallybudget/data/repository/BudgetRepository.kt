@@ -143,10 +143,10 @@ class BudgetRepository(
                 .toEpochMilli()
             Triple(cycleStartTimestamp, cycleEndTimestamp, todayStartTimestamp)
         }.flatMapLatest { (cycleStartTimestamp, cycleEndTimestamp, todayStartTimestamp) ->
-            expenseDao.getExpensesByDateRangeBeforeTime(
+            val effectiveEndTime = minOf(cycleEndTimestamp, todayStartTimestamp)
+            expenseDao.getExpensesByDateRangeWithEffectiveEndTime(
                 startTime = cycleStartTimestamp,
-                endTime = cycleEndTimestamp,
-                beforeTime = todayStartTimestamp
+                effectiveEndTime = effectiveEndTime
             )
         }
     }
@@ -213,14 +213,18 @@ class BudgetRepository(
                 .toLocalDate()
         } else {
             null
-        } ?: return
+        }
 
         val currentCycleStart = budgetCalculationService.getCycleStartDate(now, settings.paydayDate)
         if (!budgetCalculationService.shouldPerformReset(now, settings.paydayDate, lastResetDate)) {
             return
         }
 
-        var cycleToArchiveStart = lastResetDate
+        if (lastResetDate == null) {
+            return
+        }
+
+        var cycleToArchiveStart: LocalDate = lastResetDate
         while (cycleToArchiveStart.isBefore(currentCycleStart)) {
             val cycleToArchiveEnd = budgetCalculationService.getNextCycleStartDate(cycleToArchiveStart, settings.paydayDate)
             performMonthlyReset(settings, cycleToArchiveStart, cycleToArchiveEnd)
