@@ -18,7 +18,13 @@ class BudgetViewModelFactory(
             BudgetDatabase::class.java,
             "budget_database"
         )
-            .addMigrations(BudgetDatabase.MIGRATION_1_2)
+            .addMigrations(
+                BudgetDatabase.MIGRATION_1_2,
+                BudgetDatabase.MIGRATION_2_3,
+                BudgetDatabase.MIGRATION_3_4,
+                BudgetDatabase.MIGRATION_4_5,
+                BudgetDatabase.MIGRATION_5_6
+            )
             .build()
     }
 

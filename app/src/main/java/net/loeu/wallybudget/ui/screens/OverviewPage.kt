@@ -208,11 +208,11 @@ fun OverviewPage(
                     }
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
-                            text = previousCycleExpenses.size.toString(),
+                            text = CurrencyFormatter.format(previousExpensesTotal),
                             style = MaterialTheme.typography.titleLarge
                         )
                         Text(
-                            text = CurrencyFormatter.format(previousExpensesTotal),
+                            text = "Total spent",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
