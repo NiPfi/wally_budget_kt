@@ -2,6 +2,9 @@ package net.loeu.wallybudget.data.repository
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import net.loeu.wallybudget.data.local.ExpenseDao
 import net.loeu.wallybudget.data.local.MonthlyHistoryDao
 import net.loeu.wallybudget.data.local.UserPreferencesManager
@@ -9,8 +12,11 @@ import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.data.model.Expense
 import net.loeu.wallybudget.data.model.MonthlyHistory
 import net.loeu.wallybudget.data.model.UserSettings
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
@@ -28,17 +34,17 @@ class BudgetRepository(
     fun getBudgetState(): Flow<BudgetState> {
         return combine(
             userSettings,
-            expenseDao.getAllExpenses()
-        ) { settings, _ ->
-            calculateBudgetState(settings)
+            expenseDao.getAllExpenses(),
+            currentDateFlow()
+        ) { settings, _, today ->
+            calculateBudgetState(settings, today)
         }
     }
 
     /**
      * Calculate current budget state
      */
-    private suspend fun calculateBudgetState(settings: UserSettings): BudgetState {
-        val now = LocalDate.now()
+    private suspend fun calculateBudgetState(settings: UserSettings, now: LocalDate): BudgetState {
         val cycleStart = getCycleStartDate(now, settings.paydayDate)
         val cycleEnd = getNextCycleStartDate(now, settings.paydayDate)
 
@@ -155,19 +161,20 @@ class BudgetRepository(
     /**
      * Get expenses for today
      */
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun getTodayExpenses(): Flow<List<Expense>> {
-        val now = LocalDate.now()
-        val todayStart = now.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val todayEnd = now.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        return expenseDao.getExpensesByDateRange(todayStart, todayEnd)
+        return currentDateFlow().flatMapLatest { now ->
+            val todayStart = now.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val todayEnd = now.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            expenseDao.getExpensesByDateRange(todayStart, todayEnd)
+        }
     }
 
     /**
      * Get expenses in the current cycle before today
      */
     fun getPreviousCycleExpenses(): Flow<List<Expense>> {
-        return combine(userSettings, expenseDao.getAllExpenses()) { settings, expenses ->
-            val now = LocalDate.now()
+        return combine(userSettings, expenseDao.getAllExpenses(), currentDateFlow()) { settings, expenses, now ->
             val cycleStart = getCycleStartDate(now, settings.paydayDate)
 
             val cycleStartTimestamp = cycleStart
@@ -293,11 +300,32 @@ class BudgetRepository(
      * Get monthly history
      */
     fun getMonthlyHistory(): Flow<List<MonthlyHistory>> {
-        return monthlyHistoryDao.getAllHistory().combine(expenseDao.getAllExpenses()) { history, _ ->
+        return monthlyHistoryDao.getAllHistory().map { history ->
             history
                 .filter { it.totalSpent > 0.0 }
                 .sortedByDescending { it.endTimestamp }
                 .distinctBy { "${it.year}-${it.month}" }
+        }
+    }
+
+    /**
+     * Emits current date immediately and again at each local midnight.
+     */
+    fun observeCurrentDate(): Flow<LocalDate> = currentDateFlow()
+
+    private fun currentDateFlow(): Flow<LocalDate> = flow {
+        while (true) {
+            val now = LocalDateTime.now()
+            val today = now.toLocalDate()
+            emit(today)
+
+            val nextMidnight = today.plusDays(1)
+                .atStartOfDay(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+            val nowMillis = now.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val delayMillis = (nextMidnight - nowMillis).coerceAtLeast(1L)
+            delay(delayMillis)
         }
     }
 

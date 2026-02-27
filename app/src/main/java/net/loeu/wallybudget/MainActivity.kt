@@ -5,17 +5,21 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.MaterialTheme
+import kotlinx.coroutines.flow.map
 import net.loeu.wallybudget.ui.navigation.Screen
 import net.loeu.wallybudget.ui.screens.HistoryScreen
 import net.loeu.wallybudget.ui.screens.HomeScreen
@@ -51,6 +55,21 @@ fun BudgetApp(
     modifier: Modifier = Modifier
 ) {
     val navController = rememberNavController()
+    val isOnboardingCompleted by viewModel.userSettingsFlow
+        .map { it.isOnboardingCompleted }
+        .collectAsState(initial = null)
+
+    if (isOnboardingCompleted == null) {
+        Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    val onboardingCompleted = isOnboardingCompleted == true
     val userSettings by viewModel.userSettings.collectAsState()
     val budgetState by viewModel.budgetState.collectAsState()
     val todayExpenses by viewModel.todayExpenses.collectAsState()
@@ -58,7 +77,7 @@ fun BudgetApp(
     val monthlyHistory by viewModel.monthlyHistory.collectAsState()
     val isAddExpenseSheetVisible by viewModel.isAddExpenseSheetVisible.collectAsState()
 
-    val startDestination = if (userSettings.isOnboardingCompleted) {
+    val startDestination = if (onboardingCompleted) {
         Screen.Home.route
     } else {
         Screen.Onboarding.route
