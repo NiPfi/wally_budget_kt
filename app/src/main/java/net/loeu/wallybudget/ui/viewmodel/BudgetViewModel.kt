@@ -14,6 +14,7 @@ import net.loeu.wallybudget.data.model.ExpenseIcon
 import net.loeu.wallybudget.data.model.MonthlyHistory
 import net.loeu.wallybudget.data.model.UserSettings
 import net.loeu.wallybudget.data.repository.BudgetRepository
+import java.time.Instant
 import java.time.LocalDate
 
 class BudgetViewModel(
@@ -41,7 +42,8 @@ class BudgetViewModel(
                 remainingToday = 0.0,
                 daysRemainingInCycle = 0,
                 cumulativeSavings = 0.0,
-                paydayDate = 1
+                paydayDate = 1,
+                cycleStartDate = LocalDate.now()
             )
         )
 
@@ -85,12 +87,18 @@ class BudgetViewModel(
     /**
      * Add a new expense
      */
-    fun addExpense(amount: Double, description: String, icon: ExpenseIcon? = null) {
+    fun addExpense(amount: Double, description: String, icon: ExpenseIcon? = null, date: LocalDate = LocalDate.now()) {
         viewModelScope.launch {
+            val timestamp = if (date == LocalDate.now()) {
+                Instant.now().toEpochMilli()
+            } else {
+                date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+            }
             val expense = Expense(
                 amount = amount,
                 description = description,
-                icon = icon
+                icon = icon,
+                timestamp = timestamp
             )
             repository.addExpense(expense)
             _isAddExpenseSheetVisible.value = false

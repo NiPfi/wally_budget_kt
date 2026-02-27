@@ -55,13 +55,14 @@ class BudgetRepository(
         // Calculate days remaining in cycle
         val daysRemaining = ChronoUnit.DAYS.between(now, cycleEnd).toInt()
 
-        // Calculate daily budget
-        val remainingBudget = settings.monthlyBudget - totalSpent
-        val dailyBudget = if (daysRemaining > 0) {
-            remainingBudget / daysRemaining
-        } else {
-            0.0
-        }
+        // Calculate today's budget with carry-over from previous days
+        val daysInCycle = ChronoUnit.DAYS.between(cycleStart, cycleEnd).toInt().coerceAtLeast(1)
+        val baseDailyBudget = settings.monthlyBudget / daysInCycle
+        val daysBeforeToday = ChronoUnit.DAYS.between(cycleStart, now).toInt().coerceAtLeast(0)
+        val allocatedBeforeToday = baseDailyBudget * daysBeforeToday
+        val spentBeforeToday = (totalSpent - spentToday).coerceAtLeast(0.0)
+        val carryOver = allocatedBeforeToday - spentBeforeToday
+        val todayBudget = baseDailyBudget + carryOver
 
         // Get cumulative savings
         val cumulativeSavings = monthlyHistoryDao.getCumulativeSavings() ?: 0.0
@@ -69,12 +70,13 @@ class BudgetRepository(
         return BudgetState(
             monthlyBudget = settings.monthlyBudget,
             totalSpentThisCycle = totalSpent,
-            dailyBudget = dailyBudget,
+            dailyBudget = baseDailyBudget,
             spentToday = spentToday,
-            remainingToday = dailyBudget - spentToday,
+            remainingToday = todayBudget - spentToday,
             daysRemainingInCycle = daysRemaining,
             cumulativeSavings = cumulativeSavings,
-            paydayDate = settings.paydayDate
+            paydayDate = settings.paydayDate,
+            cycleStartDate = cycleStart
         )
     }
 

@@ -1,17 +1,14 @@
 package net.loeu.wallybudget.ui.screens
 
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.width
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,12 +22,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
@@ -44,27 +43,32 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.unit.Velocity
 import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.data.model.Expense
 import net.loeu.wallybudget.ui.components.AddExpenseSheet
 import net.loeu.wallybudget.ui.components.AnimatedCounter
 import net.loeu.wallybudget.ui.components.ExpenseItem
 import net.loeu.wallybudget.util.CurrencyFormatter
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -79,7 +83,8 @@ fun HomeScreen(
     budgetState: BudgetState,
     todayExpenses: List<Expense>,
     previousCycleExpenses: List<Expense>,
-    onAddExpense: (Double, String, net.loeu.wallybudget.data.model.ExpenseIcon?) -> Unit,
+    onAddExpense: (Double, String, net.loeu.wallybudget.data.model.ExpenseIcon?, LocalDate) -> Unit,
+    onUpdateExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToHistory: () -> Unit,
@@ -88,6 +93,9 @@ fun HomeScreen(
     onHideAddExpenseSheet: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var selectedDateForExpense by remember { mutableStateOf(LocalDate.now()) }
+    var expenseBeingEdited by remember { mutableStateOf<Expense?>(null) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -121,22 +129,53 @@ fun HomeScreen(
             val threshold = pageHeightPx * 0.28f
 
             var pageState by remember { mutableStateOf(HomePage.Overview) }
-            var dragOffsetPx by remember { mutableFloatStateOf(0f) }
             var dragging by remember { mutableStateOf(false) }
+            val coroutineScope = rememberCoroutineScope()
+            val offsetAnim = remember { Animatable(0f) }
 
-            val targetOffset = if (pageState == HomePage.Expenses) pageHeightPx else 0f
-            val effectiveOffset = if (dragging) {
-                dragOffsetPx
-            } else {
-                animateFloatAsState(
-                    targetValue = targetOffset,
-                    animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
-                    label = "homePageOffset"
-                ).value
+            LaunchedEffect(pageHeightPx) {
+                offsetAnim.updateBounds(lowerBound = 0f, upperBound = pageHeightPx)
+                if (!dragging) {
+                    offsetAnim.snapTo(if (pageState == HomePage.Expenses) pageHeightPx else 0f)
+                }
             }
 
+            LaunchedEffect(pageState, dragging, pageHeightPx) {
+                if (!dragging) {
+                    val targetOffset = if (pageState == HomePage.Expenses) pageHeightPx else 0f
+                    offsetAnim.animateTo(
+                        targetValue = targetOffset,
+                        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing)
+                    )
+                }
+            }
+
+            val effectiveOffset = offsetAnim.value
+
             val dragState = rememberDraggableState { delta ->
-                dragOffsetPx = (dragOffsetPx - delta).coerceIn(0f, pageHeightPx)
+                coroutineScope.launch {
+                    val nextOffset = (offsetAnim.value - delta).coerceIn(0f, pageHeightPx)
+                    offsetAnim.snapTo(nextOffset)
+                }
+            }
+
+            val onDragStarted = {
+                dragging = true
+                coroutineScope.launch {
+                    offsetAnim.stop()
+                }
+            }
+
+            val onDragStopped: (Float) -> Unit = { velocity ->
+                val currentOffset = offsetAnim.value
+                val shouldOpenExpenses = when {
+                    velocity < -1000f -> true
+                    velocity > 1000f -> false
+                    else -> currentOffset > if (pageState == HomePage.Overview) threshold else pageHeightPx - threshold
+                }
+
+                pageState = if (shouldOpenExpenses) HomePage.Expenses else HomePage.Overview
+                dragging = false
             }
 
             Box(
@@ -153,12 +192,30 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxSize()
                     )
                     ExpensesPage(
+                        budgetState = budgetState,
                         todayExpenses = todayExpenses,
                         previousCycleExpenses = previousCycleExpenses,
+                        onEditExpense = { expenseBeingEdited = it },
                         onDeleteExpense = onDeleteExpense,
+                        onDateSelected = { selectedDateForExpense = it },
                         modifier = Modifier
                             .fillMaxSize()
                             .offset { IntOffset(0, pageHeightPx.roundToInt()) }
+                    )
+                }
+
+                if (pageState == HomePage.Overview) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxSize()
+                            .padding(bottom = 140.dp)
+                            .draggable(
+                                state = dragState,
+                                orientation = Orientation.Vertical,
+                                onDragStarted = { onDragStarted() },
+                                onDragStopped = { velocity -> onDragStopped(velocity) }
+                            )
                     )
                 }
 
@@ -176,20 +233,8 @@ fun HomeScreen(
                         .draggable(
                             state = dragState,
                             orientation = Orientation.Vertical,
-                            onDragStarted = {
-                                dragging = true
-                                dragOffsetPx = effectiveOffset
-                            },
-                            onDragStopped = { velocity ->
-                                val shouldOpenExpenses = when {
-                                    velocity < -1000f -> true
-                                    velocity > 1000f -> false
-                                    else -> dragOffsetPx > if (pageState == HomePage.Overview) threshold else pageHeightPx - threshold
-                                }
-
-                                pageState = if (shouldOpenExpenses) HomePage.Expenses else HomePage.Overview
-                                dragging = false
-                            }
+                            onDragStarted = { onDragStarted() },
+                            onDragStopped = { velocity -> onDragStopped(velocity) }
                         )
                         .pointerInput(Unit) {
                             detectTapGestures(
@@ -229,9 +274,30 @@ fun HomeScreen(
     if (showAddExpenseSheet) {
         AddExpenseSheet(
             onDismiss = onHideAddExpenseSheet,
-            onAddExpense = { amount, description, icon ->
-                onAddExpense(amount, description, icon)
+            onSubmitExpense = { amount, description, icon ->
+                onAddExpense(amount, description, icon, selectedDateForExpense)
             }
+        )
+    }
+
+    expenseBeingEdited?.let { editingExpense ->
+        AddExpenseSheet(
+            onDismiss = { expenseBeingEdited = null },
+            onSubmitExpense = { amount, description, icon ->
+                onUpdateExpense(
+                    editingExpense.copy(
+                        amount = amount,
+                        description = description,
+                        icon = icon
+                    )
+                )
+                expenseBeingEdited = null
+            },
+            title = "Edit Expense",
+            confirmButtonText = "Save Changes",
+            initialAmount = editingExpense.amount,
+            initialDescription = editingExpense.description,
+            initialIcon = editingExpense.icon
         )
     }
 }
@@ -437,105 +503,110 @@ private fun OverviewPage(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ExpensesPage(
+    budgetState: BudgetState,
     todayExpenses: List<Expense>,
     previousCycleExpenses: List<Expense>,
+    onEditExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
+    onDateSelected: (LocalDate) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    LazyColumn(
-        modifier = modifier.background(MaterialTheme.colorScheme.surface),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 72.dp, bottom = 120.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        item {
-            Text(
-                text = "Expenses",
-                style = MaterialTheme.typography.headlineSmall
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-        }
+    val today = LocalDate.now()
+    val cycleStart = budgetState.cycleStartDate
+    val daysInCycleSoFar = ChronoUnit.DAYS.between(cycleStart, today).toInt() + 1
+    
+    val pagerState = rememberPagerState(
+        initialPage = daysInCycleSoFar - 1,
+        pageCount = { daysInCycleSoFar }
+    )
 
-        if (todayExpenses.isEmpty() && previousCycleExpenses.isEmpty()) {
-            item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 24.dp, horizontal = 16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No expenses yet for this cycle.\nTap + to add one.",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
-                    }
+    LaunchedEffect(pagerState.currentPage) {
+        val selectedDate = cycleStart.plusDays(pagerState.currentPage.toLong())
+        onDateSelected(selectedDate)
+    }
+
+    val allExpenses = remember(todayExpenses, previousCycleExpenses) {
+        todayExpenses + previousCycleExpenses
+    }
+
+    Column(
+        modifier = modifier.background(MaterialTheme.colorScheme.surface)
+    ) {
+        Spacer(modifier = Modifier.height(72.dp))
+        
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            val currentDate = cycleStart.plusDays(page.toLong())
+            val isToday = currentDate == today
+            
+            val dayExpenses = remember(allExpenses, currentDate) {
+                allExpenses.filter { expense ->
+                    val expenseDate = java.time.Instant.ofEpochMilli(expense.timestamp)
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDate()
+                    expenseDate == currentDate
                 }
             }
-        } else {
-            item {
-                Text(
-                    text = "Today's Expenses",
-                    style = MaterialTheme.typography.titleMedium
-                )
-            }
 
-            if (todayExpenses.isEmpty()) {
-                item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 24.dp, horizontal = 16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "No expenses today yet.\nTap + to add one.",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center
+            Column(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp, bottom = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = if (isToday) "Today" else currentDate.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() },
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                    Text(
+                        text = currentDate.format(DateTimeFormatter.ofPattern("MMM d, yyyy")),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "Day ${page + 1} of cycle",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 120.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    if (dayExpenses.isEmpty()) {
+                        item {
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 32.dp, horizontal = 16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "No expenses on this day.\nTap + to add one.",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        items(dayExpenses, key = { it.id }) { expense ->
+                            ExpenseItem(
+                                expense = expense,
+                                onEdit = { onEditExpense(expense) },
+                                onDelete = { onDeleteExpense(expense) }
                             )
                         }
                     }
                 }
-            } else {
-                items(todayExpenses, key = { "today-${it.id}" }) { expense ->
-                    ExpenseItem(
-                        expense = expense,
-                        onDelete = { onDeleteExpense(expense) }
-                    )
-                }
             }
-
-            item {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "Previous Expenses",
-                    style = MaterialTheme.typography.titleMedium
-                )
-            }
-
-            if (previousCycleExpenses.isEmpty()) {
-                item {
-                    Text(
-                        text = "No previous expenses in this cycle.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            } else {
-                items(previousCycleExpenses, key = { "previous-${it.id}" }) { expense ->
-                    ExpenseItem(
-                        expense = expense,
-                        onDelete = { onDeleteExpense(expense) }
-                    )
-                }
-            }
-        }
-
-        item {
-            Spacer(modifier = Modifier.height(120.dp))
         }
     }
 }
