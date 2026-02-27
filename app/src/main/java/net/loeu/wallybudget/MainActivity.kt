@@ -4,21 +4,21 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Surface
-import androidx.compose.material3.MaterialTheme
 import kotlinx.coroutines.flow.map
 import net.loeu.wallybudget.ui.navigation.Screen
 import net.loeu.wallybudget.ui.screens.HistoryScreen
@@ -55,8 +55,10 @@ fun BudgetApp(
     modifier: Modifier = Modifier
 ) {
     val navController = rememberNavController()
-    val isOnboardingCompleted by viewModel.userSettingsFlow
-        .map { it.isOnboardingCompleted }
+    val onboardingCompletedFlow = remember(viewModel) {
+        viewModel.userSettingsFlow.map { it.isOnboardingCompleted }
+    }
+    val isOnboardingCompleted by onboardingCompletedFlow
         .collectAsState(initial = null)
 
     if (isOnboardingCompleted == null) {
