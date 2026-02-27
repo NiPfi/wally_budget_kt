@@ -1,6 +1,7 @@
 package net.loeu.wallybudget.ui.components
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
@@ -12,6 +13,7 @@ import net.loeu.wallybudget.data.model.Expense
 import net.loeu.wallybudget.util.CurrencyFormatter
 import net.loeu.wallybudget.util.IconMapper
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -19,12 +21,18 @@ import java.time.format.DateTimeFormatter
 fun ExpenseItem(
     expense: Expense,
     onDelete: () -> Unit,
+    onEdit: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = {},
+                onLongClick = { onEdit?.invoke() }
+            ),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
@@ -106,8 +114,12 @@ fun ExpenseItem(
 }
 
 private fun formatTime(timestamp: Long): String {
-    val instant = Instant.ofEpochMilli(timestamp)
-    val time = instant.atZone(ZoneId.systemDefault()).toLocalTime()
+    val zonedDateTime = Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault())
+    if (zonedDateTime.toLocalDate().isBefore(LocalDate.now())) {
+        return "—"
+    }
+
+    val time = zonedDateTime.toLocalTime()
     val formatter = DateTimeFormatter.ofPattern("HH:mm")
     return time.format(formatter)
 }

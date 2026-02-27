@@ -22,12 +22,17 @@ import net.loeu.wallybudget.util.IconMapper
 @Composable
 fun AddExpenseSheet(
     onDismiss: () -> Unit,
-    onAddExpense: (amount: Double, description: String, icon: ExpenseIcon?) -> Unit,
+    onSubmitExpense: (amount: Double, description: String, icon: ExpenseIcon?) -> Unit,
+    title: String = "Add Expense",
+    confirmButtonText: String = "Add Expense",
+    initialAmount: Double? = null,
+    initialDescription: String = "",
+    initialIcon: ExpenseIcon? = null,
     modifier: Modifier = Modifier
 ) {
-    var amountText by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var selectedIcon by remember { mutableStateOf<ExpenseIcon?>(null) }
+    var amountText by remember(initialAmount) { mutableStateOf(initialAmount?.toString().orEmpty()) }
+    var description by remember(initialDescription) { mutableStateOf(initialDescription) }
+    var selectedIcon by remember(initialIcon) { mutableStateOf(initialIcon) }
     var showError by remember { mutableStateOf(false) }
     var showIconPicker by remember { mutableStateOf(false) }
 
@@ -46,7 +51,7 @@ fun AddExpenseSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Add Expense",
+                    text = title,
                     style = MaterialTheme.typography.headlineSmall
                 )
                 IconButton(onClick = onDismiss) {
@@ -119,7 +124,7 @@ fun AddExpenseSheet(
                             selectedIcon != null -> defaultDescriptionFor(selectedIcon!!)
                             else -> "Expense"
                         }
-                        onAddExpense(amount, finalDescription, selectedIcon)
+                        onSubmitExpense(amount, finalDescription, selectedIcon)
                     } else {
                         showError = true
                     }
@@ -128,7 +133,7 @@ fun AddExpenseSheet(
                     .fillMaxWidth()
                     .height(56.dp)
             ) {
-                Text("Add Expense")
+                Text(confirmButtonText)
             }
 
             Spacer(modifier = Modifier.height(16.dp))

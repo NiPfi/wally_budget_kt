@@ -1,5 +1,7 @@
 package net.loeu.wallybudget.data.model
 
+import java.time.LocalDate
+
 /**
  * Budget state for the current cycle
  */
@@ -11,6 +13,7 @@ data class BudgetState(
     val remainingToday: Double,
     val daysRemainingInCycle: Int,
     val cumulativeSavings: Double, // Overall savings/deficit across all months
-    val paydayDate: Int
+    val paydayDate: Int,
+    val cycleStartDate: LocalDate
 )
 

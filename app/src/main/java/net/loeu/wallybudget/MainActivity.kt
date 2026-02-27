@@ -85,8 +85,11 @@ fun BudgetApp(
                 budgetState = budgetState,
                 todayExpenses = todayExpenses,
                 previousCycleExpenses = previousCycleExpenses,
-                onAddExpense = { amount, description, icon ->
-                    viewModel.addExpense(amount, description, icon)
+                onAddExpense = { amount, description, icon, date ->
+                    viewModel.addExpense(amount, description, icon, date)
+                },
+                onUpdateExpense = { expense ->
+                    viewModel.updateExpense(expense)
                 },
                 onDeleteExpense = { expense ->
                     viewModel.deleteExpense(expense)
