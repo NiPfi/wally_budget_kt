@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import net.loeu.wallybudget.data.model.MonthlyHistory
 import net.loeu.wallybudget.util.CurrencyFormatter
 import java.time.Month
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,7 +30,7 @@ fun HistoryScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
                         )
                     }
@@ -80,7 +81,7 @@ private fun MonthlyHistoryCard(
         "Month ${history.month}"
     }
 
-    val isOverBudget = history.surplus < 0
+    val isOverBudget = history.surplusCents < 0L
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -118,7 +119,7 @@ private fun MonthlyHistoryCard(
                         }
                     )
                     Text(
-                        text = CurrencyFormatter.format(Math.abs(history.surplus)),
+                        text = CurrencyFormatter.format(abs(history.surplusCents)),
                         style = MaterialTheme.typography.titleMedium,
                         color = if (isOverBudget) {
                             MaterialTheme.colorScheme.onErrorContainer
@@ -131,7 +132,7 @@ private fun MonthlyHistoryCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Divider()
+            HorizontalDivider()
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -145,7 +146,7 @@ private fun MonthlyHistoryCard(
                         style = MaterialTheme.typography.labelSmall
                     )
                     Text(
-                        text = CurrencyFormatter.format(history.budgetAmount),
+                        text = CurrencyFormatter.format(history.budgetAmountCents),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -156,7 +157,7 @@ private fun MonthlyHistoryCard(
                         style = MaterialTheme.typography.labelSmall
                     )
                     Text(
-                        text = CurrencyFormatter.format(history.totalSpent),
+                        text = CurrencyFormatter.format(history.totalSpentCents),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }

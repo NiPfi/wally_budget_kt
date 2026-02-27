@@ -3,7 +3,7 @@ package net.loeu.wallybudget.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -16,18 +16,18 @@ import net.loeu.wallybudget.util.CurrencyFormatter
 @Composable
 fun SettingsScreen(
     userSettings: UserSettings,
-    onUpdateBudget: (Double) -> Unit,
+    onUpdateBudget: (Long) -> Unit,
     onUpdatePayday: (Int) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var budgetText by remember { mutableStateOf(userSettings.monthlyBudget.toString()) }
+    var budgetText by remember { mutableStateOf(CurrencyFormatter.centsToDecimalString(userSettings.monthlyBudgetCents)) }
     var paydayText by remember { mutableStateOf(userSettings.paydayDate.toString()) }
     var showSaveSnackbar by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(userSettings) {
-        budgetText = userSettings.monthlyBudget.toString()
+        budgetText = CurrencyFormatter.centsToDecimalString(userSettings.monthlyBudgetCents)
         paydayText = userSettings.paydayDate.toString()
     }
 
@@ -38,7 +38,7 @@ fun SettingsScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
                         )
                     }
@@ -93,17 +93,17 @@ fun SettingsScreen(
 
             Button(
                 onClick = {
-                    val budget = budgetText.toDoubleOrNull()
+                    val budgetCents = CurrencyFormatter.parseAmountToCents(budgetText)
                     val payday = paydayText.toIntOrNull()
 
-                    if (budget != null && budget > 0) {
-                        onUpdateBudget(budget)
+                    if (budgetCents != null && budgetCents > 0L) {
+                        onUpdateBudget(budgetCents)
                     }
                     if (payday != null && payday in 1..31) {
                         onUpdatePayday(payday)
                     }
 
-                    if (budget != null && payday != null && budget > 0 && payday in 1..31) {
+                    if (budgetCents != null && payday != null && budgetCents > 0L && payday in 1..31) {
                         showSaveSnackbar = true
                     }
                 },

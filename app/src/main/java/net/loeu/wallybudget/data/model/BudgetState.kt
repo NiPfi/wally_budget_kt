@@ -6,13 +6,13 @@ import java.time.LocalDate
  * Budget state for the current cycle
  */
 data class BudgetState(
-    val monthlyBudget: Double,
-    val totalSpentThisCycle: Double,
-    val dailyBudget: Double,
-    val spentToday: Double,
-    val remainingToday: Double,
+    val monthlyBudgetCents: Long,
+    val totalSpentThisCycleCents: Long,
+    val dailyBudgetCents: Long,
+    val spentTodayCents: Long,
+    val remainingTodayCents: Long,
     val daysRemainingInCycle: Int,
-    val cumulativeSavings: Double, // Overall savings/deficit across all months
+    val cumulativeSavingsCents: Long, // Overall savings/deficit across all months
     val paydayDate: Int,
     val cycleStartDate: LocalDate
 )

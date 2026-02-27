@@ -23,15 +23,15 @@ import kotlin.math.roundToInt
  */
 @Composable
 fun AnimatedCounter(
-    amount: Double,
+    amountCents: Long,
     modifier: Modifier = Modifier,
     textStyle: TextStyle = LocalTextStyle.current,
     color: Color = MaterialTheme.colorScheme.onBackground
 ) {
-    val formattedAmount = CurrencyFormatter.format(amount)
+    val formattedAmount = CurrencyFormatter.format(amountCents)
 
     AnimatedCounterWithAnimation(
-        amount = amount,
+        amountCents = amountCents,
         formattedAmount = formattedAmount,
         textStyle = textStyle,
         color = color,
@@ -41,17 +41,17 @@ fun AnimatedCounter(
 
 @Composable
 private fun AnimatedCounterWithAnimation(
-    amount: Double,
+    amountCents: Long,
     formattedAmount: String,
     textStyle: TextStyle,
     color: Color,
     modifier: Modifier = Modifier
 ) {
-    val animatable = remember { Animatable(amount.toFloat()) }
+    val animatable = remember { Animatable(amountCents.toFloat()) }
 
-    LaunchedEffect(amount) {
+    LaunchedEffect(amountCents) {
         animatable.animateTo(
-            targetValue = amount.toFloat(),
+            targetValue = amountCents.toFloat(),
             animationSpec = tween(
                 durationMillis = 300,
                 easing = FastOutSlowInEasing
@@ -59,7 +59,7 @@ private fun AnimatedCounterWithAnimation(
         )
     }
 
-    val currentFormattedAmount = CurrencyFormatter.format(animatable.value.toDouble())
+    val currentFormattedAmount = CurrencyFormatter.format(animatable.value.toLong())
 
     Text(
         text = currentFormattedAmount,

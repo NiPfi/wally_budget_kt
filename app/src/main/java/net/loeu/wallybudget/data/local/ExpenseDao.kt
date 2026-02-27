@@ -25,8 +25,8 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE timestamp >= :startTime AND timestamp < :endTime ORDER BY timestamp DESC")
     fun getExpensesByDateRange(startTime: Long, endTime: Long): Flow<List<Expense>>
 
-    @Query("SELECT SUM(amount) FROM expenses WHERE timestamp >= :startTime AND timestamp < :endTime")
-    suspend fun getTotalSpentInRange(startTime: Long, endTime: Long): Double?
+    @Query("SELECT SUM(amountCents) FROM expenses WHERE timestamp >= :startTime AND timestamp < :endTime")
+    suspend fun getTotalSpentInRange(startTime: Long, endTime: Long): Long?
 
     @Query("SELECT COUNT(*) FROM expenses WHERE timestamp >= :startTime AND timestamp < :endTime")
     suspend fun getExpenseCountInRange(startTime: Long, endTime: Long): Int

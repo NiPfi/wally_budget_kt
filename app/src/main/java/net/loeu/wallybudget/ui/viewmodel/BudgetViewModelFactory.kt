@@ -17,7 +17,9 @@ class BudgetViewModelFactory(
             context.applicationContext,
             BudgetDatabase::class.java,
             "budget_database"
-        ).build()
+        )
+            .addMigrations(BudgetDatabase.MIGRATION_1_2)
+            .build()
     }
 
     private val userPreferencesManager by lazy {

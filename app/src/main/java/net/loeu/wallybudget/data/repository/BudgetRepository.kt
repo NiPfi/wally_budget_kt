@@ -19,6 +19,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
+import kotlin.math.roundToLong
 
 class BudgetRepository(
     private val expenseDao: ExpenseDao,
@@ -51,36 +52,36 @@ class BudgetRepository(
         val startTime = cycleStart.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val endTime = cycleEnd.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
-        val totalSpent = expenseDao.getTotalSpentInRange(startTime, endTime) ?: 0.0
+        val totalSpentCents = expenseDao.getTotalSpentInRange(startTime, endTime) ?: 0L
 
         // Calculate spent today
         val todayStart = now.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val todayEnd = now.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val spentToday = expenseDao.getTotalSpentInRange(todayStart, todayEnd) ?: 0.0
+        val spentTodayCents = expenseDao.getTotalSpentInRange(todayStart, todayEnd) ?: 0L
 
         // Calculate days remaining in cycle
         val daysRemaining = ChronoUnit.DAYS.between(now, cycleEnd).toInt()
 
         // Calculate today's budget with carry-over from previous days
         val daysInCycle = ChronoUnit.DAYS.between(cycleStart, cycleEnd).toInt().coerceAtLeast(1)
-        val baseDailyBudget = settings.monthlyBudget / daysInCycle
+        val baseDailyBudgetCents = (settings.monthlyBudgetCents.toDouble() / daysInCycle).roundToLong()
         val daysBeforeToday = ChronoUnit.DAYS.between(cycleStart, now).toInt().coerceAtLeast(0)
-        val allocatedBeforeToday = baseDailyBudget * daysBeforeToday
-        val spentBeforeToday = (totalSpent - spentToday).coerceAtLeast(0.0)
-        val carryOver = allocatedBeforeToday - spentBeforeToday
-        val todayBudget = baseDailyBudget + carryOver
+        val allocatedBeforeTodayCents = ((settings.monthlyBudgetCents.toDouble() * daysBeforeToday) / daysInCycle).roundToLong()
+        val spentBeforeTodayCents = (totalSpentCents - spentTodayCents).coerceAtLeast(0L)
+        val carryOverCents = allocatedBeforeTodayCents - spentBeforeTodayCents
+        val todayBudgetCents = baseDailyBudgetCents + carryOverCents
 
         // Get cumulative savings
-        val cumulativeSavings = monthlyHistoryDao.getCumulativeSavings() ?: 0.0
+        val cumulativeSavingsCents = monthlyHistoryDao.getCumulativeSavings() ?: 0L
 
         return BudgetState(
-            monthlyBudget = settings.monthlyBudget,
-            totalSpentThisCycle = totalSpent,
-            dailyBudget = baseDailyBudget,
-            spentToday = spentToday,
-            remainingToday = todayBudget - spentToday,
+            monthlyBudgetCents = settings.monthlyBudgetCents,
+            totalSpentThisCycleCents = totalSpentCents,
+            dailyBudgetCents = baseDailyBudgetCents,
+            spentTodayCents = spentTodayCents,
+            remainingTodayCents = todayBudgetCents - spentTodayCents,
             daysRemainingInCycle = daysRemaining,
-            cumulativeSavings = cumulativeSavings,
+            cumulativeSavingsCents = cumulativeSavingsCents,
             paydayDate = settings.paydayDate,
             cycleStartDate = cycleStart
         )
@@ -202,8 +203,8 @@ class BudgetRepository(
     /**
      * Update monthly budget
      */
-    suspend fun updateMonthlyBudget(amount: Double) {
-        userPreferencesManager.updateMonthlyBudget(amount)
+    suspend fun updateMonthlyBudget(amountCents: Long) {
+        userPreferencesManager.updateMonthlyBudget(amountCents)
     }
 
     /**
@@ -217,20 +218,20 @@ class BudgetRepository(
      * Complete onboarding
      */
     suspend fun completeOnboarding(
-        monthlyBudget: Double,
+        monthlyBudgetCents: Long,
         paydayDate: Int,
         cycleStartDate: LocalDate,
-        previousExpenses: Double
+        previousExpensesCents: Long
     ) {
-        userPreferencesManager.updateMonthlyBudget(monthlyBudget)
+        userPreferencesManager.updateMonthlyBudget(monthlyBudgetCents)
         userPreferencesManager.updatePaydayDate(paydayDate)
         userPreferencesManager.updateLastResetTimestamp(
             cycleStartDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         )
 
-        if (previousExpenses > 0.0) {
+        if (previousExpensesCents > 0L) {
             val seedExpense = Expense(
-                amount = previousExpenses,
+                amountCents = previousExpensesCents,
                 description = "Previous cycle expenses",
                 timestamp = cycleStartDate.atTime(12, 0)
                     .atZone(ZoneId.systemDefault())
@@ -273,10 +274,10 @@ class BudgetRepository(
         // Get total spent in previous cycle
         val startTime = previousCycleStart.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val endTime = previousCycleEnd.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val totalSpent = expenseDao.getTotalSpentInRange(startTime, endTime) ?: 0.0
+        val totalSpentCents = expenseDao.getTotalSpentInRange(startTime, endTime) ?: 0L
 
         // Calculate surplus/deficit
-        val surplus = settings.monthlyBudget - totalSpent
+        val surplusCents = settings.monthlyBudgetCents - totalSpentCents
 
         val expenseCount = expenseDao.getExpenseCountInRange(startTime, endTime)
 
@@ -284,9 +285,9 @@ class BudgetRepository(
             val history = MonthlyHistory(
                 year = previousCycleStart.year,
                 month = previousCycleStart.monthValue,
-                budgetAmount = settings.monthlyBudget,
-                totalSpent = totalSpent,
-                surplus = surplus,
+                budgetAmountCents = settings.monthlyBudgetCents,
+                totalSpentCents = totalSpentCents,
+                surplusCents = surplusCents,
                 endTimestamp = endTime
             )
             monthlyHistoryDao.insert(history)
@@ -302,9 +303,8 @@ class BudgetRepository(
     fun getMonthlyHistory(): Flow<List<MonthlyHistory>> {
         return monthlyHistoryDao.getAllHistory().map { history ->
             history
-                .filter { it.totalSpent > 0.0 }
+                .filter { it.totalSpentCents > 0L }
                 .sortedByDescending { it.endTimestamp }
-                .distinctBy { "${it.year}-${it.month}" }
         }
     }
 
@@ -332,8 +332,8 @@ class BudgetRepository(
     /**
      * Get cumulative savings
      */
-    suspend fun getCumulativeSavings(): Double {
-        return monthlyHistoryDao.getCumulativeSavings() ?: 0.0
+    suspend fun getCumulativeSavings(): Long {
+        return monthlyHistoryDao.getCumulativeSavings() ?: 0L
     }
 }
 

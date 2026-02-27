@@ -12,11 +12,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import net.loeu.wallybudget.util.CurrencyFormatter
 import java.time.LocalDate
 
 @Composable
 fun OnboardingScreen(
-    onComplete: (monthlyBudget: Double, paydayDate: Int, cycleStartDate: LocalDate, previousExpenses: Double) -> Unit,
+    onComplete: (monthlyBudgetCents: Long, paydayDate: Int, cycleStartDate: LocalDate, previousExpensesCents: Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var budgetText by remember { mutableStateOf("") }
@@ -109,10 +110,10 @@ fun OnboardingScreen(
 
         Button(
             onClick = {
-                val budget = budgetText.toDoubleOrNull()
+                val budgetCents = CurrencyFormatter.parseAmountToCents(budgetText)
                 val payday = paydayText.toIntOrNull()
                 
-                if (budget != null && budget > 0 && payday != null && payday in 1..31) {
+                if (budgetCents != null && budgetCents > 0L && payday != null && payday in 1..31) {
                     val currentMonth = today.month
                     val currentYear = today.year
                     val maxDaysCurrent = today.lengthOfMonth()
@@ -127,7 +128,7 @@ fun OnboardingScreen(
                         cycleStartDate = LocalDate.of(prevMonthDate.year, prevMonthDate.month, actualPaydayPrev)
                     }
                     
-                    onComplete(budget, payday, cycleStartDate, 0.0)
+                    onComplete(budgetCents, payday, cycleStartDate, 0L)
                 } else {
                     showError = true
                 }
