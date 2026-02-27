@@ -2,10 +2,12 @@ package net.loeu.wallybudget.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import net.loeu.wallybudget.data.model.BudgetState
@@ -21,8 +23,10 @@ class BudgetViewModel(
     private val repository: BudgetRepository
 ) : ViewModel() {
 
+    val userSettingsFlow: Flow<UserSettings> = repository.userSettings
+
     // User settings
-    val userSettings: StateFlow<UserSettings> = repository.userSettings
+    val userSettings: StateFlow<UserSettings> = userSettingsFlow
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -76,9 +80,10 @@ class BudgetViewModel(
     val isAddExpenseSheetVisible = _isAddExpenseSheetVisible.asStateFlow()
 
     init {
-        // Check for monthly reset on initialization
+        // Check for monthly reset on initialization and local date changes
         viewModelScope.launch {
-            userSettings.collect { settings ->
+            combine(userSettingsFlow, repository.observeCurrentDate()) { settings, _ -> settings }
+                .collect { settings ->
                 repository.checkAndPerformMonthlyReset(settings)
             }
         }
