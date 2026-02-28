@@ -16,11 +16,13 @@ import net.loeu.wallybudget.data.model.ExpenseIcon
 import net.loeu.wallybudget.data.model.MonthlyHistory
 import net.loeu.wallybudget.data.model.UserSettings
 import net.loeu.wallybudget.data.repository.BudgetRepository
+import net.loeu.wallybudget.data.time.CurrentDateProvider
 import java.time.Instant
 import java.time.LocalDate
 
 class BudgetViewModel(
-    private val repository: BudgetRepository
+    private val repository: BudgetRepository,
+    private val currentDateProvider: CurrentDateProvider
 ) : ViewModel() {
 
     val userSettingsFlow: Flow<UserSettings> = repository.userSettings
@@ -82,7 +84,7 @@ class BudgetViewModel(
     init {
         // Check for monthly reset on initialization and local date changes
         viewModelScope.launch {
-            combine(userSettingsFlow, repository.observeCurrentDate()) { settings, _ -> settings }
+            combine(userSettingsFlow, currentDateProvider.observeCurrentDate()) { settings, _ -> settings }
                 .collect { settings ->
                 repository.checkAndPerformMonthlyReset(settings)
             }

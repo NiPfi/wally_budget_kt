@@ -7,6 +7,7 @@ import androidx.room.Room
 import net.loeu.wallybudget.data.local.BudgetDatabase
 import net.loeu.wallybudget.data.local.UserPreferencesManager
 import net.loeu.wallybudget.data.repository.BudgetRepository
+import net.loeu.wallybudget.data.time.SystemCurrentDateProvider
 
 class BudgetViewModelFactory(
     private val context: Context
@@ -32,18 +33,23 @@ class BudgetViewModelFactory(
         UserPreferencesManager(context.applicationContext)
     }
 
+    private val currentDateProvider by lazy {
+        SystemCurrentDateProvider()
+    }
+
     private val repository by lazy {
         BudgetRepository(
             expenseDao = database.expenseDao(),
             monthlyHistoryDao = database.monthlyHistoryDao(),
-            userPreferencesManager = userPreferencesManager
+            userPreferencesManager = userPreferencesManager,
+            currentDateProvider = currentDateProvider
         )
     }
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(BudgetViewModel::class.java)) {
-            return BudgetViewModel(repository) as T
+            return BudgetViewModel(repository, currentDateProvider) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
