@@ -10,6 +10,7 @@ import net.loeu.wallybudget.data.local.UserPreferencesManager
 import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.data.model.Expense
 import net.loeu.wallybudget.data.model.MonthlyHistory
+import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.data.model.UserSettings
 import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.data.time.SystemCurrentDateProvider
@@ -142,6 +143,10 @@ class BudgetRepository(
         userPreferencesManager.updatePaydayDate(day)
     }
 
+    suspend fun updateForecastSensitivityPercent(percent: Int) {
+        userPreferencesManager.updateForecastSensitivityPercent(percent)
+    }
+
     /**
      * Complete onboarding
      */
@@ -244,6 +249,26 @@ class BudgetRepository(
             history
                 .filter { it.totalSpentCents > 0L }
                 .sortedByDescending { it.endTimestamp }
+        }
+    }
+
+    /**
+     * Forecast spending outcome for the active cycle.
+     */
+    fun getSpendingForecast(): Flow<SpendingForecast> {
+        return combine(
+            getBudgetState(),
+            monthlyHistoryDao.getAllHistory(),
+            userSettings,
+            currentDateProvider.observeCurrentDate()
+        ) { budgetState, history, settings, now ->
+            val usableHistory = history.filter { it.totalSpentCents > 0L }
+            budgetCalculationService.calculateSpendingForecast(
+                budgetState = budgetState,
+                now = now,
+                monthlyHistory = usableHistory,
+                forecastSensitivityPercent = settings.forecastSensitivityPercent
+            )
         }
     }
 

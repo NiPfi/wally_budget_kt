@@ -14,6 +14,7 @@ import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.data.model.Expense
 import net.loeu.wallybudget.data.model.ExpenseIcon
 import net.loeu.wallybudget.data.model.MonthlyHistory
+import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.data.model.UserSettings
 import net.loeu.wallybudget.data.repository.BudgetRepository
 import net.loeu.wallybudget.data.time.CurrentDateProvider
@@ -75,6 +76,19 @@ class BudgetViewModel(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
+        )
+
+    val spendingForecast: StateFlow<SpendingForecast> = repository.getSpendingForecast()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = SpendingForecast(
+                estimatedEndCycleRemainingCents = 0L,
+                projectedTotalSpentCents = 0L,
+                projectedDailySpendCents = 0L,
+                historicalAdjustmentPercent = 0,
+                historyCyclesUsed = 0
+            )
         )
 
     // UI state
@@ -184,6 +198,12 @@ class BudgetViewModel(
     fun updatePaydayDate(day: Int) {
         viewModelScope.launch {
             repository.updatePaydayDate(day)
+        }
+    }
+
+    fun updateForecastSensitivityPercent(percent: Int) {
+        viewModelScope.launch {
+            repository.updateForecastSensitivityPercent(percent)
         }
     }
 }

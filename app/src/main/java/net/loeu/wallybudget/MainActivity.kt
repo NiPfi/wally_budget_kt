@@ -76,6 +76,7 @@ fun BudgetApp(
     val budgetState by viewModel.budgetState.collectAsState()
     val todayExpenses by viewModel.todayExpenses.collectAsState()
     val previousCycleExpenses by viewModel.previousCycleExpenses.collectAsState()
+    val spendingForecast by viewModel.spendingForecast.collectAsState()
     val monthlyHistory by viewModel.monthlyHistory.collectAsState()
     val isAddExpenseSheetVisible by viewModel.isAddExpenseSheetVisible.collectAsState()
 
@@ -106,6 +107,7 @@ fun BudgetApp(
                 budgetState = budgetState,
                 todayExpenses = todayExpenses,
                 previousCycleExpenses = previousCycleExpenses,
+                spendingForecast = spendingForecast,
                 onAddExpense = { amountCents, description, icon, date ->
                     viewModel.addExpense(amountCents, description, icon, date)
                 },
@@ -138,6 +140,9 @@ fun BudgetApp(
                 },
                 onUpdatePayday = { payday ->
                     viewModel.updatePaydayDate(payday)
+                },
+                onUpdateForecastSensitivity = { percent ->
+                    viewModel.updateForecastSensitivityPercent(percent)
                 },
                 onNavigateBack = {
                     navController.popBackStack()

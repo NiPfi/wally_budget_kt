@@ -14,11 +14,16 @@ import net.loeu.wallybudget.data.model.UserSettings
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_settings")
 
+private const val FORECAST_SENSITIVITY_MIN = 20
+private const val FORECAST_SENSITIVITY_MAX = 90
+private const val FORECAST_SENSITIVITY_DEFAULT = 60
+
 class UserPreferencesManager(private val context: Context) {
 
     private object PreferenceKeys {
         val MONTHLY_BUDGET_CENTS = longPreferencesKey("monthly_budget_cents")
         val PAYDAY_DATE = intPreferencesKey("payday_date")
+        val FORECAST_SENSITIVITY_PERCENT = intPreferencesKey("forecast_sensitivity_percent")
         val LAST_RESET_TIMESTAMP = longPreferencesKey("last_reset_timestamp")
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
     }
@@ -27,6 +32,9 @@ class UserPreferencesManager(private val context: Context) {
         UserSettings(
             monthlyBudgetCents = preferences[PreferenceKeys.MONTHLY_BUDGET_CENTS] ?: 0L,
             paydayDate = preferences[PreferenceKeys.PAYDAY_DATE] ?: 1,
+            forecastSensitivityPercent = (preferences[PreferenceKeys.FORECAST_SENSITIVITY_PERCENT]
+                ?: FORECAST_SENSITIVITY_DEFAULT)
+                .coerceIn(FORECAST_SENSITIVITY_MIN, FORECAST_SENSITIVITY_MAX),
             lastResetTimestamp = preferences[PreferenceKeys.LAST_RESET_TIMESTAMP] ?: 0L,
             isOnboardingCompleted = preferences[PreferenceKeys.ONBOARDING_COMPLETED] ?: false
         )
@@ -41,6 +49,13 @@ class UserPreferencesManager(private val context: Context) {
     suspend fun updatePaydayDate(day: Int) {
         context.dataStore.edit { preferences ->
             preferences[PreferenceKeys.PAYDAY_DATE] = day
+        }
+    }
+
+    suspend fun updateForecastSensitivityPercent(percent: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferenceKeys.FORECAST_SENSITIVITY_PERCENT] =
+                percent.coerceIn(FORECAST_SENSITIVITY_MIN, FORECAST_SENSITIVITY_MAX)
         }
     }
 
@@ -60,6 +75,11 @@ class UserPreferencesManager(private val context: Context) {
         context.dataStore.edit { preferences ->
             preferences[PreferenceKeys.MONTHLY_BUDGET_CENTS] = settings.monthlyBudgetCents
             preferences[PreferenceKeys.PAYDAY_DATE] = settings.paydayDate
+            preferences[PreferenceKeys.FORECAST_SENSITIVITY_PERCENT] =
+                settings.forecastSensitivityPercent.coerceIn(
+                    FORECAST_SENSITIVITY_MIN,
+                    FORECAST_SENSITIVITY_MAX
+                )
             preferences[PreferenceKeys.LAST_RESET_TIMESTAMP] = settings.lastResetTimestamp
             preferences[PreferenceKeys.ONBOARDING_COMPLETED] = settings.isOnboardingCompleted
         }

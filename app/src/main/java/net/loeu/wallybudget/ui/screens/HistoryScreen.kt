@@ -82,7 +82,7 @@ private fun MonthlyHistoryCard(
             containerColor = if (isOverBudget) {
                 MaterialTheme.colorScheme.errorContainer
             } else {
-                MaterialTheme.colorScheme.tertiaryContainer
+                MaterialTheme.colorScheme.surfaceVariant
             }
         )
     ) {
@@ -108,7 +108,7 @@ private fun MonthlyHistoryCard(
                         color = if (isOverBudget) {
                             MaterialTheme.colorScheme.onErrorContainer
                         } else {
-                            MaterialTheme.colorScheme.onTertiaryContainer
+                            MaterialTheme.colorScheme.onSurfaceVariant
                         }
                     )
                     Text(
@@ -117,7 +117,7 @@ private fun MonthlyHistoryCard(
                         color = if (isOverBudget) {
                             MaterialTheme.colorScheme.onErrorContainer
                         } else {
-                            MaterialTheme.colorScheme.onTertiaryContainer
+                            MaterialTheme.colorScheme.onSurface
                         }
                     )
                 }

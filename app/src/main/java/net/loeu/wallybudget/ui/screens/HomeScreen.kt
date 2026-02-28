@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.data.model.Expense
+import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.ui.components.AddExpenseSheet
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -60,6 +61,7 @@ fun HomeScreen(
     budgetState: BudgetState,
     todayExpenses: List<Expense>,
     previousCycleExpenses: List<Expense>,
+    spendingForecast: SpendingForecast,
     onAddExpense: (Long, String, net.loeu.wallybudget.data.model.ExpenseIcon?, LocalDate) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
@@ -139,6 +141,7 @@ fun HomeScreen(
                     OverviewPage(
                         budgetState = budgetState,
                         previousCycleExpenses = previousCycleExpenses,
+                        spendingForecast = spendingForecast,
                         modifier = Modifier.fillMaxSize()
                     )
                     ExpensesPage(

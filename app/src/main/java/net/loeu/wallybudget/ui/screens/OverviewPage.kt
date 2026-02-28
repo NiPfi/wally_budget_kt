@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.data.model.Expense
+import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.ui.components.AnimatedCounter
 import net.loeu.wallybudget.util.CurrencyFormatter
 import kotlin.math.abs
@@ -29,6 +30,7 @@ import kotlin.math.abs
 fun OverviewPage(
     budgetState: BudgetState,
     previousCycleExpenses: List<Expense>,
+    spendingForecast: SpendingForecast,
     modifier: Modifier = Modifier
 ) {
     val previousExpensesTotal = remember(previousCycleExpenses) {
@@ -226,6 +228,93 @@ fun OverviewPage(
                             text = CurrencyFormatter.format(adjustedDailyAllowanceCents),
                             style = MaterialTheme.typography.bodyLarge
                         )
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp)
+                ) {
+                    Text(
+                        text = "Forecast",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "Est. cycle ${if (spendingForecast.isProjectedOverBudget) "deficit" else "left"}",
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    Text(
+                        text = CurrencyFormatter.format(abs(spendingForecast.estimatedEndCycleRemainingCents)),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = if (spendingForecast.isProjectedOverBudget) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.tertiary
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Projected spend",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                            Text(
+                                text = CurrencyFormatter.format(spendingForecast.projectedTotalSpentCents),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "Daily pace",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                            Text(
+                                text = CurrencyFormatter.format(spendingForecast.projectedDailySpendCents),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+
+                    if (spendingForecast.historyCyclesUsed > 0) {
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Habit adjustment",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                            Text(
+                                text = "${if (spendingForecast.historicalAdjustmentPercent >= 0) "+" else ""}${spendingForecast.historicalAdjustmentPercent}%",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (spendingForecast.historicalAdjustmentPercent > 0) {
+                                    MaterialTheme.colorScheme.error
+                                } else if (spendingForecast.historicalAdjustmentPercent < 0) {
+                                    MaterialTheme.colorScheme.tertiary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                }
+                            )
+                        }
                     }
 
                     if (budgetState.cumulativeSavingsCents != 0L) {
