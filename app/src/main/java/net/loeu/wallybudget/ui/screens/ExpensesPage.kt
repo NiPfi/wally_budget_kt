@@ -191,7 +191,7 @@ fun ExpensesPage(
                         .padding(horizontal = 16.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = if (dayRemaining >= 0) {
-                            MaterialTheme.colorScheme.tertiaryContainer
+                            MaterialTheme.colorScheme.surfaceVariant
                         } else {
                             MaterialTheme.colorScheme.errorContainer
                         }
@@ -213,7 +213,7 @@ fun ExpensesPage(
                                 text = CurrencyFormatter.format(abs(dayRemaining)),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = if (dayRemaining >= 0) {
-                                    MaterialTheme.colorScheme.onTertiaryContainer
+                                    MaterialTheme.colorScheme.onSurface
                                 } else {
                                     MaterialTheme.colorScheme.onErrorContainer
                                 }
@@ -229,7 +229,7 @@ fun ExpensesPage(
                                 text = CurrencyFormatter.format(dayTotalSpent),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = if (dayRemaining >= 0) {
-                                    MaterialTheme.colorScheme.onTertiaryContainer
+                                    MaterialTheme.colorScheme.onSurface
                                 } else {
                                     MaterialTheme.colorScheme.onErrorContainer
                                 }

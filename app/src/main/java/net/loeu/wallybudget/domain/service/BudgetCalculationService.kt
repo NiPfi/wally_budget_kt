@@ -1,10 +1,16 @@
 package net.loeu.wallybudget.domain.service
 
 import net.loeu.wallybudget.data.model.BudgetState
+import net.loeu.wallybudget.data.model.MonthlyHistory
+import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.data.model.UserSettings
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
+import kotlin.math.roundToInt
 import kotlin.math.roundToLong
+
+private const val FORECAST_SENSITIVITY_MIN = 20
+private const val FORECAST_SENSITIVITY_MAX = 90
 
 /**
  * Service for budget-related business logic and calculations.
@@ -94,6 +100,57 @@ class BudgetCalculationService {
      */
     fun calculateSurplus(monthlyBudgetCents: Long, totalSpentCents: Long): Long {
         return monthlyBudgetCents - totalSpentCents
+    }
+
+    /**
+     * Forecast spending outcome for the active cycle using current pace and historical habits.
+     */
+    fun calculateSpendingForecast(
+        budgetState: BudgetState,
+        now: LocalDate,
+        monthlyHistory: List<MonthlyHistory>,
+        forecastSensitivityPercent: Int
+    ): SpendingForecast {
+        val cycleStart = budgetState.cycleStartDate
+        val cycleEnd = getNextCycleStartDate(now, budgetState.paydayDate)
+
+        val totalCycleDays = ChronoUnit.DAYS.between(cycleStart, cycleEnd).toInt().coerceAtLeast(1)
+        val elapsedCycleDays = (ChronoUnit.DAYS.between(cycleStart, now).toInt().coerceAtLeast(0) + 1)
+            .coerceAtMost(totalCycleDays)
+
+        val currentDailyPaceCents = (budgetState.totalSpentThisCycleCents.toDouble() / elapsedCycleDays).roundToLong()
+
+        val historyForHabits = monthlyHistory
+            .filter { it.budgetAmountCents > 0L }
+            .take(6)
+
+        val historicalSpendRatio = if (historyForHabits.isNotEmpty()) {
+            historyForHabits
+                .map { it.totalSpentCents.toDouble() / it.budgetAmountCents }
+                .average()
+        } else {
+            1.0
+        }
+
+        val sensitivity = (
+            forecastSensitivityPercent.coerceIn(
+                FORECAST_SENSITIVITY_MIN,
+                FORECAST_SENSITIVITY_MAX
+            ) / 100.0
+        )
+        val blendedHistoricalMultiplier = 1.0 + ((historicalSpendRatio - 1.0) * sensitivity)
+        val historicalAdjustmentMultiplier = blendedHistoricalMultiplier.coerceIn(0.75, 1.5)
+        val projectedTotalSpentCents =
+            (currentDailyPaceCents.toDouble() * totalCycleDays * historicalAdjustmentMultiplier).roundToLong()
+        val estimatedEndCycleRemainingCents = budgetState.monthlyBudgetCents - projectedTotalSpentCents
+
+        return SpendingForecast(
+            estimatedEndCycleRemainingCents = estimatedEndCycleRemainingCents,
+            projectedTotalSpentCents = projectedTotalSpentCents,
+            projectedDailySpendCents = currentDailyPaceCents,
+            historicalAdjustmentPercent = ((historicalAdjustmentMultiplier - 1.0) * 100.0).roundToInt(),
+            historyCyclesUsed = historyForHabits.size
+        )
     }
 
     /**
