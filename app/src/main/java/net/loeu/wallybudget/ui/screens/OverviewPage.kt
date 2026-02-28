@@ -34,6 +34,12 @@ fun OverviewPage(
     val previousExpensesTotal = remember(previousCycleExpenses) {
         previousCycleExpenses.sumOf { it.amountCents }
     }
+    val adjustedDailyAllowanceCents = remember(budgetState.remainingTodayCents, budgetState.spentTodayCents) {
+        budgetState.remainingTodayCents + budgetState.spentTodayCents
+    }
+    val dailyAdjustmentCents = remember(adjustedDailyAllowanceCents, budgetState.dailyBudgetCents) {
+        adjustedDailyAllowanceCents - budgetState.dailyBudgetCents
+    }
 
     LazyColumn(
         modifier = modifier,
@@ -116,12 +122,6 @@ fun OverviewPage(
                         )
 
                         Spacer(modifier = Modifier.height(12.dp))
-
-                        Text(
-                            text = "Daily allowance: ${CurrencyFormatter.format(budgetState.dailyBudgetCents)}",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
                     }
                 }
             }
@@ -183,21 +183,73 @@ fun OverviewPage(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Column {
+                            Text(
+                                text = "Base daily",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                            Text(
+                                text = CurrencyFormatter.format(budgetState.dailyBudgetCents),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "Adjustment",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                            Text(
+                                text = "${if (dailyAdjustmentCents >= 0L) "+" else "-"}${CurrencyFormatter.format(abs(dailyAdjustmentCents))}",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (dailyAdjustmentCents >= 0L) {
+                                    MaterialTheme.colorScheme.tertiary
+                                } else {
+                                    MaterialTheme.colorScheme.error
+                                }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            text = "Overall ${if (budgetState.cumulativeSavingsCents > 0L) "Savings" else "Deficit"}",
+                            text = "Adjusted daily",
                             style = MaterialTheme.typography.labelSmall
                         )
                         Text(
-                            text = CurrencyFormatter.format(abs(budgetState.cumulativeSavingsCents)),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = if (budgetState.cumulativeSavingsCents > 0L) {
-                                MaterialTheme.colorScheme.tertiary
-                            } else if (budgetState.cumulativeSavingsCents < 0L) {
-                                MaterialTheme.colorScheme.error
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
-                            }
+                            text = CurrencyFormatter.format(adjustedDailyAllowanceCents),
+                            style = MaterialTheme.typography.bodyLarge
                         )
+                    }
+
+                    if (budgetState.cumulativeSavingsCents != 0L) {
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Cumulative ${if (budgetState.cumulativeSavingsCents > 0L) "Savings" else "Deficit"}",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                            Text(
+                                text = CurrencyFormatter.format(abs(budgetState.cumulativeSavingsCents)),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (budgetState.cumulativeSavingsCents > 0L) {
+                                    MaterialTheme.colorScheme.tertiary
+                                } else {
+                                    MaterialTheme.colorScheme.error
+                                }
+                            )
+                        }
                     }
                 }
             }

@@ -71,6 +71,8 @@ fun ExpensesPage(
     var shouldResetToTodayOnOpen by remember { mutableStateOf(false) }
     var hasOpenedExpensesAtLeastOnce by remember { mutableStateOf(false) }
     var lastHandledExternalResetTrigger by remember { mutableStateOf(resetToLatestTrigger) }
+    var lastKnownDaysInCycleSoFar by remember { mutableStateOf(daysInCycleSoFar) }
+    var shouldResetToLatestOnNextOpenAfterRollover by remember { mutableStateOf(false) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -93,17 +95,34 @@ fun ExpensesPage(
     }
 
     LaunchedEffect(isVisible, daysInCycleSoFar, shouldResetToTodayOnOpen, resetToLatestTrigger) {
-        if (isVisible) {
-            val hasExternalResetRequest = resetToLatestTrigger != lastHandledExternalResetTrigger
-            val shouldResetToLatest =
-                !hasOpenedExpensesAtLeastOnce || shouldResetToTodayOnOpen || hasExternalResetRequest
-            if (shouldResetToLatest) {
-                pagerState.scrollToPage(daysInCycleSoFar - 1)
-                shouldResetToTodayOnOpen = false
-                lastHandledExternalResetTrigger = resetToLatestTrigger
+        val dayRolledOver = daysInCycleSoFar > lastKnownDaysInCycleSoFar
+
+        if (!isVisible) {
+            if (dayRolledOver) {
+                shouldResetToLatestOnNextOpenAfterRollover = true
             }
-            hasOpenedExpensesAtLeastOnce = true
+            lastKnownDaysInCycleSoFar = daysInCycleSoFar
+            return@LaunchedEffect
         }
+
+        val newLastPage = (daysInCycleSoFar - 1).coerceAtLeast(0)
+
+        val hasExternalResetRequest = resetToLatestTrigger != lastHandledExternalResetTrigger
+        val shouldResetToLatest =
+            !hasOpenedExpensesAtLeastOnce ||
+                shouldResetToTodayOnOpen ||
+                hasExternalResetRequest ||
+                shouldResetToLatestOnNextOpenAfterRollover
+
+        if (shouldResetToLatest) {
+            pagerState.scrollToPage(newLastPage)
+            shouldResetToTodayOnOpen = false
+            shouldResetToLatestOnNextOpenAfterRollover = false
+            lastHandledExternalResetTrigger = resetToLatestTrigger
+        }
+
+        lastKnownDaysInCycleSoFar = daysInCycleSoFar
+        hasOpenedExpensesAtLeastOnce = true
     }
 
     LaunchedEffect(pagerState.currentPage) {

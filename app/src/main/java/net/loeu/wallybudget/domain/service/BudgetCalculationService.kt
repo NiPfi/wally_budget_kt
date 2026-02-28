@@ -25,17 +25,22 @@ class BudgetCalculationService {
         val cycleStart = getCycleStartDate(now, settings.paydayDate)
         val cycleEnd = getNextCycleStartDate(now, settings.paydayDate)
 
-        // Calculate days remaining in cycle
-        val daysRemaining = ChronoUnit.DAYS.between(now, cycleEnd).toInt()
+        // Days remaining in cycle including today (e.g. last day => 1)
+        val daysRemainingInCycle = ChronoUnit.DAYS.between(now, cycleEnd).toInt().coerceAtLeast(1)
 
-        // Calculate today's budget with carry-over from previous days
+        // Calculate today's budget by spreading prior over/underspend across remaining days
         val daysInCycle = ChronoUnit.DAYS.between(cycleStart, cycleEnd).toInt().coerceAtLeast(1)
         val baseDailyAllocationCents = (settings.monthlyBudgetCents.toDouble() / daysInCycle).roundToLong()
+
         val daysBeforeToday = ChronoUnit.DAYS.between(cycleStart, now).toInt().coerceAtLeast(0)
         val allocatedBeforeTodayCents = ((settings.monthlyBudgetCents.toDouble() * daysBeforeToday) / daysInCycle).roundToLong()
         val spentBeforeTodayCents = (totalSpentThisCycleCents - spentTodayCents).coerceAtLeast(0L)
-        val carryOverCents = allocatedBeforeTodayCents - spentBeforeTodayCents
-        val effectiveDailyBudgetCents = baseDailyAllocationCents + carryOverCents
+
+        val cycleVarianceBeforeTodayCents = allocatedBeforeTodayCents - spentBeforeTodayCents
+        val futureDaysAfterToday = ChronoUnit.DAYS.between(now.plusDays(1), cycleEnd).toInt().coerceAtLeast(0)
+        val remainingDaysForAdjustment = futureDaysAfterToday + 1 // include today; on final day this is exactly 1
+        val distributedAdjustmentCents = (cycleVarianceBeforeTodayCents.toDouble() / remainingDaysForAdjustment).roundToLong()
+        val effectiveDailyBudgetCents = baseDailyAllocationCents + distributedAdjustmentCents
 
         return BudgetState(
             monthlyBudgetCents = settings.monthlyBudgetCents,
@@ -43,7 +48,7 @@ class BudgetCalculationService {
             dailyBudgetCents = baseDailyAllocationCents,
             spentTodayCents = spentTodayCents,
             remainingTodayCents = effectiveDailyBudgetCents - spentTodayCents,
-            daysRemainingInCycle = daysRemaining,
+            daysRemainingInCycle = daysRemainingInCycle,
             cumulativeSavingsCents = cumulativeSavingsCents,
             paydayDate = settings.paydayDate,
             cycleStartDate = cycleStart
