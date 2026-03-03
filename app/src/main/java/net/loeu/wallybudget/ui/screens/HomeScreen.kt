@@ -52,6 +52,7 @@ import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.ui.components.AddExpenseSheet
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import net.loeu.wallybudget.data.model.ExpenseCategory
 import java.time.LocalDate
 import kotlin.math.roundToInt
 
@@ -62,7 +63,7 @@ fun HomeScreen(
     todayExpenses: List<Expense>,
     previousCycleExpenses: List<Expense>,
     spendingForecast: SpendingForecast,
-    onAddExpense: (Long, String, net.loeu.wallybudget.data.model.ExpenseIcon?, LocalDate) -> Unit,
+    onAddExpense: (Long, String, ExpenseCategory?, LocalDate) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,

@@ -38,21 +38,22 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import net.loeu.wallybudget.data.model.ExpenseIcon
+import net.loeu.wallybudget.data.model.ExpenseCategory
+import net.loeu.wallybudget.data.model.description
+import net.loeu.wallybudget.data.model.iconRes
 import net.loeu.wallybudget.util.CurrencyFormatter
-import net.loeu.wallybudget.util.IconMapper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddExpenseSheet(
     onDismiss: () -> Unit,
-    onSubmitExpense: (amountCents: Long, description: String, icon: ExpenseIcon?) -> Unit,
+    onSubmitExpense: (amountCents: Long, description: String, icon: ExpenseCategory?) -> Unit,
     onDeleteExpense: (() -> Unit)? = null,
     title: String = "Add Expense",
     confirmButtonText: String = "Add Expense",
     initialAmountCents: Long? = null,
     initialDescription: String = "",
-    initialIcon: ExpenseIcon? = null,
+    initialIcon: ExpenseCategory? = null,
     modifier: Modifier = Modifier
 ) {
     var amountText by remember(initialAmountCents) {
@@ -127,7 +128,7 @@ fun AddExpenseSheet(
                     modifier = Modifier.size(56.dp)
                 ) {
                     Icon(
-                        painter = painterResource(id = IconMapper.getIconRes(selectedIcon)),
+                        painter = painterResource(id = selectedIcon.iconRes),
                         contentDescription = "Select category icon"
                     )
                 }
@@ -158,7 +159,7 @@ fun AddExpenseSheet(
                     if (amountCents != null && amountCents > 0L) {
                         val finalDescription = when {
                             description.isNotBlank() -> description
-                            selectedIcon != null -> IconMapper.getDefaultDescription(selectedIcon!!)
+                            selectedIcon != null -> selectedIcon.description
                             else -> "Expense"
                         }
                         onSubmitExpense(amountCents, finalDescription, selectedIcon)
@@ -182,7 +183,7 @@ fun AddExpenseSheet(
                 title = { Text("Choose category") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        IconMapper.getAllIcons().chunked(4).forEach { rowIcons ->
+                        ExpenseCategory.getAllIcons().chunked(4).forEach { rowIcons ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)

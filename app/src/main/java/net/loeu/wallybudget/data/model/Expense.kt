@@ -20,21 +20,5 @@ data class Expense(
     val amountCents: Long,
     val description: String,
     val timestamp: Long = Instant.now().toEpochMilli(),
-    val icon: ExpenseIcon? = null
+    val icon: ExpenseCategory? = null
 )
-
-/**
- * Optional icons for expenses using Material Icons
- */
-enum class ExpenseIcon {
-    GROCERIES,     // Grocery store
-    RESTAURANT,    // Restaurant/food
-    TRANSPORT,     // Car/transit
-    CLOTHING,       // Clothing and accessories
-    SHOPPING,      // Shopping cart
-    ENTERTAINMENT, // Entertainment
-    HOME,          // Home/utilities
-    HEALTH,        // Health/medical
-    OTHER          // Miscellaneous
-}
-
