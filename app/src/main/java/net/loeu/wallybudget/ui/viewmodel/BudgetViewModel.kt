@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.data.model.Expense
-import net.loeu.wallybudget.data.model.ExpenseIcon
+import net.loeu.wallybudget.data.model.ExpenseCategory
 import net.loeu.wallybudget.data.model.MonthlyHistory
 import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.data.model.UserSettings
@@ -108,7 +108,7 @@ class BudgetViewModel(
     /**
      * Add a new expense
      */
-    fun addExpense(amountCents: Long, description: String, icon: ExpenseIcon? = null, date: LocalDate = LocalDate.now()) {
+    fun addExpense(amountCents: Long, description: String, icon: ExpenseCategory? = null, date: LocalDate = LocalDate.now()) {
         viewModelScope.launch {
             val timestamp = if (date == LocalDate.now()) {
                 Instant.now().toEpochMilli()

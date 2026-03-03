@@ -9,9 +9,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import net.loeu.wallybudget.data.model.Expense
-import net.loeu.wallybudget.data.model.ExpenseIcon
+import net.loeu.wallybudget.data.model.description
+import net.loeu.wallybudget.data.model.iconRes
 import net.loeu.wallybudget.util.CurrencyFormatter
-import net.loeu.wallybudget.util.IconMapper
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -42,8 +42,8 @@ fun ExpenseItem(
         ) {
             // Icon
             Icon(
-                painter = painterResource(id = IconMapper.getIconRes(expense.icon)),
-                contentDescription = IconMapper.getDefaultDescription(expense.icon),
+                painter = painterResource(id = expense.icon.iconRes),
+                contentDescription = expense.icon.description,
                 modifier = Modifier.size(40.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
@@ -84,4 +84,3 @@ private fun formatTime(timestamp: Long): String {
     val formatter = DateTimeFormatter.ofPattern("HH:mm")
     return time.format(formatter)
 }
-
