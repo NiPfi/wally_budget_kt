@@ -23,14 +23,6 @@ object CurrencyFormatter {
     }
 
     /**
-     * Compatibility helper for pre-cents call sites.
-     */
-    fun formatDecimal(amount: Double): String {
-        val formatter = NumberFormat.getCurrencyInstance()
-        return formatter.format(amount)
-    }
-
-    /**
      * Get currency symbol for system locale
      */
     fun getCurrencySymbol(): String {

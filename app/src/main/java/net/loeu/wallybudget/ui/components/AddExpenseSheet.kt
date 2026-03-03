@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
@@ -36,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import net.loeu.wallybudget.data.model.ExpenseIcon
@@ -127,7 +127,7 @@ fun AddExpenseSheet(
                     modifier = Modifier.size(56.dp)
                 ) {
                     Icon(
-                        imageVector = selectedIcon?.let { IconMapper.getIcon(it) } ?: Icons.Default.AttachMoney,
+                        painter = painterResource(id = IconMapper.getIconRes(selectedIcon)),
                         contentDescription = "Select category icon"
                     )
                 }
@@ -158,7 +158,7 @@ fun AddExpenseSheet(
                     if (amountCents != null && amountCents > 0L) {
                         val finalDescription = when {
                             description.isNotBlank() -> description
-                            selectedIcon != null -> defaultDescriptionFor(selectedIcon!!)
+                            selectedIcon != null -> IconMapper.getDefaultDescription(selectedIcon!!)
                             else -> "Expense"
                         }
                         onSubmitExpense(amountCents, finalDescription, selectedIcon)
@@ -187,9 +187,9 @@ fun AddExpenseSheet(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                rowIcons.forEach { (icon, imageVector) ->
+                                rowIcons.forEach { (icon, iconRes) ->
                                     IconOption(
-                                        icon = imageVector,
+                                        iconRes = iconRes,
                                         isSelected = selectedIcon == icon,
                                         onClick = {
                                             selectedIcon = icon
@@ -225,21 +225,9 @@ fun AddExpenseSheet(
     }
 }
 
-private fun defaultDescriptionFor(icon: ExpenseIcon): String {
-    return when (icon) {
-        ExpenseIcon.SHOPPING -> "Shopping"
-        ExpenseIcon.RESTAURANT -> "Food"
-        ExpenseIcon.TRANSPORT -> "Transport"
-        ExpenseIcon.ENTERTAINMENT -> "Entertainment"
-        ExpenseIcon.HOME -> "Home"
-        ExpenseIcon.HEALTH -> "Health"
-        ExpenseIcon.OTHER -> "Other"
-    }
-}
-
 @Composable
 private fun IconOption(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconRes: Int,
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -259,7 +247,7 @@ private fun IconOption(
         contentAlignment = Alignment.Center
     ) {
         Icon(
-            imageVector = icon,
+            painter = painterResource(id = iconRes),
             contentDescription = null,
             tint = if (isSelected) {
                 MaterialTheme.colorScheme.onPrimaryContainer
