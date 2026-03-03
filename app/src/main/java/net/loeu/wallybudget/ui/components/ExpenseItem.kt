@@ -6,8 +6,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import net.loeu.wallybudget.data.model.Expense
+import net.loeu.wallybudget.data.model.ExpenseIcon
 import net.loeu.wallybudget.util.CurrencyFormatter
 import net.loeu.wallybudget.util.IconMapper
 import java.time.Instant
@@ -39,15 +41,13 @@ fun ExpenseItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Icon
-            if (expense.icon != null) {
-                Icon(
-                    imageVector = IconMapper.getIcon(expense.icon),
-                    contentDescription = null,
-                    modifier = Modifier.size(40.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-            }
+            Icon(
+                painter = painterResource(id = IconMapper.getIconRes(expense.icon)),
+                contentDescription = IconMapper.getDefaultDescription(expense.icon),
+                modifier = Modifier.size(40.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(16.dp))
 
             // Description and time
             Column(

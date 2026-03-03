@@ -27,9 +27,11 @@ data class Expense(
  * Optional icons for expenses using Material Icons
  */
 enum class ExpenseIcon {
-    SHOPPING,      // Shopping cart
+    GROCERIES,     // Grocery store
     RESTAURANT,    // Restaurant/food
     TRANSPORT,     // Car/transit
+    CLOTHING,       // Clothing and accessories
+    SHOPPING,      // Shopping cart
     ENTERTAINMENT, // Entertainment
     HOME,          // Home/utilities
     HEALTH,        // Health/medical
