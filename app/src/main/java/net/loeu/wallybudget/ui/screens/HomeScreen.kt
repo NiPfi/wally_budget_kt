@@ -139,57 +139,67 @@ fun HomeScreen(
                         .fillMaxSize()
                         .offset { IntOffset(0, -effectiveOffset.roundToInt()) }
                 ) {
-                    OverviewPage(
-                        budgetState = budgetState,
-                        previousCycleExpenses = previousCycleExpenses,
-                        spendingForecast = spendingForecast,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                    ExpensesPage(
-                        budgetState = budgetState,
-                        todayExpenses = todayExpenses,
-                        previousCycleExpenses = previousCycleExpenses,
-                        isVisible = snapController.isExpanded,
-                        resetToLatestTrigger = resetExpensesToLatestTrigger,
-                        onEditExpense = { expenseBeingEdited = it },
-                        onDeleteExpense = onDeleteExpense,
-                        onDateSelected = { selectedDateForExpenseEpochDay = it.toEpochDay() },
+                    // Wrap OverviewPage in a draggable Box to allow swiping up from it
+                    // without blocking clicks on its content (taps go to children first).
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .then(
+                                if (!snapController.isExpanded) {
+                                    Modifier.draggable(
+                                        state = snapController.dragState,
+                                        orientation = Orientation.Vertical,
+                                        onDragStarted = { snapController.onDragStarted() },
+                                        onDragStopped = { velocity -> snapController.onDragStopped(velocity) }
+                                    )
+                                } else Modifier
+                            )
+                    ) {
+                        OverviewPage(
+                            budgetState = budgetState,
+                            previousCycleExpenses = previousCycleExpenses,
+                            spendingForecast = spendingForecast,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .offset { IntOffset(0, pageHeightPx.roundToInt()) }
-                    )
-                }
-
-                if (!snapController.isExpanded) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .fillMaxSize()
-                            .padding(bottom = 140.dp)
-                            .draggable(
-                                state = snapController.dragState,
-                                orientation = Orientation.Vertical,
-                                onDragStarted = { snapController.onDragStarted() },
-                                onDragStopped = { velocity -> snapController.onDragStopped(velocity) }
+                    ) {
+                        ExpensesPage(
+                            budgetState = budgetState,
+                            todayExpenses = todayExpenses,
+                            previousCycleExpenses = previousCycleExpenses,
+                            isVisible = snapController.isExpanded,
+                            resetToLatestTrigger = resetExpensesToLatestTrigger,
+                            onEditExpense = { expenseBeingEdited = it },
+                            onDeleteExpense = onDeleteExpense,
+                            onDateSelected = { selectedDateForExpenseEpochDay = it.toEpochDay() },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        
+                        // Overlay a small draggable area at the top of ExpensesPage 
+                        // so users can pull it down easily.
+                        if (snapController.isExpanded) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(100.dp) // Smaller hit area for pulling down
+                                    .align(Alignment.TopCenter)
+                                    .draggable(
+                                        state = snapController.dragState,
+                                        orientation = Orientation.Vertical,
+                                        onDragStarted = { snapController.onDragStarted() },
+                                        onDragStopped = { velocity -> snapController.onDragStopped(velocity) }
+                                    )
                             )
-                    )
+                        }
+                    }
                 }
 
-                if (snapController.isExpanded) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(220.dp)
-                            .align(Alignment.TopCenter)
-                            .draggable(
-                                state = snapController.dragState,
-                                orientation = Orientation.Vertical,
-                                onDragStarted = { snapController.onDragStarted() },
-                                onDragStopped = { velocity -> snapController.onDragStopped(velocity) }
-                            )
-                    )
-                }
-
+                // Floating "Pull up/down" indicator
                 val progress = snapController.progress
                 val density = LocalDensity.current
                 val bottomY = remember(density, pageHeightPx) { pageHeightPx - with(density) { 120.dp.toPx() } }
@@ -304,4 +314,3 @@ fun HomeScreen(
         )
     }
 }
-
