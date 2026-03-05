@@ -59,11 +59,11 @@ fun OverviewPage(
         adjustedDailyAllowanceCents - budgetState.dailyBudgetCents
     }
 
-    var showForecastDetails by remember { mutableStateOf(false) }
+    val showForecastDetails = remember { mutableStateOf(false) }
 
-    if (showForecastDetails) {
+    if (showForecastDetails.value) {
         AlertDialog(
-            onDismissRequest = { showForecastDetails = false },
+            onDismissRequest = { showForecastDetails.value = false },
             title = { Text("Forecast Analysis") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -104,7 +104,7 @@ fun OverviewPage(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showForecastDetails = false }) {
+                TextButton(onClick = { showForecastDetails.value = false }) {
                     Text("Got it")
                 }
             },
@@ -242,7 +242,7 @@ fun OverviewPage(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1.2f, fill = false)
-                    .clickable { showForecastDetails = true },
+                    .clickable { showForecastDetails.value = true },
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.fillMaxWidth().padding((12 * scale).dp)) {
