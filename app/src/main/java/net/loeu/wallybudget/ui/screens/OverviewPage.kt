@@ -239,7 +239,10 @@ fun OverviewPage(
 
             // 3. Forecast Card
             Card(
-                modifier = Modifier.fillMaxWidth().weight(1.2f, fill = false),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1.2f, fill = false)
+                    .clickable { showForecastDetails = true },
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.fillMaxWidth().padding((12 * scale).dp)) {
@@ -255,7 +258,7 @@ fun OverviewPage(
                         )
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable { showForecastDetails = true }.padding(4.dp)
+                            modifier = Modifier.padding(4.dp)
                         ) {
                             if (spendingForecast.confidenceScore < ForecastConfig.MIN_CONFIDENCE_THRESHOLD) {
                                 Icon(Icons.Default.Warning, null, Modifier.size((16 * scale).dp), MaterialTheme.colorScheme.error)
