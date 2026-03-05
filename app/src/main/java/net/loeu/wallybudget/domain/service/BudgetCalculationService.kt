@@ -1,22 +1,23 @@
 package net.loeu.wallybudget.domain.service
 
 import net.loeu.wallybudget.data.model.BudgetState
+import net.loeu.wallybudget.data.model.Expense
 import net.loeu.wallybudget.data.model.MonthlyHistory
 import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.data.model.UserSettings
+import net.loeu.wallybudget.data.model.sumByDate
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
-import kotlin.math.roundToInt
 import kotlin.math.roundToLong
-
-private const val FORECAST_SENSITIVITY_MIN = 20
-private const val FORECAST_SENSITIVITY_MAX = 90
 
 /**
  * Service for budget-related business logic and calculations.
  * Separated from data access layer (repository) for better separation of concerns.
  */
-class BudgetCalculationService {
+class BudgetCalculationService(
+    private val forecastCalculator: SpendingForecastCalculator = SpendingForecastCalculator()
+) {
 
     /**
      * Calculate current budget state given current spending and settings
@@ -32,9 +33,11 @@ class BudgetCalculationService {
         val cycleEnd = getNextCycleStartDate(now, settings.paydayDate)
 
         // Days remaining in cycle including today (e.g. last day => 1)
+        // Uses exclusive cycleEnd (invariant), so between(today, nextCycleStart) correctly includes today.
         val daysRemainingInCycle = ChronoUnit.DAYS.between(now, cycleEnd).toInt().coerceAtLeast(1)
 
         // Calculate today's budget by spreading prior over/underspend across remaining days
+        // Note: cycleEnd is EXCLUSIVE (see MonthlyHistory invariant)
         val daysInCycle = ChronoUnit.DAYS.between(cycleStart, cycleEnd).toInt().coerceAtLeast(1)
         val baseDailyAllocationCents = (settings.monthlyBudgetCents.toDouble() / daysInCycle).roundToLong()
 
@@ -79,7 +82,7 @@ class BudgetCalculationService {
     }
 
     /**
-     * Get the start date of the next budget cycle
+     * Get the start date of the next budget cycle (the exclusive end date of the current cycle)
      */
     fun getNextCycleStartDate(now: LocalDate, paydayDate: Int): LocalDate {
         val effectivePayday = minOf(paydayDate, now.lengthOfMonth())
@@ -103,73 +106,71 @@ class BudgetCalculationService {
     }
 
     /**
-     * Forecast spending outcome for the active cycle using current pace and historical habits.
+     * Forecast spending outcome for the active cycle using the enhanced algorithm.
      */
     fun calculateSpendingForecast(
         budgetState: BudgetState,
         now: LocalDate,
         monthlyHistory: List<MonthlyHistory>,
-        forecastSensitivityPercent: Int
+        recentExpenses: List<Expense>
     ): SpendingForecast {
-        val cycleStart = budgetState.cycleStartDate
         val cycleEnd = getNextCycleStartDate(now, budgetState.paydayDate)
+        // daysInCycle uses exclusive cycleEnd (see MonthlyHistory invariant), 
+        // so between(start, end) is correct (e.g. Jan 1 to Feb 1 = 31 days)
+        val daysInCycle = ChronoUnit.DAYS.between(budgetState.cycleStartDate, cycleEnd).toInt().coerceAtLeast(1)
 
-        val totalCycleDays = ChronoUnit.DAYS.between(cycleStart, cycleEnd).toInt().coerceAtLeast(1)
-        val elapsedCycleDays = (ChronoUnit.DAYS.between(cycleStart, now).toInt().coerceAtLeast(0) + 1)
-            .coerceAtMost(totalCycleDays)
+        val expensesByDay = recentExpenses.sumByDate()
 
-        val currentDailyPaceCents = (budgetState.totalSpentThisCycleCents.toDouble() / elapsedCycleDays).roundToLong()
-
-        val historyForHabits = monthlyHistory
-            .filter { it.budgetAmountCents > 0L }
-            .take(6)
-
-        val historicalSpendRatio = if (historyForHabits.isNotEmpty()) {
-            historyForHabits
-                .map { it.totalSpentCents.toDouble() / it.budgetAmountCents }
-                .average()
-        } else {
-            1.0
+        // Current cycle daily totals
+        val currentCycleDailyExpenses = mutableListOf<Long>()
+        var dateIterator = budgetState.cycleStartDate
+        while (!dateIterator.isAfter(now)) {
+            currentCycleDailyExpenses.add(expensesByDay[dateIterator] ?: 0L)
+            dateIterator = dateIterator.plusDays(1)
         }
 
-        val sensitivity = (
-            forecastSensitivityPercent.coerceIn(
-                FORECAST_SENSITIVITY_MIN,
-                FORECAST_SENSITIVITY_MAX
-            ) / 100.0
-        )
-        val blendedHistoricalMultiplier = 1.0 + ((historicalSpendRatio - 1.0) * sensitivity)
-        val historicalAdjustmentMultiplier = blendedHistoricalMultiplier.coerceIn(0.75, 1.5)
-        val projectedTotalSpentCents =
-            (currentDailyPaceCents.toDouble() * totalCycleDays * historicalAdjustmentMultiplier).roundToLong()
-        val estimatedEndCycleRemainingCents = budgetState.monthlyBudgetCents - projectedTotalSpentCents
+        // Historical daily totals from recentExpenses (older than current cycle)
+        val historicalRealDailyExpenses = expensesByDay.filterKeys { it.isBefore(budgetState.cycleStartDate) }
+            .toList()
+            .sortedBy { it.first }
+            .map { it.second }
 
-        return SpendingForecast(
-            estimatedEndCycleRemainingCents = estimatedEndCycleRemainingCents,
-            projectedTotalSpentCents = projectedTotalSpentCents,
-            projectedDailySpendCents = currentDailyPaceCents,
-            historicalAdjustmentPercent = ((historicalAdjustmentMultiplier - 1.0) * 100.0).roundToInt(),
-            historyCyclesUsed = historyForHabits.size
+        // If we have very little historical data, supplement with MonthlyHistory
+        // Only use history that is OLDER than our real data window to avoid overlap
+        val earliestRealDate = expensesByDay.keys.minOrNull() ?: budgetState.cycleStartDate
+        
+        val supplementaryHistoricalExpenses = monthlyHistory
+            .mapNotNull { history ->
+                if (history.getCycleEnd().isBefore(earliestRealDate)) {
+                    // Uses MonthlyHistory.getDayCount() which encapsulates the exclusive end date invariant.
+                    val days = history.getDayCount()
+                    val dailyAmount = (history.totalSpentCents.toDouble() / days).roundToLong()
+                    days to dailyAmount
+                } else {
+                    null
+                }
+            }
+            .flatMap { (days, dailyAmount) ->
+                List(days) { dailyAmount }
+            }
+
+        val allHistoricalExpenses = supplementaryHistoricalExpenses + historicalRealDailyExpenses
+
+        return forecastCalculator.forecastMonthlySpending(
+            budgetState = budgetState,
+            now = now,
+            allHistoricalExpenses = allHistoricalExpenses,
+            currentCycleExpenses = currentCycleDailyExpenses,
+            daysInMonth = daysInCycle
         )
     }
 
     /**
      * Check if a new cycle should start based on current date and last reset
-     *
-     * @param now Current date
-     * @param paydayDate Day of month for payday (1-31)
-     * @param lastResetDate Date when the last reset was performed (null if never reset)
-     * @return true if a reset should be performed
      */
     fun shouldPerformReset(now: LocalDate, paydayDate: Int, lastResetDate: LocalDate?): Boolean {
-        if (lastResetDate == null) {
-            // No reset has been performed yet - don't perform reset until the first cycle completes
-            return false
-        }
-
+        if (lastResetDate == null) return false
         val cycleStart = getCycleStartDate(now, paydayDate)
-        // Perform reset if the current cycle start is after the last reset date
         return cycleStart.isAfter(lastResetDate)
     }
 }
-

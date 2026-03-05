@@ -20,6 +20,7 @@ import net.loeu.wallybudget.data.repository.BudgetRepository
 import net.loeu.wallybudget.data.time.CurrentDateProvider
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 
 class BudgetViewModel(
     private val repository: BudgetRepository,
@@ -82,13 +83,7 @@ class BudgetViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = SpendingForecast(
-                estimatedEndCycleRemainingCents = 0L,
-                projectedTotalSpentCents = 0L,
-                projectedDailySpendCents = 0L,
-                historicalAdjustmentPercent = 0,
-                historyCyclesUsed = 0
-            )
+            initialValue = SpendingForecast()
         )
 
     // UI state
@@ -113,7 +108,7 @@ class BudgetViewModel(
             val timestamp = if (date == LocalDate.now()) {
                 Instant.now().toEpochMilli()
             } else {
-                date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
             }
             val expense = Expense(
                 amountCents = amountCents,
@@ -207,5 +202,3 @@ class BudgetViewModel(
         }
     }
 }
-
-

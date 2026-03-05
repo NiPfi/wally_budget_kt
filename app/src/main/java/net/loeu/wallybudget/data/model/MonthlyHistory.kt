@@ -1,11 +1,17 @@
 package net.loeu.wallybudget.data.model
 
 import androidx.room.Entity
+import androidx.room.Ignore
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
+import java.time.temporal.ChronoUnit
 
 /**
- * Historical record of monthly budget cycles
+ * Historical record of monthly budget cycles.
+ * 
+ * INVARIANT: cycleEndDate is EXCLUSIVE (it is the start date of the next cycle).
+ * This ensures that ChronoUnit.DAYS.between(cycleStart, cycleEnd) correctly calculates 
+ * the total number of days in the cycle.
  */
 @Entity(
     tableName = "monthly_history",
@@ -16,33 +22,52 @@ data class MonthlyHistory(
     val budgetAmountCents: Long,
     val totalSpentCents: Long,
     val surplusCents: Long, // positive if under budget, negative if over
-    val cycleEndDate: String, // ISO date format (YYYY-MM-DD)
+    val cycleEndDate: String, // ISO date format (YYYY-MM-DD) - Exclusive (start of the next cycle)
     val endTimestamp: Long // When this cycle ended
 ) {
-    /**
-     * Parse cycleStartDate to LocalDate
-     *
-     * @throws IllegalStateException if cycleStartDate is not a valid ISO-8601 date
-     */
-    fun getCycleStart(): LocalDate {
-        return try {
+    // Prevent Room from treating the delegate as a field, since lazy properties create a 
+    // hidden delegate field that Room would otherwise attempt to persist.
+    @delegate:Ignore
+    private val _cycleStart: LocalDate by lazy {
+        try {
             LocalDate.parse(cycleStartDate)
         } catch (exception: DateTimeParseException) {
             throw IllegalStateException("Invalid cycleStartDate: '$cycleStartDate'", exception)
         }
     }
 
-    /**
-     * Parse cycleEndDate to LocalDate
-     *
-     * @throws IllegalStateException if cycleEndDate is not a valid ISO-8601 date
-     */
-    fun getCycleEnd(): LocalDate {
-        return try {
+    // Prevent Room from treating the delegate as a field, since lazy properties create a 
+    // hidden delegate field that Room would otherwise attempt to persist.
+    @delegate:Ignore
+    private val _cycleEnd: LocalDate by lazy {
+        try {
             LocalDate.parse(cycleEndDate)
         } catch (exception: DateTimeParseException) {
             throw IllegalStateException("Invalid cycleEndDate: '$cycleEndDate'", exception)
         }
+    }
+
+    /**
+     * Parse cycleStartDate to LocalDate (cached and thread-safe)
+     *
+     * @throws IllegalStateException if cycleStartDate is not a valid ISO-8601 date
+     */
+    fun getCycleStart(): LocalDate = _cycleStart
+
+    /**
+     * Parse cycleEndDate to LocalDate (cached and thread-safe). 
+     * The date returned is the start of the next cycle (exclusive end of this cycle).
+     *
+     * @throws IllegalStateException if cycleEndDate is not a valid ISO-8601 date
+     */
+    fun getCycleEnd(): LocalDate = _cycleEnd
+
+    /**
+     * The number of days in this budget cycle.
+     * Uses the exclusive cycleEndDate invariant to calculate the correct duration.
+     */
+    fun getDayCount(): Int {
+        return ChronoUnit.DAYS.between(getCycleStart(), getCycleEnd()).toInt().coerceAtLeast(1)
     }
 
     /**
@@ -62,4 +87,3 @@ data class MonthlyHistory(
         }
     }
 }
-

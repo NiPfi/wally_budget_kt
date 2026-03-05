@@ -2,6 +2,7 @@ package net.loeu.wallybudget.data.repository
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import net.loeu.wallybudget.data.local.ExpenseDao
@@ -15,6 +16,7 @@ import net.loeu.wallybudget.data.model.UserSettings
 import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.data.time.SystemCurrentDateProvider
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
+import net.loeu.wallybudget.domain.config.ForecastConfig
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import java.time.Instant
 import java.time.LocalDate
@@ -255,22 +257,36 @@ class BudgetRepository(
     /**
      * Forecast spending outcome for the active cycle.
      */
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun getSpendingForecast(): Flow<SpendingForecast> {
+        val nowFlow = currentDateProvider.observeCurrentDate()
+        
+        val recentExpensesFlow = nowFlow
+            .map { now ->
+                now.minusDays(ForecastConfig.HISTORICAL_DAYS_LOOKBACK.toLong())
+                    .atStartOfDay(ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli()
+            }
+            .distinctUntilChanged()
+            .flatMapLatest { lookbackTimestamp ->
+                expenseDao.getExpensesSince(lookbackTimestamp)
+            }
+
         return combine(
             getBudgetState(),
             monthlyHistoryDao.getAllHistory(),
-            userSettings,
-            currentDateProvider.observeCurrentDate()
-        ) { budgetState, history, settings, now ->
+            nowFlow,
+            recentExpensesFlow
+        ) { budgetState, history, now, recentExpenses ->
             val usableHistory = history.filter { it.totalSpentCents > 0L }
             budgetCalculationService.calculateSpendingForecast(
                 budgetState = budgetState,
                 now = now,
                 monthlyHistory = usableHistory,
-                forecastSensitivityPercent = settings.forecastSensitivityPercent
+                recentExpenses = recentExpenses
             )
         }
     }
 
 }
-
