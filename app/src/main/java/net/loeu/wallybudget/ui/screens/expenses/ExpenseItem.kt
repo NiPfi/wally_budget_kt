@@ -20,8 +20,8 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun ExpenseItem(
     expense: Expense,
-    onEdit: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onEdit: (() -> Unit)? = null
 ) {
     Card(
         modifier = modifier

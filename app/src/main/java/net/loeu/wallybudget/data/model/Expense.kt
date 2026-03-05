@@ -26,16 +26,6 @@ data class Expense(
 )
 
 /**
- * Extension to convert expense timestamp to LocalDate based on system timezone.
- * Note: For bulk operations, prefer using [sumByDate] or [groupByDate] to minimize conversions.
- */
-fun Expense.toLocalDate(zoneId: ZoneId = ZoneId.systemDefault()): LocalDate {
-    return Instant.ofEpochMilli(this.timestamp)
-        .atZone(zoneId)
-        .toLocalDate()
-}
-
-/**
  * Groups expenses by date and sums their amounts efficiently.
  *
  * **Note:** This function is optimized for sorted lists (either ascending or descending).

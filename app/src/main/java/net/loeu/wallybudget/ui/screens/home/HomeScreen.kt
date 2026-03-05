@@ -147,7 +147,6 @@ fun HomeScreen(
                             isVisible = snapController.isExpanded,
                             resetToLatestTrigger = resetExpensesToLatestTrigger.intValue,
                             onEditExpense = { expenseBeingEdited.value = it },
-                            onDeleteExpense = onDeleteExpense,
                             onDateSelected = { selectedDateForExpenseEpochDay.longValue = it.toEpochDay() },
                             modifier = Modifier.fillMaxSize()
                         )

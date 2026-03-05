@@ -71,18 +71,5 @@ class UserPreferencesManager(private val context: Context) {
         }
     }
 
-    suspend fun updateSettings(settings: UserSettings) {
-        context.dataStore.edit { preferences ->
-            preferences[PreferenceKeys.MONTHLY_BUDGET_CENTS] = settings.monthlyBudgetCents
-            preferences[PreferenceKeys.PAYDAY_DATE] = settings.paydayDate
-            preferences[PreferenceKeys.FORECAST_SENSITIVITY_PERCENT] =
-                settings.forecastSensitivityPercent.coerceIn(
-                    FORECAST_SENSITIVITY_MIN,
-                    FORECAST_SENSITIVITY_MAX
-                )
-            preferences[PreferenceKeys.LAST_RESET_TIMESTAMP] = settings.lastResetTimestamp
-            preferences[PreferenceKeys.ONBOARDING_COMPLETED] = settings.isOnboardingCompleted
-        }
-    }
 }
 

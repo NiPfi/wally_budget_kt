@@ -7,7 +7,6 @@ import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.data.model.UserSettings
 import net.loeu.wallybudget.data.model.sumByDate
 import java.time.LocalDate
-import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import kotlin.math.roundToLong
 
@@ -158,7 +157,6 @@ class BudgetCalculationService(
 
         return forecastCalculator.forecastMonthlySpending(
             budgetState = budgetState,
-            now = now,
             allHistoricalExpenses = allHistoricalExpenses,
             currentCycleExpenses = currentCycleDailyExpenses,
             daysInMonth = daysInCycle

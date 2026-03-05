@@ -1,14 +1,15 @@
 package net.loeu.wallybudget.domain.service
 
 import net.loeu.wallybudget.data.model.BudgetState
-import net.loeu.wallybudget.data.model.Expense
 import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.domain.config.ForecastConfig
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.temporal.ChronoUnit
-import kotlin.math.*
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.pow
+import kotlin.math.roundToInt
+import kotlin.math.roundToLong
+import kotlin.math.sqrt
 
 class SpendingForecastCalculator {
 
@@ -21,10 +22,7 @@ class SpendingForecastCalculator {
          */
         data class OutliersDetected(
             override val cleanedExpenses: List<Long>,
-            override val outlierCount: Int,
-            val q1: Double,
-            val q3: Double,
-            val iqr: Double
+            override val outlierCount: Int
         ) : DataPrep()
 
         /**
@@ -41,14 +39,6 @@ class SpendingForecastCalculator {
         val slope: Double,
         val intercept: Double
     )
-
-    private val systemZoneId = ZoneId.systemDefault()
-
-    private fun Expense.toLocalDate(): LocalDate {
-        return Instant.ofEpochMilli(this.timestamp)
-            .atZone(systemZoneId)
-            .toLocalDate()
-    }
 
     /**
      * Prepares data by calculating quartiles and filtering outliers using the IQR method.
@@ -73,7 +63,7 @@ class SpendingForecastCalculator {
         val cleaned = allExpenses.filter { it.toDouble() in lowerBound..upperBound }
         val outlierCount = allExpenses.size - cleaned.size
 
-        return DataPrep.OutliersDetected(cleaned, outlierCount, q1, q3, iqr)
+        return DataPrep.OutliersDetected(cleaned, outlierCount)
     }
 
     /**
@@ -145,7 +135,7 @@ class SpendingForecastCalculator {
 
         val mean = cleanedExpenses.average()
         val stdDev = if (cleanedExpenses.size > 1) {
-            sqrt(cleanedExpenses.map { (it.toDouble() - mean).pow(2.0) }.sum() / (cleanedExpenses.size - 1))
+            sqrt(cleanedExpenses.sumOf { (it.toDouble() - mean).pow(2.0) } / (cleanedExpenses.size - 1))
         } else {
             0.0
         }
@@ -174,7 +164,6 @@ class SpendingForecastCalculator {
 
     fun forecastMonthlySpending(
         budgetState: BudgetState,
-        now: LocalDate,
         allHistoricalExpenses: List<Long>,
         currentCycleExpenses: List<Long>,
         daysInMonth: Int
@@ -234,7 +223,7 @@ class SpendingForecastCalculator {
         // Confidence-adjusted margin of error
         val mean = prep.cleanedExpenses.average()
         val stdDev = if (prep.cleanedExpenses.size > 1) {
-            sqrt(prep.cleanedExpenses.map { (it.toDouble() - mean).pow(2.0) }.sum() / (prep.cleanedExpenses.size - 1))
+            sqrt(prep.cleanedExpenses.sumOf { (it.toDouble() - mean).pow(2.0) } / (prep.cleanedExpenses.size - 1))
         } else {
             0.0
         }

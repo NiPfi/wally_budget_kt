@@ -23,14 +23,6 @@ object CurrencyFormatter {
     }
 
     /**
-     * Get currency symbol for system locale
-     */
-    fun getCurrencySymbol(): String {
-        val formatter = NumberFormat.getCurrencyInstance()
-        return formatter.currency?.symbol ?: "$"
-    }
-
-    /**
      * Parse decimal amount text (e.g. "12.34") to cents.
      */
     fun parseAmountToCents(amountText: String): Long? {
