@@ -17,10 +17,12 @@ import net.loeu.wallybudget.domain.config.ForecastConfig
 import net.loeu.wallybudget.util.CurrencyFormatter
 import kotlin.math.abs
 
-private const val STANDARD_AVAILABLE_HEIGHT_DP = 640f
+private const val STANDARD_AVAILABLE_HEIGHT_DP = 560f
 private const val STANDARD_WIDTH_DP = 360f
-private const val MIN_SCALE_FACTOR = 0.5f
-private const val MAX_SCALE_FACTOR = 1.2f
+private const val MIN_SCALE_FACTOR = 0.7f
+private const val MAX_SCALE_FACTOR = 1.6f
+// Factor to allow the UI to scale more based on width on tall devices, preventing excessive vertical stretching
+private const val WIDTH_SCALE_BIAS = 1.3f 
 
 @Composable
 fun OverviewPage(
@@ -95,21 +97,26 @@ fun OverviewPage(
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val totalHeight = maxHeight
         val totalWidth = maxWidth
-        val safeBottomPadding = 110.dp 
+        // Padding to avoid the bottom interactive handle and FAB area
+        val safeBottomPadding = 88.dp
         
         val availableHeight = totalHeight.value - safeBottomPadding.value
         val scaleH = (availableHeight / STANDARD_AVAILABLE_HEIGHT_DP).coerceAtLeast(0.1f)
         val scaleW = (totalWidth.value / STANDARD_WIDTH_DP).coerceAtLeast(0.1f)
         
-        val scale = minOf(scaleH, scaleW).coerceIn(MIN_SCALE_FACTOR, MAX_SCALE_FACTOR)
+        // We calculate scale based on height/width ratio. WIDTH_SCALE_BIAS allows the UI 
+        // to grow larger on modern tall screens while keeping layout proportional.
+        val scale = minOf(scaleH, scaleW * WIDTH_SCALE_BIAS).coerceIn(MIN_SCALE_FACTOR, MAX_SCALE_FACTOR)
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
-                .padding(top = (4 * scale).dp, bottom = safeBottomPadding),
-            verticalArrangement = Arrangement.spacedBy((4 * scale).dp)
+                .padding(top = 4.dp, bottom = safeBottomPadding),
+            verticalArrangement = Arrangement.SpaceEvenly
         ) {
+            // weights with fill = false allow cards to use their intrinsic scaled height 
+            // but still be distributed flexibly within the available column space.
             SummaryCard(
                 budgetState = budgetState,
                 scale = scale,
