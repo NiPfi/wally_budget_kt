@@ -179,7 +179,18 @@ class SpendingForecastCalculator {
         currentCycleExpenses: List<Long>,
         daysInMonth: Int
     ): SpendingForecast {
-        val combinedExpenses = allHistoricalExpenses + currentCycleExpenses
+        val dailyAllowance = budgetState.monthlyBudgetCents / daysInMonth
+
+        // Normalize today's spending: replace the last entry of the current cycle with the daily allowance.
+        // This prevents today's anomalous spending from skewing the forward-looking forecast components
+        // (WMA and trend), while we still account for the actual spend in the final total.
+        val normalizedCurrentCycle = if (currentCycleExpenses.isNotEmpty()) {
+            currentCycleExpenses.dropLast(1) + dailyAllowance
+        } else {
+            currentCycleExpenses
+        }
+
+        val combinedExpenses = allHistoricalExpenses + normalizedCurrentCycle
         val prep = prepareAndCleanData(combinedExpenses)
         
         val daysElapsed = currentCycleExpenses.size
@@ -216,6 +227,7 @@ class SpendingForecastCalculator {
             trend.slope * confidence * ForecastConfig.TREND_DAMPENING_FACTOR * daysRemaining * (daysRemaining + 1) / 2.0
         ).roundToLong().coerceAtLeast(0L)
 
+        // Use the actual total spent this cycle (including today's real spending) for the final projection.
         val projectedTotalSpentCents = budgetState.totalSpentThisCycleCents + projectedRemainingCents
         val estimatedEndCycleRemainingCents = budgetState.monthlyBudgetCents - projectedTotalSpentCents
 
