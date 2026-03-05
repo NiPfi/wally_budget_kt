@@ -17,12 +17,51 @@ import net.loeu.wallybudget.domain.config.ForecastConfig
 import net.loeu.wallybudget.util.CurrencyFormatter
 import kotlin.math.abs
 
-private const val STANDARD_AVAILABLE_HEIGHT_DP = 560f
-private const val STANDARD_WIDTH_DP = 360f
+/**
+ * Minimum scale factor to prevent UI from becoming unreadable on extremely small screens.
+ */
 private const val MIN_SCALE_FACTOR = 0.7f
+
+/**
+ * Maximum scale factor to prevent UI from appearing bloated on very large screens.
+ */
 private const val MAX_SCALE_FACTOR = 1.6f
-// Factor to allow the UI to scale more based on width on tall devices, preventing excessive vertical stretching
-private const val WIDTH_SCALE_BIAS = 1.3f 
+
+/**
+ * Baseline aggregate height of all cards and their vertical margins at scale 1.0.
+ * Estimated as: SummaryCard (~200dp) + SpendingDetailsCard (~230dp) + ForecastCard (~170dp) + spacing (~40dp) = 640dp.
+ * Note: These are estimated values and should be validated against actual card implementations.
+ * Increasing this value makes the scale more conservative, preventing content cutoff.
+ */
+private const val REFERENCE_CONTENT_HEIGHT_DP = 640f
+
+/**
+ * Baseline width of a standard smartphone screen. Used to calculate horizontal scale factor.
+ */
+private const val REFERENCE_CONTENT_WIDTH_DP = 360f
+
+/**
+ * Factor allowing the UI to scale slightly more on tall devices to fill vertical space 
+ * without breaking proportions.
+ */
+private const val WIDTH_SCALE_BIAS = 1.3f
+
+/**
+ * Proportion of total screen height reserved for bottom interactive elements.
+ * For illustration, 12% of a standard 800dp screen is ~96dp, providing ample 
+ * clearance for the Pull handle (48dp) and FAB (56dp) area.
+ */
+private const val SAFE_ZONE_HEIGHT_RATIO = 0.12f
+
+/**
+ * Minimum absolute height for the bottom safe zone to ensure interactive elements are always clear.
+ */
+private const val MIN_SAFE_ZONE_HEIGHT_DP = 72f
+
+/**
+ * Maximum absolute height for the bottom safe zone to prevent wasting space on extremely tall screens.
+ */
+private const val MAX_SAFE_ZONE_HEIGHT_DP = 100f
 
 @Composable
 fun OverviewPage(
@@ -97,15 +136,19 @@ fun OverviewPage(
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val totalHeight = maxHeight
         val totalWidth = maxWidth
-        // Padding to avoid the bottom interactive handle and FAB area
-        val safeBottomPadding = 88.dp
         
-        val availableHeight = totalHeight.value - safeBottomPadding.value
-        val scaleH = (availableHeight / STANDARD_AVAILABLE_HEIGHT_DP).coerceAtLeast(0.1f)
-        val scaleW = (totalWidth.value / STANDARD_WIDTH_DP).coerceAtLeast(0.1f)
+        // Dynamically calculate bottom padding to protect the FAB and pull-handle area.
+        // Dp arithmetic is used directly to maintain type safety throughout the calculation.
+        val safeBottomPadding = (totalHeight * SAFE_ZONE_HEIGHT_RATIO)
+            .coerceIn(MIN_SAFE_ZONE_HEIGHT_DP.dp, MAX_SAFE_ZONE_HEIGHT_DP.dp)
         
-        // We calculate scale based on height/width ratio. WIDTH_SCALE_BIAS allows the UI 
-        // to grow larger on modern tall screens while keeping layout proportional.
+        val availableHeight = totalHeight - safeBottomPadding
+        
+        // Calculate scale factors using raw Dp values for explicit Float conversion
+        val scaleH = availableHeight.value / REFERENCE_CONTENT_HEIGHT_DP
+        val scaleW = totalWidth.value / REFERENCE_CONTENT_WIDTH_DP
+        
+        // The final scale favors height utilization while respecting width constraints.
         val scale = minOf(scaleH, scaleW * WIDTH_SCALE_BIAS).coerceIn(MIN_SCALE_FACTOR, MAX_SCALE_FACTOR)
 
         Column(
