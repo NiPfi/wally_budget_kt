@@ -26,7 +26,7 @@ fun ForecastRangeIndicator(
     lowerBoundCents: Long,
     upperBoundCents: Long,
     projectedCents: Long,
-    isOverBudget: Boolean,
+    budgetLimitCents: Long,
     modifier: Modifier = Modifier,
     scale: Float = 1.0f
 ) {
@@ -40,8 +40,12 @@ fun ForecastRangeIndicator(
     val highPos = ((upperBoundCents - minView).toDouble() / viewWidth).coerceIn(0.0, 1.0).toFloat()
     val projPos = ((projectedCents - minView).toDouble() / viewWidth).coerceIn(0.0, 1.0).toFloat()
 
-    // Color logic: neutral if not over budget, reddish if it is a deficit
-    val indicatorColor = if (isOverBudget) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    // Color logic: reddish if value exceeds budget
+    val projectedColor = if (projectedCents > budgetLimitCents) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    val lowerValueColor = if (lowerBoundCents > budgetLimitCents) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    val lowerLabelColor = if (lowerBoundCents > budgetLimitCents) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+    val upperValueColor = if (upperBoundCents > budgetLimitCents) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    val upperLabelColor = if (upperBoundCents > budgetLimitCents) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
     
     // Visualization track and range use neutral colors to avoid conflicting implications in light/dark themes
     val trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
@@ -94,7 +98,7 @@ fun ForecastRangeIndicator(
                 // 4. Expected Value Indicator (Needle) - Sharp rectangle
                 val needleX = projPos * w
                 drawRect(
-                    color = indicatorColor,
+                    color = projectedColor,
                     topLeft = Offset(needleX - (1 * scale).dp.toPx(), centerY - (10 * scale).dp.toPx()),
                     size = Size((2 * scale).dp.toPx(), (20 * scale).dp.toPx())
                 )
@@ -106,16 +110,44 @@ fun ForecastRangeIndicator(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(horizontalAlignment = Alignment.Start) {
-                Text("Conservative", style = MaterialTheme.typography.labelSmall.copy(fontSize = (11 * scale).sp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(CurrencyFormatter.format(lowerBoundCents), style = MaterialTheme.typography.bodySmall.copy(fontSize = (12 * scale).sp), fontWeight = FontWeight.Bold)
+                Text(
+                    text = "Conservative", 
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = (11 * scale).sp), 
+                    color = lowerLabelColor
+                )
+                Text(
+                    text = CurrencyFormatter.format(lowerBoundCents), 
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = (12 * scale).sp), 
+                    color = lowerValueColor,
+                    fontWeight = FontWeight.Bold
+                )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Projected", style = MaterialTheme.typography.labelSmall.copy(fontSize = (11 * scale).sp), color = indicatorColor, fontWeight = FontWeight.Bold)
-                Text(CurrencyFormatter.format(projectedCents), style = MaterialTheme.typography.titleMedium.copy(fontSize = (18 * scale).sp), color = indicatorColor, fontWeight = FontWeight.Black)
+                Text(
+                    text = "Projected", 
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = (11 * scale).sp), 
+                    color = projectedColor, 
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = CurrencyFormatter.format(projectedCents), 
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = (18 * scale).sp), 
+                    color = projectedColor, 
+                    fontWeight = FontWeight.Black
+                )
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("High Pace", style = MaterialTheme.typography.labelSmall.copy(fontSize = (11 * scale).sp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(CurrencyFormatter.format(upperBoundCents), style = MaterialTheme.typography.bodySmall.copy(fontSize = (12 * scale).sp), fontWeight = FontWeight.Bold)
+                Text(
+                    text = "High Pace", 
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = (11 * scale).sp), 
+                    color = upperLabelColor
+                )
+                Text(
+                    text = CurrencyFormatter.format(upperBoundCents), 
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = (12 * scale).sp), 
+                    color = upperValueColor,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
