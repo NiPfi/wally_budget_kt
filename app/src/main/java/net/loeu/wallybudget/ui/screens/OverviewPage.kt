@@ -263,7 +263,13 @@ fun OverviewPage(
                             if (spendingForecast.confidenceScore < ForecastConfig.MIN_CONFIDENCE_THRESHOLD) {
                                 Icon(Icons.Default.Warning, null, Modifier.size((16 * scale).dp), MaterialTheme.colorScheme.error)
                                 Spacer(Modifier.width(4.dp))
-                                Text("Uncertain", style = MaterialTheme.typography.labelMedium.copy(fontSize = (10 * scale).sp), color = MaterialTheme.colorScheme.error, textDecoration = TextDecoration.Underline, fontWeight = FontWeight.Bold)
+                                Text(
+                                    text = "${spendingForecast.confidenceRating} Accuracy", 
+                                    style = MaterialTheme.typography.labelMedium.copy(fontSize = (10 * scale).sp), 
+                                    color = MaterialTheme.colorScheme.error, 
+                                    textDecoration = TextDecoration.Underline, 
+                                    fontWeight = FontWeight.Bold
+                                )
                             } else {
                                 Text("Details", style = MaterialTheme.typography.labelMedium.copy(fontSize = (10 * scale).sp), color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline)
                                 Spacer(Modifier.width(4.dp))
