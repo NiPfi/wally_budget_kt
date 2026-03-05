@@ -3,9 +3,6 @@ package net.loeu.wallybudget.ui.screens
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingDown
-import androidx.compose.material.icons.automirrored.filled.TrendingFlat
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -16,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.loeu.wallybudget.data.model.BudgetState
@@ -117,25 +115,22 @@ fun OverviewPage(
         val totalHeight = maxHeight
         val totalWidth = maxWidth
         
-        // SAFE ZONE: The area occupied by the FAB and "Pull up" text.
-        // We use a significant bottom padding to clear the UI overlays.
-        val safeBottomPadding = 160.dp 
+        // SAFE ZONE: Area occupied by the FAB and "Pull up" text.
+        val safeBottomPadding = 110.dp 
         
         // Calculate a responsive scale factor based on available space.
         val availableHeight = totalHeight.value - safeBottomPadding.value
         val scaleH = (availableHeight / STANDARD_AVAILABLE_HEIGHT_DP).coerceAtLeast(0.1f)
         val scaleW = (totalWidth.value / STANDARD_WIDTH_DP).coerceAtLeast(0.1f)
         
-        // Scale factor that responds to both dimensions.
-        // We allow it to go quite low to ensure it fits on small screens without scrolling.
         val scale = minOf(scaleH, scaleW).coerceIn(MIN_SCALE_FACTOR, MAX_SCALE_FACTOR)
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
-                .padding(top = (16 * scale).dp, bottom = safeBottomPadding),
-            verticalArrangement = Arrangement.spacedBy((10 * scale).dp)
+                .padding(top = (4 * scale).dp, bottom = safeBottomPadding),
+            verticalArrangement = Arrangement.spacedBy((4 * scale).dp)
         ) {
             // 1. Summary Card - Core Stats
             Card(
@@ -143,7 +138,7 @@ fun OverviewPage(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column(modifier = Modifier.fillMaxWidth().padding((16 * scale).dp)) {
+                Column(modifier = Modifier.fillMaxWidth().padding((12 * scale).dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -176,9 +171,9 @@ fun OverviewPage(
                         }
                     }
                     
-                    Spacer(Modifier.height((10 * scale).dp))
+                    Spacer(Modifier.height((6 * scale).dp))
                     HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.15f))
-                    Spacer(Modifier.height((10 * scale).dp))
+                    Spacer(Modifier.height((6 * scale).dp))
                     
                     Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
@@ -190,7 +185,7 @@ fun OverviewPage(
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                             fontWeight = FontWeight.Black
                         )
-                        Spacer(Modifier.height((4 * scale).dp))
+                        Spacer(Modifier.height((2 * scale).dp))
                         AnimatedCounter(
                             amountCents = budgetState.remainingTodayCents,
                             modifier = Modifier.fillMaxWidth(),
@@ -207,7 +202,7 @@ fun OverviewPage(
                 modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
-                Column(modifier = Modifier.fillMaxWidth().padding((12 * scale).dp)) {
+                Column(modifier = Modifier.fillMaxWidth().padding((10 * scale).dp)) {
                     Text(
                         text = "Cycle Progress", 
                         style = MaterialTheme.typography.titleMedium.copy(fontSize = (15 * scale).sp), 
@@ -220,13 +215,13 @@ fun OverviewPage(
                         fontWeight = FontWeight.Bold
                     )
                     
-                    Spacer(Modifier.height((10 * scale).dp))
+                    Spacer(Modifier.height((6 * scale).dp))
                     DetailRowSmall("Past Days", CurrencyFormatter.format(previousExpensesTotal), scale)
                     DetailRowSmall("Spent Today", CurrencyFormatter.format(budgetState.spentTodayCents), scale)
                     
-                    Spacer(Modifier.height((6 * scale).dp))
+                    Spacer(Modifier.height((4 * scale).dp))
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                    Spacer(Modifier.height((6 * scale).dp))
+                    Spacer(Modifier.height((4 * scale).dp))
                     
                     DetailRowSmall("Base Daily Allowance", CurrencyFormatter.format(budgetState.dailyBudgetCents), scale)
                     val adjColor = if (dailyAdjustmentCents >= 0L) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
@@ -241,11 +236,11 @@ fun OverviewPage(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1.2f, fill = false)
+                    .weight(1f, fill = false)
                     .clickable { showForecastDetails.value = true },
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
-                Column(modifier = Modifier.fillMaxWidth().padding((12 * scale).dp)) {
+                Column(modifier = Modifier.fillMaxWidth().padding((10 * scale).dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -278,12 +273,12 @@ fun OverviewPage(
                         }
                     }
                     
-                    Spacer(Modifier.height((6 * scale).dp))
+                    Spacer(Modifier.height((2 * scale).dp))
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
                             text = CurrencyFormatter.format(abs(spendingForecast.estimatedEndCycleRemainingCents)),
                             style = MaterialTheme.typography.headlineMedium.copy(fontSize = (22 * scale).sp),
-                            color = if (spendingForecast.isProjectedOverBudget) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary,
+                            color = if (spendingForecast.isProjectedOverBudget) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.Black
                         )
                         Spacer(Modifier.width(8.dp))
@@ -291,11 +286,11 @@ fun OverviewPage(
                             text = "est. ${if (spendingForecast.isProjectedOverBudget) "deficit" else "remaining"}",
                             style = MaterialTheme.typography.bodyMedium.copy(fontSize = (11 * scale).sp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(bottom = 3.dp)
+                            modifier = Modifier.padding(bottom = (3 * scale).dp)
                         )
                     }
                     
-                    Spacer(Modifier.height((10 * scale).dp))
+                    Spacer(Modifier.height((6 * scale).dp))
                     ForecastRangeIndicator(
                         lowerBoundCents = spendingForecast.lowerBoundCents,
                         upperBoundCents = spendingForecast.upperBoundCents,
@@ -303,44 +298,6 @@ fun OverviewPage(
                         isOverBudget = spendingForecast.isProjectedOverBudget,
                         scale = scale
                     )
-                    
-                    Spacer(Modifier.height((12 * scale).dp))
-                    
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        shape = MaterialTheme.shapes.medium,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding((10 * scale).dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val trendIcon = when {
-                                spendingForecast.trendSlopeCents > ForecastConfig.TREND_SIGNIFICANCE_THRESHOLD_CENTS -> Icons.AutoMirrored.Filled.TrendingUp
-                                spendingForecast.trendSlopeCents < -ForecastConfig.TREND_SIGNIFICANCE_THRESHOLD_CENTS -> Icons.AutoMirrored.Filled.TrendingDown
-                                else -> Icons.AutoMirrored.Filled.TrendingFlat
-                            }
-                            val trendColor = when {
-                                spendingForecast.trendSlopeCents > ForecastConfig.TREND_SIGNIFICANCE_THRESHOLD_CENTS -> MaterialTheme.colorScheme.error
-                                spendingForecast.trendSlopeCents < -ForecastConfig.TREND_SIGNIFICANCE_THRESHOLD_CENTS -> MaterialTheme.colorScheme.tertiary
-                                else -> MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                            
-                            Icon(
-                                imageVector = trendIcon,
-                                contentDescription = null,
-                                modifier = Modifier.size((24 * scale).dp),
-                                tint = trendColor
-                            )
-                            Spacer(Modifier.width((10 * scale).dp))
-                            Text(
-                                text = "${spendingForecast.confidenceRating} accuracy based on ${spendingForecast.usedDataPoints} days",
-                                style = MaterialTheme.typography.labelLarge.copy(fontSize = (11 * scale).sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
                 }
             }
         }
@@ -379,22 +336,26 @@ private fun DetailRowSmall(
     fontWeight: FontWeight = FontWeight.Normal
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(), 
-        horizontalArrangement = Arrangement.SpaceBetween, 
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = (2 * scale).dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = label, 
-            style = MaterialTheme.typography.bodyMedium.copy(fontSize = (12 * scale).sp), 
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = (11.5 * scale).sp), 
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
         Text(
             text = value, 
             style = MaterialTheme.typography.bodyLarge.copy(fontSize = (13 * scale).sp),
             color = if (valueColor == Color.Unspecified) MaterialTheme.colorScheme.onSurface else valueColor, 
             fontWeight = fontWeight,
-            textAlign = TextAlign.End
+            textAlign = TextAlign.End,
+            modifier = Modifier.padding(start = (8 * scale).dp)
         )
     }
 }
