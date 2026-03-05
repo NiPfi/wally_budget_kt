@@ -295,7 +295,7 @@ fun OverviewPage(
                         lowerBoundCents = spendingForecast.lowerBoundCents,
                         upperBoundCents = spendingForecast.upperBoundCents,
                         projectedCents = spendingForecast.projectedTotalSpentCents,
-                        isOverBudget = spendingForecast.isProjectedOverBudget,
+                        budgetLimitCents = budgetState.monthlyBudgetCents,
                         scale = scale
                     )
                 }
