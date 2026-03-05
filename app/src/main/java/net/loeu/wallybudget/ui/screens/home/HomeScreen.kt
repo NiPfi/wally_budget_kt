@@ -1,5 +1,6 @@
 package net.loeu.wallybudget.ui.screens.home
 
+import android.content.res.Configuration
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
@@ -16,6 +17,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -56,6 +59,9 @@ fun HomeScreen(
     val resetExpensesToLatestTrigger = rememberSaveable { mutableIntStateOf(0) }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     Scaffold(
         snackbarHost = {
@@ -150,12 +156,12 @@ fun HomeScreen(
                             onDateSelected = { selectedDateForExpenseEpochDay.longValue = it.toEpochDay() },
                             modifier = Modifier.fillMaxSize()
                         )
-                        
+
                         if (snapController.isExpanded) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(100.dp)
+                                    .height(80.dp)
                                     .align(Alignment.TopCenter)
                                     .draggable(
                                         state = snapController.dragState,
@@ -170,14 +176,25 @@ fun HomeScreen(
 
                 val progress = snapController.progress
                 val density = LocalDensity.current
-                val bottomY = remember(density, pageHeightPx) { pageHeightPx - with(density) { 120.dp.toPx() } }
-                val topY = remember(density) { with(density) { 24.dp.toPx() } }
-                val currentY = bottomY + (topY - bottomY) * progress
+                
+                // Adaptive layout parameters
+                val handlePadding = if (isLandscape) 6.dp else 10.dp
+                val bottomOffset = if (isLandscape) 16.dp else 24.dp
+                val topMargin = if (isLandscape) 12.dp else 24.dp
+
+                // Track handle height to ensure it doesn't go off-screen when expanded
+                var handleHeightPx by remember { mutableFloatStateOf(0f) }
+
+                val bottomRestPx = with(density) { -bottomOffset.toPx() }
+                // Adjust topTargetPx to account for handle height so its TOP stays at topMargin
+                val topTargetPx = -(pageHeightPx - handleHeightPx - with(density) { topMargin.toPx() })
+                val currentY = bottomRestPx + (topTargetPx - bottomRestPx) * progress
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .align(Alignment.TopCenter)
+                        .align(Alignment.BottomCenter)
+                        .onSizeChanged { handleHeightPx = it.height.toFloat() }
                         .offset { IntOffset(0, currentY.roundToInt()) }
                         .draggable(
                             state = snapController.dragState,
@@ -192,7 +209,7 @@ fun HomeScreen(
                                 }
                             )
                         }
-                        .padding(vertical = 16.dp),
+                        .padding(vertical = handlePadding),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
