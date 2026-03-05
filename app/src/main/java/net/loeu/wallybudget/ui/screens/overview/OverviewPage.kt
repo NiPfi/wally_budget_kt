@@ -1,4 +1,4 @@
-package net.loeu.wallybudget.ui.screens
+package net.loeu.wallybudget.ui.screens.overview
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -14,25 +14,12 @@ import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.data.model.Expense
 import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.domain.config.ForecastConfig
-import net.loeu.wallybudget.ui.components.ForecastCard
-import net.loeu.wallybudget.ui.components.SpendingDetailsCard
-import net.loeu.wallybudget.ui.components.SummaryCard
 import net.loeu.wallybudget.util.CurrencyFormatter
 import kotlin.math.abs
 
 private const val STANDARD_AVAILABLE_HEIGHT_DP = 640f
 private const val STANDARD_WIDTH_DP = 360f
-
-/**
- * Minimum scale factor to prevent UI elements from becoming unreadable or 
- * disappearing on tiny screens.
- */
 private const val MIN_SCALE_FACTOR = 0.5f
-
-/**
- * Maximum scale factor to avoid excessive oversized elements on very large 
- * screens, maintaining a balanced layout.
- */
 private const val MAX_SCALE_FACTOR = 1.2f
 
 @Composable
@@ -105,15 +92,11 @@ fun OverviewPage(
         )
     }
 
-    // RESPONSIVE CONTAINER (NON-SCROLLABLE)
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val totalHeight = maxHeight
         val totalWidth = maxWidth
-        
-        // SAFE ZONE: Area occupied by the FAB and "Pull up" text.
         val safeBottomPadding = 110.dp 
         
-        // Calculate a responsive scale factor based on available space.
         val availableHeight = totalHeight.value - safeBottomPadding.value
         val scaleH = (availableHeight / STANDARD_AVAILABLE_HEIGHT_DP).coerceAtLeast(0.1f)
         val scaleW = (totalWidth.value / STANDARD_WIDTH_DP).coerceAtLeast(0.1f)
@@ -127,14 +110,12 @@ fun OverviewPage(
                 .padding(top = (4 * scale).dp, bottom = safeBottomPadding),
             verticalArrangement = Arrangement.spacedBy((4 * scale).dp)
         ) {
-            // 1. Summary Card - Core Stats
             SummaryCard(
                 budgetState = budgetState,
                 scale = scale,
                 modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
             )
 
-            // 2. Spending Details Card
             SpendingDetailsCard(
                 budgetState = budgetState,
                 previousExpensesTotal = previousExpensesTotal,
@@ -144,7 +125,6 @@ fun OverviewPage(
                 modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
             )
 
-            // 3. Forecast Card
             ForecastCard(
                 spendingForecast = spendingForecast,
                 budgetState = budgetState,

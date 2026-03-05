@@ -1,43 +1,16 @@
-package net.loeu.wallybudget.ui.screens
+package net.loeu.wallybudget.ui.screens.home
 
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,13 +19,14 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import net.loeu.wallybudget.data.model.BudgetState
-import net.loeu.wallybudget.data.model.Expense
-import net.loeu.wallybudget.data.model.SpendingForecast
-import net.loeu.wallybudget.ui.components.AddExpenseSheet
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import net.loeu.wallybudget.data.model.BudgetState
+import net.loeu.wallybudget.data.model.Expense
 import net.loeu.wallybudget.data.model.ExpenseCategory
+import net.loeu.wallybudget.data.model.SpendingForecast
+import net.loeu.wallybudget.ui.screens.expenses.ExpensesPage
+import net.loeu.wallybudget.ui.screens.overview.OverviewPage
 import java.time.LocalDate
 import kotlin.math.roundToInt
 
@@ -139,8 +113,6 @@ fun HomeScreen(
                         .fillMaxSize()
                         .offset { IntOffset(0, -effectiveOffset.roundToInt()) }
                 ) {
-                    // Wrap OverviewPage in a draggable Box to allow swiping up from it
-                    // without blocking clicks on its content (taps go to children first).
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -180,13 +152,11 @@ fun HomeScreen(
                             modifier = Modifier.fillMaxSize()
                         )
                         
-                        // Overlay a small draggable area at the top of ExpensesPage 
-                        // so users can pull it down easily.
                         if (snapController.isExpanded) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(100.dp) // Smaller hit area for pulling down
+                                    .height(100.dp)
                                     .align(Alignment.TopCenter)
                                     .draggable(
                                         state = snapController.dragState,
@@ -199,7 +169,6 @@ fun HomeScreen(
                     }
                 }
 
-                // Floating "Pull up/down" indicator
                 val progress = snapController.progress
                 val density = LocalDensity.current
                 val bottomY = remember(density, pageHeightPx) { pageHeightPx - with(density) { 120.dp.toPx() } }

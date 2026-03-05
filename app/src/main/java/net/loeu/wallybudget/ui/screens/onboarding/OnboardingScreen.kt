@@ -1,4 +1,4 @@
-package net.loeu.wallybudget.ui.screens
+package net.loeu.wallybudget.ui.screens.onboarding
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -154,4 +154,3 @@ fun OnboardingScreen(
         )
     }
 }
-
