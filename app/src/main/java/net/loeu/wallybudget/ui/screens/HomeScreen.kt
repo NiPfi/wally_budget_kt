@@ -33,12 +33,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -74,12 +74,12 @@ fun HomeScreen(
     onHideAddExpenseSheet: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var selectedDateForExpenseEpochDay by rememberSaveable { mutableStateOf(LocalDate.now().toEpochDay()) }
-    val selectedDateForExpense = LocalDate.ofEpochDay(selectedDateForExpenseEpochDay)
-    var expenseBeingEdited by remember { mutableStateOf<Expense?>(null) }
-    var isExpensesVisible by remember { mutableStateOf(false) }
-    var addSheetOpenedFromOverview by rememberSaveable { mutableStateOf(false) }
-    var resetExpensesToLatestTrigger by rememberSaveable { mutableStateOf(0) }
+    val selectedDateForExpenseEpochDay = rememberSaveable { mutableLongStateOf(LocalDate.now().toEpochDay()) }
+    val selectedDateForExpense = LocalDate.ofEpochDay(selectedDateForExpenseEpochDay.longValue)
+    val expenseBeingEdited = remember { mutableStateOf<Expense?>(null) }
+    val isExpensesVisible = remember { mutableStateOf(false) }
+    val addSheetOpenedFromOverview = rememberSaveable { mutableStateOf(false) }
+    val resetExpensesToLatestTrigger = rememberSaveable { mutableIntStateOf(0) }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
@@ -103,11 +103,11 @@ fun HomeScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    if (!isExpensesVisible) {
-                        selectedDateForExpenseEpochDay = LocalDate.now().toEpochDay()
-                        addSheetOpenedFromOverview = true
+                    if (!isExpensesVisible.value) {
+                        selectedDateForExpenseEpochDay.longValue = LocalDate.now().toEpochDay()
+                        addSheetOpenedFromOverview.value = true
                     } else {
-                        addSheetOpenedFromOverview = false
+                        addSheetOpenedFromOverview.value = false
                     }
                     onShowAddExpenseSheet()
                 },
@@ -128,7 +128,7 @@ fun HomeScreen(
             val effectiveOffset = snapController.offsetPx
 
             SideEffect {
-                isExpensesVisible = snapController.isExpanded
+                isExpensesVisible.value = snapController.isExpanded
             }
 
             Box(
@@ -173,10 +173,10 @@ fun HomeScreen(
                             todayExpenses = todayExpenses,
                             previousCycleExpenses = previousCycleExpenses,
                             isVisible = snapController.isExpanded,
-                            resetToLatestTrigger = resetExpensesToLatestTrigger,
-                            onEditExpense = { expenseBeingEdited = it },
+                            resetToLatestTrigger = resetExpensesToLatestTrigger.intValue,
+                            onEditExpense = { expenseBeingEdited.value = it },
                             onDeleteExpense = onDeleteExpense,
-                            onDateSelected = { selectedDateForExpenseEpochDay = it.toEpochDay() },
+                            onDateSelected = { selectedDateForExpenseEpochDay.longValue = it.toEpochDay() },
                             modifier = Modifier.fillMaxSize()
                         )
                         
@@ -255,22 +255,22 @@ fun HomeScreen(
     if (showAddExpenseSheet) {
         AddExpenseSheet(
             onDismiss = {
-                addSheetOpenedFromOverview = false
+                addSheetOpenedFromOverview.value = false
                 onHideAddExpenseSheet()
             },
             onSubmitExpense = { amountCents, description, icon ->
                 onAddExpense(amountCents, description, icon, selectedDateForExpense)
-                if (addSheetOpenedFromOverview) {
-                    resetExpensesToLatestTrigger += 1
+                if (addSheetOpenedFromOverview.value) {
+                    resetExpensesToLatestTrigger.intValue += 1
                 }
-                addSheetOpenedFromOverview = false
+                addSheetOpenedFromOverview.value = false
             }
         )
     }
 
-    expenseBeingEdited?.let { editingExpense ->
+    expenseBeingEdited.value?.let { editingExpense ->
         AddExpenseSheet(
-            onDismiss = { expenseBeingEdited = null },
+            onDismiss = { expenseBeingEdited.value = null },
             onSubmitExpense = { amountCents, description, icon ->
                 onUpdateExpense(
                     editingExpense.copy(
@@ -279,7 +279,7 @@ fun HomeScreen(
                         icon = icon
                     )
                 )
-                expenseBeingEdited = null
+                expenseBeingEdited.value = null
             },
             onDeleteExpense = {
                 onDeleteExpense(editingExpense)
@@ -290,27 +290,20 @@ fun HomeScreen(
                     }
                     val result = snackbarHostState.showSnackbar(
                         message = if (editingExpense.description.isNotBlank()) {
-                            "${editingExpense.description} deleted"
+                            "Deleted \"${editingExpense.description}\""
                         } else {
-                            "Entry deleted"
+                            "Deleted expense"
                         },
-                        actionLabel = "UNDO",
-                        withDismissAction = true,
-                        duration = SnackbarDuration.Indefinite
+                        actionLabel = "Undo",
+                        duration = SnackbarDuration.Short
                     )
-                    dismissJob.cancel()
-
                     if (result == SnackbarResult.ActionPerformed) {
+                        dismissJob.cancel()
                         onRestoreExpense(editingExpense)
                     }
                 }
-                expenseBeingEdited = null
-            },
-            title = "Edit Expense",
-            confirmButtonText = "Save Changes",
-            initialAmountCents = editingExpense.amountCents,
-            initialDescription = editingExpense.description,
-            initialIcon = editingExpense.icon
+                expenseBeingEdited.value = null
+            }
         )
     }
 }
