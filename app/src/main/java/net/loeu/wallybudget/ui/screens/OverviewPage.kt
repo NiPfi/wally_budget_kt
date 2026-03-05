@@ -1,27 +1,22 @@
 package net.loeu.wallybudget.ui.screens
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.data.model.Expense
 import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.domain.config.ForecastConfig
-import net.loeu.wallybudget.ui.components.AnimatedCounter
-import net.loeu.wallybudget.ui.components.ForecastRangeIndicator
+import net.loeu.wallybudget.ui.components.ForecastCard
+import net.loeu.wallybudget.ui.components.SpendingDetailsCard
+import net.loeu.wallybudget.ui.components.SummaryCard
 import net.loeu.wallybudget.util.CurrencyFormatter
 import kotlin.math.abs
 
@@ -133,173 +128,30 @@ fun OverviewPage(
             verticalArrangement = Arrangement.spacedBy((4 * scale).dp)
         ) {
             // 1. Summary Card - Core Stats
-            Card(
-                modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(modifier = Modifier.fillMaxWidth().padding((12 * scale).dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
-                            Text(
-                                text = "Days Left", 
-                                style = MaterialTheme.typography.labelMedium.copy(fontSize = (11 * scale).sp), 
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                            )
-                            Text(
-                                text = budgetState.daysRemainingInCycle.toString(), 
-                                style = MaterialTheme.typography.headlineMedium.copy(fontSize = (24 * scale).sp), 
-                                color = MaterialTheme.colorScheme.onPrimaryContainer, 
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                text = "Cycle Left", 
-                                style = MaterialTheme.typography.labelMedium.copy(fontSize = (11 * scale).sp), 
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                            )
-                            Text(
-                                text = CurrencyFormatter.format(abs(budgetState.remainingCycleCents)),
-                                style = MaterialTheme.typography.headlineMedium.copy(fontSize = (24 * scale).sp),
-                                color = if (budgetState.remainingCycleCents >= 0L) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.error,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                    
-                    Spacer(Modifier.height((6 * scale).dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.15f))
-                    Spacer(Modifier.height((6 * scale).dp))
-                    
-                    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "TODAY'S BUDGET",
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontSize = (12 * scale).sp,
-                                letterSpacing = (1.5 * scale).sp
-                            ),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            fontWeight = FontWeight.Black
-                        )
-                        Spacer(Modifier.height((2 * scale).dp))
-                        AnimatedCounter(
-                            amountCents = budgetState.remainingTodayCents,
-                            modifier = Modifier.fillMaxWidth(),
-                            textStyle = MaterialTheme.typography.displayLarge.copy(fontSize = (44 * scale).sp),
-                            color = if (budgetState.remainingTodayCents >= 0L) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.error,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
+            SummaryCard(
+                budgetState = budgetState,
+                scale = scale,
+                modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
+            )
 
             // 2. Spending Details Card
-            Card(
-                modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(modifier = Modifier.fillMaxWidth().padding((10 * scale).dp)) {
-                    Text(
-                        text = "Cycle Progress", 
-                        style = MaterialTheme.typography.titleMedium.copy(fontSize = (15 * scale).sp), 
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(Modifier.height((2 * scale).dp))
-                    Text(
-                        text = CurrencyFormatter.format(budgetState.totalSpentThisCycleCents), 
-                        style = MaterialTheme.typography.headlineSmall.copy(fontSize = (19 * scale).sp), 
-                        fontWeight = FontWeight.Bold
-                    )
-                    
-                    Spacer(Modifier.height((6 * scale).dp))
-                    DetailRowSmall("Past Days", CurrencyFormatter.format(previousExpensesTotal), scale)
-                    DetailRowSmall("Spent Today", CurrencyFormatter.format(budgetState.spentTodayCents), scale)
-                    
-                    Spacer(Modifier.height((4 * scale).dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                    Spacer(Modifier.height((4 * scale).dp))
-                    
-                    DetailRowSmall("Base Daily Allowance", CurrencyFormatter.format(budgetState.dailyBudgetCents), scale)
-                    val adjColor = if (dailyAdjustmentCents >= 0L) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
-                    DetailRowSmall("Budget Adjustment", "${if (dailyAdjustmentCents >= 0L) "+" else "-"}${CurrencyFormatter.format(abs(dailyAdjustmentCents))}", scale, valueColor = adjColor)
-                    
-                    Spacer(Modifier.height((4 * scale).dp))
-                    DetailRowSmall("Effective Allowance", CurrencyFormatter.format(adjustedDailyAllowanceCents), scale, fontWeight = FontWeight.ExtraBold)
-                }
-            }
+            SpendingDetailsCard(
+                budgetState = budgetState,
+                previousExpensesTotal = previousExpensesTotal,
+                dailyAdjustmentCents = dailyAdjustmentCents,
+                adjustedDailyAllowanceCents = adjustedDailyAllowanceCents,
+                scale = scale,
+                modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
+            )
 
             // 3. Forecast Card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f, fill = false)
-                    .clickable { showForecastDetails.value = true },
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(modifier = Modifier.fillMaxWidth().padding((10 * scale).dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Forecast", 
-                            style = MaterialTheme.typography.titleMedium.copy(fontSize = (15 * scale).sp), 
-                            fontWeight = FontWeight.Bold
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(4.dp)
-                        ) {
-                            if (spendingForecast.confidenceScore < ForecastConfig.MIN_CONFIDENCE_THRESHOLD) {
-                                Icon(Icons.Default.Warning, null, Modifier.size((16 * scale).dp), MaterialTheme.colorScheme.error)
-                                Spacer(Modifier.width(4.dp))
-                                Text(
-                                    text = "${spendingForecast.confidenceRating} Accuracy", 
-                                    style = MaterialTheme.typography.labelMedium.copy(fontSize = (10 * scale).sp), 
-                                    color = MaterialTheme.colorScheme.error, 
-                                    textDecoration = TextDecoration.Underline, 
-                                    fontWeight = FontWeight.Bold
-                                )
-                            } else {
-                                Text("Details", style = MaterialTheme.typography.labelMedium.copy(fontSize = (10 * scale).sp), color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline)
-                                Spacer(Modifier.width(4.dp))
-                                Icon(Icons.Default.Info, null, Modifier.size((16 * scale).dp), MaterialTheme.colorScheme.primary)
-                            }
-                        }
-                    }
-                    
-                    Spacer(Modifier.height((2 * scale).dp))
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            text = CurrencyFormatter.format(abs(spendingForecast.estimatedEndCycleRemainingCents)),
-                            style = MaterialTheme.typography.headlineMedium.copy(fontSize = (22 * scale).sp),
-                            color = if (spendingForecast.isProjectedOverBudget) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.Black
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = "est. ${if (spendingForecast.isProjectedOverBudget) "deficit" else "remaining"}",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = (11 * scale).sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(bottom = (3 * scale).dp)
-                        )
-                    }
-                    
-                    Spacer(Modifier.height((6 * scale).dp))
-                    ForecastRangeIndicator(
-                        lowerBoundCents = spendingForecast.lowerBoundCents,
-                        upperBoundCents = spendingForecast.upperBoundCents,
-                        projectedCents = spendingForecast.projectedTotalSpentCents,
-                        budgetLimitCents = budgetState.monthlyBudgetCents,
-                        scale = scale
-                    )
-                }
-            }
+            ForecastCard(
+                spendingForecast = spendingForecast,
+                budgetState = budgetState,
+                scale = scale,
+                onClick = { showForecastDetails.value = true },
+                modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
+            )
         }
     }
 }
@@ -323,39 +175,6 @@ private fun DetailRow(label: String, value: String) {
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.End,
             modifier = Modifier.weight(1f)
-        )
-    }
-}
-
-@Composable
-private fun DetailRowSmall(
-    label: String, 
-    value: String, 
-    scale: Float,
-    valueColor: Color = Color.Unspecified, 
-    fontWeight: FontWeight = FontWeight.Normal
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = (2 * scale).dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label, 
-            style = MaterialTheme.typography.bodyMedium.copy(fontSize = (11.5 * scale).sp), 
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = value, 
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = (13 * scale).sp),
-            color = if (valueColor == Color.Unspecified) MaterialTheme.colorScheme.onSurface else valueColor, 
-            fontWeight = fontWeight,
-            textAlign = TextAlign.End,
-            modifier = Modifier.padding(start = (8 * scale).dp)
         )
     }
 }
