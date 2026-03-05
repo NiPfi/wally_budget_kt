@@ -1,4 +1,4 @@
-package net.loeu.wallybudget.ui.components
+package net.loeu.wallybudget.ui.screens.overview
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -24,20 +24,6 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
 import net.loeu.wallybudget.util.CurrencyFormatter
 
-/**
- * Animated counter that displays currency amounts with rolling animation.
- * Automatically scales font size to fit available width down to [minFontSize].
- *
- * @param amountCents The value to display in cents.
- * @param modifier Modifier for the container.
- * @param textStyle The base text style to use. The font size will be scaled down if necessary.
- * @param color The color of the text.
- * @param textAlign How to align the text within the container.
- * @param minFontSize The minimum font size to allow when scaling down to fit the width. 
- * Defaults to 12.sp as a safe floor to prevent layout breakage on extremely narrow devices 
- * while maintaining basic legibility. For primary budget displays, a larger value 
- * (e.g., 20.sp) may be passed to ensure higher readability.
- */
 @Composable
 fun AnimatedCounter(
     amountCents: Long,
@@ -88,9 +74,6 @@ private fun AnimatedCounterWithAnimation(
     BoxWithConstraints(modifier = modifier) {
         val availableWidthPx = with(LocalDensity.current) { maxWidth.toPx() }.roundToInt().coerceAtLeast(1)
         
-        // Responsive font scaling logic:
-        // We start with the requested font size and progressively decrease it until the text fits 
-        // within the available width or reaches the minFontSize threshold.
         var candidateFontSize = if (textStyle.fontSize.isSpecified) textStyle.fontSize else 57.sp
 
         while (candidateFontSize > minFontSize) {
@@ -114,37 +97,4 @@ private fun AnimatedCounterWithAnimation(
             modifier = Modifier.fillMaxWidth()
         )
     }
-}
-
-/**
- * Animated digit that rolls like an odometer
- */
-@Composable
-fun AnimatedDigit(
-    digit: Char,
-    modifier: Modifier = Modifier,
-    textStyle: TextStyle = LocalTextStyle.current,
-    color: Color = MaterialTheme.colorScheme.onBackground
-) {
-    val animatable = remember { Animatable(0f) }
-
-    LaunchedEffect(digit) {
-        if (digit.isDigit()) {
-            val targetValue = digit.digitToInt().toFloat()
-            animatable.animateTo(
-                targetValue = targetValue,
-                animationSpec = tween(
-                    durationMillis = 250,
-                    easing = FastOutSlowInEasing
-                )
-            )
-        }
-    }
-
-    Text(
-        text = digit.toString(),
-        style = textStyle,
-        color = color,
-        modifier = modifier
-    )
 }

@@ -1,4 +1,4 @@
-package net.loeu.wallybudget.ui.screens
+package net.loeu.wallybudget.ui.screens.settings
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -190,4 +190,3 @@ fun SettingsScreen(
         }
     }
 }
-

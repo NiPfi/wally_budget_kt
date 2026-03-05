@@ -21,10 +21,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.flow.map
 import net.loeu.wallybudget.ui.navigation.Screen
-import net.loeu.wallybudget.ui.screens.HistoryScreen
-import net.loeu.wallybudget.ui.screens.HomeScreen
-import net.loeu.wallybudget.ui.screens.OnboardingScreen
-import net.loeu.wallybudget.ui.screens.SettingsScreen
+import net.loeu.wallybudget.ui.screens.history.HistoryScreen
+import net.loeu.wallybudget.ui.screens.home.HomeScreen
+import net.loeu.wallybudget.ui.screens.onboarding.OnboardingScreen
+import net.loeu.wallybudget.ui.screens.settings.SettingsScreen
 import net.loeu.wallybudget.ui.theme.WallyBudgetTheme
 import net.loeu.wallybudget.ui.viewmodel.BudgetViewModel
 import net.loeu.wallybudget.ui.viewmodel.BudgetViewModelFactory

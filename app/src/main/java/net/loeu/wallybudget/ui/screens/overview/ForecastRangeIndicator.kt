@@ -1,4 +1,4 @@
-package net.loeu.wallybudget.ui.components
+package net.loeu.wallybudget.ui.screens.overview
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -16,9 +16,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.loeu.wallybudget.util.CurrencyFormatter
 
-/** 
- * Minimum range in cents to ensure a visible track even when confidence bounds are very narrow.
- */
 private const val MIN_VISUALIZATION_RANGE_CENTS = 100L
 
 @Composable
@@ -30,7 +27,6 @@ fun ForecastRangeIndicator(
     modifier: Modifier = Modifier,
     scale: Float = 1.0f
 ) {
-    // Determine the visualization window. 
     val actualRange = (upperBoundCents - lowerBoundCents).coerceAtLeast(MIN_VISUALIZATION_RANGE_CENTS)
     val minView = (lowerBoundCents - actualRange * 0.25).coerceAtLeast(0.0).toLong()
     val maxView = (upperBoundCents + actualRange * 0.25).toLong()
@@ -40,14 +36,12 @@ fun ForecastRangeIndicator(
     val highPos = ((upperBoundCents - minView).toDouble() / viewWidth).coerceIn(0.0, 1.0).toFloat()
     val projPos = ((projectedCents - minView).toDouble() / viewWidth).coerceIn(0.0, 1.0).toFloat()
 
-    // Color logic: reddish if value exceeds budget
     val projectedColor = if (projectedCents > budgetLimitCents) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
     val lowerValueColor = if (lowerBoundCents > budgetLimitCents) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
     val lowerLabelColor = if (lowerBoundCents > budgetLimitCents) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
     val upperValueColor = if (upperBoundCents > budgetLimitCents) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
     val upperLabelColor = if (upperBoundCents > budgetLimitCents) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
     
-    // Visualization track and range use neutral colors to avoid conflicting implications in light/dark themes
     val trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
     val rangeShade = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
 
@@ -55,9 +49,8 @@ fun ForecastRangeIndicator(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height((24 * scale).dp) // Slimmer visualization
+                .height((24 * scale).dp)
         ) {
-            // 1. Background track - Thin rectangle
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -71,7 +64,6 @@ fun ForecastRangeIndicator(
                 val h = size.height
                 val centerY = h / 2
 
-                // 2. Shaded Confidence Area - Rectangle (not rounded)
                 val startX = lowPos * w
                 val endX = highPos * w
                 drawRect(
@@ -80,7 +72,6 @@ fun ForecastRangeIndicator(
                     size = Size((endX - startX).coerceAtLeast(1f), (12 * scale).dp.toPx())
                 )
 
-                // 3. Bound Markers (Vertical ticks) - Sharp rectangles
                 val lineH = (10 * scale).dp.toPx()
                 drawLine(
                     color = trackColor,
@@ -95,7 +86,6 @@ fun ForecastRangeIndicator(
                     strokeWidth = (1.5 * scale).dp.toPx()
                 )
 
-                // 4. Expected Value Indicator (Needle) - Sharp rectangle
                 val needleX = projPos * w
                 drawRect(
                     color = projectedColor,

@@ -1,4 +1,4 @@
-package net.loeu.wallybudget.ui.screens
+package net.loeu.wallybudget.ui.screens.home
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing

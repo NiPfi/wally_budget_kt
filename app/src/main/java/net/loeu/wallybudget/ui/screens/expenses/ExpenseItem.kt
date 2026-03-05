@@ -1,9 +1,9 @@
-package net.loeu.wallybudget.ui.components
+package net.loeu.wallybudget.ui.screens.expenses
 
-import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -40,7 +40,6 @@ fun ExpenseItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon
             Icon(
                 painter = painterResource(id = expense.icon.iconRes),
                 contentDescription = expense.icon.description,
@@ -49,7 +48,6 @@ fun ExpenseItem(
             )
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Description and time
             Column(
                 modifier = Modifier.weight(1f)
             ) {
@@ -64,7 +62,6 @@ fun ExpenseItem(
                 )
             }
 
-            // Amount
             Text(
                 text = CurrencyFormatter.format(expense.amountCents),
                 style = MaterialTheme.typography.titleMedium,
@@ -78,9 +75,6 @@ private fun formatTime(timestamp: Long): String {
     val zonedDateTime = Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault())
     val localTime = zonedDateTime.toLocalTime()
 
-    // If the time is exactly midnight (00:00), it indicates an expense added to a different 
-    // day than its creation date (backdated), as these are stored at the start of the day.
-    // In such cases, we show a dash as the specific time is not recorded or relevant.
     if (localTime == LocalTime.MIDNIGHT) {
         return "—"
     }
