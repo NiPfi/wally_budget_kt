@@ -13,7 +13,7 @@ import net.loeu.wallybudget.data.model.description
 import net.loeu.wallybudget.data.model.iconRes
 import net.loeu.wallybudget.util.CurrencyFormatter
 import java.time.Instant
-import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -76,11 +76,15 @@ fun ExpenseItem(
 
 private fun formatTime(timestamp: Long): String {
     val zonedDateTime = Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault())
-    if (zonedDateTime.toLocalDate().isBefore(LocalDate.now())) {
+    val localTime = zonedDateTime.toLocalTime()
+
+    // If the time is exactly midnight (00:00), it indicates an expense added to a different 
+    // day than its creation date (backdated), as these are stored at the start of the day.
+    // In such cases, we show a dash as the specific time is not recorded or relevant.
+    if (localTime == LocalTime.MIDNIGHT) {
         return "—"
     }
 
-    val time = zonedDateTime.toLocalTime()
     val formatter = DateTimeFormatter.ofPattern("HH:mm")
-    return time.format(formatter)
+    return localTime.format(formatter)
 }
