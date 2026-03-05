@@ -8,6 +8,8 @@ import net.loeu.wallybudget.data.local.BudgetDatabase
 import net.loeu.wallybudget.data.local.UserPreferencesManager
 import net.loeu.wallybudget.data.repository.BudgetRepository
 import net.loeu.wallybudget.data.time.SystemCurrentDateProvider
+import net.loeu.wallybudget.domain.service.BudgetCalculationService
+import net.loeu.wallybudget.domain.service.SpendingForecastCalculator
 
 class BudgetViewModelFactory(
     private val context: Context
@@ -37,11 +39,20 @@ class BudgetViewModelFactory(
         SystemCurrentDateProvider()
     }
 
+    private val forecastCalculator by lazy {
+        SpendingForecastCalculator()
+    }
+
+    private val budgetCalculationService by lazy {
+        BudgetCalculationService(forecastCalculator)
+    }
+
     private val repository by lazy {
         BudgetRepository(
             expenseDao = database.expenseDao(),
             monthlyHistoryDao = database.monthlyHistoryDao(),
             userPreferencesManager = userPreferencesManager,
+            budgetCalculationService = budgetCalculationService,
             currentDateProvider = currentDateProvider
         )
     }
@@ -54,4 +65,3 @@ class BudgetViewModelFactory(
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
-

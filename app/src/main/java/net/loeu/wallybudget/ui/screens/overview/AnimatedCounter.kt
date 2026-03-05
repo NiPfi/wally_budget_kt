@@ -30,18 +30,13 @@ fun AnimatedCounter(
     modifier: Modifier = Modifier,
     textStyle: TextStyle = LocalTextStyle.current,
     color: Color = MaterialTheme.colorScheme.onBackground,
-    textAlign: TextAlign = TextAlign.Center,
     minFontSize: TextUnit = 12.sp
 ) {
-    val formattedAmount = CurrencyFormatter.format(amountCents)
-
     AnimatedCounterWithAnimation(
         amountCents = amountCents,
-        formattedAmount = formattedAmount,
         textStyle = textStyle,
         color = color,
         modifier = modifier,
-        textAlign = textAlign,
         minFontSize = minFontSize
     )
 }
@@ -49,11 +44,9 @@ fun AnimatedCounter(
 @Composable
 private fun AnimatedCounterWithAnimation(
     amountCents: Long,
-    formattedAmount: String,
     textStyle: TextStyle,
     color: Color,
     modifier: Modifier = Modifier,
-    textAlign: TextAlign = TextAlign.Center,
     minFontSize: TextUnit = 12.sp
 ) {
     val animatable = remember { Animatable(amountCents.toFloat()) }
@@ -93,7 +86,7 @@ private fun AnimatedCounterWithAnimation(
             color = color,
             maxLines = 1,
             softWrap = false,
-            textAlign = textAlign,
+            textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
     }

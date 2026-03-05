@@ -26,13 +26,13 @@ import net.loeu.wallybudget.util.CurrencyFormatter
 fun AddExpenseSheet(
     onDismiss: () -> Unit,
     onSubmitExpense: (amountCents: Long, description: String, icon: ExpenseCategory?) -> Unit,
+    modifier: Modifier = Modifier,
     onDeleteExpense: (() -> Unit)? = null,
     title: String = "Add Expense",
     confirmButtonText: String = "Add Expense",
     initialAmountCents: Long? = null,
     initialDescription: String = "",
-    initialIcon: ExpenseCategory? = null,
-    modifier: Modifier = Modifier
+    initialIcon: ExpenseCategory? = null
 ) {
     var amountText by remember(initialAmountCents) {
         mutableStateOf(initialAmountCents?.let { CurrencyFormatter.centsToDecimalString(it) }.orEmpty())
