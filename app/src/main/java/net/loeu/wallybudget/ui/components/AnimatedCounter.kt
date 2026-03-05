@@ -18,21 +18,34 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
 import net.loeu.wallybudget.util.CurrencyFormatter
 
 /**
- * Animated counter that displays currency amounts with rolling animation
+ * Animated counter that displays currency amounts with rolling animation.
+ * Automatically scales font size to fit available width down to [minFontSize].
+ *
+ * @param amountCents The value to display in cents.
+ * @param modifier Modifier for the container.
+ * @param textStyle The base text style to use. The font size will be scaled down if necessary.
+ * @param color The color of the text.
+ * @param textAlign How to align the text within the container.
+ * @param minFontSize The minimum font size to allow when scaling down to fit the width. 
+ * Defaults to 12.sp as a safe floor to prevent layout breakage on extremely narrow devices 
+ * while maintaining basic legibility. For primary budget displays, a larger value 
+ * (e.g., 20.sp) may be passed to ensure higher readability.
  */
 @Composable
 fun AnimatedCounter(
     amountCents: Long,
     modifier: Modifier = Modifier,
     textStyle: TextStyle = LocalTextStyle.current,
-    color: Color = MaterialTheme.colorScheme.onBackground
+    color: Color = MaterialTheme.colorScheme.onBackground,
+    textAlign: TextAlign = TextAlign.Center,
+    minFontSize: TextUnit = 12.sp
 ) {
     val formattedAmount = CurrencyFormatter.format(amountCents)
 
@@ -41,7 +54,9 @@ fun AnimatedCounter(
         formattedAmount = formattedAmount,
         textStyle = textStyle,
         color = color,
-        modifier = modifier
+        modifier = modifier,
+        textAlign = textAlign,
+        minFontSize = minFontSize
     )
 }
 
@@ -51,7 +66,9 @@ private fun AnimatedCounterWithAnimation(
     formattedAmount: String,
     textStyle: TextStyle,
     color: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    textAlign: TextAlign = TextAlign.Center,
+    minFontSize: TextUnit = 12.sp
 ) {
     val animatable = remember { Animatable(amountCents.toFloat()) }
 
@@ -70,7 +87,10 @@ private fun AnimatedCounterWithAnimation(
 
     BoxWithConstraints(modifier = modifier) {
         val availableWidthPx = with(LocalDensity.current) { maxWidth.toPx() }.roundToInt().coerceAtLeast(1)
-        val minFontSize = 20.sp
+        
+        // Responsive font scaling logic:
+        // We start with the requested font size and progressively decrease it until the text fits 
+        // within the available width or reaches the minFontSize threshold.
         var candidateFontSize = if (textStyle.fontSize.isSpecified) textStyle.fontSize else 57.sp
 
         while (candidateFontSize > minFontSize) {
@@ -90,7 +110,7 @@ private fun AnimatedCounterWithAnimation(
             color = color,
             maxLines = 1,
             softWrap = false,
-            textAlign = TextAlign.Center,
+            textAlign = textAlign,
             modifier = Modifier.fillMaxWidth()
         )
     }

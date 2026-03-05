@@ -36,6 +36,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.data.model.Expense
+import net.loeu.wallybudget.data.model.groupByDate
 import net.loeu.wallybudget.ui.components.ExpenseItem
 import net.loeu.wallybudget.util.CurrencyFormatter
 import java.time.LocalDate
@@ -134,11 +135,7 @@ fun ExpensesPage(
         todayExpenses + previousCycleExpenses
     }
     val expensesByDate = remember(allExpenses) {
-        allExpenses.groupBy { expense ->
-            java.time.Instant.ofEpochMilli(expense.timestamp)
-                .atZone(ZoneId.systemDefault())
-                .toLocalDate()
-        }
+        allExpenses.groupByDate()
     }
 
     Column(

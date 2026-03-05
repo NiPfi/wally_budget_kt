@@ -39,5 +39,7 @@ interface ExpenseDao {
 
     @Query("DELETE FROM expenses WHERE timestamp >= :startTime AND timestamp < :endTime")
     suspend fun deleteExpensesInRange(startTime: Long, endTime: Long)
-}
 
+    @Query("SELECT * FROM expenses WHERE timestamp >= :sinceTimestamp ORDER BY timestamp ASC")
+    fun getExpensesSince(sinceTimestamp: Long): Flow<List<Expense>>
+}
