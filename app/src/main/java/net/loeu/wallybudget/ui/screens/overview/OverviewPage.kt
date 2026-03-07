@@ -63,6 +63,9 @@ fun OverviewPage(
         .sumOf { it.totalSpentCents }
     val adjustedDailyAllowanceCents = budgetState.remainingTodayCents + budgetState.spentTodayCents
     val dailyAdjustmentCents = adjustedDailyAllowanceCents - budgetState.dailyBudgetCents
+    val useWarningTint = budgetState.remainingTodayCents < 0L ||
+        budgetState.remainingCycleCents < 0L ||
+        spendingForecast.isProjectedOverBudget
     val showForecastDetails = remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val density = LocalDensity.current
@@ -164,6 +167,7 @@ fun OverviewPage(
             SummaryCard(
                 budgetState = budgetState,
                 collapseProgress = 0f,
+                useWarningTint = useWarningTint,
                 onNavigateToSettings = onNavigateToSettings,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -173,6 +177,7 @@ fun OverviewPage(
             SummaryCard(
                 budgetState = budgetState,
                 collapseProgress = 1f,
+                useWarningTint = useWarningTint,
                 onNavigateToSettings = onNavigateToSettings,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -248,6 +253,7 @@ fun OverviewPage(
             SummaryCard(
                 budgetState = budgetState,
                 collapseProgress = collapseProgress,
+                useWarningTint = useWarningTint,
                 onNavigateToSettings = onNavigateToSettings,
                 modifier = Modifier
                     .fillMaxWidth()
