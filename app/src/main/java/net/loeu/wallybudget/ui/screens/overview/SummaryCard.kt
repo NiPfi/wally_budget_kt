@@ -16,7 +16,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -32,6 +34,7 @@ import kotlin.math.roundToInt
 fun SummaryCard(
     budgetState: BudgetState,
     collapseProgress: Float,
+    useWarningTint: Boolean = false,
     onNavigateToSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -48,10 +51,20 @@ fun SummaryCard(
     val rightTopOffsetPx = with(density) { ((1f - topDaysAlpha) * 6.dp.toPx()) }
     val iconOffsetPx = with(density) { (progress * -4.dp.toPx()) }
     val bottomOffsetPx = with(density) { ((1f - secondaryMetricsProgress) * -6.dp.toPx()) }
+    val containerColor = if (useWarningTint) {
+        blendedAlertContainer()
+    } else {
+        MaterialTheme.colorScheme.primaryContainer
+    }
+    val contentColor = if (useWarningTint) {
+        blendedAlertContent()
+    } else {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    }
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.primaryContainer,
+        color = containerColor,
         tonalElevation = lerp(2.dp, 0.dp, progress),
         shape = MaterialTheme.shapes.extraLarge
     ) {
@@ -72,7 +85,7 @@ fun SummaryCard(
                     Text(
                         text = "TODAY LEFT",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f)
+                        color = contentColor.copy(alpha = 0.72f)
                     )
                     Text(
                         text = CurrencyFormatter.format(abs(budgetState.remainingTodayCents)),
@@ -82,7 +95,7 @@ fun SummaryCard(
                         ),
                         fontWeight = FontWeight.Black,
                         color = if (budgetState.remainingTodayCents >= 0L) {
-                            MaterialTheme.colorScheme.onPrimaryContainer
+                            contentColor
                         } else {
                             MaterialTheme.colorScheme.error
                         }
@@ -103,7 +116,7 @@ fun SummaryCard(
                             Icon(
                                 imageVector = Icons.Default.Settings,
                                 contentDescription = "Settings",
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                tint = contentColor
                             )
                         }
                     }
@@ -118,13 +131,13 @@ fun SummaryCard(
                         Text(
                             text = "DAYS LEFT",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.68f)
+                            color = contentColor.copy(alpha = 0.68f)
                         )
                         Text(
                             text = budgetState.daysRemainingInCycle.toString(),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            color = contentColor
                         )
                     }
                 }
@@ -140,14 +153,24 @@ fun SummaryCard(
                     .collapseHeight(secondaryMetricsProgress),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                SummaryMetric("Cycle left", CurrencyFormatter.format(abs(budgetState.remainingCycleCents)))
+                SummaryMetric(
+                    "Cycle left",
+                    CurrencyFormatter.format(abs(budgetState.remainingCycleCents)),
+                    contentColor = contentColor
+                )
                 SummaryMetric(
                     "Days left",
                     budgetState.daysRemainingInCycle.toString(),
                     alignment = Alignment.End,
-                    alpha = (1f - progress * 1.6f).coerceIn(0f, 1f)
+                    alpha = (1f - progress * 1.6f).coerceIn(0f, 1f),
+                    contentColor = contentColor
                 )
-                SummaryMetric("Spent today", CurrencyFormatter.format(budgetState.spentTodayCents), alignment = Alignment.End)
+                SummaryMetric(
+                    "Spent today",
+                    CurrencyFormatter.format(budgetState.spentTodayCents),
+                    alignment = Alignment.End,
+                    contentColor = contentColor
+                )
             }
         }
     }
@@ -158,7 +181,8 @@ private fun SummaryMetric(
     label: String,
     value: String,
     alignment: Alignment.Horizontal = Alignment.Start,
-    alpha: Float = 1f
+    alpha: Float = 1f,
+    contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer
 ) {
     Column(
         horizontalAlignment = alignment,
@@ -167,13 +191,13 @@ private fun SummaryMetric(
         Text(
             text = label.uppercase(),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.68f)
+            color = contentColor.copy(alpha = 0.68f)
         )
         Text(
             text = value,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onPrimaryContainer
+            color = contentColor
         )
     }
 }
@@ -189,3 +213,21 @@ private fun Modifier.collapseHeight(progress: Float): Modifier = this
             }
         }
     }
+
+@Composable
+private fun blendedAlertContainer(): Color {
+    return lerp(
+        MaterialTheme.colorScheme.primaryContainer,
+        MaterialTheme.colorScheme.tertiaryContainer,
+        0.72f
+    )
+}
+
+@Composable
+private fun blendedAlertContent(): Color {
+    return lerp(
+        MaterialTheme.colorScheme.onPrimaryContainer,
+        MaterialTheme.colorScheme.onTertiaryContainer,
+        0.72f
+    )
+}
