@@ -7,10 +7,12 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import net.loeu.wallybudget.data.model.UserSettings
+import java.time.LocalDate
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_settings")
 
@@ -26,6 +28,9 @@ class UserPreferencesManager(private val context: Context) {
         val FORECAST_SENSITIVITY_PERCENT = intPreferencesKey("forecast_sensitivity_percent")
         val LAST_RESET_TIMESTAMP = longPreferencesKey("last_reset_timestamp")
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
+        val PENDING_CYCLE_START_DATE = stringPreferencesKey("pending_cycle_start_date")
+        val PENDING_CYCLE_END_DATE_EXCLUSIVE = stringPreferencesKey("pending_cycle_end_date_exclusive")
+        val PENDING_CYCLE_DETECTED_AT_TIMESTAMP = longPreferencesKey("pending_cycle_detected_at_timestamp")
     }
 
     val userSettings: Flow<UserSettings> = context.dataStore.data.map { preferences ->
@@ -36,7 +41,10 @@ class UserPreferencesManager(private val context: Context) {
                 ?: FORECAST_SENSITIVITY_DEFAULT)
                 .coerceIn(FORECAST_SENSITIVITY_MIN, FORECAST_SENSITIVITY_MAX),
             lastResetTimestamp = preferences[PreferenceKeys.LAST_RESET_TIMESTAMP] ?: 0L,
-            isOnboardingCompleted = preferences[PreferenceKeys.ONBOARDING_COMPLETED] ?: false
+            isOnboardingCompleted = preferences[PreferenceKeys.ONBOARDING_COMPLETED] ?: false,
+            pendingCycleStartDate = preferences[PreferenceKeys.PENDING_CYCLE_START_DATE],
+            pendingCycleEndDateExclusive = preferences[PreferenceKeys.PENDING_CYCLE_END_DATE_EXCLUSIVE],
+            pendingCycleDetectedAtTimestamp = preferences[PreferenceKeys.PENDING_CYCLE_DETECTED_AT_TIMESTAMP] ?: 0L
         )
     }
 
@@ -71,5 +79,24 @@ class UserPreferencesManager(private val context: Context) {
         }
     }
 
-}
+    suspend fun setPendingCycle(
+        cycleStartDate: LocalDate,
+        cycleEndDateExclusive: LocalDate,
+        detectedAtTimestamp: Long
+    ) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferenceKeys.PENDING_CYCLE_START_DATE] = cycleStartDate.toString()
+            preferences[PreferenceKeys.PENDING_CYCLE_END_DATE_EXCLUSIVE] = cycleEndDateExclusive.toString()
+            preferences[PreferenceKeys.PENDING_CYCLE_DETECTED_AT_TIMESTAMP] = detectedAtTimestamp
+        }
+    }
 
+    suspend fun clearPendingCycle() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(PreferenceKeys.PENDING_CYCLE_START_DATE)
+            preferences.remove(PreferenceKeys.PENDING_CYCLE_END_DATE_EXCLUSIVE)
+            preferences.remove(PreferenceKeys.PENDING_CYCLE_DETECTED_AT_TIMESTAMP)
+        }
+    }
+
+}

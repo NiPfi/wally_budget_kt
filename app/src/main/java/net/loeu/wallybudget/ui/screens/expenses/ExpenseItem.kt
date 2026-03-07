@@ -2,7 +2,10 @@ package net.loeu.wallybudget.ui.screens.expenses
 
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,30 +26,27 @@ fun ExpenseItem(
     modifier: Modifier = Modifier,
     onEdit: (() -> Unit)? = null
 ) {
-    Card(
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .combinedClickable(
                 onClick = {},
                 onLongClick = { onEdit?.invoke() }
-            ),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+            )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 painter = painterResource(id = expense.icon.iconRes),
                 contentDescription = expense.icon.description,
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(32.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
             Column(
                 modifier = Modifier.weight(1f)
@@ -68,6 +68,7 @@ fun ExpenseItem(
                 color = MaterialTheme.colorScheme.primary
             )
         }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 

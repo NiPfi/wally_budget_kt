@@ -42,4 +42,7 @@ interface ExpenseDao {
 
     @Query("SELECT * FROM expenses WHERE timestamp >= :sinceTimestamp ORDER BY timestamp ASC")
     fun getExpensesSince(sinceTimestamp: Long): Flow<List<Expense>>
+
+    @Query("SELECT * FROM expenses ORDER BY timestamp DESC")
+    fun getAllExpensesOrderedByTimestampDesc(): Flow<List<Expense>>
 }

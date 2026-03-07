@@ -64,6 +64,10 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.androidx.compose.adaptive)
+    implementation(libs.androidx.compose.adaptive.layout)
+    implementation(libs.androidx.compose.adaptive.navigation)
+    implementation(libs.androidx.compose.adaptive.navigation.suite)
     implementation(libs.material)
 
     // Room

@@ -1,261 +1,158 @@
 package net.loeu.wallybudget.ui.screens.home
 
-import android.content.res.Configuration
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.window.core.layout.WindowSizeClass.Companion.WIDTH_DP_MEDIUM_LOWER_BOUND
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.data.model.Expense
 import net.loeu.wallybudget.data.model.ExpenseCategory
+import net.loeu.wallybudget.data.model.ExpenseCycleSection
+import net.loeu.wallybudget.data.model.ExpenseDaySection
 import net.loeu.wallybudget.data.model.SpendingForecast
-import net.loeu.wallybudget.ui.screens.expenses.ExpensesPage
+import net.loeu.wallybudget.ui.screens.history.HistoryScreen
 import net.loeu.wallybudget.ui.screens.overview.OverviewPage
 import java.time.LocalDate
-import kotlin.math.roundToInt
+import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun HomeScreen(
     budgetState: BudgetState,
     todayExpenses: List<Expense>,
-    previousCycleExpenses: List<Expense>,
+    activeCycleExpenseSections: List<ExpenseDaySection>,
+    historySections: List<ExpenseCycleSection>,
     spendingForecast: SpendingForecast,
     onAddExpense: (Long, String, ExpenseCategory?, LocalDate) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToHistory: () -> Unit,
+    showTopRightSettingsAction: Boolean,
     showAddExpenseSheet: Boolean,
     onShowAddExpenseSheet: () -> Unit,
     onHideAddExpenseSheet: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
+    val showLedgerPane = windowSizeClass.isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND)
     val selectedDateForExpenseEpochDay = rememberSaveable { mutableLongStateOf(LocalDate.now().toEpochDay()) }
-    val selectedDateForExpense = LocalDate.ofEpochDay(selectedDateForExpenseEpochDay.longValue)
-    val expenseBeingEdited = remember { mutableStateOf<Expense?>(null) }
-    val isExpensesVisible = remember { mutableStateOf(false) }
-    val addSheetOpenedFromOverview = rememberSaveable { mutableStateOf(false) }
-    val resetExpensesToLatestTrigger = rememberSaveable { mutableIntStateOf(0) }
+    var expenseBeingEdited by remember { mutableStateOf<Expense?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
-    
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
 
     Scaffold(
-        snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState)
-        },
-        topBar = {
-            TopAppBar(
-                title = { Text("WallyBudget") },
-                actions = {
-                    IconButton(onClick = onNavigateToHistory) {
-                        Icon(Icons.Default.History, contentDescription = "View history")
-                    }
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
-                    }
-                }
-            )
-        },
+        modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    if (!isExpensesVisible.value) {
-                        selectedDateForExpenseEpochDay.longValue = LocalDate.now().toEpochDay()
-                        addSheetOpenedFromOverview.value = true
-                    } else {
-                        addSheetOpenedFromOverview.value = false
-                    }
+                    selectedDateForExpenseEpochDay.longValue = LocalDate.now().toEpochDay()
                     onShowAddExpenseSheet()
                 },
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add expense")
+                Icon(Icons.Default.Add, contentDescription = "Add today’s expense")
             }
-        },
-        modifier = modifier
+        }
     ) { paddingValues ->
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            val pageHeightPx = constraints.maxHeight.toFloat().coerceAtLeast(1f)
-            val snapController = rememberVerticalSnapController(containerHeightPx = pageHeightPx)
-            val effectiveOffset = snapController.offsetPx
-
-            SideEffect {
-                isExpensesVisible.value = snapController.isExpanded
-            }
-
-            Box(
-                modifier = Modifier.fillMaxSize()
+        if (showLedgerPane) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .offset { IntOffset(0, -effectiveOffset.roundToInt()) }
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .then(
-                                if (!snapController.isExpanded) {
-                                    Modifier.draggable(
-                                        state = snapController.dragState,
-                                        orientation = Orientation.Vertical,
-                                        onDragStarted = { snapController.onDragStarted() },
-                                        onDragStopped = { velocity -> snapController.onDragStopped(velocity) }
-                                    )
-                                } else Modifier
-                            )
-                    ) {
-                        OverviewPage(
-                            budgetState = budgetState,
-                            previousCycleExpenses = previousCycleExpenses,
-                            spendingForecast = spendingForecast,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .offset { IntOffset(0, pageHeightPx.roundToInt()) }
-                    ) {
-                        ExpensesPage(
-                            budgetState = budgetState,
-                            todayExpenses = todayExpenses,
-                            previousCycleExpenses = previousCycleExpenses,
-                            isVisible = snapController.isExpanded,
-                            resetToLatestTrigger = resetExpensesToLatestTrigger.intValue,
-                            onEditExpense = { expenseBeingEdited.value = it },
-                            onDateSelected = { selectedDateForExpenseEpochDay.longValue = it.toEpochDay() },
-                            modifier = Modifier.fillMaxSize()
-                        )
-
-                        if (snapController.isExpanded) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(80.dp)
-                                    .align(Alignment.TopCenter)
-                                    .draggable(
-                                        state = snapController.dragState,
-                                        orientation = Orientation.Vertical,
-                                        onDragStarted = { snapController.onDragStarted() },
-                                        onDragStopped = { velocity -> snapController.onDragStopped(velocity) }
-                                    )
-                            )
-                        }
-                    }
-                }
-
-                val progress = snapController.progress
-                val density = LocalDensity.current
-                
-                // Adaptive layout parameters
-                val handlePadding = if (isLandscape) 6.dp else 10.dp
-                val bottomOffset = if (isLandscape) 16.dp else 24.dp
-                val topMargin = if (isLandscape) 12.dp else 24.dp
-
-                // Track handle height to ensure it doesn't go off-screen when expanded
-                var handleHeightPx by remember { mutableFloatStateOf(0f) }
-
-                val bottomRestPx = with(density) { -bottomOffset.toPx() }
-                // Adjust topTargetPx to account for handle height so its TOP stays at topMargin
-                val topTargetPx = -(pageHeightPx - handleHeightPx - with(density) { topMargin.toPx() })
-                val currentY = bottomRestPx + (topTargetPx - bottomRestPx) * progress
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .onSizeChanged { handleHeightPx = it.height.toFloat() }
-                        .offset { IntOffset(0, currentY.roundToInt()) }
-                        .draggable(
-                            state = snapController.dragState,
-                            orientation = Orientation.Vertical,
-                            onDragStarted = { snapController.onDragStarted() },
-                            onDragStopped = { velocity -> snapController.onDragStopped(velocity) }
-                        )
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onLongPress = {
-                                    snapController.toggle()
-                                }
-                            )
-                        }
-                        .padding(vertical = handlePadding),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.KeyboardArrowUp,
-                        contentDescription = null,
-                        modifier = Modifier.rotate(180f * progress),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "Pull up to open expenses",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 1f - progress)
-                        )
-                        Text(
-                            text = "Pull down to return",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = progress)
-                        )
-                    }
-                }
+                OverviewPage(
+                    budgetState = budgetState,
+                    todayExpenses = todayExpenses,
+                    activeCycleExpenseSections = activeCycleExpenseSections,
+                    spendingForecast = spendingForecast,
+                    onEditTodayExpense = { expenseBeingEdited = it },
+                    onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null,
+                    showTodayExpensesSection = false,
+                    enableHeaderCollapse = false,
+                    modifier = Modifier.weight(1.08f)
+                )
+                HistoryScreen(
+                    historySections = historySections,
+                    onAddExpense = onAddExpense,
+                    onRestoreExpense = onRestoreExpense,
+                    onUpdateExpense = onUpdateExpense,
+                    onDeleteExpense = onDeleteExpense,
+                    modifier = Modifier.weight(0.92f),
+                    embedded = true
+                )
             }
+        } else {
+            OverviewPage(
+                budgetState = budgetState,
+                todayExpenses = todayExpenses,
+                activeCycleExpenseSections = activeCycleExpenseSections,
+                spendingForecast = spendingForecast,
+                onEditTodayExpense = { expenseBeingEdited = it },
+                onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null,
+                enableHeaderCollapse = true,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            )
         }
     }
 
     if (showAddExpenseSheet) {
+        val selectedDate = LocalDate.ofEpochDay(selectedDateForExpenseEpochDay.longValue)
         AddExpenseSheet(
-            onDismiss = {
-                addSheetOpenedFromOverview.value = false
-                onHideAddExpenseSheet()
-            },
+            onDismiss = onHideAddExpenseSheet,
             onSubmitExpense = { amountCents, description, icon ->
-                onAddExpense(amountCents, description, icon, selectedDateForExpense)
-                if (addSheetOpenedFromOverview.value) {
-                    resetExpensesToLatestTrigger.intValue += 1
-                }
-                addSheetOpenedFromOverview.value = false
+                onAddExpense(amountCents, description, icon, selectedDate)
+            },
+            title = if (selectedDate == LocalDate.now()) {
+                "Add expense"
+            } else {
+                "Add expense for ${selectedDate.format(DateTimeFormatter.ofPattern("MMM d"))}"
+            },
+            confirmButtonText = if (selectedDate == LocalDate.now()) {
+                "Add expense"
+            } else {
+                "Add to ${selectedDate.format(DateTimeFormatter.ofPattern("MMM d"))}"
+            },
+            dateLabel = if (selectedDate == LocalDate.now()) {
+                "Recorded for today"
+            } else {
+                "Recorded for ${selectedDate.format(DateTimeFormatter.ofPattern("EEEE, MMM d"))}"
             }
         )
     }
 
-    expenseBeingEdited.value?.let { editingExpense ->
+    expenseBeingEdited?.let { editingExpense ->
         AddExpenseSheet(
-            onDismiss = { expenseBeingEdited.value = null },
+            onDismiss = { expenseBeingEdited = null },
             onSubmitExpense = { amountCents, description, icon ->
                 onUpdateExpense(
                     editingExpense.copy(
@@ -264,11 +161,11 @@ fun HomeScreen(
                         icon = icon
                     )
                 )
-                expenseBeingEdited.value = null
+                expenseBeingEdited = null
             },
             onDeleteExpense = {
                 onDeleteExpense(editingExpense)
-                coroutineScope.launch {
+                scope.launch {
                     val dismissJob = launch {
                         delay(5000)
                         snackbarHostState.currentSnackbarData?.dismiss()
@@ -287,8 +184,19 @@ fun HomeScreen(
                         onRestoreExpense(editingExpense)
                     }
                 }
-                expenseBeingEdited.value = null
-            }
+                expenseBeingEdited = null
+            },
+            title = "Edit expense",
+            confirmButtonText = "Save changes",
+            dateLabel = "Recorded for ${
+                java.time.Instant.ofEpochMilli(editingExpense.timestamp)
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .toLocalDate()
+                    .format(DateTimeFormatter.ofPattern("EEEE, MMM d"))
+            }",
+            initialAmountCents = editingExpense.amountCents,
+            initialDescription = editingExpense.description,
+            initialIcon = editingExpense.icon
         )
     }
 }

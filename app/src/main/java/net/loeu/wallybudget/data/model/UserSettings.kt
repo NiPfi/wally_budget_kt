@@ -8,6 +8,8 @@ data class UserSettings(
     val paydayDate: Int = 1, // Day of month (1-31)
     val forecastSensitivityPercent: Int = 60,
     val lastResetTimestamp: Long = 0L,
-    val isOnboardingCompleted: Boolean = false
+    val isOnboardingCompleted: Boolean = false,
+    val pendingCycleStartDate: String? = null,
+    val pendingCycleEndDateExclusive: String? = null,
+    val pendingCycleDetectedAtTimestamp: Long = 0L
 )
-
