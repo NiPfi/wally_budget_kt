@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.window.core.layout.WindowSizeClass.Companion.HEIGHT_DP_MEDIUM_LOWER_BOUND
 import androidx.window.core.layout.WindowSizeClass.Companion.WIDTH_DP_MEDIUM_LOWER_BOUND
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -60,6 +61,8 @@ fun HomeScreen(
 ) {
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
     val showLedgerPane = windowSizeClass.isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND)
+    val isShortHeight = !windowSizeClass.isHeightAtLeastBreakpoint(HEIGHT_DP_MEDIUM_LOWER_BOUND)
+    val preferCompactSummary = showLedgerPane && isShortHeight
     val selectedDateForExpenseEpochDay = rememberSaveable { mutableLongStateOf(LocalDate.now().toEpochDay()) }
     var expenseBeingEdited by remember { mutableStateOf<Expense?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -85,7 +88,7 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = if (isShortHeight) 0.dp else 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 OverviewPage(
@@ -96,7 +99,8 @@ fun HomeScreen(
                     onEditTodayExpense = { expenseBeingEdited = it },
                     onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null,
                     showTodayExpensesSection = false,
-                    enableHeaderCollapse = false,
+                    enableHeaderCollapse = preferCompactSummary,
+                    defaultCollapsedHeader = preferCompactSummary,
                     modifier = Modifier.weight(1.08f)
                 )
                 HistoryScreen(
@@ -118,6 +122,7 @@ fun HomeScreen(
                 onEditTodayExpense = { expenseBeingEdited = it },
                 onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null,
                 enableHeaderCollapse = true,
+                defaultCollapsedHeader = false,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)

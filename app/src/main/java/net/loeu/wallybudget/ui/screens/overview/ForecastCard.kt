@@ -17,11 +17,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.domain.config.ForecastConfig
 import net.loeu.wallybudget.util.CurrencyFormatter
-import kotlin.math.abs
 
 @Composable
 fun ForecastCard(
@@ -73,26 +73,36 @@ fun ForecastCard(
             }
         }
 
-        Text(
-            text = CurrencyFormatter.format(abs(spendingForecast.estimatedEndCycleRemainingCents)),
-            style = MaterialTheme.typography.displaySmall,
-            color = if (spendingForecast.isProjectedOverBudget) {
-                MaterialTheme.colorScheme.error
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
-            fontWeight = FontWeight.Black
-        )
-
-        Text(
-            text = if (spendingForecast.isProjectedOverBudget) {
-                "Projected deficit by cycle end"
-            } else {
-                "Projected remaining budget by cycle end"
-            },
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Column(
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = if (spendingForecast.isProjectedOverBudget) {
+                    "PROJECTED DEFICIT"
+                } else {
+                    "PROJECTED LEFT"
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = if (spendingForecast.isProjectedOverBudget) {
+                    MaterialTheme.colorScheme.error.copy(alpha = 0.78f)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
+            Text(
+                text = CurrencyFormatter.formatSigned(spendingForecast.estimatedEndCycleRemainingCents),
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontSize = 18.sp,
+                    lineHeight = 24.sp
+                ),
+                color = if (spendingForecast.isProjectedOverBudget) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+                fontWeight = FontWeight.Black
+            )
+        }
 
         ForecastRangeIndicator(
             lowerBoundCents = spendingForecast.lowerBoundCents,

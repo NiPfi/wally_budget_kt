@@ -53,10 +53,11 @@ fun OverviewPage(
     onNavigateToSettings: (() -> Unit)? = null,
     showTodayExpensesSection: Boolean = true,
     enableHeaderCollapse: Boolean = true,
+    defaultCollapsedHeader: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val headerHorizontalPadding = 12.dp
-    val headerTopPadding = 8.dp
+    val headerTopPadding = if (defaultCollapsedHeader) 0.dp else 8.dp
     val headerBottomSpacing = 10.dp
     val previousExpensesTotal = activeCycleExpenseSections
         .filterNot { it.isToday }
@@ -69,7 +70,16 @@ fun OverviewPage(
     val showForecastDetails = remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val density = LocalDensity.current
-    var collapseOffsetPx by remember { mutableFloatStateOf(0f) }
+    val defaultCollapseOffsetPx = remember(defaultCollapsedHeader, density) {
+        if (defaultCollapsedHeader) {
+            with(density) { 64.dp.toPx() }
+        } else {
+            0f
+        }
+    }
+    var collapseOffsetPx by remember(defaultCollapsedHeader, density) {
+        mutableFloatStateOf(defaultCollapseOffsetPx)
+    }
     val maxCollapseRangePx = remember { object { var value: Float = 0f } }
     val nestedScrollConnection = remember(listState, enableHeaderCollapse) {
         object : NestedScrollConnection {
@@ -110,8 +120,13 @@ fun OverviewPage(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        "This projection analyzes your recent pace together with prior cycle behavior to estimate your end-of-cycle balance.",
+                        "This projection combines your recent spending pace with prior cycle behavior to estimate where you may finish by cycle end.",
                         style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        "Conservative shows a lower-spend path, Projected is the current best estimate, and High pace shows a faster-spend path.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceVariant,

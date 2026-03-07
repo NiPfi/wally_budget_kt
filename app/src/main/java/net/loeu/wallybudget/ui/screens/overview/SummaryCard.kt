@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.util.CurrencyFormatter
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @Composable
@@ -88,7 +87,7 @@ fun SummaryCard(
                         color = contentColor.copy(alpha = 0.72f)
                     )
                     Text(
-                        text = CurrencyFormatter.format(abs(budgetState.remainingTodayCents)),
+                        text = CurrencyFormatter.formatSigned(budgetState.remainingTodayCents),
                         style = MaterialTheme.typography.headlineMedium.copy(
                             fontSize = amountFontSize,
                             lineHeight = amountLineHeight
@@ -155,7 +154,7 @@ fun SummaryCard(
             ) {
                 SummaryMetric(
                     "Cycle left",
-                    CurrencyFormatter.format(abs(budgetState.remainingCycleCents)),
+                    CurrencyFormatter.formatSigned(budgetState.remainingCycleCents),
                     contentColor = contentColor
                 )
                 SummaryMetric(
