@@ -30,6 +30,7 @@ fun AddExpenseSheet(
     onDeleteExpense: (() -> Unit)? = null,
     title: String = "Add Expense",
     confirmButtonText: String = "Add Expense",
+    dateLabel: String? = null,
     initialAmountCents: Long? = null,
     initialDescription: String = "",
     initialIcon: ExpenseCategory? = null
@@ -56,10 +57,19 @@ fun AddExpenseSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.headlineSmall
-                )
+                Column {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    if (dateLabel != null) {
+                        Text(
+                            text = dateLabel,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
                 if (onDeleteExpense != null) {
                     IconButton(onClick = onDeleteExpense) {
                         Icon(

@@ -13,7 +13,10 @@ import kotlinx.coroutines.launch
 import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.data.model.Expense
 import net.loeu.wallybudget.data.model.ExpenseCategory
+import net.loeu.wallybudget.data.model.ExpenseCycleSection
+import net.loeu.wallybudget.data.model.ExpenseDaySection
 import net.loeu.wallybudget.data.model.MonthlyHistory
+import net.loeu.wallybudget.data.model.PendingCycleCloseoutState
 import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.data.model.UserSettings
 import net.loeu.wallybudget.data.repository.BudgetRepository
@@ -63,8 +66,7 @@ class BudgetViewModel(
             initialValue = emptyList()
         )
 
-    // Previous expenses in current cycle (before today)
-    val previousCycleExpenses: StateFlow<List<Expense>> = repository.getPreviousCycleExpenses()
+    val activeCycleExpenseSections: StateFlow<List<ExpenseDaySection>> = repository.getActiveCycleExpenseSections()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -84,6 +86,20 @@ class BudgetViewModel(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = SpendingForecast()
+        )
+
+    val historySections: StateFlow<List<ExpenseCycleSection>> = repository.getHistorySections()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    val pendingCycleCloseoutState: StateFlow<PendingCycleCloseoutState?> = repository.getPendingCycleCloseoutState()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
         )
 
     // UI state
@@ -142,6 +158,12 @@ class BudgetViewModel(
     fun restoreDeletedExpense(expense: Expense) {
         viewModelScope.launch {
             repository.addExpense(expense.copy(id = 0L))
+        }
+    }
+
+    fun concludePendingCycle() {
+        viewModelScope.launch {
+            repository.concludePendingCycle(userSettings.value)
         }
     }
 
