@@ -46,6 +46,7 @@ import java.time.format.DateTimeFormatter
 fun HomeScreen(
     budgetState: BudgetState,
     todayExpenses: List<Expense>,
+    currentDate: LocalDate,
     activeCycleExpenseSections: List<ExpenseDaySection>,
     historySections: List<ExpenseCycleSection>,
     spendingForecast: SpendingForecast,
@@ -64,7 +65,7 @@ fun HomeScreen(
     val showLedgerPane = windowSizeClass.isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND)
     val isShortHeight = !windowSizeClass.isHeightAtLeastBreakpoint(HEIGHT_DP_MEDIUM_LOWER_BOUND)
     val preferCompactSummary = showLedgerPane && isShortHeight
-    val selectedDateForExpenseEpochDay = rememberSaveable { mutableLongStateOf(LocalDate.now().toEpochDay()) }
+    val selectedDateForExpenseEpochDay = rememberSaveable { mutableLongStateOf(currentDate.toEpochDay()) }
     var expenseBeingEdited by remember { mutableStateOf<Expense?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
@@ -75,7 +76,7 @@ fun HomeScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    selectedDateForExpenseEpochDay.longValue = LocalDate.now().toEpochDay()
+                    selectedDateForExpenseEpochDay.longValue = currentDate.toEpochDay()
                     onShowAddExpenseSheet()
                 },
                 containerColor = MaterialTheme.colorScheme.primary
@@ -138,17 +139,17 @@ fun HomeScreen(
             onSubmitExpense = { amountCents, description, icon ->
                 onAddExpense(amountCents, description, icon, selectedDate)
             },
-            title = if (selectedDate == LocalDate.now()) {
+            title = if (selectedDate == currentDate) {
                 "Add expense"
             } else {
                 "Add expense for ${selectedDate.format(DateTimeFormatter.ofPattern("MMM d"))}"
             },
-            confirmButtonText = if (selectedDate == LocalDate.now()) {
+            confirmButtonText = if (selectedDate == currentDate) {
                 "Add expense"
             } else {
                 "Add to ${selectedDate.format(DateTimeFormatter.ofPattern("MMM d"))}"
             },
-            dateLabel = if (selectedDate == LocalDate.now()) {
+            dateLabel = if (selectedDate == currentDate) {
                 "Recorded for today"
             } else {
                 "Recorded for ${selectedDate.format(DateTimeFormatter.ofPattern("EEEE, MMM d"))}"
