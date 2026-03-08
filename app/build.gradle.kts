@@ -20,22 +20,15 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("boolean", "USE_ACTIVE_DATE_POLLING", "true")
-        }
-
-        create("noDebugPolling") {
-            initWith(getByName("debug"))
-            matchingFallbacks += listOf("debug")
-            buildConfigField("boolean", "USE_ACTIVE_DATE_POLLING", "false")
         }
 
         release {
             isMinifyEnabled = false
-            buildConfigField("boolean", "USE_ACTIVE_DATE_POLLING", "false")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {
@@ -44,7 +37,6 @@ android {
     }
     buildFeatures {
         compose = true
-        buildConfig = true
     }
 }
 

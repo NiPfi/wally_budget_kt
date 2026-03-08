@@ -27,6 +27,7 @@ class UserPreferencesManager(private val context: Context) {
         val PAYDAY_DATE = intPreferencesKey("payday_date")
         val FORECAST_SENSITIVITY_PERCENT = intPreferencesKey("forecast_sensitivity_percent")
         val LAST_RESET_TIMESTAMP = longPreferencesKey("last_reset_timestamp")
+        val LAST_SEEN_DATE = stringPreferencesKey("last_seen_date")
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         val PENDING_CYCLE_START_DATE = stringPreferencesKey("pending_cycle_start_date")
         val PENDING_CYCLE_END_DATE_EXCLUSIVE = stringPreferencesKey("pending_cycle_end_date_exclusive")
@@ -41,6 +42,7 @@ class UserPreferencesManager(private val context: Context) {
                 ?: FORECAST_SENSITIVITY_DEFAULT)
                 .coerceIn(FORECAST_SENSITIVITY_MIN, FORECAST_SENSITIVITY_MAX),
             lastResetTimestamp = preferences[PreferenceKeys.LAST_RESET_TIMESTAMP] ?: 0L,
+            lastSeenDate = preferences[PreferenceKeys.LAST_SEEN_DATE],
             isOnboardingCompleted = preferences[PreferenceKeys.ONBOARDING_COMPLETED] ?: false,
             pendingCycleStartDate = preferences[PreferenceKeys.PENDING_CYCLE_START_DATE],
             pendingCycleEndDateExclusive = preferences[PreferenceKeys.PENDING_CYCLE_END_DATE_EXCLUSIVE],
@@ -70,6 +72,12 @@ class UserPreferencesManager(private val context: Context) {
     suspend fun updateLastResetTimestamp(timestamp: Long) {
         context.dataStore.edit { preferences ->
             preferences[PreferenceKeys.LAST_RESET_TIMESTAMP] = timestamp
+        }
+    }
+
+    suspend fun updateLastSeenDate(date: LocalDate) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferenceKeys.LAST_SEEN_DATE] = date.toString()
         }
     }
 
