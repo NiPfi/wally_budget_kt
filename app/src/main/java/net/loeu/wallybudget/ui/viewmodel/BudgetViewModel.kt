@@ -131,7 +131,8 @@ class BudgetViewModel(
      */
     fun addExpense(amountCents: Long, description: String, icon: ExpenseCategory? = null, date: LocalDate = LocalDate.now()) {
         viewModelScope.launch {
-            val timestamp = if (date == LocalDate.now()) {
+            val today = LocalDate.now()
+            val timestamp = if (date == today) {
                 Instant.now().toEpochMilli()
             } else {
                 date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
@@ -140,7 +141,8 @@ class BudgetViewModel(
                 amountCents = amountCents,
                 description = description,
                 icon = icon,
-                timestamp = timestamp
+                timestamp = timestamp,
+                expenseDate = date.toString()
             )
             repository.addExpense(expense)
             _isAddExpenseSheetVisible.value = false

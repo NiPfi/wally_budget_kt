@@ -44,9 +44,7 @@ import net.loeu.wallybudget.ui.screens.settings.SettingsScreen
 import net.loeu.wallybudget.ui.theme.WallyBudgetTheme
 import net.loeu.wallybudget.ui.viewmodel.BudgetViewModel
 import net.loeu.wallybudget.ui.viewmodel.BudgetViewModelFactory
-import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
@@ -56,6 +54,7 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.window.core.layout.WindowSizeClass
 import androidx.window.core.layout.WindowSizeClass.Companion.HEIGHT_DP_MEDIUM_LOWER_BOUND
+import net.loeu.wallybudget.data.model.recordedDate
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -409,12 +408,7 @@ private fun PendingCycleFlow(
             },
             title = "Edit cycle expense",
             confirmButtonText = "Save changes",
-            dateLabel = "Recorded for ${
-                Instant.ofEpochMilli(editingExpense.timestamp)
-                    .atZone(ZoneId.systemDefault())
-                    .toLocalDate()
-                    .format(DateTimeFormatter.ofPattern("EEEE, MMM d"))
-            }",
+            dateLabel = "Recorded for ${editingExpense.recordedDate().format(DateTimeFormatter.ofPattern("EEEE, MMM d"))}",
             initialAmountCents = editingExpense.amountCents,
             initialDescription = editingExpense.description,
             initialIcon = editingExpense.icon

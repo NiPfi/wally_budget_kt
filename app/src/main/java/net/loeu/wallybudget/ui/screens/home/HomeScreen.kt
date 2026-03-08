@@ -35,6 +35,7 @@ import net.loeu.wallybudget.data.model.ExpenseCategory
 import net.loeu.wallybudget.data.model.ExpenseCycleSection
 import net.loeu.wallybudget.data.model.ExpenseDaySection
 import net.loeu.wallybudget.data.model.SpendingForecast
+import net.loeu.wallybudget.data.model.recordedDate
 import net.loeu.wallybudget.ui.screens.history.HistoryScreen
 import net.loeu.wallybudget.ui.screens.overview.OverviewPage
 import java.time.LocalDate
@@ -193,12 +194,7 @@ fun HomeScreen(
             },
             title = "Edit expense",
             confirmButtonText = "Save changes",
-            dateLabel = "Recorded for ${
-                java.time.Instant.ofEpochMilli(editingExpense.timestamp)
-                    .atZone(java.time.ZoneId.systemDefault())
-                    .toLocalDate()
-                    .format(DateTimeFormatter.ofPattern("EEEE, MMM d"))
-            }",
+            dateLabel = "Recorded for ${editingExpense.recordedDate().format(DateTimeFormatter.ofPattern("EEEE, MMM d"))}",
             initialAmountCents = editingExpense.amountCents,
             initialDescription = editingExpense.description,
             initialIcon = editingExpense.icon
