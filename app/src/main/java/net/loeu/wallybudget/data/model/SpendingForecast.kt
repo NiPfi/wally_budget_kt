@@ -22,7 +22,8 @@ data class SpendingForecast(
      */
     val trendSlopePercent: Int = 0,
     val detectedOutlierCount: Int = 0,
-    val usedDataPoints: Int = 0
+    val usedDataPoints: Int = 0,
+    val recoverableOverspendCents: Long = 0L
 ) {
     val isProjectedOverBudget: Boolean
         get() = estimatedEndCycleRemainingCents < 0L

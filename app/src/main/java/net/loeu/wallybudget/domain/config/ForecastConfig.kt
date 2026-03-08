@@ -50,16 +50,39 @@ object ForecastConfig {
     const val TREND_DAMPENING_FACTOR = 0.5
 
     /**
-     * Minimum number of completed current-cycle days required before using a current-cycle trend.
-     * Early in a cycle, the trend signal is too unstable and should defer to historical baseline.
+     * Prior strength for the completed-cycle baseline, expressed in "pseudo-days" of evidence.
+     * Higher values make the forecast hold onto previous cycles longer before current-cycle data dominates.
      */
-    const val MIN_COMPLETED_DAYS_FOR_CURRENT_TREND = 7
+    const val PRIOR_STRENGTH_DAYS = 10.0
+
+    /**
+     * Minimum number of completed current-cycle days required before using a current-cycle trend.
+     * Early in a cycle, the trend signal is too unstable and should defer to the cycle prior.
+     */
+    const val MIN_COMPLETED_DAYS_FOR_CURRENT_TREND = 10
 
     /**
      * Minimum number of non-zero completed current-cycle days required before using a current-cycle trend.
-     * A single spending day among zeros is not enough evidence of acceleration.
+     * A couple of isolated purchases are not enough evidence of persistent acceleration.
      */
-    const val MIN_NON_ZERO_DAYS_FOR_CURRENT_TREND = 2
+    const val MIN_NON_ZERO_DAYS_FOR_CURRENT_TREND = 3
+
+    /**
+     * Maximum number of completed cycles to include in the cycle prior.
+     */
+    const val PRIOR_CYCLE_WINDOW = 4
+
+    /**
+     * Exponential decay used when weighting recent completed cycles into the cycle prior.
+     */
+    const val PRIOR_CYCLE_DECAY_FACTOR = 0.75
+
+    /**
+     * Blend factor for the recoverable-overspend taper.
+     * 0.0 = purely linear with days remaining, 1.0 = fully quadratic.
+     * A partial blend keeps mid-cycle headroom more usable while still tightening hard near cycle end.
+     */
+    const val RECOVERABLE_OVERSPEND_TAPER_QUADRATIC_WEIGHT = 0.35
 
     /**
      * Minimum days of uncertainty to assume even when near the end of a cycle.
