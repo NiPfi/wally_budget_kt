@@ -27,6 +27,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -81,6 +82,11 @@ fun BudgetApp(
     viewModel: BudgetViewModel,
     modifier: Modifier = Modifier
 ) {
+    LifecycleResumeEffect(viewModel) {
+        viewModel.refreshCycleState()
+        onPauseOrDispose { }
+    }
+
     val onboardingCompletedFlow = remember(viewModel) {
         viewModel.userSettingsFlow.map { it.isOnboardingCompleted }
     }

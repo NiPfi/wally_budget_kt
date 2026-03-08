@@ -19,7 +19,6 @@ import net.loeu.wallybudget.data.model.PendingCycleCloseoutState
 import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.data.model.UserSettings
 import net.loeu.wallybudget.data.time.CurrentDateProvider
-import net.loeu.wallybudget.data.time.SystemCurrentDateProvider
 import net.loeu.wallybudget.domain.config.ForecastConfig
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import java.time.Instant
@@ -38,7 +37,7 @@ class BudgetRepository(
     private val monthlyHistoryDao: MonthlyHistoryDao,
     private val userPreferencesManager: UserPreferencesManager,
     private val budgetCalculationService: BudgetCalculationService = BudgetCalculationService(),
-    private val currentDateProvider: CurrentDateProvider = SystemCurrentDateProvider()
+    private val currentDateProvider: CurrentDateProvider
 ) {
 
     val userSettings: Flow<UserSettings> = userPreferencesManager.userSettings
@@ -47,8 +46,9 @@ class BudgetRepository(
         return combine(
             userSettings,
             expenseDao.observeExpenseCount(),
-            currentDateProvider.observeCurrentDate()
-        ) { settings, _, today ->
+            currentDateProvider.observeCurrentDate(),
+            monthlyHistoryDao.getAllHistory()
+        ) { settings, _, today, history ->
             val cycleStart = budgetCalculationService.getCycleStartDate(today, settings.paydayDate)
             val cycleEnd = budgetCalculationService.getNextCycleStartDate(today, settings.paydayDate)
 
@@ -60,7 +60,9 @@ class BudgetRepository(
             val todayEnd = today.plusDays(1).toStartOfDayMillis()
             val spentTodayCents = expenseDao.getTotalSpentInRange(todayStart, todayEnd) ?: 0L
 
-            val cumulativeSavingsCents = monthlyHistoryDao.getCumulativeSavings() ?: 0L
+            val cumulativeSavingsCents = history
+                .filter { !it.getCycleEnd().isAfter(cycleStart) }
+                .sumOf { it.surplusCents }
 
             budgetCalculationService.calculateBudgetState(
                 settings = settings,
@@ -145,6 +147,7 @@ class BudgetRepository(
 
             sections += history
                 .filter { it.totalSpentCents > 0L }
+                .filterNot { it.getCycleStart() == currentCycleStart }
                 .sortedByDescending { it.endTimestamp }
                 .map { monthlyHistory ->
                     val cycleExpenses = allExpenses.filterByRange(
@@ -249,30 +252,41 @@ class BudgetRepository(
         userPreferencesManager.updateLastResetTimestamp(cycleStartDate.toStartOfDayMillis())
 
         if (previousExpensesCents > 0L) {
-            val seedExpense = Expense(
-                amountCents = previousExpensesCents,
-                description = "Previous cycle expenses",
-                timestamp = cycleStartDate.atTime(12, 0)
-                    .atZone(ZoneId.systemDefault())
-                    .toInstant()
-                    .toEpochMilli()
+            val previousCycleStart = budgetCalculationService.getCycleStartDate(
+                cycleStartDate.minusDays(1),
+                paydayDate
             )
-            expenseDao.insert(seedExpense)
+            monthlyHistoryDao.insert(
+                MonthlyHistory(
+                    cycleStartDate = previousCycleStart.toString(),
+                    budgetAmountCents = monthlyBudgetCents,
+                    totalSpentCents = previousExpensesCents,
+                    surplusCents = budgetCalculationService.calculateSurplus(
+                        monthlyBudgetCents = monthlyBudgetCents,
+                        totalSpentCents = previousExpensesCents
+                    ),
+                    cycleEndDate = cycleStartDate.toString(),
+                    endTimestamp = cycleStartDate.toStartOfDayMillis()
+                )
+            )
         }
 
         userPreferencesManager.completeOnboarding()
     }
 
-    suspend fun checkAndPerformMonthlyReset(settings: UserSettings) {
-        val now = LocalDate.now()
+    suspend fun checkAndPerformMonthlyReset(settings: UserSettings, now: LocalDate) {
         val lastResetDate = settings.lastResetDateOrNull() ?: return
         val currentCycleStart = budgetCalculationService.getCycleStartDate(now, settings.paydayDate)
+        val existingPending = settings.pendingCycleRangeOrNull()
+
+        if (existingPending == null) {
+            recoverMissingPendingCycle(settings, currentCycleStart)
+        }
 
         if (!budgetCalculationService.shouldPerformReset(now, settings.paydayDate, lastResetDate)) {
             return
         }
 
-        val existingPending = settings.pendingCycleRangeOrNull()
         if (existingPending != null && existingPending.endExclusive.isBefore(currentCycleStart)) {
             archiveCycleIfNeeded(settings, existingPending.start, existingPending.endExclusive)
             userPreferencesManager.clearPendingCycle()
@@ -390,6 +404,32 @@ class BudgetRepository(
             cursor = nextCycleStart
         }
         return cycles
+    }
+
+    private suspend fun recoverMissingPendingCycle(
+        settings: UserSettings,
+        currentCycleStart: LocalDate
+    ) {
+        val previousCycleStart = budgetCalculationService.getCycleStartDate(
+            currentCycleStart.minusDays(1),
+            settings.paydayDate
+        )
+        if (!previousCycleStart.isBefore(currentCycleStart)) return
+
+        val archivedPreviousCycle = monthlyHistoryDao.getHistoryForCycle(previousCycleStart.toString())
+        if (archivedPreviousCycle != null) return
+
+        val previousCycleExpenseCount = expenseDao.getExpenseCountInRange(
+            previousCycleStart.toStartOfDayMillis(),
+            currentCycleStart.toStartOfDayMillis()
+        )
+        if (previousCycleExpenseCount == 0) return
+
+        userPreferencesManager.setPendingCycle(
+            cycleStartDate = previousCycleStart,
+            cycleEndDateExclusive = currentCycleStart,
+            detectedAtTimestamp = Instant.now().toEpochMilli()
+        )
     }
 
     private fun buildContinuousDaySections(

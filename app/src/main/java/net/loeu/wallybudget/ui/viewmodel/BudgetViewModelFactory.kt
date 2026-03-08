@@ -36,7 +36,7 @@ class BudgetViewModelFactory(
     }
 
     private val currentDateProvider by lazy {
-        SystemCurrentDateProvider()
+        SystemCurrentDateProvider(context.applicationContext)
     }
 
     private val forecastCalculator by lazy {
