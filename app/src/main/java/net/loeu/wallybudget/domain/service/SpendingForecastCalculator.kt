@@ -203,6 +203,7 @@ class SpendingForecastCalculator {
 
         val combinedExpenses = allHistoricalExpenses + normalizedCurrentCycle
         val prep = prepareAndCleanData(combinedExpenses)
+        val currentCycleSignal = normalizedCurrentCycle.ifEmpty { prep.cleanedExpenses }
         val syntheticTodayIndex = currentCycleExpenses.lastIndex
             .takeIf { it >= 0 }
             ?.let { allHistoricalExpenses.size + it }
@@ -218,9 +219,10 @@ class SpendingForecastCalculator {
         val daysElapsed = currentCycleExpenses.size
         val daysRemaining = (daysInMonth - daysElapsed).coerceAtLeast(0)
 
-        // Short-term average: weighted moving average (heavily reactive to recent days)
+        // Reset recency at the cycle boundary so the prior cycle contributes history,
+        // but does not define the new cycle's immediate pace.
         val shortTermAverage = calculateWeightedMovingAverage(
-            prep.cleanedExpenses, 
+            currentCycleSignal,
             ForecastConfig.WEIGHTED_AVERAGE_WINDOW_DAYS, 
             ForecastConfig.DECAY_FACTOR
         )
@@ -232,7 +234,7 @@ class SpendingForecastCalculator {
             0.0
         }
         
-        val trend = calculateWeightedTrend(prep.cleanedExpenses, ForecastConfig.DECAY_FACTOR)
+        val trend = calculateWeightedTrend(currentCycleSignal, ForecastConfig.DECAY_FACTOR)
         val confidence = calculateForecastConfidence(prep.cleanedExpenses, adjustedOutlierCount, daysElapsed)
 
         // Confidence-weighted blending: 

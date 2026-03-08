@@ -227,10 +227,4 @@ class BudgetViewModel(
             repository.updatePaydayDate(day)
         }
     }
-
-    fun updateForecastSensitivityPercent(percent: Int) {
-        viewModelScope.launch {
-            repository.updateForecastSensitivityPercent(percent)
-        }
-    }
 }

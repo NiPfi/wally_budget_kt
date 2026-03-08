@@ -155,7 +155,6 @@ fun BudgetApp(
                 onRestoreExpense = { expense -> viewModel.restoreDeletedExpense(expense) },
                 onUpdateBudget = { budgetCents -> viewModel.updateMonthlyBudget(budgetCents) },
                 onUpdatePayday = { payday -> viewModel.updatePaydayDate(payday) },
-                onUpdateForecastSensitivity = { percent -> viewModel.updateForecastSensitivityPercent(percent) },
                 modifier = modifier
             )
         }
@@ -180,7 +179,6 @@ private fun MainNavigationShell(
     onRestoreExpense: (net.loeu.wallybudget.data.model.Expense) -> Unit,
     onUpdateBudget: (Long) -> Unit,
     onUpdatePayday: (Int) -> Unit,
-    onUpdateForecastSensitivity: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val navController = rememberNavController()
@@ -317,7 +315,6 @@ private fun MainNavigationShell(
                     userSettings = userSettings,
                     onUpdateBudget = onUpdateBudget,
                     onUpdatePayday = onUpdatePayday,
-                    onUpdateForecastSensitivity = onUpdateForecastSensitivity,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

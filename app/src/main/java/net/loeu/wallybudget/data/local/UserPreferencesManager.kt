@@ -62,13 +62,6 @@ class UserPreferencesManager(private val context: Context) {
         }
     }
 
-    suspend fun updateForecastSensitivityPercent(percent: Int) {
-        context.dataStore.edit { preferences ->
-            preferences[PreferenceKeys.FORECAST_SENSITIVITY_PERCENT] =
-                percent.coerceIn(FORECAST_SENSITIVITY_MIN, FORECAST_SENSITIVITY_MAX)
-        }
-    }
-
     suspend fun updateLastResetTimestamp(timestamp: Long) {
         context.dataStore.edit { preferences ->
             preferences[PreferenceKeys.LAST_RESET_TIMESTAMP] = timestamp
