@@ -179,11 +179,20 @@ class BudgetCalculationService(
             }
 
         val allHistoricalExpenses = supplementaryHistoricalExpenses + historicalRealDailyExpenses
+        val completedCycleDailyAverages = monthlyHistory
+            .asSequence()
+            .filter { it.getCycleEnd() <= budgetState.cycleStartDate }
+            .sortedBy { it.getCycleEnd() }
+            .map { history ->
+                (history.totalSpentCents.toDouble() / history.getDayCount()).roundToLong()
+            }
+            .toList()
 
         return forecastCalculator.forecastMonthlySpending(
             budgetState = budgetState,
             allHistoricalExpenses = allHistoricalExpenses,
             currentCycleExpenses = currentCycleDailyExpenses,
+            completedCycleDailyAverages = completedCycleDailyAverages,
             daysInMonth = daysInCycle
         )
     }

@@ -30,6 +30,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -64,10 +65,13 @@ fun OverviewPage(
         .sumOf { it.totalSpentCents }
     val adjustedDailyAllowanceCents = budgetState.remainingTodayCents + budgetState.spentTodayCents
     val dailyAdjustmentCents = adjustedDailyAllowanceCents - budgetState.dailyBudgetCents
+    val safeToSpendTodayCents = adjustedDailyAllowanceCents +
+        spendingForecast.recoverableOverspendCents
     val useWarningTint = budgetState.remainingTodayCents < 0L ||
         budgetState.remainingCycleCents < 0L ||
         spendingForecast.isProjectedOverBudget
     val showForecastDetails = remember { mutableStateOf(false) }
+    val showSafeTodayDetails = remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val density = LocalDensity.current
     val defaultCollapseOffsetPx = remember(defaultCollapsedHeader, density) {
@@ -109,6 +113,12 @@ fun OverviewPage(
                     canExpand = listState.firstVisibleItemIndex == 0 &&
                         listState.firstVisibleItemScrollOffset == 0
                 )
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                if (!enableHeaderCollapse) return Velocity.Zero
+                collapseOffsetPx = snapHeaderOffset(collapseOffsetPx, maxCollapseRangePx.value)
+                return Velocity.Zero
             }
         }
     }
@@ -168,6 +178,57 @@ fun OverviewPage(
         )
     }
 
+    if (showSafeTodayDetails.value) {
+        AlertDialog(
+            onDismissRequest = { showSafeTodayDetails.value = false },
+            title = { Text("Safe today") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "The + amount next to Today left is recoverable overspend: extra spending the forecast suggests you can still absorb and make back over the remaining cycle days.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        "It is not free budget. It sits on top of today’s allowance and depends on forecast confidence and days left in the cycle.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = MaterialTheme.shapes.large,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            DetailRow("Today left", CurrencyFormatter.formatSigned(budgetState.remainingTodayCents))
+                            DetailRow(
+                                "Recoverable overspend",
+                                CurrencyFormatter.format(spendingForecast.recoverableOverspendCents)
+                            )
+                            DetailRow(
+                                "Safe to spend today",
+                                CurrencyFormatter.format(safeToSpendTodayCents)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSafeTodayDetails.value = false }) {
+                    Text("Close")
+                }
+            },
+            icon = {
+                androidx.compose.material3.Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null
+                )
+            }
+        )
+    }
+
     SubcomposeLayout(modifier = modifier.nestedScroll(nestedScrollConnection)) { constraints ->
         val horizontalPaddingPx = with(density) { headerHorizontalPadding.roundToPx() }
         val topPaddingPx = with(density) { headerTopPadding.roundToPx() }
@@ -181,8 +242,10 @@ fun OverviewPage(
         val expandedHeaderHeightPx = subcompose("expandedHeaderMeasure") {
             SummaryCard(
                 budgetState = budgetState,
+                recoverableOverspendCents = spendingForecast.recoverableOverspendCents,
                 collapseProgress = 0f,
                 useWarningTint = useWarningTint,
+                onSafeTodayInfoClick = { showSafeTodayDetails.value = true },
                 onNavigateToSettings = onNavigateToSettings,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -191,8 +254,10 @@ fun OverviewPage(
         val collapsedHeaderHeightPx = subcompose("collapsedHeaderMeasure") {
             SummaryCard(
                 budgetState = budgetState,
+                recoverableOverspendCents = spendingForecast.recoverableOverspendCents,
                 collapseProgress = 1f,
                 useWarningTint = useWarningTint,
+                onSafeTodayInfoClick = { showSafeTodayDetails.value = true },
                 onNavigateToSettings = onNavigateToSettings,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -267,8 +332,10 @@ fun OverviewPage(
         val headerPlaceables = subcompose("currentHeader") {
             SummaryCard(
                 budgetState = budgetState,
+                recoverableOverspendCents = spendingForecast.recoverableOverspendCents,
                 collapseProgress = collapseProgress,
                 useWarningTint = useWarningTint,
+                onSafeTodayInfoClick = { showSafeTodayDetails.value = true },
                 onNavigateToSettings = onNavigateToSettings,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -305,6 +372,15 @@ private fun consumeHeaderScroll(
     }
 
     return Offset.Zero
+}
+
+private fun snapHeaderOffset(collapseOffsetPx: Float, maxCollapsePx: Float): Float {
+    if (maxCollapsePx <= 0f) return 0f
+    return if (collapseOffsetPx >= maxCollapsePx / 2f) {
+        maxCollapsePx
+    } else {
+        0f
+    }
 }
 
 @Composable
