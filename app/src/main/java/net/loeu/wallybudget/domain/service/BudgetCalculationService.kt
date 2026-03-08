@@ -145,18 +145,27 @@ class BudgetCalculationService(
             endExclusive = now.plusDays(1)
         )
 
-        // Reconstruct historical days explicitly so sparse cycles keep their zero-spend days.
         val historicalWindowStart = now.minusDays(ForecastConfig.HISTORICAL_DAYS_LOOKBACK.toLong())
-        val historicalRealDailyExpenses = buildDailyExpenseSeries(
-            expensesByDay = expensesByDay,
-            start = historicalWindowStart,
-            endExclusive = budgetState.cycleStartDate
+        val historicalSeriesStart = findKnownHistoryStart(
+            historicalWindowStart = historicalWindowStart,
+            currentCycleStart = budgetState.cycleStartDate,
+            expenseDates = expensesByDay.keys,
+            monthlyHistory = monthlyHistory
         )
+        val historicalRealDailyExpenses = historicalSeriesStart?.let { start ->
+            // Reconstruct historical days explicitly so sparse cycles keep their zero-spend days,
+            // but do not invent "zero history" before the first known tracked cycle/day.
+            buildDailyExpenseSeries(
+                expensesByDay = expensesByDay,
+                start = start,
+                endExclusive = budgetState.cycleStartDate
+            )
+        } ?: emptyList()
 
         val supplementaryHistoricalExpenses = monthlyHistory
             .sortedBy { it.getCycleStart() }
             .mapNotNull { history ->
-                if (history.getCycleEnd() <= historicalWindowStart) {
+                if (history.getCycleEnd() <= (historicalSeriesStart ?: historicalWindowStart)) {
                     // Uses MonthlyHistory.getDayCount() which encapsulates the exclusive end date invariant.
                     val days = history.getDayCount()
                     val dailyAmount = (history.totalSpentCents.toDouble() / days).roundToLong()
@@ -177,6 +186,29 @@ class BudgetCalculationService(
             currentCycleExpenses = currentCycleDailyExpenses,
             daysInMonth = daysInCycle
         )
+    }
+
+    private fun findKnownHistoryStart(
+        historicalWindowStart: LocalDate,
+        currentCycleStart: LocalDate,
+        expenseDates: Set<LocalDate>,
+        monthlyHistory: List<MonthlyHistory>
+    ): LocalDate? {
+        val earliestExpenseDate = expenseDates
+            .filter { it.isBefore(currentCycleStart) && !it.isBefore(historicalWindowStart) }
+            .minOrNull()
+
+        val earliestHistoryCycleStart = monthlyHistory
+            .asSequence()
+            .filter { it.getCycleStart().isBefore(currentCycleStart) }
+            .filter { it.getCycleEnd().isAfter(historicalWindowStart) }
+            .map { maxOf(it.getCycleStart(), historicalWindowStart) }
+            .minOrNull()
+
+        val candidate = listOfNotNull(earliestExpenseDate, earliestHistoryCycleStart).minOrNull()
+            ?: return null
+
+        return minOf(candidate, currentCycleStart)
     }
 
     private fun buildDailyExpenseSeries(

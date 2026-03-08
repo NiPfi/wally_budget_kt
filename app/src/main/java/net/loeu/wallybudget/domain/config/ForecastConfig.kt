@@ -50,6 +50,18 @@ object ForecastConfig {
     const val TREND_DAMPENING_FACTOR = 0.5
 
     /**
+     * Minimum number of completed current-cycle days required before using a current-cycle trend.
+     * Early in a cycle, the trend signal is too unstable and should defer to historical baseline.
+     */
+    const val MIN_COMPLETED_DAYS_FOR_CURRENT_TREND = 7
+
+    /**
+     * Minimum number of non-zero completed current-cycle days required before using a current-cycle trend.
+     * A single spending day among zeros is not enough evidence of acceleration.
+     */
+    const val MIN_NON_ZERO_DAYS_FOR_CURRENT_TREND = 2
+
+    /**
      * Minimum days of uncertainty to assume even when near the end of a cycle.
      * Prevents artificially narrow confidence bounds on the final day.
      */
