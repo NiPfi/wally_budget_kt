@@ -313,11 +313,14 @@ class SpendingForecastCalculator {
         val recoverableOverspendBaselineRemainingCents =
             budgetState.monthlyBudgetCents -
                 (spentBeforeTodayCents + effectiveDailyAllowanceCents + projectedRemainingCents)
-        val recoverableOverspendCents = calculateRecoverableOverspend(
+        val grossRecoverableOverspendCents = calculateRecoverableOverspend(
             estimatedEndCycleRemainingCents = recoverableOverspendBaselineRemainingCents,
             confidence = confidence,
             daysRemaining = daysRemaining,
             daysInCycle = daysInMonth
+        )
+        val recoverableOverspendCents = grossRecoverableOverspendCents.coerceAtMost(
+            estimatedEndCycleRemainingCents.coerceAtLeast(0L)
         )
 
         // Confidence-adjusted margin of error
@@ -372,7 +375,8 @@ class SpendingForecastCalculator {
             trendSlopeCents = trend.slope,
             detectedOutlierCount = adjustedOutlierCount,
             usedDataPoints = prep.cleanedExpenses.size,
-            recoverableOverspendCents = recoverableOverspendCents
+            recoverableOverspendCents = recoverableOverspendCents,
+            grossRecoverableOverspendCents = grossRecoverableOverspendCents
         )
     }
 

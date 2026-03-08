@@ -157,6 +157,7 @@ class SpendingForecastCalculatorTest {
             .roundToLong()
 
         assertEquals(expected, forecast.recoverableOverspendCents)
+        assertEquals(expected, forecast.grossRecoverableOverspendCents)
     }
 
     @Test
@@ -186,9 +187,28 @@ class SpendingForecastCalculatorTest {
         )
 
         assertEquals(
-            forecastBeforeTodaySpend.recoverableOverspendCents,
-            forecastAfterTodaySpend.recoverableOverspendCents
+            forecastBeforeTodaySpend.grossRecoverableOverspendCents,
+            forecastAfterTodaySpend.grossRecoverableOverspendCents
         )
+    }
+
+    @Test
+    fun forecastMonthlySpending_recoverableOverspend_isCappedToZeroWhenProjectionIsDeficit() {
+        val forecast = calculator.forecastMonthlySpending(
+            budgetState = testBudgetState(
+                totalSpentThisCycleCents = 101_000L,
+                spentTodayCents = 4_000L,
+                remainingTodayCents = -1_000L
+            ),
+            allHistoricalExpenses = List(30) { 0L },
+            currentCycleExpenses = List(29) { 3_500L } + listOf(4_000L),
+            completedCycleDailyAverages = listOf(3_500L),
+            daysInMonth = 30
+        )
+
+        assertTrue(forecast.estimatedEndCycleRemainingCents < 0L)
+        assertTrue(forecast.grossRecoverableOverspendCents >= 0L)
+        assertEquals(0L, forecast.recoverableOverspendCents)
     }
 
     private fun testBudgetState(
