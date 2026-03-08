@@ -12,38 +12,23 @@ import androidx.compose.ui.unit.dp
 import net.loeu.wallybudget.data.model.UserSettings
 import net.loeu.wallybudget.util.CurrencyFormatter
 
-private const val FORECAST_SENSITIVITY_MIN = 20
-private const val FORECAST_SENSITIVITY_MAX = 90
-private const val FORECAST_SENSITIVITY_STEPS = 13
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     userSettings: UserSettings,
     onUpdateBudget: (Long) -> Unit,
     onUpdatePayday: (Int) -> Unit,
-    onUpdateForecastSensitivity: (Int) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var budgetText by remember { mutableStateOf(CurrencyFormatter.centsToDecimalString(userSettings.monthlyBudgetCents)) }
     var paydayText by remember { mutableStateOf(userSettings.paydayDate.toString()) }
-    var forecastSensitivity by remember {
-        mutableStateOf(
-            userSettings.forecastSensitivityPercent
-                .coerceIn(FORECAST_SENSITIVITY_MIN, FORECAST_SENSITIVITY_MAX)
-                .toFloat()
-        )
-    }
     var showSaveSnackbar by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(userSettings) {
         budgetText = CurrencyFormatter.centsToDecimalString(userSettings.monthlyBudgetCents)
         paydayText = userSettings.paydayDate.toString()
-        forecastSensitivity = userSettings.forecastSensitivityPercent
-            .coerceIn(FORECAST_SENSITIVITY_MIN, FORECAST_SENSITIVITY_MAX)
-            .toFloat()
     }
 
     Scaffold(
@@ -106,36 +91,10 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text(
-                text = "Forecast Sensitivity",
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                text = "${forecastSensitivity.toInt()}%",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "Lower = more current pace, higher = more history influence",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Slider(
-                value = forecastSensitivity,
-                onValueChange = { forecastSensitivity = it },
-                valueRange = FORECAST_SENSITIVITY_MIN.toFloat()..FORECAST_SENSITIVITY_MAX.toFloat(),
-                steps = FORECAST_SENSITIVITY_STEPS,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
             Button(
                 onClick = {
                     val budgetCents = CurrencyFormatter.parseAmountToCents(budgetText)
                     val payday = paydayText.toIntOrNull()
-                    val sensitivityPercent = forecastSensitivity.toInt()
-                        .coerceIn(FORECAST_SENSITIVITY_MIN, FORECAST_SENSITIVITY_MAX)
 
                     if (budgetCents != null && budgetCents > 0L) {
                         onUpdateBudget(budgetCents)
@@ -143,7 +102,6 @@ fun SettingsScreen(
                     if (payday != null && payday in 1..31) {
                         onUpdatePayday(payday)
                     }
-                    onUpdateForecastSensitivity(sensitivityPercent)
 
                     if (budgetCents != null && payday != null && budgetCents > 0L && payday in 1..31) {
                         showSaveSnackbar = true
@@ -175,7 +133,7 @@ fun SettingsScreen(
                     Text(
                         text = "Your monthly budget is divided by the days remaining in your cycle. " +
                                 "If you spend less than your daily allowance, the savings roll over to the next day. " +
-                                "Forecast sensitivity controls how strongly past cycle behavior influences predictions.",
+                                "Forecasts automatically balance your current-cycle pace with prior cycle history.",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }

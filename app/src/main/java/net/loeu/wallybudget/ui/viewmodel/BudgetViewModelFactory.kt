@@ -26,7 +26,8 @@ class BudgetViewModelFactory(
                 BudgetDatabase.MIGRATION_2_3,
                 BudgetDatabase.MIGRATION_3_4,
                 BudgetDatabase.MIGRATION_4_5,
-                BudgetDatabase.MIGRATION_5_6
+                BudgetDatabase.MIGRATION_5_6,
+                BudgetDatabase.MIGRATION_6_7
             )
             .build()
     }
@@ -36,7 +37,7 @@ class BudgetViewModelFactory(
     }
 
     private val currentDateProvider by lazy {
-        SystemCurrentDateProvider()
+        SystemCurrentDateProvider(context.applicationContext)
     }
 
     private val forecastCalculator by lazy {

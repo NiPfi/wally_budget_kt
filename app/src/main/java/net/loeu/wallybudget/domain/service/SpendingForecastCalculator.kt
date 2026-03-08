@@ -13,23 +13,31 @@ import kotlin.math.sqrt
 
 class SpendingForecastCalculator {
 
+    private data class IndexedExpense(
+        val index: Int,
+        val value: Long
+    )
+
     sealed class DataPrep {
         abstract val cleanedExpenses: List<Long>
         abstract val outlierCount: Int
+        abstract val retainedIndexes: Set<Int>
 
         /**
          * Represents a successful outlier detection with calculated quartile statistics.
          */
         data class OutliersDetected(
             override val cleanedExpenses: List<Long>,
-            override val outlierCount: Int
+            override val outlierCount: Int,
+            override val retainedIndexes: Set<Int>
         ) : DataPrep()
 
         /**
          * Explicitly represents that no outlier detection was performed (e.g., due to small sample size).
          */
         data class NoDetectionPerformed(
-            override val cleanedExpenses: List<Long>
+            override val cleanedExpenses: List<Long>,
+            override val retainedIndexes: Set<Int>
         ) : DataPrep() {
             override val outlierCount: Int = 0
         }
@@ -45,25 +53,79 @@ class SpendingForecastCalculator {
      * Uses linear interpolation for percentile calculation to handle small datasets gracefully.
      */
     fun prepareAndCleanData(allExpenses: List<Long>): DataPrep {
-        if (allExpenses.isEmpty()) return DataPrep.NoDetectionPerformed(emptyList())
+        if (allExpenses.isEmpty()) {
+            return DataPrep.NoDetectionPerformed(
+                cleanedExpenses = emptyList(),
+                retainedIndexes = emptySet()
+            )
+        }
         
         // Outlier detection is generally not meaningful for very small datasets.
         if (allExpenses.size < ForecastConfig.MIN_DATA_POINTS_FOR_OUTLIERS) {
-            return DataPrep.NoDetectionPerformed(allExpenses)
+            return DataPrep.NoDetectionPerformed(
+                cleanedExpenses = allExpenses,
+                retainedIndexes = allExpenses.indices.toSet()
+            )
         }
 
-        val sorted = allExpenses.sorted()
+        val allIndexedExpenses = allExpenses.mapIndexed { index, value ->
+            IndexedExpense(index = index, value = value)
+        }
+        val primaryDetection = detectOutliers(allIndexedExpenses)
+        if (primaryDetection != null) {
+            return primaryDetection
+        }
+
+        val positiveExpenses = allIndexedExpenses.filter { it.value > 0L }
+        if (positiveExpenses.size < ForecastConfig.MIN_DATA_POINTS_FOR_OUTLIERS) {
+            return DataPrep.NoDetectionPerformed(
+                cleanedExpenses = allExpenses,
+                retainedIndexes = allExpenses.indices.toSet()
+            )
+        }
+
+        val positiveDetection = detectOutliers(
+            entries = positiveExpenses,
+            alwaysRetained = allIndexedExpenses.filter { it.value == 0L }
+        )
+
+        return positiveDetection ?: DataPrep.NoDetectionPerformed(
+            cleanedExpenses = allExpenses,
+            retainedIndexes = allExpenses.indices.toSet()
+        )
+    }
+
+    private fun detectOutliers(
+        entries: List<IndexedExpense>,
+        alwaysRetained: List<IndexedExpense> = emptyList()
+    ): DataPrep.OutliersDetected? {
+        if (entries.size < ForecastConfig.MIN_DATA_POINTS_FOR_OUTLIERS) {
+            return null
+        }
+
+        val sorted = entries.map { it.value }.sorted()
         val q1 = calculatePercentile(sorted, 0.25)
         val q3 = calculatePercentile(sorted, 0.75)
         val iqr = q3 - q1
 
+        if (iqr == 0.0) {
+            return null
+        }
+
         val lowerBound = q1 - (ForecastConfig.IQR_MULTIPLIER * iqr)
         val upperBound = q3 + (ForecastConfig.IQR_MULTIPLIER * iqr)
 
-        val cleaned = allExpenses.filter { it.toDouble() in lowerBound..upperBound }
-        val outlierCount = allExpenses.size - cleaned.size
+        val retainedEntries = (alwaysRetained + entries.filter { entry ->
+            entry.value.toDouble() in lowerBound..upperBound
+        }).sortedBy { it.index }
 
-        return DataPrep.OutliersDetected(cleaned, outlierCount)
+        return DataPrep.OutliersDetected(
+            cleanedExpenses = retainedEntries.map { it.value },
+            outlierCount = entries.size - retainedEntries.count { retained ->
+                entries.any { it.index == retained.index }
+            },
+            retainedIndexes = retainedEntries.mapTo(mutableSetOf()) { it.index }
+        )
     }
 
     /**
@@ -181,13 +243,27 @@ class SpendingForecastCalculator {
 
         val combinedExpenses = allHistoricalExpenses + normalizedCurrentCycle
         val prep = prepareAndCleanData(combinedExpenses)
+        val currentCycleSignal = normalizedCurrentCycle.ifEmpty { prep.cleanedExpenses }
+        val currentCycleTrendSignal = currentCycleExpenses.dropLast(1)
+        val syntheticTodayIndex = currentCycleExpenses.lastIndex
+            .takeIf { it >= 0 }
+            ?.let { allHistoricalExpenses.size + it }
+        val adjustedOutlierCount = syntheticTodayIndex?.let { index ->
+            if (index in prep.retainedIndexes) {
+                prep.outlierCount
+            } else {
+                // The normalized "today" placeholder is synthetic forecast input, not a real anomaly.
+                (prep.outlierCount - 1).coerceAtLeast(0)
+            }
+        } ?: prep.outlierCount
         
         val daysElapsed = currentCycleExpenses.size
         val daysRemaining = (daysInMonth - daysElapsed).coerceAtLeast(0)
 
-        // Short-term average: weighted moving average (heavily reactive to recent days)
+        // Reset recency at the cycle boundary so the prior cycle contributes history,
+        // but does not define the new cycle's immediate pace.
         val shortTermAverage = calculateWeightedMovingAverage(
-            prep.cleanedExpenses, 
+            currentCycleSignal,
             ForecastConfig.WEIGHTED_AVERAGE_WINDOW_DAYS, 
             ForecastConfig.DECAY_FACTOR
         )
@@ -198,9 +274,17 @@ class SpendingForecastCalculator {
         } else {
             0.0
         }
-        
-        val trend = calculateWeightedTrend(prep.cleanedExpenses, ForecastConfig.DECAY_FACTOR)
-        val confidence = calculateForecastConfidence(prep.cleanedExpenses, prep.outlierCount, daysElapsed)
+
+        val completedNonZeroDays = currentCycleTrendSignal.count { it > 0L }
+        val trend = if (
+            currentCycleTrendSignal.size >= ForecastConfig.MIN_COMPLETED_DAYS_FOR_CURRENT_TREND &&
+            completedNonZeroDays >= ForecastConfig.MIN_NON_ZERO_DAYS_FOR_CURRENT_TREND
+        ) {
+            calculateWeightedTrend(currentCycleTrendSignal, ForecastConfig.DECAY_FACTOR)
+        } else {
+            TrendData(0.0, 0.0)
+        }
+        val confidence = calculateForecastConfidence(prep.cleanedExpenses, adjustedOutlierCount, daysElapsed)
 
         // Confidence-weighted blending: 
         // Higher confidence -> trust the short-term weighted average more.
@@ -242,7 +326,9 @@ class SpendingForecastCalculator {
         val uncertaintyExpansion = 2.0 - confidence
         val marginOfError = zScore * standardErrorOfSum * uncertaintyExpansion
         
-        val lowerBound = (projectedTotalSpentCents - marginOfError).roundToLong().coerceAtLeast(0L)
+        val lowerBound = (projectedTotalSpentCents - marginOfError)
+            .roundToLong()
+            .coerceAtLeast(budgetState.totalSpentThisCycleCents)
         val upperBound = (projectedTotalSpentCents + marginOfError).roundToLong()
 
         val confidenceRating = when {
@@ -268,7 +354,7 @@ class SpendingForecastCalculator {
             upperBoundCents = upperBound,
             dailyAverageWeightedCents = dailyForecast,
             trendSlopeCents = trend.slope,
-            detectedOutlierCount = prep.outlierCount,
+            detectedOutlierCount = adjustedOutlierCount,
             usedDataPoints = prep.cleanedExpenses.size
         )
     }

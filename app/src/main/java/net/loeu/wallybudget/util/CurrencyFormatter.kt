@@ -22,6 +22,14 @@ object CurrencyFormatter {
         return formatter.format(amountCents / 100.0)
     }
 
+    fun formatSigned(amountCents: Long): String {
+        return if (amountCents < 0L) {
+            "-${format(-amountCents)}"
+        } else {
+            format(amountCents)
+        }
+    }
+
     /**
      * Parse decimal amount text (e.g. "12.34") to cents.
      */
@@ -39,4 +47,3 @@ object CurrencyFormatter {
         return (amountCents / 100.0).toString()
     }
 }
-
