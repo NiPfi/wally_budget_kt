@@ -109,17 +109,20 @@ class BudgetViewModel(
     init {
         // Check for monthly reset on initialization and local date changes
         viewModelScope.launch {
-            combine(userSettingsFlow, currentDateProvider.observeCurrentDate()) { settings, today ->
-                settings to today
-            }.collect { (settings, today) ->
-                repository.checkAndPerformMonthlyReset(settings, today)
+            combine(userSettingsFlow, currentDateProvider.observeCurrentDate()) { settings, observedDate ->
+                settings to observedDate
+            }.collect { (settings, observedDate) ->
+                val effectiveDate = repository.syncObservedDate(settings, observedDate)
+                repository.checkAndPerformMonthlyReset(settings, effectiveDate)
             }
         }
     }
 
     fun refreshCycleState() {
         viewModelScope.launch {
-            repository.checkAndPerformMonthlyReset(userSettings.value, currentDateProvider.currentDate())
+            val settings = userSettings.value
+            val effectiveDate = repository.syncObservedDate(settings, currentDateProvider.currentDate())
+            repository.checkAndPerformMonthlyReset(settings, effectiveDate)
         }
     }
 

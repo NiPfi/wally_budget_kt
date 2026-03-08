@@ -42,11 +42,17 @@ class BudgetRepository(
 
     val userSettings: Flow<UserSettings> = userPreferencesManager.userSettings
 
+    fun getEffectiveCurrentDate(): Flow<LocalDate> {
+        return combine(userSettings, currentDateProvider.observeCurrentDate()) { settings, observedDate ->
+            effectiveCurrentDate(settings, observedDate)
+        }.distinctUntilChanged()
+    }
+
     fun getBudgetState(): Flow<BudgetState> {
         return combine(
             userSettings,
             expenseDao.observeExpenseCount(),
-            currentDateProvider.observeCurrentDate(),
+            getEffectiveCurrentDate(),
             monthlyHistoryDao.getAllHistory()
         ) { settings, _, today, history ->
             val cycleStart = budgetCalculationService.getCycleStartDate(today, settings.paydayDate)
@@ -86,7 +92,7 @@ class BudgetRepository(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     fun getTodayExpenses(): Flow<List<Expense>> {
-        return currentDateProvider.observeCurrentDate().flatMapLatest { now ->
+        return getEffectiveCurrentDate().flatMapLatest { now ->
             expenseDao.getExpensesByDateRange(
                 startTime = now.toStartOfDayMillis(),
                 endTime = now.plusDays(1).toStartOfDayMillis()
@@ -98,7 +104,7 @@ class BudgetRepository(
         return combine(
             getBudgetState(),
             expenseDao.getAllExpensesOrderedByTimestampDesc(),
-            currentDateProvider.observeCurrentDate()
+            getEffectiveCurrentDate()
         ) { budgetState, allExpenses, today ->
             val cycleStart = budgetState.cycleStartDate
             val cycleExpenses = allExpenses.filterByRange(cycleStart, today.plusDays(1))
@@ -119,7 +125,7 @@ class BudgetRepository(
             monthlyHistoryDao.getAllHistory(),
             expenseDao.getAllExpensesOrderedByTimestampDesc(),
             getBudgetState(),
-            currentDateProvider.observeCurrentDate()
+            getEffectiveCurrentDate()
         ) { history, allExpenses, budgetState, today ->
             val sections = mutableListOf<ExpenseCycleSection>()
             val currentCycleStart = budgetState.cycleStartDate
@@ -250,6 +256,7 @@ class BudgetRepository(
         userPreferencesManager.updateMonthlyBudget(monthlyBudgetCents)
         userPreferencesManager.updatePaydayDate(paydayDate)
         userPreferencesManager.updateLastResetTimestamp(cycleStartDate.toStartOfDayMillis())
+        userPreferencesManager.updateLastSeenDate(currentDateProvider.currentDate())
 
         if (previousExpensesCents > 0L) {
             val previousCycleStart = budgetCalculationService.getCycleStartDate(
@@ -331,7 +338,7 @@ class BudgetRepository(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     fun getSpendingForecast(): Flow<SpendingForecast> {
-        val nowFlow = currentDateProvider.observeCurrentDate()
+        val nowFlow = getEffectiveCurrentDate()
 
         val recentExpensesFlow = nowFlow
             .map { now ->
@@ -505,6 +512,15 @@ class BudgetRepository(
         return atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
     }
 
+    private fun effectiveCurrentDate(settings: UserSettings, observedDate: LocalDate): LocalDate {
+        val lastSeenDate = settings.lastSeenDateOrNull()
+        return if (lastSeenDate != null && observedDate.isBefore(lastSeenDate)) {
+            lastSeenDate
+        } else {
+            observedDate
+        }
+    }
+
     private fun UserSettings.lastResetDateOrNull(): LocalDate? {
         if (lastResetTimestamp <= 0L) return null
         return Instant.ofEpochMilli(lastResetTimestamp)
@@ -512,9 +528,21 @@ class BudgetRepository(
             .toLocalDate()
     }
 
+    suspend fun syncObservedDate(settings: UserSettings, observedDate: LocalDate): LocalDate {
+        val lastSeenDate = settings.lastSeenDateOrNull()
+        if (lastSeenDate == null || observedDate.isAfter(lastSeenDate)) {
+            userPreferencesManager.updateLastSeenDate(observedDate)
+        }
+        return effectiveCurrentDate(settings, observedDate)
+    }
+
     private fun UserSettings.pendingCycleRangeOrNull(): CycleRange? {
         val start = pendingCycleStartDate?.let(LocalDate::parse) ?: return null
         val end = pendingCycleEndDateExclusive?.let(LocalDate::parse) ?: return null
         return CycleRange(start = start, endExclusive = end)
+    }
+
+    private fun UserSettings.lastSeenDateOrNull(): LocalDate? {
+        return lastSeenDate?.let(LocalDate::parse)
     }
 }
