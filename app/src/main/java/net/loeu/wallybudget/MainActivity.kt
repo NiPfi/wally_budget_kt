@@ -103,6 +103,7 @@ fun BudgetApp(
 
     val userSettings by viewModel.userSettings.collectAsState()
     val budgetState by viewModel.budgetState.collectAsState()
+    val effectiveCurrentDate by viewModel.effectiveCurrentDate.collectAsState()
     val todayExpenses by viewModel.todayExpenses.collectAsState()
     val activeCycleExpenseSections by viewModel.activeCycleExpenseSections.collectAsState()
     val spendingForecast by viewModel.spendingForecast.collectAsState()
@@ -139,6 +140,7 @@ fun BudgetApp(
             MainNavigationShell(
                 budgetState = budgetState,
                 todayExpenses = todayExpenses,
+                effectiveCurrentDate = effectiveCurrentDate,
                 activeCycleExpenseSections = activeCycleExpenseSections,
                 spendingForecast = spendingForecast,
                 historySections = historySections,
@@ -165,6 +167,7 @@ fun BudgetApp(
 private fun MainNavigationShell(
     budgetState: net.loeu.wallybudget.data.model.BudgetState,
     todayExpenses: List<net.loeu.wallybudget.data.model.Expense>,
+    effectiveCurrentDate: LocalDate,
     activeCycleExpenseSections: List<net.loeu.wallybudget.data.model.ExpenseDaySection>,
     spendingForecast: net.loeu.wallybudget.data.model.SpendingForecast,
     historySections: List<net.loeu.wallybudget.data.model.ExpenseCycleSection>,
@@ -283,6 +286,7 @@ private fun MainNavigationShell(
                 HomeScreen(
                     budgetState = budgetState,
                     todayExpenses = todayExpenses,
+                    currentDate = effectiveCurrentDate,
                     activeCycleExpenseSections = activeCycleExpenseSections,
                     historySections = historySections,
                     spendingForecast = spendingForecast,
