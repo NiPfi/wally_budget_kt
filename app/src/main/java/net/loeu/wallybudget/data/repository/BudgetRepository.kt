@@ -25,12 +25,42 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
-import kotlin.math.abs
 
 private data class CycleRange(
     val start: LocalDate,
     val endExclusive: LocalDate
 )
+
+internal object ObservedDatePolicy {
+    // Keep small backward shifts monotonic, but recover quickly from clearly bad future jumps.
+    private const val MAX_BACKWARD_DATE_SKEW_DAYS = 1L
+
+    fun resolve(lastSeenDate: LocalDate?, observedDate: LocalDate): LocalDate {
+        if (lastSeenDate == null || !observedDate.isBefore(lastSeenDate)) {
+            return observedDate
+        }
+
+        val rollbackDays = ChronoUnit.DAYS.between(observedDate, lastSeenDate)
+        return if (rollbackDays <= MAX_BACKWARD_DATE_SKEW_DAYS) {
+            lastSeenDate
+        } else {
+            observedDate
+        }
+    }
+
+    fun shouldPersist(lastSeenDate: LocalDate?, observedDate: LocalDate): Boolean {
+        if (lastSeenDate == null || observedDate.isAfter(lastSeenDate)) {
+            return true
+        }
+
+        if (!observedDate.isBefore(lastSeenDate)) {
+            return false
+        }
+
+        val rollbackDays = ChronoUnit.DAYS.between(observedDate, lastSeenDate)
+        return rollbackDays > MAX_BACKWARD_DATE_SKEW_DAYS
+    }
+}
 
 class BudgetRepository(
     private val expenseDao: ExpenseDao,
@@ -511,12 +541,10 @@ class BudgetRepository(
     }
 
     private fun effectiveCurrentDate(settings: UserSettings, observedDate: LocalDate): LocalDate {
-        val lastSeenDate = settings.lastSeenDateOrNull()
-        return if (lastSeenDate != null && observedDate.isBefore(lastSeenDate)) {
-            lastSeenDate
-        } else {
-            observedDate
-        }
+        return ObservedDatePolicy.resolve(
+            lastSeenDate = settings.lastSeenDateOrNull(),
+            observedDate = observedDate
+        )
     }
 
     private fun UserSettings.lastResetDateOrNull(): LocalDate? {
@@ -528,7 +556,7 @@ class BudgetRepository(
 
     suspend fun syncObservedDate(settings: UserSettings, observedDate: LocalDate): LocalDate {
         val lastSeenDate = settings.lastSeenDateOrNull()
-        if (lastSeenDate == null || observedDate.isAfter(lastSeenDate)) {
+        if (ObservedDatePolicy.shouldPersist(lastSeenDate, observedDate)) {
             userPreferencesManager.updateLastSeenDate(observedDate)
         }
         return effectiveCurrentDate(settings, observedDate)
