@@ -65,9 +65,14 @@ fun OverviewPage(
         .sumOf { it.totalSpentCents }
     val adjustedDailyAllowanceCents = budgetState.remainingTodayCents + budgetState.spentTodayCents
     val dailyAdjustmentCents = adjustedDailyAllowanceCents - budgetState.dailyBudgetCents
-    val safeToSpendTodayCents =
-        (budgetState.remainingTodayCents + spendingForecast.recoverableOverspendCents)
-            .coerceAtLeast(0L)
+    val availableRecoverableOverspendCents = calculateAvailableRecoverableOverspendCents(
+        remainingTodayCents = budgetState.remainingTodayCents,
+        recoverableOverspendCents = spendingForecast.recoverableOverspendCents
+    )
+    val safeToSpendTodayCents = calculateSafeToSpendNowCents(
+        remainingTodayCents = budgetState.remainingTodayCents,
+        availableRecoverableOverspendCents = availableRecoverableOverspendCents
+    )
     val useWarningTint = budgetState.remainingTodayCents < 0L ||
         budgetState.remainingCycleCents < 0L ||
         spendingForecast.isProjectedOverBudget
@@ -206,7 +211,7 @@ fun OverviewPage(
                             DetailRow("Today left", CurrencyFormatter.formatSigned(budgetState.remainingTodayCents))
                             DetailRow(
                                 "Recoverable overspend",
-                                CurrencyFormatter.format(spendingForecast.recoverableOverspendCents)
+                                CurrencyFormatter.format(availableRecoverableOverspendCents)
                             )
                             DetailRow(
                                 "Safe to spend now",
@@ -243,7 +248,7 @@ fun OverviewPage(
         val expandedHeaderHeightPx = subcompose("expandedHeaderMeasure") {
             SummaryCard(
                 budgetState = budgetState,
-                recoverableOverspendCents = spendingForecast.recoverableOverspendCents,
+                recoverableOverspendCents = availableRecoverableOverspendCents,
                 collapseProgress = 0f,
                 useWarningTint = useWarningTint,
                 onSafeTodayInfoClick = { showSafeTodayDetails.value = true },
@@ -255,7 +260,7 @@ fun OverviewPage(
         val collapsedHeaderHeightPx = subcompose("collapsedHeaderMeasure") {
             SummaryCard(
                 budgetState = budgetState,
-                recoverableOverspendCents = spendingForecast.recoverableOverspendCents,
+                recoverableOverspendCents = availableRecoverableOverspendCents,
                 collapseProgress = 1f,
                 useWarningTint = useWarningTint,
                 onSafeTodayInfoClick = { showSafeTodayDetails.value = true },
@@ -299,6 +304,7 @@ fun OverviewPage(
                     ) {
                         ForecastCard(
                             spendingForecast = spendingForecast,
+                            displayedRecoverableOverspendCents = availableRecoverableOverspendCents,
                             budgetState = budgetState,
                             onClick = { showForecastDetails.value = true }
                         )
@@ -333,7 +339,7 @@ fun OverviewPage(
         val headerPlaceables = subcompose("currentHeader") {
             SummaryCard(
                 budgetState = budgetState,
-                recoverableOverspendCents = spendingForecast.recoverableOverspendCents,
+                recoverableOverspendCents = availableRecoverableOverspendCents,
                 collapseProgress = collapseProgress,
                 useWarningTint = useWarningTint,
                 onSafeTodayInfoClick = { showSafeTodayDetails.value = true },

@@ -27,6 +27,7 @@ import net.loeu.wallybudget.util.CurrencyFormatter
 @Composable
 fun ForecastCard(
     spendingForecast: SpendingForecast,
+    displayedRecoverableOverspendCents: Long,
     budgetState: BudgetState,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -113,7 +114,7 @@ fun ForecastCard(
             scale = 1f
         )
 
-        if (spendingForecast.recoverableOverspendCents > 0L) {
+        if (displayedRecoverableOverspendCents > 0L) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
             Row(
@@ -123,7 +124,7 @@ fun ForecastCard(
             ) {
                 ForecastMetaMetric(
                     label = "Recoverable overspend",
-                    value = CurrencyFormatter.format(spendingForecast.recoverableOverspendCents),
+                    value = CurrencyFormatter.format(displayedRecoverableOverspendCents),
                     valueColor = MaterialTheme.colorScheme.primary
                 )
             }
