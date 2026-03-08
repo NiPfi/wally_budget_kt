@@ -65,8 +65,9 @@ fun OverviewPage(
         .sumOf { it.totalSpentCents }
     val adjustedDailyAllowanceCents = budgetState.remainingTodayCents + budgetState.spentTodayCents
     val dailyAdjustmentCents = adjustedDailyAllowanceCents - budgetState.dailyBudgetCents
-    val safeToSpendTodayCents = adjustedDailyAllowanceCents +
-        spendingForecast.recoverableOverspendCents
+    val safeToSpendTodayCents =
+        (budgetState.remainingTodayCents + spendingForecast.recoverableOverspendCents)
+            .coerceAtLeast(0L)
     val useWarningTint = budgetState.remainingTodayCents < 0L ||
         budgetState.remainingCycleCents < 0L ||
         spendingForecast.isProjectedOverBudget
@@ -208,7 +209,7 @@ fun OverviewPage(
                                 CurrencyFormatter.format(spendingForecast.recoverableOverspendCents)
                             )
                             DetailRow(
-                                "Safe to spend today",
+                                "Safe to spend now",
                                 CurrencyFormatter.format(safeToSpendTodayCents)
                             )
                         }
