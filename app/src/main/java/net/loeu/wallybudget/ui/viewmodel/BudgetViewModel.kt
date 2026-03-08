@@ -25,6 +25,12 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
+internal object ExpenseEntryDatePolicy {
+    fun resolveRequestedDate(requestedDate: LocalDate?, effectiveCurrentDate: LocalDate): LocalDate {
+        return requestedDate ?: effectiveCurrentDate
+    }
+}
+
 class BudgetViewModel(
     private val repository: BudgetRepository,
     private val currentDateProvider: CurrentDateProvider
@@ -38,6 +44,13 @@ class BudgetViewModel(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = UserSettings()
+        )
+
+    val effectiveCurrentDate: StateFlow<LocalDate> = repository.getEffectiveCurrentDate()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = currentDateProvider.currentDate()
         )
 
     // Budget state
@@ -129,20 +142,24 @@ class BudgetViewModel(
     /**
      * Add a new expense
      */
-    fun addExpense(amountCents: Long, description: String, icon: ExpenseCategory? = null, date: LocalDate = LocalDate.now()) {
+    fun addExpense(amountCents: Long, description: String, icon: ExpenseCategory? = null, date: LocalDate? = null) {
         viewModelScope.launch {
-            val today = LocalDate.now()
-            val timestamp = if (date == today) {
+            val effectiveDate = repository.syncObservedDate(
+                settings = userSettings.value,
+                observedDate = currentDateProvider.currentDate()
+            )
+            val resolvedDate = ExpenseEntryDatePolicy.resolveRequestedDate(date, effectiveDate)
+            val timestamp = if (resolvedDate == effectiveDate) {
                 Instant.now().toEpochMilli()
             } else {
-                date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                resolvedDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
             }
             val expense = Expense(
                 amountCents = amountCents,
                 description = description,
                 icon = icon,
                 timestamp = timestamp,
-                expenseDate = date.toString()
+                expenseDate = resolvedDate.toString()
             )
             repository.addExpense(expense)
             _isAddExpenseSheetVisible.value = false
