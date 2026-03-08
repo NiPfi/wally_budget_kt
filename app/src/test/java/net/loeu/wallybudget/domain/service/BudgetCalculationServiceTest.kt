@@ -110,7 +110,8 @@ class BudgetCalculationServiceTest {
         return Expense(
             amountCents = amountCents,
             description = "Expense",
-            timestamp = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            timestamp = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+            expenseDate = date.toString()
         )
     }
 }

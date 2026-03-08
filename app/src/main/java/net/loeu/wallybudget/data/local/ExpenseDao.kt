@@ -22,27 +22,45 @@ interface ExpenseDao {
     @Query("SELECT COUNT(*) FROM expenses")
     fun observeExpenseCount(): Flow<Int>
 
-    @Query("SELECT * FROM expenses WHERE timestamp >= :startTime AND timestamp < :endTime ORDER BY timestamp DESC")
-    fun getExpensesByDateRange(startTime: Long, endTime: Long): Flow<List<Expense>>
+    @Query(
+        "SELECT * FROM expenses " +
+            "WHERE expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive " +
+            "ORDER BY expenseDate DESC, timestamp DESC, id DESC"
+    )
+    fun getExpensesByDateRange(
+        startDateInclusive: String,
+        endDateExclusive: String
+    ): Flow<List<Expense>>
 
-    @Query("SELECT * FROM expenses WHERE timestamp >= :startTime AND timestamp < :effectiveEndTime ORDER BY timestamp DESC")
-    fun getExpensesByDateRangeWithEffectiveEndTime(startTime: Long, effectiveEndTime: Long): Flow<List<Expense>>
+    @Query(
+        "SELECT * FROM expenses " +
+            "WHERE expenseDate >= :startDateInclusive AND expenseDate < :effectiveEndDateExclusive " +
+            "ORDER BY expenseDate DESC, timestamp DESC, id DESC"
+    )
+    fun getExpensesByDateRangeWithEffectiveEndTime(
+        startDateInclusive: String,
+        effectiveEndDateExclusive: String
+    ): Flow<List<Expense>>
 
-    @Query("SELECT SUM(amountCents) FROM expenses WHERE timestamp >= :startTime AND timestamp < :endTime")
-    suspend fun getTotalSpentInRange(startTime: Long, endTime: Long): Long?
+    @Query("SELECT SUM(amountCents) FROM expenses WHERE expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive")
+    suspend fun getTotalSpentInRange(startDateInclusive: String, endDateExclusive: String): Long?
 
-    @Query("SELECT COUNT(*) FROM expenses WHERE timestamp >= :startTime AND timestamp < :endTime")
-    suspend fun getExpenseCountInRange(startTime: Long, endTime: Long): Int
+    @Query("SELECT COUNT(*) FROM expenses WHERE expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive")
+    suspend fun getExpenseCountInRange(startDateInclusive: String, endDateExclusive: String): Int
 
     @Query("SELECT * FROM expenses WHERE id = :expenseId")
     suspend fun getExpenseById(expenseId: Long): Expense?
 
-    @Query("DELETE FROM expenses WHERE timestamp >= :startTime AND timestamp < :endTime")
-    suspend fun deleteExpensesInRange(startTime: Long, endTime: Long)
+    @Query("DELETE FROM expenses WHERE expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive")
+    suspend fun deleteExpensesInRange(startDateInclusive: String, endDateExclusive: String)
 
-    @Query("SELECT * FROM expenses WHERE timestamp >= :sinceTimestamp ORDER BY timestamp ASC")
-    fun getExpensesSince(sinceTimestamp: Long): Flow<List<Expense>>
+    @Query(
+        "SELECT * FROM expenses " +
+            "WHERE expenseDate >= :sinceDateInclusive " +
+            "ORDER BY expenseDate ASC, timestamp ASC, id ASC"
+    )
+    fun getExpensesSince(sinceDateInclusive: String): Flow<List<Expense>>
 
-    @Query("SELECT * FROM expenses ORDER BY timestamp DESC")
+    @Query("SELECT * FROM expenses ORDER BY expenseDate DESC, timestamp DESC, id DESC")
     fun getAllExpensesOrderedByTimestampDesc(): Flow<List<Expense>>
 }

@@ -32,7 +32,8 @@ class HomeOverviewOrderTest {
             id = 1L,
             amountCents = 1299L,
             description = "Lunch",
-            timestamp = Instant.parse("2026-03-07T12:00:00Z").toEpochMilli()
+            timestamp = Instant.parse("2026-03-07T12:00:00Z").toEpochMilli(),
+            expenseDate = today.toString()
         )
 
         composeRule.setContent {

@@ -18,6 +18,7 @@ import net.loeu.wallybudget.data.model.MonthlyHistory
 import net.loeu.wallybudget.data.model.PendingCycleCloseoutState
 import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.data.model.UserSettings
+import net.loeu.wallybudget.data.model.recordedDate
 import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.domain.config.ForecastConfig
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
@@ -90,13 +91,15 @@ class BudgetRepository(
                 paydayDate = settings.paydayDate
             )
 
-            val startTime = currentCycleRange.start.toStartOfDayMillis()
-            val endTime = currentCycleRange.endExclusive.toStartOfDayMillis()
-            val totalSpentCents = expenseDao.getTotalSpentInRange(startTime, endTime) ?: 0L
+            val totalSpentCents = expenseDao.getTotalSpentInRange(
+                currentCycleRange.start.toString(),
+                currentCycleRange.endExclusive.toString()
+            ) ?: 0L
 
-            val todayStart = today.toStartOfDayMillis()
-            val todayEnd = today.plusDays(1).toStartOfDayMillis()
-            val spentTodayCents = expenseDao.getTotalSpentInRange(todayStart, todayEnd) ?: 0L
+            val spentTodayCents = expenseDao.getTotalSpentInRange(
+                today.toString(),
+                today.plusDays(1).toString()
+            ) ?: 0L
 
             val cumulativeSavingsCents = history
                 .filter { !it.getCycleEnd().isAfter(currentCycleRange.start) }
@@ -126,8 +129,8 @@ class BudgetRepository(
     fun getTodayExpenses(): Flow<List<Expense>> {
         return getEffectiveCurrentDate().flatMapLatest { now ->
             expenseDao.getExpensesByDateRange(
-                startTime = now.toStartOfDayMillis(),
-                endTime = now.plusDays(1).toStartOfDayMillis()
+                startDateInclusive = now.toString(),
+                endDateExclusive = now.plusDays(1).toString()
             )
         }
     }
@@ -370,14 +373,11 @@ class BudgetRepository(
 
         val recentExpensesFlow = nowFlow
             .map { now ->
-                now.minusDays(ForecastConfig.HISTORICAL_DAYS_LOOKBACK.toLong())
-                    .atStartOfDay(ZoneId.systemDefault())
-                    .toInstant()
-                    .toEpochMilli()
+                now.minusDays(ForecastConfig.HISTORICAL_DAYS_LOOKBACK.toLong()).toString()
             }
             .distinctUntilChanged()
-            .flatMapLatest { lookbackTimestamp ->
-                expenseDao.getExpensesSince(lookbackTimestamp)
+            .flatMapLatest { lookbackDate ->
+                expenseDao.getExpensesSince(lookbackDate)
             }
 
         return combine(
@@ -401,10 +401,15 @@ class BudgetRepository(
         cycleStart: LocalDate,
         cycleEnd: LocalDate
     ) {
-        val startTime = cycleStart.toStartOfDayMillis()
         val endTime = cycleEnd.toStartOfDayMillis()
-        val totalSpentCents = expenseDao.getTotalSpentInRange(startTime, endTime) ?: 0L
-        val expenseCount = expenseDao.getExpenseCountInRange(startTime, endTime)
+        val totalSpentCents = expenseDao.getTotalSpentInRange(
+            cycleStart.toString(),
+            cycleEnd.toString()
+        ) ?: 0L
+        val expenseCount = expenseDao.getExpenseCountInRange(
+            cycleStart.toString(),
+            cycleEnd.toString()
+        )
 
         if (expenseCount == 0) {
             return
@@ -455,8 +460,8 @@ class BudgetRepository(
         if (archivedPreviousCycle != null) return
 
         val previousCycleExpenseCount = expenseDao.getExpenseCountInRange(
-            previousCycleStart.toStartOfDayMillis(),
-            currentCycleStart.toStartOfDayMillis()
+            previousCycleStart.toString(),
+            currentCycleStart.toString()
         )
         if (previousCycleExpenseCount == 0) return
 
@@ -499,19 +504,15 @@ class BudgetRepository(
         start: LocalDate,
         endExclusive: LocalDate
     ): List<Expense> {
-        val startMillis = start.toStartOfDayMillis()
-        val endMillis = endExclusive.toStartOfDayMillis()
+        val startDate = start.toString()
+        val endDate = endExclusive.toString()
         return filter { expense ->
-            expense.timestamp >= startMillis && expense.timestamp < endMillis
+            expense.expenseDate >= startDate && expense.expenseDate < endDate
         }
     }
 
     private fun List<Expense>.groupByLocalDate(): Map<LocalDate, List<Expense>> {
-        return groupBy { expense ->
-            Instant.ofEpochMilli(expense.timestamp)
-                .atZone(ZoneId.systemDefault())
-                .toLocalDate()
-        }
+        return groupBy(Expense::recordedDate)
     }
 
     private fun buildTrendSummary(daySections: List<ExpenseDaySection>): String {

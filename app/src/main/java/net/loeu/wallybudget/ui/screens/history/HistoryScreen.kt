@@ -57,13 +57,12 @@ import kotlinx.coroutines.launch
 import net.loeu.wallybudget.data.model.Expense
 import net.loeu.wallybudget.data.model.ExpenseCategory
 import net.loeu.wallybudget.data.model.ExpenseCycleSection
+import net.loeu.wallybudget.data.model.recordedDate
 import net.loeu.wallybudget.data.model.ExpenseDaySection
 import net.loeu.wallybudget.ui.screens.expenses.ExpenseItem
 import net.loeu.wallybudget.ui.screens.home.AddExpenseSheet
 import net.loeu.wallybudget.util.CurrencyFormatter
-import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
 
@@ -265,12 +264,7 @@ fun HistoryScreen(
             },
             title = "Edit expense",
             confirmButtonText = "Save changes",
-            dateLabel = "Recorded for ${
-                Instant.ofEpochMilli(editingExpense.timestamp)
-                    .atZone(ZoneId.systemDefault())
-                    .toLocalDate()
-                    .format(DateTimeFormatter.ofPattern("EEEE, MMM d"))
-            }",
+            dateLabel = "Recorded for ${editingExpense.recordedDate().format(DateTimeFormatter.ofPattern("EEEE, MMM d"))}",
             initialAmountCents = editingExpense.amountCents,
             initialDescription = editingExpense.description,
             initialIcon = editingExpense.icon
