@@ -20,18 +20,10 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("boolean", "USE_ACTIVE_DATE_POLLING", "true")
-        }
-
-        create("noDebugPolling") {
-            initWith(getByName("debug"))
-            matchingFallbacks += listOf("debug")
-            buildConfigField("boolean", "USE_ACTIVE_DATE_POLLING", "false")
         }
 
         release {
             isMinifyEnabled = false
-            buildConfigField("boolean", "USE_ACTIVE_DATE_POLLING", "false")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -44,7 +36,6 @@ android {
     }
     buildFeatures {
         compose = true
-        buildConfig = true
     }
 }
 
@@ -64,6 +55,10 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.androidx.compose.adaptive)
+    implementation(libs.androidx.compose.adaptive.layout)
+    implementation(libs.androidx.compose.adaptive.navigation)
+    implementation(libs.androidx.compose.adaptive.navigation.suite)
     implementation(libs.material)
 
     // Room

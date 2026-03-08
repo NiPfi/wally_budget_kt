@@ -1,83 +1,232 @@
 package net.loeu.wallybudget.ui.screens.overview
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.util.CurrencyFormatter
-import kotlin.math.abs
+import kotlin.math.roundToInt
 
 @Composable
 fun SummaryCard(
     budgetState: BudgetState,
-    scale: Float,
+    collapseProgress: Float,
+    useWarningTint: Boolean = false,
+    onNavigateToSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    val progress = collapseProgress.coerceIn(0f, 1f)
+    val density = LocalDensity.current
+    val horizontalPadding = lerp(20.dp, 16.dp, progress)
+    val verticalPadding = lerp(18.dp, 8.dp, progress)
+    val contentSpacing = lerp(12.dp, 4.dp, progress)
+    val iconAlpha = (1f - progress * 1.35f).coerceIn(0f, 1f)
+    val topDaysAlpha = progress
+    val secondaryMetricsProgress = 1f - progress
+    val amountFontSize = lerp(22.sp, 17.sp, progress)
+    val amountLineHeight = lerp(28.sp, 20.sp, progress)
+    val rightTopOffsetPx = with(density) { ((1f - topDaysAlpha) * 6.dp.toPx()) }
+    val iconOffsetPx = with(density) { (progress * -4.dp.toPx()) }
+    val bottomOffsetPx = with(density) { ((1f - secondaryMetricsProgress) * -6.dp.toPx()) }
+    val containerColor = if (useWarningTint) {
+        blendedAlertContainer()
+    } else {
+        MaterialTheme.colorScheme.primaryContainer
+    }
+    val contentColor = if (useWarningTint) {
+        blendedAlertContent()
+    } else {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    }
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = containerColor,
+        tonalElevation = lerp(2.dp, 0.dp, progress),
+        shape = MaterialTheme.shapes.extraLarge
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding((12 * scale).dp)) {
+        Column(
+            modifier = Modifier
+                .padding(horizontal = horizontalPadding, vertical = verticalPadding),
+            verticalArrangement = Arrangement.spacedBy(contentSpacing)
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(1.dp)
+                ) {
                     Text(
-                        text = "Days Left",
-                        style = MaterialTheme.typography.labelMedium.copy(fontSize = (11 * scale).sp),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        text = "TODAY LEFT",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = contentColor.copy(alpha = 0.72f)
                     )
                     Text(
-                        text = budgetState.daysRemainingInCycle.toString(),
-                        style = MaterialTheme.typography.headlineMedium.copy(fontSize = (24 * scale).sp),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontWeight = FontWeight.Bold
+                        text = CurrencyFormatter.formatSigned(budgetState.remainingTodayCents),
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontSize = amountFontSize,
+                            lineHeight = amountLineHeight
+                        ),
+                        fontWeight = FontWeight.Black,
+                        color = if (budgetState.remainingTodayCents >= 0L) {
+                            contentColor
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        }
                     )
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "Cycle Left",
-                        style = MaterialTheme.typography.labelMedium.copy(fontSize = (11 * scale).sp),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                    )
-                    Text(
-                        text = CurrencyFormatter.format(abs(budgetState.remainingCycleCents)),
-                        style = MaterialTheme.typography.headlineMedium.copy(fontSize = (24 * scale).sp),
-                        color = if (budgetState.remainingCycleCents >= 0L) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.error,
-                        fontWeight = FontWeight.Bold
-                    )
+
+                Box(
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    if (onNavigateToSettings != null) {
+                        IconButton(
+                            onClick = onNavigateToSettings,
+                            modifier = Modifier.graphicsLayer {
+                                alpha = iconAlpha
+                                translationY = iconOffsetPx
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Settings",
+                                tint = contentColor
+                            )
+                        }
+                    }
+
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        modifier = Modifier.graphicsLayer {
+                            alpha = topDaysAlpha
+                            translationY = rightTopOffsetPx
+                        }
+                    ) {
+                        Text(
+                            text = "DAYS LEFT",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = contentColor.copy(alpha = 0.68f)
+                        )
+                        Text(
+                            text = budgetState.daysRemainingInCycle.toString(),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = contentColor
+                        )
+                    }
                 }
             }
 
-            Spacer(Modifier.height((6 * scale).dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.15f))
-            Spacer(Modifier.height((6 * scale).dp))
-
-            Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "TODAY'S BUDGET",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontSize = (12 * scale).sp,
-                        letterSpacing = (1.5 * scale).sp
-                    ),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    fontWeight = FontWeight.Black
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        alpha = secondaryMetricsProgress
+                        translationY = bottomOffsetPx
+                    }
+                    .collapseHeight(secondaryMetricsProgress),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                SummaryMetric(
+                    "Cycle left",
+                    CurrencyFormatter.formatSigned(budgetState.remainingCycleCents),
+                    contentColor = contentColor
                 )
-                Spacer(Modifier.height((2 * scale).dp))
-                AnimatedCounter(
-                    amountCents = budgetState.remainingTodayCents,
-                    modifier = Modifier.fillMaxWidth(),
-                    textStyle = MaterialTheme.typography.displayLarge.copy(fontSize = (44 * scale).sp),
-                    color = if (budgetState.remainingTodayCents >= 0L) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.error
+                SummaryMetric(
+                    "Days left",
+                    budgetState.daysRemainingInCycle.toString(),
+                    alignment = Alignment.End,
+                    alpha = (1f - progress * 1.6f).coerceIn(0f, 1f),
+                    contentColor = contentColor
+                )
+                SummaryMetric(
+                    "Spent today",
+                    CurrencyFormatter.format(budgetState.spentTodayCents),
+                    alignment = Alignment.End,
+                    contentColor = contentColor
                 )
             }
         }
     }
+}
+
+@Composable
+private fun SummaryMetric(
+    label: String,
+    value: String,
+    alignment: Alignment.Horizontal = Alignment.Start,
+    alpha: Float = 1f,
+    contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer
+) {
+    Column(
+        horizontalAlignment = alignment,
+        modifier = Modifier.graphicsLayer { this.alpha = alpha }
+    ) {
+        Text(
+            text = label.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            color = contentColor.copy(alpha = 0.68f)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = contentColor
+        )
+    }
+}
+
+private fun Modifier.collapseHeight(progress: Float): Modifier = this
+    .graphicsLayer { clip = true }
+    .layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints)
+        val height = (placeable.height * progress.coerceIn(0f, 1f)).roundToInt()
+        layout(placeable.width, height) {
+            if (height > 0) {
+                placeable.placeRelative(0, 0)
+            }
+        }
+    }
+
+@Composable
+private fun blendedAlertContainer(): Color {
+    return lerp(
+        MaterialTheme.colorScheme.primaryContainer,
+        MaterialTheme.colorScheme.tertiaryContainer,
+        0.72f
+    )
+}
+
+@Composable
+private fun blendedAlertContent(): Color {
+    return lerp(
+        MaterialTheme.colorScheme.onPrimaryContainer,
+        MaterialTheme.colorScheme.onTertiaryContainer,
+        0.72f
+    )
 }

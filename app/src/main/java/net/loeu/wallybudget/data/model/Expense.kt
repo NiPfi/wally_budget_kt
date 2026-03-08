@@ -13,7 +13,8 @@ import java.time.ZoneId
 @Entity(
     tableName = "expenses",
     indices = [
-        Index(value = ["timestamp"])
+        Index(value = ["timestamp"]),
+        Index(value = ["expenseDate"])
     ]
 )
 data class Expense(
@@ -22,8 +23,20 @@ data class Expense(
     val amountCents: Long,
     val description: String,
     val timestamp: Long = Instant.now().toEpochMilli(),
+    val expenseDate: String = Instant.ofEpochMilli(timestamp)
+        .atZone(ZoneId.systemDefault())
+        .toLocalDate()
+        .toString(),
     val icon: ExpenseCategory? = null
 )
+
+fun Expense.recordedDate(): LocalDate {
+    return try {
+        LocalDate.parse(expenseDate)
+    } catch (exception: Exception) {
+        throw IllegalStateException("Invalid expenseDate: '$expenseDate'", exception)
+    }
+}
 
 /**
  * Groups expenses by date and sums their amounts efficiently.
@@ -32,26 +45,19 @@ data class Expense(
  * While it works with unsorted lists, performance will be suboptimal as the cached
  * day range will be frequently invalidated.
  */
-fun List<Expense>.sumByDate(zoneId: ZoneId = ZoneId.systemDefault()): Map<LocalDate, Long> {
+fun List<Expense>.sumByDate(): Map<LocalDate, Long> {
     if (isEmpty()) return emptyMap()
-    
+
     val result = mutableMapOf<LocalDate, Long>()
-    var currentDayStart: Long = 0
-    var nextDayStart: Long = 0
+    var currentExpenseDate: String? = null
     var currentLocalDate: LocalDate? = null
 
     for (expense in this) {
-        val ts = expense.timestamp
-
-        // Only perform expensive conversion if timestamp falls outside current cached day range
-        // or if it's the first iteration (currentLocalDate is null)
-        if (currentLocalDate == null || ts < currentDayStart || ts >= nextDayStart) {
-            val zdt = Instant.ofEpochMilli(ts).atZone(zoneId)
-            currentLocalDate = zdt.toLocalDate()
-            currentDayStart = currentLocalDate.atStartOfDay(zoneId).toInstant().toEpochMilli()
-            nextDayStart = currentLocalDate.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+        if (currentLocalDate == null || expense.expenseDate != currentExpenseDate) {
+            currentExpenseDate = expense.expenseDate
+            currentLocalDate = expense.recordedDate()
         }
-        result[currentLocalDate!!] = (result[currentLocalDate] ?: 0L) + expense.amountCents
+        result[currentLocalDate] = (result[currentLocalDate] ?: 0L) + expense.amountCents
     }
     return result
 }
@@ -63,24 +69,19 @@ fun List<Expense>.sumByDate(zoneId: ZoneId = ZoneId.systemDefault()): Map<LocalD
  * While it works with unsorted lists, performance will be suboptimal as the cached
  * day range will be frequently invalidated.
  */
-fun List<Expense>.groupByDate(zoneId: ZoneId = ZoneId.systemDefault()): Map<LocalDate, List<Expense>> {
+fun List<Expense>.groupByDate(): Map<LocalDate, List<Expense>> {
     if (isEmpty()) return emptyMap()
-    
+
     val result = mutableMapOf<LocalDate, MutableList<Expense>>()
-    var currentDayStart: Long = 0
-    var nextDayStart: Long = 0
+    var currentExpenseDate: String? = null
     var currentLocalDate: LocalDate? = null
 
     for (expense in this) {
-        val ts = expense.timestamp
-
-        if (currentLocalDate == null || ts < currentDayStart || ts >= nextDayStart) {
-            val zdt = Instant.ofEpochMilli(ts).atZone(zoneId)
-            currentLocalDate = zdt.toLocalDate()
-            currentDayStart = currentLocalDate.atStartOfDay(zoneId).toInstant().toEpochMilli()
-            nextDayStart = currentLocalDate.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+        if (currentLocalDate == null || expense.expenseDate != currentExpenseDate) {
+            currentExpenseDate = expense.expenseDate
+            currentLocalDate = expense.recordedDate()
         }
-        result.getOrPut(currentLocalDate!!) { mutableListOf() }.add(expense)
+        result.getOrPut(currentLocalDate) { mutableListOf() }.add(expense)
     }
     return result
 }

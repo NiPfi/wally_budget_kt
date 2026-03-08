@@ -13,7 +13,10 @@ import kotlinx.coroutines.launch
 import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.data.model.Expense
 import net.loeu.wallybudget.data.model.ExpenseCategory
+import net.loeu.wallybudget.data.model.ExpenseCycleSection
+import net.loeu.wallybudget.data.model.ExpenseDaySection
 import net.loeu.wallybudget.data.model.MonthlyHistory
+import net.loeu.wallybudget.data.model.PendingCycleCloseoutState
 import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.data.model.UserSettings
 import net.loeu.wallybudget.data.repository.BudgetRepository
@@ -21,6 +24,12 @@ import net.loeu.wallybudget.data.time.CurrentDateProvider
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+
+internal object ExpenseEntryDatePolicy {
+    fun resolveRequestedDate(requestedDate: LocalDate?, effectiveCurrentDate: LocalDate): LocalDate {
+        return requestedDate ?: effectiveCurrentDate
+    }
+}
 
 class BudgetViewModel(
     private val repository: BudgetRepository,
@@ -35,6 +44,13 @@ class BudgetViewModel(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = UserSettings()
+        )
+
+    val effectiveCurrentDate: StateFlow<LocalDate> = repository.getEffectiveCurrentDate()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = currentDateProvider.currentDate()
         )
 
     // Budget state
@@ -63,8 +79,7 @@ class BudgetViewModel(
             initialValue = emptyList()
         )
 
-    // Previous expenses in current cycle (before today)
-    val previousCycleExpenses: StateFlow<List<Expense>> = repository.getPreviousCycleExpenses()
+    val activeCycleExpenseSections: StateFlow<List<ExpenseDaySection>> = repository.getActiveCycleExpenseSections()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -86,6 +101,20 @@ class BudgetViewModel(
             initialValue = SpendingForecast()
         )
 
+    val historySections: StateFlow<List<ExpenseCycleSection>> = repository.getHistorySections()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    val pendingCycleCloseoutState: StateFlow<PendingCycleCloseoutState?> = repository.getPendingCycleCloseoutState()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
+
     // UI state
     private val _isAddExpenseSheetVisible = MutableStateFlow(false)
     val isAddExpenseSheetVisible = _isAddExpenseSheetVisible.asStateFlow()
@@ -93,28 +122,44 @@ class BudgetViewModel(
     init {
         // Check for monthly reset on initialization and local date changes
         viewModelScope.launch {
-            combine(userSettingsFlow, currentDateProvider.observeCurrentDate()) { settings, _ -> settings }
-                .collect { settings ->
-                repository.checkAndPerformMonthlyReset(settings)
+            combine(userSettingsFlow, currentDateProvider.observeCurrentDate()) { settings, observedDate ->
+                settings to observedDate
+            }.collect { (settings, observedDate) ->
+                val effectiveDate = repository.syncObservedDate(settings, observedDate)
+                repository.checkAndPerformMonthlyReset(settings, effectiveDate)
             }
+        }
+    }
+
+    fun refreshCycleState() {
+        viewModelScope.launch {
+            val settings = userSettings.value
+            val effectiveDate = repository.syncObservedDate(settings, currentDateProvider.currentDate())
+            repository.checkAndPerformMonthlyReset(settings, effectiveDate)
         }
     }
 
     /**
      * Add a new expense
      */
-    fun addExpense(amountCents: Long, description: String, icon: ExpenseCategory? = null, date: LocalDate = LocalDate.now()) {
+    fun addExpense(amountCents: Long, description: String, icon: ExpenseCategory? = null, date: LocalDate? = null) {
         viewModelScope.launch {
-            val timestamp = if (date == LocalDate.now()) {
+            val effectiveDate = repository.syncObservedDate(
+                settings = userSettings.value,
+                observedDate = currentDateProvider.currentDate()
+            )
+            val resolvedDate = ExpenseEntryDatePolicy.resolveRequestedDate(date, effectiveDate)
+            val timestamp = if (resolvedDate == effectiveDate) {
                 Instant.now().toEpochMilli()
             } else {
-                date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                resolvedDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
             }
             val expense = Expense(
                 amountCents = amountCents,
                 description = description,
                 icon = icon,
-                timestamp = timestamp
+                timestamp = timestamp,
+                expenseDate = resolvedDate.toString()
             )
             repository.addExpense(expense)
             _isAddExpenseSheetVisible.value = false
@@ -142,6 +187,12 @@ class BudgetViewModel(
     fun restoreDeletedExpense(expense: Expense) {
         viewModelScope.launch {
             repository.addExpense(expense.copy(id = 0L))
+        }
+    }
+
+    fun concludePendingCycle() {
+        viewModelScope.launch {
+            repository.concludePendingCycle(userSettings.value)
         }
     }
 
@@ -193,12 +244,6 @@ class BudgetViewModel(
     fun updatePaydayDate(day: Int) {
         viewModelScope.launch {
             repository.updatePaydayDate(day)
-        }
-    }
-
-    fun updateForecastSensitivityPercent(percent: Int) {
-        viewModelScope.launch {
-            repository.updateForecastSensitivityPercent(percent)
         }
     }
 }

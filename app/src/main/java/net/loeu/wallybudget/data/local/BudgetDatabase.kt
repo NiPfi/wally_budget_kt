@@ -10,7 +10,7 @@ import net.loeu.wallybudget.data.model.MonthlyHistory
 
 @Database(
     entities = [Expense::class, MonthlyHistory::class],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -215,6 +215,45 @@ abstract class BudgetDatabase : RoomDatabase() {
         val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_expenses_timestamp` ON `expenses` (`timestamp`)")
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Freeze each expense's currently visible local calendar day into persistent storage.
+                // If an older app already displayed a shifted day after a timezone change, the
+                // original intended local date cannot be reconstructed from the timestamp alone.
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `expenses_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `amountCents` INTEGER NOT NULL,
+                        `description` TEXT NOT NULL,
+                        `timestamp` INTEGER NOT NULL,
+                        `expenseDate` TEXT NOT NULL,
+                        `icon` TEXT
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    INSERT INTO `expenses_new` (`id`, `amountCents`, `description`, `timestamp`, `expenseDate`, `icon`)
+                    SELECT
+                        `id`,
+                        `amountCents`,
+                        `description`,
+                        `timestamp`,
+                        date(`timestamp` / 1000, 'unixepoch', 'localtime'),
+                        `icon`
+                    FROM `expenses`
+                    """.trimIndent()
+                )
+
+                db.execSQL("DROP TABLE `expenses`")
+                db.execSQL("ALTER TABLE `expenses_new` RENAME TO `expenses`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_expenses_timestamp` ON `expenses` (`timestamp`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_expenses_expenseDate` ON `expenses` (`expenseDate`)")
             }
         }
     }
