@@ -55,11 +55,13 @@ class BudgetRepository(
             getEffectiveCurrentDate(),
             monthlyHistoryDao.getAllHistory()
         ) { settings, _, today, history ->
-            val cycleStart = budgetCalculationService.getCycleStartDate(today, settings.paydayDate)
-            val cycleEnd = budgetCalculationService.getNextCycleStartDate(today, settings.paydayDate)
+            val currentCycleRange = budgetCalculationService.getCurrentCycleProgressRange(
+                now = today,
+                paydayDate = settings.paydayDate
+            )
 
-            val startTime = cycleStart.toStartOfDayMillis()
-            val endTime = cycleEnd.toStartOfDayMillis()
+            val startTime = currentCycleRange.start.toStartOfDayMillis()
+            val endTime = currentCycleRange.endExclusive.toStartOfDayMillis()
             val totalSpentCents = expenseDao.getTotalSpentInRange(startTime, endTime) ?: 0L
 
             val todayStart = today.toStartOfDayMillis()
@@ -67,7 +69,7 @@ class BudgetRepository(
             val spentTodayCents = expenseDao.getTotalSpentInRange(todayStart, todayEnd) ?: 0L
 
             val cumulativeSavingsCents = history
-                .filter { !it.getCycleEnd().isAfter(cycleStart) }
+                .filter { !it.getCycleEnd().isAfter(currentCycleRange.start) }
                 .sumOf { it.surplusCents }
 
             budgetCalculationService.calculateBudgetState(
@@ -241,10 +243,6 @@ class BudgetRepository(
 
     suspend fun updatePaydayDate(day: Int) {
         userPreferencesManager.updatePaydayDate(day)
-    }
-
-    suspend fun updateForecastSensitivityPercent(percent: Int) {
-        userPreferencesManager.updateForecastSensitivityPercent(percent)
     }
 
     suspend fun completeOnboarding(
