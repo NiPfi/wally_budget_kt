@@ -77,8 +77,11 @@ internal object AnalysisSnapshotFactory {
             spendingForecast = spendingForecast,
             safeToSpendNowCents = safeToSpendNowCents,
             paceGapCents = paceGapCents,
-            showHistoryFallback = recentHistory.isEmpty(),
             monitorAfterDays = monitorAfterDays,
+            timelineLockReason = timelineLockReason
+        )
+        val historyFallbackText = historyFallbackText(
+            showHistoryFallback = recentHistory.isEmpty(),
             timelineLockReason = timelineLockReason
         )
 
@@ -113,7 +116,8 @@ internal object AnalysisSnapshotFactory {
                 spendingForecast = spendingForecast
             ),
             monitorAfterDays = monitorAfterDays,
-            showHistoryFallback = recentHistory.isEmpty()
+            showHistoryFallback = recentHistory.isEmpty(),
+            historyFallbackText = historyFallbackText
         )
     }
 
@@ -267,7 +271,6 @@ internal object AnalysisSnapshotFactory {
         spendingForecast: SpendingForecast,
         safeToSpendNowCents: Long,
         paceGapCents: Long,
-        showHistoryFallback: Boolean,
         monitorAfterDays: Int?,
         timelineLockReason: String?
     ): List<AnalysisRecommendation> {
@@ -301,16 +304,6 @@ internal object AnalysisSnapshotFactory {
             )
         }
 
-        if (showHistoryFallback) {
-            recommendations += AnalysisRecommendation(
-                text = if (timelineLocked) {
-                    "History is still building. Guidance will sharpen after your first completed cycle is archived."
-                } else {
-                    "Keep recording through this cycle. Guidance will sharpen after a completed cycle closes."
-                }
-            )
-        }
-
         if (recommendations.isEmpty()) {
             recommendations += AnalysisRecommendation(
                 text = if (timelineLocked) {
@@ -322,6 +315,19 @@ internal object AnalysisSnapshotFactory {
         }
 
         return recommendations.take(3)
+    }
+
+    private fun historyFallbackText(
+        showHistoryFallback: Boolean,
+        timelineLockReason: String?
+    ): String? {
+        if (!showHistoryFallback) return null
+
+        return if (timelineLockReason != null) {
+            "History is still building. Guidance will sharpen after your first completed cycle is archived."
+        } else {
+            "Keep recording through this cycle. Guidance will sharpen after a completed cycle closes."
+        }
     }
 
     private fun headline(verdict: AnalysisVerdictLevel): String = when (verdict) {

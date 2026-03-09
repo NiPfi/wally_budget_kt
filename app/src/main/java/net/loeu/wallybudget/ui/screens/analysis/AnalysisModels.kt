@@ -34,5 +34,6 @@ internal data class AnalysisSnapshot(
     val confidenceExplanation: String,
     val rangeExplanation: String,
     val monitorAfterDays: Int?,
-    val showHistoryFallback: Boolean
+    val showHistoryFallback: Boolean,
+    val historyFallbackText: String? = null
 )

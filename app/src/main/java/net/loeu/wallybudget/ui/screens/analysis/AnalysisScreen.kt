@@ -306,9 +306,9 @@ private fun RecommendationsSection(
                         text = recommendation.text
                     )
                 }
-                if (snapshot.showHistoryFallback) {
+                snapshot.historyFallbackText?.let { historyFallbackText ->
                     Text(
-                        text = "History is still building. Completed cycles will sharpen this part of the analysis.",
+                        text = historyFallbackText,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.testTag("analysis_history_fallback")
