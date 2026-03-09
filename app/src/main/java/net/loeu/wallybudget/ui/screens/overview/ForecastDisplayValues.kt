@@ -1,5 +1,15 @@
 package net.loeu.wallybudget.ui.screens.overview
 
+import net.loeu.wallybudget.data.model.SpendingForecast
+
+internal fun calculateAvailableRecoverableOverspendCentsFromForecast(
+    remainingTodayCents: Long,
+    forecast: SpendingForecast
+): Long = calculateAvailableRecoverableOverspendCents(
+    remainingTodayCents = remainingTodayCents,
+    recoverableOverspendCents = forecast.recoverableOverspendCents
+)
+
 internal fun calculateAvailableRecoverableOverspendCents(
     remainingTodayCents: Long,
     recoverableOverspendCents: Long
