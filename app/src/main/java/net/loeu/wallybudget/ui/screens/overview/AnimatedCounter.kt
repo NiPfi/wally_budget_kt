@@ -293,7 +293,9 @@ private fun RollingNumberText(
     textAlign: TextAlign,
     modifier: Modifier = Modifier
 ) {
-    var slotCount by remember { mutableIntStateOf(max(animation.fromText.length, animation.toText.length)) }
+    var slotCount by remember(animation.key, animation.fromText, animation.toText) {
+        mutableIntStateOf(max(animation.fromText.length, animation.toText.length))
+    }
 
     LaunchedEffect(animation.key, animation.fromText, animation.toText) {
         val newCount = max(animation.fromText.length, animation.toText.length)
