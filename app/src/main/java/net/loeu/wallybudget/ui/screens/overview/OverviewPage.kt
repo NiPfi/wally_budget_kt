@@ -333,6 +333,7 @@ fun OverviewPage(
                                 modifier = Modifier.padding(vertical = 10.dp)
                             )
                             TodayExpensesSection(
+                                totalSpentCents = budgetState.spentTodayCents,
                                 todayExpenses = todayExpenses,
                                 isLoading = isLoading,
                                 onEditTodayExpense = onEditTodayExpense,
@@ -415,13 +416,12 @@ private fun SectionBlock(
 
 @Composable
 private fun TodayExpensesSection(
+    totalSpentCents: Long,
     todayExpenses: List<Expense>,
     isLoading: Boolean,
     onEditTodayExpense: ((Expense) -> Unit)?,
     modifier: Modifier = Modifier
 ) {
-    val totalSpent = todayExpenses.sumOf { it.amountCents }
-
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -437,7 +437,7 @@ private fun TodayExpensesSection(
                 fontWeight = FontWeight.Bold
             )
             AnimatedCounter(
-                amountCents = totalSpent,
+                amountCents = totalSpentCents,
                 textStyle = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.primary,
                 animate = false,
