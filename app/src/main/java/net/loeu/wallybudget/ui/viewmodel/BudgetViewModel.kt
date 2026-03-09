@@ -28,7 +28,11 @@ import java.time.ZoneId
 
 internal object ExpenseEntryDatePolicy {
     fun resolveRequestedDate(requestedDate: LocalDate?, effectiveCurrentDate: LocalDate): LocalDate {
-        return requestedDate ?: effectiveCurrentDate
+        return when {
+            requestedDate == null -> effectiveCurrentDate
+            requestedDate.isAfter(effectiveCurrentDate) -> effectiveCurrentDate
+            else -> requestedDate
+        }
     }
 }
 
