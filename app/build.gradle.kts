@@ -156,6 +156,70 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
 
+val appId = "net.loeu.wallybudget"
+val seedingTestClass = "net.loeu.wallybudget.seeding.EmulatorSeedInstrumentedTest"
+
+fun runCommand(workingDir: File, command: List<String>): String {
+    val process = ProcessBuilder(command)
+        .directory(workingDir)
+        .redirectErrorStream(true)
+        .start()
+
+    val output = process.inputStream.bufferedReader().readText()
+    val exitCode = process.waitFor()
+    check(exitCode == 0) {
+        "Command failed (${command.joinToString(" ")}):\n$output"
+    }
+    return output
+}
+
+tasks.register("seedDebugEmulator") {
+    group = "verification"
+    description = "Clears app data and seeds the debug app on a connected Android emulator."
+    dependsOn("installDebug", "installDebugAndroidTest")
+
+    doLast {
+        val adb = androidComponents.sdkComponents.adb.get().asFile.absolutePath
+        val devicesOutput = runCommand(project.projectDir, listOf(adb, "devices"))
+
+        val emulatorSerials = devicesOutput
+            .lineSequence()
+            .drop(1)
+            .map { it.trim() }
+            .filter { it.endsWith("\tdevice") }
+            .map { it.substringBefore('\t') }
+            .filter { it.startsWith("emulator-") }
+            .toList()
+
+        check(emulatorSerials.isNotEmpty()) {
+            "No running emulator detected. Start an Android emulator, then rerun ./gradlew seedDebugEmulator."
+        }
+        check(emulatorSerials.size == 1) {
+            "Multiple emulators detected (${emulatorSerials.joinToString()}). Leave one emulator connected, then rerun ./gradlew seedDebugEmulator."
+        }
+
+        val serial = emulatorSerials.single()
+
+        runCommand(project.projectDir, listOf(adb, "-s", serial, "shell", "pm", "clear", appId))
+        runCommand(
+            project.projectDir,
+            listOf(
+                adb,
+                "-s",
+                serial,
+                "shell",
+                "am",
+                "instrument",
+                "-w",
+                "-e",
+                "class",
+                seedingTestClass,
+                "$appId.test/androidx.test.runner.AndroidJUnitRunner"
+            )
+        )
+    }
+}
+
 tasks.matching { task ->
     task.name.startsWith("connected") && task.name.endsWith("AndroidTest")
 }.configureEach {
