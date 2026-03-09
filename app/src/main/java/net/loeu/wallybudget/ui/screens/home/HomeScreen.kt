@@ -2,9 +2,12 @@ package net.loeu.wallybudget.ui.screens.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.SnackbarDuration
@@ -24,6 +27,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
@@ -39,8 +44,8 @@ import net.loeu.wallybudget.data.model.ExpenseDaySection
 import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.data.model.recordedDate
 import net.loeu.wallybudget.ui.components.TimelineLockBanner
-import net.loeu.wallybudget.ui.screens.history.HistoryScreen
 import net.loeu.wallybudget.ui.screens.overview.OverviewPage
+import net.loeu.wallybudget.ui.screens.overview.SpendingTodayPane
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -79,11 +84,7 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val canEditExpenses = !isLoadingData && timelineLockReason == null
-    val overviewBottomContentPadding = if (showLedgerPane) {
-        24.dp
-    } else {
-        HomeFabSize + HomeFabListClearance
-    }
+    val overviewBottomContentPadding = if (showLedgerPane) 24.dp else HomeFabSize + HomeFabListClearance
 
     LaunchedEffect(canEditExpenses) {
         if (!canEditExpenses) {
@@ -131,41 +132,25 @@ fun HomeScreen(
             }
 
             if (showLedgerPane) {
-                Row(
+                WideHomeContent(
+                    budgetState = budgetState,
+                    todayExpenses = todayExpenses,
+                    activeCycleExpenseSections = activeCycleExpenseSections,
+                    spendingForecast = spendingForecast,
+                    isLoading = isLoadingData,
+                    onEditTodayExpense = if (canEditExpenses) {
+                        { expenseBeingEdited = it }
+                    } else {
+                        null
+                    },
+                    onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null,
+                    preferCompactSummary = preferCompactSummary,
+                    overviewBottomContentPadding = overviewBottomContentPadding,
+                    detailsBottomContentPadding = HomeFabSize + HomeFabListClearance,
                     modifier = Modifier
                         .weight(1f)
-                        .padding(vertical = contentVerticalPadding),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    OverviewPage(
-                        budgetState = budgetState,
-                        todayExpenses = todayExpenses,
-                        activeCycleExpenseSections = activeCycleExpenseSections,
-                        spendingForecast = spendingForecast,
-                        isLoading = isLoadingData,
-                        onEditTodayExpense = if (canEditExpenses) {
-                            { expenseBeingEdited = it }
-                        } else {
-                            null
-                        },
-                        onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null,
-                        showTodayExpensesSection = false,
-                        enableHeaderCollapse = preferCompactSummary,
-                        defaultCollapsedHeader = preferCompactSummary,
-                        bottomContentPadding = overviewBottomContentPadding,
-                        modifier = Modifier.weight(1.08f)
-                    )
-                    HistoryScreen(
-                        historySections = historySections,
-                        onAddExpense = onAddExpense,
-                        onRestoreExpense = onRestoreExpense,
-                        onUpdateExpense = onUpdateExpense,
-                        onDeleteExpense = onDeleteExpense,
-                        modifier = Modifier.weight(0.92f),
-                        embedded = true,
-                        interactionsEnabled = canEditExpenses
-                    )
-                }
+                        .padding(vertical = contentVerticalPadding)
+                )
             } else {
                 OverviewPage(
                     budgetState = budgetState,
@@ -258,5 +243,66 @@ fun HomeScreen(
             initialDescription = editingExpense.description,
             initialIcon = editingExpense.icon
         )
+    }
+}
+
+@Composable
+internal fun WideHomeContent(
+    budgetState: BudgetState,
+    todayExpenses: List<Expense>,
+    activeCycleExpenseSections: List<ExpenseDaySection>,
+    spendingForecast: SpendingForecast,
+    isLoading: Boolean,
+    onEditTodayExpense: ((Expense) -> Unit)?,
+    onNavigateToSettings: (() -> Unit)?,
+    preferCompactSummary: Boolean,
+    overviewBottomContentPadding: Dp,
+    detailsBottomContentPadding: Dp,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        OverviewPage(
+            budgetState = budgetState,
+            todayExpenses = todayExpenses,
+            activeCycleExpenseSections = activeCycleExpenseSections,
+            spendingForecast = spendingForecast,
+            isLoading = isLoading,
+            onEditTodayExpense = onEditTodayExpense,
+            onNavigateToSettings = onNavigateToSettings,
+            showSpendingDetailsSection = false,
+            showTodayExpensesSection = false,
+            enableHeaderCollapse = preferCompactSummary,
+            defaultCollapsedHeader = preferCompactSummary,
+            bottomContentPadding = overviewBottomContentPadding,
+            modifier = Modifier
+                .weight(1.08f)
+                .testTag("home_landscape_left_pane")
+        )
+        LazyColumn(
+            modifier = Modifier
+                .weight(0.92f)
+                .fillMaxWidth()
+                .testTag("home_landscape_right_pane"),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = 10.dp,
+                bottom = detailsBottomContentPadding
+            ),
+            verticalArrangement = Arrangement.spacedBy(0.dp)
+        ) {
+            item {
+                SpendingTodayPane(
+                    budgetState = budgetState,
+                    todayExpenses = todayExpenses,
+                    activeCycleExpenseSections = activeCycleExpenseSections,
+                    isLoading = isLoading,
+                    onEditTodayExpense = onEditTodayExpense
+                )
+            }
+        }
     }
 }
