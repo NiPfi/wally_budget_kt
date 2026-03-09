@@ -119,13 +119,13 @@ class BudgetRepository(
     fun getTimelineLockState(): Flow<TimelineLockState> {
         return combine(
             userSettings,
-            expenseDao.getAllExpensesOrderedByTimestampDesc(),
+            expenseDao.observeLatestExpenseDate(),
             getEffectiveCurrentDate()
-        ) { settings, allExpenses, effectiveCurrentDate ->
+        ) { settings, latestExpenseDate, effectiveCurrentDate ->
             buildTimelineLockState(
                 settings = settings,
                 effectiveCurrentDate = effectiveCurrentDate,
-                latestExpenseDate = allExpenses.firstOrNull()?.recordedDate()
+                latestExpenseDate = latestExpenseDate?.let(LocalDate::parse)
             )
         }.distinctUntilChanged()
     }
@@ -618,15 +618,6 @@ class BudgetRepository(
             userPreferencesManager.updateLastSeenDate(observedDate)
         }
         return effectiveCurrentDate(settings, observedDate)
-    }
-
-    suspend fun isExpenseMutationLocked(settings: UserSettings, effectiveCurrentDate: LocalDate): Boolean {
-        val latestExpenseDate = expenseDao.getLatestExpenseDate()?.let(LocalDate::parse)
-        return buildTimelineLockState(
-            settings = settings,
-            effectiveCurrentDate = effectiveCurrentDate,
-            latestExpenseDate = latestExpenseDate
-        ).isLocked
     }
 
     private fun UserSettings.pendingCycleRangeOrNull(): CycleRange? {
