@@ -50,6 +50,7 @@ fun OverviewPage(
     todayExpenses: List<Expense>,
     activeCycleExpenseSections: List<ExpenseDaySection>,
     spendingForecast: SpendingForecast,
+    isLoading: Boolean = false,
     onEditTodayExpense: (Expense) -> Unit,
     onNavigateToSettings: (() -> Unit)? = null,
     showTodayExpensesSection: Boolean = true,
@@ -129,7 +130,7 @@ fun OverviewPage(
         }
     }
 
-    if (showForecastDetails.value) {
+    if (showForecastDetails.value && !isLoading) {
         AlertDialog(
             onDismissRequest = { showForecastDetails.value = false },
             title = { Text("Forecast analysis") },
@@ -184,7 +185,7 @@ fun OverviewPage(
         )
     }
 
-    if (showSafeTodayDetails.value) {
+    if (showSafeTodayDetails.value && !isLoading) {
         AlertDialog(
             onDismissRequest = { showSafeTodayDetails.value = false },
             title = { Text("Safe today") },
@@ -250,6 +251,7 @@ fun OverviewPage(
                 budgetState = budgetState,
                 recoverableOverspendCents = availableRecoverableOverspendCents,
                 collapseProgress = 0f,
+                isLoading = isLoading,
                 useWarningTint = useWarningTint,
                 onSafeTodayInfoClick = { showSafeTodayDetails.value = true },
                 onNavigateToSettings = onNavigateToSettings,
@@ -262,6 +264,7 @@ fun OverviewPage(
                 budgetState = budgetState,
                 recoverableOverspendCents = availableRecoverableOverspendCents,
                 collapseProgress = 1f,
+                isLoading = isLoading,
                 useWarningTint = useWarningTint,
                 onSafeTodayInfoClick = { showSafeTodayDetails.value = true },
                 onNavigateToSettings = onNavigateToSettings,
@@ -306,6 +309,7 @@ fun OverviewPage(
                             spendingForecast = spendingForecast,
                             displayedRecoverableOverspendCents = availableRecoverableOverspendCents,
                             budgetState = budgetState,
+                            isLoading = isLoading,
                             onClick = { showForecastDetails.value = true }
                         )
                     }
@@ -318,7 +322,8 @@ fun OverviewPage(
                             budgetState = budgetState,
                             previousExpensesTotal = previousExpensesTotal,
                             dailyAdjustmentCents = dailyAdjustmentCents,
-                            adjustedDailyAllowanceCents = adjustedDailyAllowanceCents
+                            adjustedDailyAllowanceCents = adjustedDailyAllowanceCents,
+                            isLoading = isLoading
                         )
                         if (showTodayExpensesSection) {
                             HorizontalDivider(
@@ -327,6 +332,7 @@ fun OverviewPage(
                             )
                             TodayExpensesSection(
                                 todayExpenses = todayExpenses,
+                                isLoading = isLoading,
                                 onEditTodayExpense = onEditTodayExpense,
                                 modifier = Modifier.testTag("home_today_expenses_section")
                             )
@@ -341,6 +347,7 @@ fun OverviewPage(
                 budgetState = budgetState,
                 recoverableOverspendCents = availableRecoverableOverspendCents,
                 collapseProgress = collapseProgress,
+                isLoading = isLoading,
                 useWarningTint = useWarningTint,
                 onSafeTodayInfoClick = { showSafeTodayDetails.value = true },
                 onNavigateToSettings = onNavigateToSettings,
@@ -407,6 +414,7 @@ private fun SectionBlock(
 @Composable
 private fun TodayExpensesSection(
     todayExpenses: List<Expense>,
+    isLoading: Boolean,
     onEditTodayExpense: (Expense) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -420,13 +428,23 @@ private fun TodayExpensesSection(
             fontWeight = FontWeight.Bold
         )
         val totalSpent = todayExpenses.sumOf { it.amountCents }
-        Text(
-            text = CurrencyFormatter.format(totalSpent),
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.primary
+        AnimatedCounter(
+            amountCents = totalSpent,
+            textStyle = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.primary,
+            animate = false,
+            placeholder = isLoading,
+            placeholderText = "$888"
         )
 
-        if (todayExpenses.isEmpty()) {
+        if (isLoading) {
+            repeat(3) {
+                LoadingExpenseRow()
+                if (it != 2) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
+            }
+        } else if (todayExpenses.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -444,6 +462,8 @@ private fun TodayExpensesSection(
             todayExpenses.take(4).forEachIndexed { index, expense ->
                 ExpenseItem(
                     expense = expense,
+                    animateAmount = false,
+                    showDivider = false,
                     onEdit = { onEditTodayExpense(expense) }
                 )
                 if (index != todayExpenses.take(4).lastIndex) {
@@ -451,6 +471,44 @@ private fun TodayExpensesSection(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun LoadingExpenseRow() {
+    androidx.compose.foundation.layout.Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        LoadingValuePlaceholder(
+            sampleText = "88",
+            textStyle = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Start
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            LoadingValuePlaceholder(
+                sampleText = "Groceries and coffee",
+                textStyle = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Start
+            )
+            LoadingValuePlaceholder(
+                sampleText = "12:45",
+                textStyle = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Start
+            )
+        }
+        LoadingValuePlaceholder(
+            sampleText = "$88.88",
+            textStyle = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.End
+        )
     }
 }
 
