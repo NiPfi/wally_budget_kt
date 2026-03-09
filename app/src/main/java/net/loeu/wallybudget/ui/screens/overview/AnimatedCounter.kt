@@ -216,7 +216,10 @@ private fun AnimatedValueText(
 
     val textMeasurer = rememberTextMeasurer()
 
-    BoxWithConstraints(modifier = modifier) {
+    BoxWithConstraints(
+        modifier = modifier,
+        contentAlignment = textAlign.toPlaceholderAlignment()
+    ) {
         val availableWidthPx = with(LocalDensity.current) { maxWidth.toPx() }.roundToInt().coerceAtLeast(1)
         var candidateFontSize = if (resolvedTextStyle.fontSize.isSpecified) resolvedTextStyle.fontSize else 57.sp
         val measurementText = when {
