@@ -51,7 +51,7 @@ fun OverviewPage(
     activeCycleExpenseSections: List<ExpenseDaySection>,
     spendingForecast: SpendingForecast,
     isLoading: Boolean = false,
-    onEditTodayExpense: (Expense) -> Unit,
+    onEditTodayExpense: ((Expense) -> Unit)?,
     onNavigateToSettings: (() -> Unit)? = null,
     showTodayExpensesSection: Boolean = true,
     enableHeaderCollapse: Boolean = true,
@@ -415,7 +415,7 @@ private fun SectionBlock(
 private fun TodayExpensesSection(
     todayExpenses: List<Expense>,
     isLoading: Boolean,
-    onEditTodayExpense: (Expense) -> Unit,
+    onEditTodayExpense: ((Expense) -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -464,7 +464,9 @@ private fun TodayExpensesSection(
                     expense = expense,
                     animateAmount = false,
                     showDivider = false,
-                    onEdit = { onEditTodayExpense(expense) }
+                    onEdit = onEditTodayExpense?.let { editExpense ->
+                        { editExpense(expense) }
+                    }
                 )
                 if (index != todayExpenses.take(4).lastIndex) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

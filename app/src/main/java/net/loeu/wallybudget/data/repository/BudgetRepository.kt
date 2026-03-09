@@ -17,6 +17,7 @@ import net.loeu.wallybudget.data.model.ExpenseDaySection
 import net.loeu.wallybudget.data.model.MonthlyHistory
 import net.loeu.wallybudget.data.model.PendingCycleCloseoutState
 import net.loeu.wallybudget.data.model.SpendingForecast
+import net.loeu.wallybudget.data.model.TimelineLockState
 import net.loeu.wallybudget.data.model.UserSettings
 import net.loeu.wallybudget.data.model.recordedDate
 import net.loeu.wallybudget.data.time.CurrentDateProvider
@@ -115,6 +116,20 @@ class BudgetRepository(
         }
     }
 
+    fun getTimelineLockState(): Flow<TimelineLockState> {
+        return combine(
+            userSettings,
+            expenseDao.getAllExpensesOrderedByTimestampDesc(),
+            getEffectiveCurrentDate()
+        ) { settings, allExpenses, effectiveCurrentDate ->
+            buildTimelineLockState(
+                settings = settings,
+                effectiveCurrentDate = effectiveCurrentDate,
+                latestExpenseDate = allExpenses.firstOrNull()?.recordedDate()
+            )
+        }.distinctUntilChanged()
+    }
+
     suspend fun addExpense(expense: Expense): Long = expenseDao.insert(expense)
 
     suspend fun updateExpense(expense: Expense) {
@@ -137,19 +152,25 @@ class BudgetRepository(
 
     fun getActiveCycleExpenseSections(): Flow<List<ExpenseDaySection>> {
         return combine(
+            userSettings,
             getBudgetState(),
             expenseDao.getAllExpensesOrderedByTimestampDesc(),
             getEffectiveCurrentDate()
-        ) { budgetState, allExpenses, today ->
+        ) { settings, budgetState, allExpenses, today ->
             val cycleStart = budgetState.cycleStartDate
             val cycleExpenses = allExpenses.filterByRange(cycleStart, today.plusDays(1))
             val expensesByDate = cycleExpenses.groupByLocalDate()
+            val timelineLockState = buildTimelineLockState(
+                settings = settings,
+                effectiveCurrentDate = today,
+                latestExpenseDate = allExpenses.firstOrNull()?.recordedDate()
+            )
             buildContinuousDaySections(
                 start = cycleStart,
                 endInclusive = today,
                 expensesByDate = expensesByDate,
                 remainingBudgetForDay = { totalSpent -> budgetState.dailyBudgetCents - totalSpent },
-                isEditable = true,
+                isEditable = !timelineLockState.isLocked,
                 today = today
             )
         }
@@ -157,20 +178,26 @@ class BudgetRepository(
 
     fun getHistorySections(): Flow<List<ExpenseCycleSection>> {
         return combine(
+            userSettings,
             monthlyHistoryDao.getAllHistory(),
             expenseDao.getAllExpensesOrderedByTimestampDesc(),
             getBudgetState(),
             getEffectiveCurrentDate()
-        ) { history, allExpenses, budgetState, today ->
+        ) { settings, history, allExpenses, budgetState, today ->
             val sections = mutableListOf<ExpenseCycleSection>()
             val currentCycleStart = budgetState.cycleStartDate
+            val timelineLockState = buildTimelineLockState(
+                settings = settings,
+                effectiveCurrentDate = today,
+                latestExpenseDate = allExpenses.firstOrNull()?.recordedDate()
+            )
             val activeCycleExpenses = allExpenses.filterByRange(currentCycleStart, today.plusDays(1))
             val activeCycleDaySections = buildContinuousDaySections(
                 start = currentCycleStart,
                 endInclusive = today,
                 expensesByDate = activeCycleExpenses.groupByLocalDate(),
                 remainingBudgetForDay = { totalSpent -> budgetState.dailyBudgetCents - totalSpent },
-                isEditable = true,
+                isEditable = !timelineLockState.isLocked,
                 today = today
             )
 
@@ -183,8 +210,38 @@ class BudgetRepository(
                 surplusCents = budgetState.remainingCycleCents,
                 daySections = activeCycleDaySections,
                 isActiveCycle = true,
-                isReadOnly = false
+                isReadOnly = timelineLockState.isLocked
             )
+
+            val futureExpenses = allExpenses.filter { it.recordedDate().isAfter(today) }
+            if (futureExpenses.isNotEmpty()) {
+                val futureDaySections = futureExpenses
+                    .groupByLocalDate()
+                    .toSortedMap(compareByDescending { it })
+                    .map { (date, expenses) ->
+                        ExpenseDaySection(
+                            date = date,
+                            expenses = expenses,
+                            totalSpentCents = expenses.sumOf { it.amountCents },
+                            remainingForDayCents = null,
+                            isEditable = false
+                        )
+                    }
+                val futureStart = futureDaySections.last().date
+                val futureEndExclusive = futureDaySections.first().date.plusDays(1)
+                val futureTotalSpent = futureExpenses.sumOf { it.amountCents }
+                sections += ExpenseCycleSection(
+                    cycleStartDate = futureStart,
+                    cycleEndDateExclusive = futureEndExclusive,
+                    title = "Future-dated expenses",
+                    budgetAmountCents = budgetState.monthlyBudgetCents,
+                    totalSpentCents = futureTotalSpent,
+                    surplusCents = budgetState.monthlyBudgetCents - futureTotalSpent,
+                    daySections = futureDaySections,
+                    isActiveCycle = false,
+                    isReadOnly = true
+                )
+            }
 
             sections += history
                 .filter { it.totalSpentCents > 0L }
@@ -563,6 +620,15 @@ class BudgetRepository(
         return effectiveCurrentDate(settings, observedDate)
     }
 
+    suspend fun isExpenseMutationLocked(settings: UserSettings, effectiveCurrentDate: LocalDate): Boolean {
+        val latestExpenseDate = expenseDao.getLatestExpenseDate()?.let(LocalDate::parse)
+        return buildTimelineLockState(
+            settings = settings,
+            effectiveCurrentDate = effectiveCurrentDate,
+            latestExpenseDate = latestExpenseDate
+        ).isLocked
+    }
+
     private fun UserSettings.pendingCycleRangeOrNull(): CycleRange? {
         val start = pendingCycleStartDate?.let(LocalDate::parse) ?: return null
         val end = pendingCycleEndDateExclusive?.let(LocalDate::parse) ?: return null
@@ -571,5 +637,22 @@ class BudgetRepository(
 
     private fun UserSettings.lastSeenDateOrNull(): LocalDate? {
         return lastSeenDate?.let(LocalDate::parse)
+    }
+
+    private fun buildTimelineLockState(
+        settings: UserSettings,
+        effectiveCurrentDate: LocalDate,
+        latestExpenseDate: LocalDate?
+    ): TimelineLockState {
+        val currentCycleStart = budgetCalculationService.getCycleStartDate(
+            now = effectiveCurrentDate,
+            paydayDate = settings.paydayDate
+        )
+        return TimelineLockPolicy.resolve(
+            effectiveCurrentDate = effectiveCurrentDate,
+            currentCycleStart = currentCycleStart,
+            lastResetDate = settings.lastResetDateOrNull(),
+            latestExpenseDate = latestExpenseDate
+        )
     }
 }
