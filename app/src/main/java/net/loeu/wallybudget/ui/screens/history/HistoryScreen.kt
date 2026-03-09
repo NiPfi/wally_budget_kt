@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
@@ -163,20 +164,37 @@ fun HistoryScreen(
                     CompactHistoryHeader(
                         pageCount = compactPagerSections.size,
                         currentPage = pagerState.currentPage,
-                        showSwipeHint = showInitialSwipeHint,
                         onNavigateToSettings = onNavigateToSettings
                     )
-                    HorizontalPager(
-                        state = pagerState,
-                        modifier = Modifier.fillMaxSize()
-                    ) { page ->
-                        CycleLedgerPage(
-                            section = compactPagerSections[page],
-                            onEditExpense = { expenseBeingEdited = it },
-                            onAddExpenseForDate = { date ->
-                                selectedDateEpochDay.longValue = date.toEpochDay()
-                                isAddSheetVisible = true
-                            }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                    ) {
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.fillMaxSize()
+                        ) { page ->
+                            CycleLedgerPage(
+                                section = compactPagerSections[page],
+                                onEditExpense = { expenseBeingEdited = it },
+                                onAddExpenseForDate = { date ->
+                                    selectedDateEpochDay.longValue = date.toEpochDay()
+                                    isAddSheetVisible = true
+                                },
+                                contentPadding = PaddingValues(
+                                    bottom = 24.dp
+                                )
+                            )
+                        }
+
+                        CyclePagerHint(
+                            currentPage = pagerState.currentPage,
+                            pageCount = compactPagerSections.size,
+                            showSwipeHint = showInitialSwipeHint,
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .offset(y = (-24).dp)
                         )
                     }
                 }
@@ -369,48 +387,34 @@ private fun CycleLedgerPage(
 private fun CompactHistoryHeader(
     pageCount: Int,
     currentPage: Int,
-    showSwipeHint: Boolean,
     onNavigateToSettings: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
-    Column(
+    Row(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (pageCount > 1) {
-                Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CyclePagerDots(
-                        pageCount = pageCount,
-                        currentPage = currentPage
-                    )
-                }
-            } else {
-                Spacer(modifier = Modifier.weight(1f))
+        if (pageCount > 1) {
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                CyclePagerDots(
+                    pageCount = pageCount,
+                    currentPage = currentPage
+                )
             }
-
-            if (onNavigateToSettings != null) {
-                IconButton(onClick = onNavigateToSettings) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Settings"
-                    )
-                }
-            }
+        } else {
+            Spacer(modifier = Modifier.weight(1f))
         }
 
-        if (pageCount > 1) {
-            CyclePagerHint(
-                currentPage = currentPage,
-                pageCount = pageCount,
-                showSwipeHint = showSwipeHint
-            )
+        if (onNavigateToSettings != null) {
+            IconButton(onClick = onNavigateToSettings) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Settings"
+                )
+            }
         }
     }
 }
@@ -428,10 +432,11 @@ private fun CyclePagerHint(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
+            horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
+                modifier = Modifier.padding(start = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
