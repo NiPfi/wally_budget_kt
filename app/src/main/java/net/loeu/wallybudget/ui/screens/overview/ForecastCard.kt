@@ -16,6 +16,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -33,9 +35,17 @@ fun ForecastCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isLowConfidence = spendingForecast.confidenceScore < ForecastConfig.MIN_CONFIDENCE_THRESHOLD
+    val detailsStateDescription = when {
+        isLoading -> "Forecast details loading"
+        isLowConfidence -> "Low confidence forecast"
+        else -> "Forecast confidence normal"
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .semantics { stateDescription = detailsStateDescription }
             .clickable(enabled = !isLoading, onClick = onClick)
             .padding(horizontal = 4.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -52,7 +62,6 @@ fun ForecastCard(
             )
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val isLowConfidence = spendingForecast.confidenceScore < ForecastConfig.MIN_CONFIDENCE_THRESHOLD
                 val indicatorIcon = if (isLoading || !isLowConfidence) {
                     Icons.Default.Info
                 } else {
