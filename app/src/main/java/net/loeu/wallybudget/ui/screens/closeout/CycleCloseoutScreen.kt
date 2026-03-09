@@ -26,9 +26,11 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import net.loeu.wallybudget.data.model.ExpenseCycleSection
 import net.loeu.wallybudget.data.model.PendingCycleCloseoutState
-import net.loeu.wallybudget.ui.screens.expenses.ExpensesPage
+import net.loeu.wallybudget.ui.screens.history.CycleLedgerScreen
 import net.loeu.wallybudget.util.CurrencyFormatter
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 @Composable
@@ -201,12 +203,47 @@ fun CycleCloseoutReviewScreen(
     onAddExpenseForDate: (java.time.LocalDate) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    ExpensesPage(
-        sections = pendingCycle.daySections,
+    CycleLedgerScreen(
+        section = pendingCycle.toExpenseCycleSection(),
         title = "Review ended cycle",
         modifier = modifier,
         onEditExpense = onEditExpense,
         onAddExpenseForDate = onAddExpenseForDate,
         onNavigateBack = onNavigateBack
     )
+}
+
+private fun PendingCycleCloseoutState.toExpenseCycleSection(): ExpenseCycleSection {
+    return ExpenseCycleSection(
+        cycleStartDate = cycleStartDate,
+        cycleEndDateExclusive = cycleEndDateExclusive,
+        title = formatCycleDisplayName(cycleStartDate, cycleEndDateExclusive),
+        budgetAmountCents = budgetAmountCents,
+        totalSpentCents = totalSpentCents,
+        surplusCents = surplusCents,
+        daySections = daySections,
+        isActiveCycle = false,
+        isReadOnly = false
+    )
+}
+
+private fun formatCycleDisplayName(
+    cycleStartDate: LocalDate,
+    cycleEndDateExclusive: LocalDate
+): String {
+    val cycleEndDate = cycleEndDateExclusive.minusDays(1)
+
+    return if (cycleStartDate.year == cycleEndDate.year) {
+        "${cycleStartDate.format(DateTimeFormatter.ofPattern("MMM d"))} - ${
+            cycleEndDate.format(
+                DateTimeFormatter.ofPattern("MMM d, yyyy")
+            )
+        }"
+    } else {
+        "${cycleStartDate.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))} - ${
+            cycleEndDate.format(
+                DateTimeFormatter.ofPattern("MMM d, yyyy")
+            )
+        }"
+    }
 }
