@@ -35,6 +35,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.data.model.Expense
@@ -56,6 +57,7 @@ fun OverviewPage(
     showTodayExpensesSection: Boolean = true,
     enableHeaderCollapse: Boolean = true,
     defaultCollapsedHeader: Boolean = false,
+    bottomContentPadding: Dp = 24.dp,
     modifier: Modifier = Modifier
 ) {
     val headerHorizontalPadding = 12.dp
@@ -297,7 +299,7 @@ fun OverviewPage(
                     top = with(density) {
                         (currentHeaderHeightPx + topPaddingPx + bottomSpacingPx).toDp()
                     },
-                    bottom = 24.dp
+                    bottom = bottomContentPadding
                 ),
                 verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {

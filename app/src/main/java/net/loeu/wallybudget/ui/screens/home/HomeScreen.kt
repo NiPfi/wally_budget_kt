@@ -44,6 +44,9 @@ import net.loeu.wallybudget.ui.screens.overview.OverviewPage
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
+private val HomeFabSize = 56.dp
+private val HomeFabListClearance = 16.dp
+
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun HomeScreen(
@@ -76,6 +79,11 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val canEditExpenses = !isLoadingData && timelineLockReason == null
+    val overviewBottomContentPadding = if (showLedgerPane) {
+        24.dp
+    } else {
+        HomeFabSize + HomeFabListClearance
+    }
 
     LaunchedEffect(canEditExpenses) {
         if (!canEditExpenses) {
@@ -144,6 +152,7 @@ fun HomeScreen(
                         showTodayExpensesSection = false,
                         enableHeaderCollapse = preferCompactSummary,
                         defaultCollapsedHeader = preferCompactSummary,
+                        bottomContentPadding = overviewBottomContentPadding,
                         modifier = Modifier.weight(1.08f)
                     )
                     HistoryScreen(
@@ -172,6 +181,7 @@ fun HomeScreen(
                     onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null,
                     enableHeaderCollapse = true,
                     defaultCollapsedHeader = false,
+                    bottomContentPadding = overviewBottomContentPadding,
                     modifier = Modifier
                         .weight(1f)
                         .padding(vertical = contentVerticalPadding)
