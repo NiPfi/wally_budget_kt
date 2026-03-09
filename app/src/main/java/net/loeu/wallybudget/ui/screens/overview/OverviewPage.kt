@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -309,7 +310,6 @@ fun OverviewPage(
                     ) {
                         ForecastCard(
                             spendingForecast = spendingForecast,
-                            displayedRecoverableOverspendCents = availableRecoverableOverspendCents,
                             budgetState = budgetState,
                             isLoading = isLoading,
                             onClick = { showForecastDetails.value = true }
@@ -420,24 +420,32 @@ private fun TodayExpensesSection(
     onEditTodayExpense: ((Expense) -> Unit)?,
     modifier: Modifier = Modifier
 ) {
+    val totalSpent = todayExpenses.sumOf { it.amountCents }
+
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text(
-            text = "Today's expenses",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
-        )
-        val totalSpent = todayExpenses.sumOf { it.amountCents }
-        AnimatedCounter(
-            amountCents = totalSpent,
-            textStyle = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.primary,
-            animate = false,
-            placeholder = isLoading,
-            placeholderText = "$888"
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            Text(
+                text = "Today's expenses",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            AnimatedCounter(
+                amountCents = totalSpent,
+                textStyle = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.primary,
+                animate = false,
+                textAlign = TextAlign.End,
+                placeholder = isLoading,
+                placeholderText = "$888"
+            )
+        }
 
         if (isLoading) {
             repeat(3) {
