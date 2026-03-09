@@ -50,6 +50,7 @@ fun HomeScreen(
     activeCycleExpenseSections: List<ExpenseDaySection>,
     historySections: List<ExpenseCycleSection>,
     spendingForecast: SpendingForecast,
+    isLoadingData: Boolean = false,
     onAddExpense: (Long, String, ExpenseCategory?, LocalDate) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
@@ -76,10 +77,20 @@ fun HomeScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
+                    if (isLoadingData) return@FloatingActionButton
                     selectedDateForExpenseEpochDay.longValue = currentDate.toEpochDay()
                     onShowAddExpenseSheet()
                 },
-                containerColor = MaterialTheme.colorScheme.primary
+                containerColor = if (isLoadingData) {
+                    MaterialTheme.colorScheme.surfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+                contentColor = if (isLoadingData) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.onPrimary
+                }
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add today’s expense")
             }
@@ -98,6 +109,7 @@ fun HomeScreen(
                     todayExpenses = todayExpenses,
                     activeCycleExpenseSections = activeCycleExpenseSections,
                     spendingForecast = spendingForecast,
+                    isLoading = isLoadingData,
                     onEditTodayExpense = { expenseBeingEdited = it },
                     onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null,
                     showTodayExpensesSection = false,
@@ -121,6 +133,7 @@ fun HomeScreen(
                 todayExpenses = todayExpenses,
                 activeCycleExpenseSections = activeCycleExpenseSections,
                 spendingForecast = spendingForecast,
+                isLoading = isLoadingData,
                 onEditTodayExpense = { expenseBeingEdited = it },
                 onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null,
                 enableHeaderCollapse = true,
@@ -132,7 +145,7 @@ fun HomeScreen(
         }
     }
 
-    if (showAddExpenseSheet) {
+    if (showAddExpenseSheet && !isLoadingData) {
         val selectedDate = LocalDate.ofEpochDay(selectedDateForExpenseEpochDay.longValue)
         AddExpenseSheet(
             onDismiss = onHideAddExpenseSheet,
@@ -157,7 +170,7 @@ fun HomeScreen(
         )
     }
 
-    expenseBeingEdited?.let { editingExpense ->
+    expenseBeingEdited?.takeIf { !isLoadingData }?.let { editingExpense ->
         AddExpenseSheet(
             onDismiss = { expenseBeingEdited = null },
             onSubmitExpense = { amountCents, description, icon ->
