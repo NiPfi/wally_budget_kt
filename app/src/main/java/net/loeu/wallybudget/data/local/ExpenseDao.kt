@@ -65,5 +65,5 @@ interface ExpenseDao {
     fun getAllExpensesOrderedByTimestampDesc(): Flow<List<Expense>>
 
     @Query("SELECT MAX(expenseDate) FROM expenses")
-    suspend fun getLatestExpenseDate(): String?
+    fun observeLatestExpenseDate(): Flow<String?>
 }
