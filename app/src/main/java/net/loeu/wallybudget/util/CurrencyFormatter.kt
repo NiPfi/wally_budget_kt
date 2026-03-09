@@ -5,9 +5,8 @@ import java.util.Locale
 import kotlin.math.roundToLong
 
 object CurrencyFormatter {
-    private val formatterCache = object : ThreadLocal<MutableMap<Locale, NumberFormat>>() {
-        override fun initialValue(): MutableMap<Locale, NumberFormat> = mutableMapOf()
-    }
+    private val formatterCache: ThreadLocal<MutableMap<Locale, NumberFormat>> =
+        ThreadLocal.withInitial { mutableMapOf() }
 
     /**
      * Format amount in cents as currency using system locale
@@ -49,9 +48,7 @@ object CurrencyFormatter {
     }
 
     private fun currencyFormatter(locale: Locale): NumberFormat {
-        val formatters = formatterCache.get() ?: mutableMapOf<Locale, NumberFormat>().also {
-            formatterCache.set(it)
-        }
+        val formatters = checkNotNull(formatterCache.get())
         return formatters.getOrPut(locale) {
             NumberFormat.getCurrencyInstance(locale)
         }
