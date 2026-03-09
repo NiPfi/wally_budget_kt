@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -45,6 +46,7 @@ fun ForecastCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .testTag("forecast_card")
             .semantics { stateDescription = detailsStateDescription }
             .clickable(enabled = !isLoading, onClick = onClick)
             .padding(horizontal = 4.dp, vertical = 6.dp),
