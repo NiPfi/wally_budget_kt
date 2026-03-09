@@ -10,9 +10,9 @@ class ForecastDisplayValuesTest {
     fun calculateAvailableRecoverableOverspendCents_keepsFullAmountWhileStillWithinTodayAllowance() {
         assertEquals(
             3_152L,
-            calculateAvailableRecoverableOverspendCents(
+            calculateAvailableRecoverableOverspendCentsFromForecast(
                 remainingTodayCents = 1_000L,
-                recoverableOverspendCents = 3_152L
+                forecast = testForecast(recoverableOverspendCents = 3_152L)
             )
         )
     }
@@ -21,25 +21,25 @@ class ForecastDisplayValuesTest {
     fun calculateAvailableRecoverableOverspendCents_burnsDownDollarForDollarAfterOverspendingToday() {
         assertEquals(
             2_152L,
-            calculateAvailableRecoverableOverspendCents(
+            calculateAvailableRecoverableOverspendCentsFromForecast(
                 remainingTodayCents = -1_000L,
-                recoverableOverspendCents = 3_152L
+                forecast = testForecast(recoverableOverspendCents = 3_152L)
             )
         )
         assertEquals(
             0L,
-            calculateAvailableRecoverableOverspendCents(
+            calculateAvailableRecoverableOverspendCentsFromForecast(
                 remainingTodayCents = -3_813L,
-                recoverableOverspendCents = 3_152L
+                forecast = testForecast(recoverableOverspendCents = 3_152L)
             )
         )
     }
 
     @Test
     fun calculateSafeToSpendNowCents_isZeroWhenOverspendHasConsumedRecoverableBuffer() {
-        val availableRecoverableOverspendCents = calculateAvailableRecoverableOverspendCents(
+        val availableRecoverableOverspendCents = calculateAvailableRecoverableOverspendCentsFromForecast(
             remainingTodayCents = -3_813L,
-            recoverableOverspendCents = 3_152L
+            forecast = testForecast(recoverableOverspendCents = 3_152L)
         )
 
         assertEquals(
@@ -52,21 +52,28 @@ class ForecastDisplayValuesTest {
     }
 
     @Test
-    fun calculateAvailableRecoverableOverspendCentsFromForecast_returnsZero_whenCappedIsZeroButGrossIsPositive() {
+    fun calculateAvailableRecoverableOverspendCents_staysZeroWhenForecastMarksNoRecoverableHeadroom() {
         // grossRecoverableOverspendCents is positive, but the cap reduced it to zero.
         // The UI must use the capped field; if it mistakenly used the gross field it would
         // return 5_000 instead of 0, causing the user to see recoverable headroom that
         // doesn't actually exist.
-        val forecast = SpendingForecast(
-            grossRecoverableOverspendCents = 5_000L,
-            recoverableOverspendCents = 0L
-        )
         assertEquals(
             0L,
             calculateAvailableRecoverableOverspendCentsFromForecast(
                 remainingTodayCents = 1_000L,
-                forecast = forecast
+                forecast = testForecast(
+                    recoverableOverspendCents = 0L,
+                    grossRecoverableOverspendCents = 5_000L
+                )
             )
         )
     }
+
+    private fun testForecast(
+        recoverableOverspendCents: Long,
+        grossRecoverableOverspendCents: Long = recoverableOverspendCents
+    ) = SpendingForecast(
+        grossRecoverableOverspendCents = grossRecoverableOverspendCents,
+        recoverableOverspendCents = recoverableOverspendCents
+    )
 }

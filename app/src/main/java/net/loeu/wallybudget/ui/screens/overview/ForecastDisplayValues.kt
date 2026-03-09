@@ -10,7 +10,7 @@ internal fun calculateAvailableRecoverableOverspendCentsFromForecast(
     recoverableOverspendCents = forecast.recoverableOverspendCents
 )
 
-internal fun calculateAvailableRecoverableOverspendCents(
+private fun calculateAvailableRecoverableOverspendCents(
     remainingTodayCents: Long,
     recoverableOverspendCents: Long
 ): Long {
