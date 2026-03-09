@@ -113,10 +113,14 @@ fun SummaryCard(
                             recoverableOverspendCents > 0L &&
                             onSafeTodayInfoClick != null
                         ) {
+                            val isSafeTodayChipVisible = safeTodayAlpha > 0f
                             Row(
                                 modifier = Modifier
                                     .graphicsLayer { alpha = safeTodayAlpha }
-                                    .clickable(onClick = onSafeTodayInfoClick),
+                                    .clickable(
+                                        enabled = isSafeTodayChipVisible,
+                                        onClick = onSafeTodayInfoClick
+                                    ),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
