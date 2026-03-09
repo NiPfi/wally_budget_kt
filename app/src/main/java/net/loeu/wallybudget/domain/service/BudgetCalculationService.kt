@@ -24,6 +24,8 @@ class BudgetCalculationService(
     private val forecastCalculator: SpendingForecastCalculator = SpendingForecastCalculator()
 ) {
 
+    private fun normalizePaydayDate(paydayDate: Int): Int = paydayDate.coerceIn(1, 31)
+
     /**
      * Calculate current budget state given current spending and settings
      */
@@ -73,7 +75,8 @@ class BudgetCalculationService(
      * Get the start date of the current budget cycle
      */
     fun getCycleStartDate(now: LocalDate, paydayDate: Int): LocalDate {
-        val effectivePayday = minOf(paydayDate, now.lengthOfMonth())
+        val normalizedPayday = normalizePaydayDate(paydayDate)
+        val effectivePayday = minOf(normalizedPayday, now.lengthOfMonth())
 
         return if (now.dayOfMonth >= effectivePayday) {
             // Current cycle started this month
@@ -81,7 +84,7 @@ class BudgetCalculationService(
         } else {
             // Current cycle started last month
             val lastMonth = now.minusMonths(1)
-            val lastMonthPayday = minOf(paydayDate, lastMonth.lengthOfMonth())
+            val lastMonthPayday = minOf(normalizedPayday, lastMonth.lengthOfMonth())
             lastMonth.withDayOfMonth(lastMonthPayday)
         }
     }
@@ -90,12 +93,13 @@ class BudgetCalculationService(
      * Get the start date of the next budget cycle (the exclusive end date of the current cycle)
      */
     fun getNextCycleStartDate(now: LocalDate, paydayDate: Int): LocalDate {
-        val effectivePayday = minOf(paydayDate, now.lengthOfMonth())
+        val normalizedPayday = normalizePaydayDate(paydayDate)
+        val effectivePayday = minOf(normalizedPayday, now.lengthOfMonth())
 
         return if (now.dayOfMonth >= effectivePayday) {
             // Next cycle starts next month
             val nextMonth = now.plusMonths(1)
-            val nextMonthPayday = minOf(paydayDate, nextMonth.lengthOfMonth())
+            val nextMonthPayday = minOf(normalizedPayday, nextMonth.lengthOfMonth())
             nextMonth.withDayOfMonth(nextMonthPayday)
         } else {
             // Next cycle starts this month
