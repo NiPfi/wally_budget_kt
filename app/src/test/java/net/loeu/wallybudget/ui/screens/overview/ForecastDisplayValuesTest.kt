@@ -1,6 +1,8 @@
 package net.loeu.wallybudget.ui.screens.overview
 
 import net.loeu.wallybudget.data.model.SpendingForecast
+import net.loeu.wallybudget.ui.calculateAvailableRecoverableOverspendCentsFromForecast
+import net.loeu.wallybudget.ui.calculateSafeToSpendNowCents
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
