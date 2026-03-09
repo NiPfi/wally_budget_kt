@@ -275,7 +275,7 @@ internal fun WideHomeContent(
             showSpendingDetailsSection = false,
             showTodayExpensesSection = false,
             enableHeaderCollapse = preferCompactSummary,
-            defaultCollapsedHeader = preferCompactSummary,
+            defaultCollapsedHeader = false,
             bottomContentPadding = overviewBottomContentPadding,
             modifier = Modifier
                 .weight(1.08f)

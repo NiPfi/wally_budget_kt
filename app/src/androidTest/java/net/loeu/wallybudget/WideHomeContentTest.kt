@@ -84,6 +84,7 @@ class WideHomeContentTest {
         composeRule.onNodeWithTag("home_landscape_right_pane").assertIsDisplayed()
         composeRule.onNodeWithTag("home_summary_section").assertIsDisplayed()
         composeRule.onNodeWithTag("home_forecast_section").assertIsDisplayed()
+        composeRule.onNodeWithTag("home_summary_secondary_metrics").assertIsDisplayed()
         composeRule.onNodeWithTag("home_spending_today_section").assertIsDisplayed()
         composeRule.onNodeWithTag("home_today_expenses_section").assertIsDisplayed()
 
