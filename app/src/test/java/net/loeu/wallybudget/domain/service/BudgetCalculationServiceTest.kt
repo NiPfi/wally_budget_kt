@@ -37,6 +37,26 @@ class BudgetCalculationServiceTest {
     }
 
     @Test
+    fun getCycleStartDate_invalidLowPayday_isClampedToFirstDay() {
+        val cycleStart = service.getCycleStartDate(
+            now = LocalDate.of(2026, 4, 10),
+            paydayDate = 0
+        )
+
+        assertEquals(LocalDate.of(2026, 4, 1), cycleStart)
+    }
+
+    @Test
+    fun getNextCycleStartDate_invalidLowPayday_isClampedToFirstDay() {
+        val nextCycleStart = service.getNextCycleStartDate(
+            now = LocalDate.of(2026, 4, 10),
+            paydayDate = 0
+        )
+
+        assertEquals(LocalDate.of(2026, 5, 1), nextCycleStart)
+    }
+
+    @Test
     fun calculateSpendingForecast_onCycleRollover_doesNotExplodeFromSparsePreviousCycle() {
         val now = LocalDate.of(2026, 4, 25)
 
