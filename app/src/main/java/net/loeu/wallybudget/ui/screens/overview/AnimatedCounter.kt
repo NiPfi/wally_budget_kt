@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -67,7 +66,7 @@ fun AnimatedCounter(
     textAlign: TextAlign = TextAlign.Start,
     minFontSize: TextUnit = 12.sp,
     signed: Boolean = false,
-    fitToWidth: Boolean = false,
+    fitToWidth: Boolean = true,
     placeholder: Boolean = false,
     placeholderText: String = "$8,888",
     formatter: ((Long) -> String)? = null
@@ -129,7 +128,7 @@ private fun AnimatedValueText(
     modifier: Modifier = Modifier,
     textAlign: TextAlign = TextAlign.Start,
     minFontSize: TextUnit = 12.sp,
-    fitToWidth: Boolean = false,
+    fitToWidth: Boolean = true,
     placeholder: Boolean = false,
     placeholderText: String = "$8,888"
 ) {
@@ -243,8 +242,7 @@ private fun AnimatedValueText(
                 sampleText = placeholderText,
                 textStyle = fittedStyle,
                 textAlign = textAlign,
-                modifier = Modifier.fillMaxWidth(),
-                fillWidth = true
+                modifier = Modifier
             )
 
             activeAnimation == null -> StaticNumberText(
@@ -252,7 +250,7 @@ private fun AnimatedValueText(
                 style = fittedStyle,
                 color = color,
                 textAlign = textAlign,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
             )
 
             else -> RollingNumberText(
@@ -260,7 +258,7 @@ private fun AnimatedValueText(
                 style = fittedStyle,
                 color = color,
                 textAlign = textAlign,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
             )
         }
     }
