@@ -1,11 +1,9 @@
 package net.loeu.wallybudget.ui.screens.overview
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,7 +11,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -45,7 +42,6 @@ import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.domain.config.ForecastConfig
 import net.loeu.wallybudget.ui.calculateAvailableRecoverableOverspendCentsFromForecast
 import net.loeu.wallybudget.ui.calculateSafeToSpendNowCents
-import net.loeu.wallybudget.ui.screens.expenses.ExpenseItem
 import net.loeu.wallybudget.util.CurrencyFormatter
 
 @Composable
@@ -57,6 +53,7 @@ fun OverviewPage(
     isLoading: Boolean = false,
     onEditTodayExpense: ((Expense) -> Unit)?,
     onNavigateToSettings: (() -> Unit)? = null,
+    showSpendingDetailsSection: Boolean = true,
     showTodayExpensesSection: Boolean = true,
     enableHeaderCollapse: Boolean = true,
     defaultCollapsedHeader: Boolean = false,
@@ -66,11 +63,6 @@ fun OverviewPage(
     val headerHorizontalPadding = 12.dp
     val headerTopPadding = if (defaultCollapsedHeader) 0.dp else 8.dp
     val headerBottomSpacing = 10.dp
-    val previousExpensesTotal = activeCycleExpenseSections
-        .filterNot { it.isToday }
-        .sumOf { it.totalSpentCents }
-    val adjustedDailyAllowanceCents = budgetState.remainingTodayCents + budgetState.spentTodayCents
-    val dailyAdjustmentCents = adjustedDailyAllowanceCents - budgetState.dailyBudgetCents
     val availableRecoverableOverspendCents = calculateAvailableRecoverableOverspendCentsFromForecast(
         remainingTodayCents = budgetState.remainingTodayCents,
         forecast = spendingForecast
@@ -318,28 +310,16 @@ fun OverviewPage(
                         )
                     }
                 }
-                item {
-                    SectionBlock(
-                        modifier = Modifier.testTag("home_spending_today_section")
-                    ) {
-                        SpendingDetailsCard(
-                            budgetState = budgetState,
-                            previousExpensesTotal = previousExpensesTotal,
-                            dailyAdjustmentCents = dailyAdjustmentCents,
-                            adjustedDailyAllowanceCents = adjustedDailyAllowanceCents,
-                            isLoading = isLoading
-                        )
-                        if (showTodayExpensesSection) {
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                                modifier = Modifier.padding(vertical = 10.dp)
-                            )
-                            TodayExpensesSection(
-                                totalSpentCents = budgetState.spentTodayCents,
+                if (showSpendingDetailsSection) {
+                    item {
+                        SectionBlock {
+                            SpendingTodayPane(
+                                budgetState = budgetState,
                                 todayExpenses = todayExpenses,
+                                activeCycleExpenseSections = activeCycleExpenseSections,
                                 isLoading = isLoading,
                                 onEditTodayExpense = onEditTodayExpense,
-                                modifier = Modifier.testTag("home_today_expenses_section")
+                                showTodayExpensesSection = showTodayExpensesSection
                             )
                         }
                     }
@@ -414,116 +394,6 @@ private fun SectionBlock(
         verticalArrangement = Arrangement.spacedBy(0.dp),
         content = content
     )
-}
-
-@Composable
-private fun TodayExpensesSection(
-    totalSpentCents: Long,
-    todayExpenses: List<Expense>,
-    isLoading: Boolean,
-    onEditTodayExpense: ((Expense) -> Unit)?,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom
-        ) {
-            Text(
-                text = "Today's expenses",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            AnimatedCounter(
-                amountCents = totalSpentCents,
-                textStyle = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.primary,
-                animate = false,
-                textAlign = TextAlign.End,
-                placeholder = isLoading,
-                placeholderText = "$888"
-            )
-        }
-
-        if (isLoading) {
-            repeat(3) {
-                LoadingExpenseRow()
-                if (it != 2) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                }
-            }
-        } else if (todayExpenses.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No expenses yet for today.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
-            }
-        } else {
-            todayExpenses.take(4).forEachIndexed { index, expense ->
-                ExpenseItem(
-                    expense = expense,
-                    animateAmount = false,
-                    showDivider = false,
-                    onEdit = onEditTodayExpense?.let { editExpense ->
-                        { editExpense(expense) }
-                    }
-                )
-                if (index != todayExpenses.take(4).lastIndex) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun LoadingExpenseRow() {
-    androidx.compose.foundation.layout.Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        LoadingValuePlaceholder(
-            sampleText = "88",
-            textStyle = MaterialTheme.typography.titleMedium,
-            textAlign = TextAlign.Start
-        )
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(start = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            LoadingValuePlaceholder(
-                sampleText = "Groceries and coffee",
-                textStyle = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Start
-            )
-            LoadingValuePlaceholder(
-                sampleText = "12:45",
-                textStyle = MaterialTheme.typography.bodySmall,
-                textAlign = TextAlign.Start
-            )
-        }
-        LoadingValuePlaceholder(
-            sampleText = "$88.88",
-            textStyle = MaterialTheme.typography.titleMedium,
-            textAlign = TextAlign.End
-        )
-    }
 }
 
 @Composable
