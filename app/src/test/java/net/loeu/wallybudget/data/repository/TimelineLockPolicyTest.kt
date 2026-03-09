@@ -2,10 +2,25 @@ package net.loeu.wallybudget.data.repository
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.After
+import org.junit.Before
 import org.junit.Test
 import java.time.LocalDate
+import java.util.Locale
 
 class TimelineLockPolicyTest {
+    private lateinit var previousLocale: Locale
+
+    @Before
+    fun setUp() {
+        previousLocale = Locale.getDefault()
+        Locale.setDefault(Locale.US)
+    }
+
+    @After
+    fun tearDown() {
+        Locale.setDefault(previousLocale)
+    }
 
     @Test
     fun resolve_unlocksWhenTimelineIsConsistent() {

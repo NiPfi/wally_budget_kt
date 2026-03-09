@@ -254,7 +254,7 @@ class BudgetViewModel(
             settings = settings,
             observedDate = currentDateProvider.currentDate()
         )
-        return if (repository.isExpenseMutationLocked(settings, effectiveDate)) {
+        return if (timelineLockState.value.isLocked) {
             null
         } else {
             effectiveDate
