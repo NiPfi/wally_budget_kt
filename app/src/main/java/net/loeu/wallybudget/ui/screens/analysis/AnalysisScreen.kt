@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,15 +54,23 @@ fun AnalysisScreen(
         .windowSizeClass
         .isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND)
 
-    val snapshot = if (!isLoading) {
-        AnalysisSnapshotFactory.create(
-            budgetState = budgetState,
-            spendingForecast = spendingForecast,
-            monthlyHistory = monthlyHistory,
-            timelineLockReason = timelineLockReason
-        )
-    } else {
-        null
+    val snapshot = remember(
+        budgetState,
+        spendingForecast,
+        monthlyHistory,
+        timelineLockReason,
+        isLoading
+    ) {
+        if (!isLoading) {
+            AnalysisSnapshotFactory.create(
+                budgetState = budgetState,
+                spendingForecast = spendingForecast,
+                monthlyHistory = monthlyHistory,
+                timelineLockReason = timelineLockReason
+            )
+        } else {
+            null
+        }
     }
 
     LazyColumn(
