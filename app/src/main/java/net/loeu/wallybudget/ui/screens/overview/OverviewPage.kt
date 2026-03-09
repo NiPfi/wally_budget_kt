@@ -69,9 +69,9 @@ fun OverviewPage(
         .sumOf { it.totalSpentCents }
     val adjustedDailyAllowanceCents = budgetState.remainingTodayCents + budgetState.spentTodayCents
     val dailyAdjustmentCents = adjustedDailyAllowanceCents - budgetState.dailyBudgetCents
-    val availableRecoverableOverspendCents = calculateAvailableRecoverableOverspendCents(
+    val availableRecoverableOverspendCents = calculateAvailableRecoverableOverspendCentsFromForecast(
         remainingTodayCents = budgetState.remainingTodayCents,
-        recoverableOverspendCents = spendingForecast.recoverableOverspendCents
+        forecast = spendingForecast
     )
     val safeToSpendTodayCents = calculateSafeToSpendNowCents(
         remainingTodayCents = budgetState.remainingTodayCents,
