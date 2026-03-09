@@ -1,4 +1,4 @@
-package net.loeu.wallybudget.ui.screens.overview
+package net.loeu.wallybudget.ui
 
 import net.loeu.wallybudget.data.model.SpendingForecast
 
@@ -10,7 +10,7 @@ internal fun calculateAvailableRecoverableOverspendCentsFromForecast(
     recoverableOverspendCents = forecast.recoverableOverspendCents
 )
 
-private fun calculateAvailableRecoverableOverspendCents(
+internal fun calculateAvailableRecoverableOverspendCents(
     remainingTodayCents: Long,
     recoverableOverspendCents: Long
 ): Long {

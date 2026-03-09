@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoGraph
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
@@ -34,6 +35,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.flow.map
 import net.loeu.wallybudget.ui.navigation.Screen
+import net.loeu.wallybudget.ui.screens.analysis.AnalysisScreen
 import net.loeu.wallybudget.ui.screens.closeout.CycleCloseoutReviewScreen
 import net.loeu.wallybudget.ui.screens.closeout.CycleCloseoutScreen
 import net.loeu.wallybudget.ui.screens.history.HistoryScreen
@@ -53,7 +55,6 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteItem
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
-import androidx.window.core.layout.WindowSizeClass
 import androidx.window.core.layout.WindowSizeClass.Companion.HEIGHT_DP_MEDIUM_LOWER_BOUND
 import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.data.model.SpendingForecast
@@ -110,6 +111,7 @@ fun BudgetApp(
     val todayExpenses by viewModel.todayExpenses.collectAsState()
     val activeCycleExpenseSections by viewModel.activeCycleExpenseSections.collectAsState()
     val spendingForecast by viewModel.spendingForecast.collectAsState()
+    val monthlyHistory by viewModel.monthlyHistory.collectAsState()
     val historySections by viewModel.historySections.collectAsState()
     val pendingCycleCloseoutState by viewModel.pendingCycleCloseoutState.collectAsState()
     val timelineLockState by viewModel.timelineLockState.collectAsState()
@@ -151,6 +153,7 @@ fun BudgetApp(
                     effectiveCurrentDate = effectiveCurrentDate,
                     activeCycleExpenseSections = activeCycleExpenseSections,
                     spendingForecast = displaySpendingForecast,
+                    monthlyHistory = monthlyHistory,
                     isHomeDataLoading = isHomeDataLoading,
                     historySections = historySections,
                     userSettings = userSettings,
@@ -186,6 +189,7 @@ private fun MainNavigationShell(
     effectiveCurrentDate: LocalDate,
     activeCycleExpenseSections: List<net.loeu.wallybudget.data.model.ExpenseDaySection>,
     spendingForecast: net.loeu.wallybudget.data.model.SpendingForecast,
+    monthlyHistory: List<net.loeu.wallybudget.data.model.MonthlyHistory>,
     isHomeDataLoading: Boolean,
     historySections: List<net.loeu.wallybudget.data.model.ExpenseCycleSection>,
     userSettings: net.loeu.wallybudget.data.model.UserSettings,
@@ -244,6 +248,18 @@ private fun MainNavigationShell(
                         label = { Text("Home") }
                     )
                     MainNavigationItem(
+                        selected = currentRoute == Screen.Analysis.route,
+                        onClick = {
+                            navController.navigate(Screen.Analysis.route) {
+                                popUpTo(Screen.Home.route) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        icon = { Icon(Icons.Default.AutoGraph, contentDescription = null) },
+                        label = { Text("Analysis") }
+                    )
+                    MainNavigationItem(
                         selected = currentRoute == Screen.History.route,
                         onClick = {
                             navController.navigate(Screen.History.route) {
@@ -280,6 +296,18 @@ private fun MainNavigationShell(
                     },
                     icon = { Icon(Icons.Default.Home, contentDescription = null) },
                     label = { Text("Home") }
+                )
+                MainNavigationItem(
+                    selected = currentRoute == Screen.Analysis.route,
+                    onClick = {
+                        navController.navigate(Screen.Analysis.route) {
+                            popUpTo(Screen.Home.route) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    icon = { Icon(Icons.Default.AutoGraph, contentDescription = null) },
+                    label = { Text("Analysis") }
                 )
                 MainNavigationItem(
                     selected = currentRoute == Screen.History.route,
@@ -333,6 +361,20 @@ private fun MainNavigationShell(
                     },
                     interactionsEnabled = timelineLockReason == null,
                     timelineLockReason = timelineLockReason
+                )
+            }
+            composable(Screen.Analysis.route) {
+                AnalysisScreen(
+                    budgetState = budgetState,
+                    spendingForecast = spendingForecast,
+                    monthlyHistory = monthlyHistory,
+                    timelineLockReason = timelineLockReason,
+                    isLoading = isHomeDataLoading,
+                    onNavigateToSettings = if (usesVerticalNavigation) {
+                        null
+                    } else {
+                        { navController.navigate(Screen.Settings.route) }
+                    }
                 )
             }
             composable(Screen.Settings.route) {
