@@ -57,17 +57,6 @@ fun SpendingDetailsCard(
                 placeholderText = "$8,888"
             )
         }
-        DetailRowSmall("Spent today") {
-            AnimatedCounter(
-                amountCents = budgetState.spentTodayCents,
-                textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                animate = false,
-                textAlign = TextAlign.End,
-                placeholder = isLoading,
-                placeholderText = "$888"
-            )
-        }
-
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
         DetailRowSmall("Base daily allowance") {

@@ -30,7 +30,6 @@ import net.loeu.wallybudget.domain.config.ForecastConfig
 @Composable
 fun ForecastCard(
     spendingForecast: SpendingForecast,
-    displayedRecoverableOverspendCents: Long,
     budgetState: BudgetState,
     isLoading: Boolean = false,
     onClick: () -> Unit,
@@ -132,49 +131,5 @@ fun ForecastCard(
             isLoading = isLoading,
             scale = 1f
         )
-
-        if (displayedRecoverableOverspendCents > 0L || isLoading) {
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Start,
-                verticalAlignment = Alignment.Top
-            ) {
-                ForecastMetaMetric(
-                    label = "Recoverable overspend"
-                ) {
-                    AnimatedCounter(
-                        amountCents = displayedRecoverableOverspendCents,
-                        textStyle = MaterialTheme.typography.titleSmall.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = MaterialTheme.colorScheme.primary,
-                        animate = false,
-                        placeholder = isLoading,
-                        placeholderText = "$888"
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ForecastMetaMetric(
-    label: String,
-    alignEnd: Boolean = false,
-    valueContent: @Composable () -> Unit
-) {
-    Column(
-        horizontalAlignment = if (alignEnd) Alignment.End else Alignment.Start,
-        verticalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        valueContent()
     }
 }

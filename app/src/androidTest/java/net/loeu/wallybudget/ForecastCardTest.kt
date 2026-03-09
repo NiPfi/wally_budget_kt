@@ -66,7 +66,6 @@ class ForecastCardTest {
             WallyBudgetTheme {
                 ForecastCard(
                     spendingForecast = spendingForecast,
-                    displayedRecoverableOverspendCents = 0L,
                     budgetState = BudgetState(
                         monthlyBudgetCents = 250_000L,
                         totalSpentThisCycleCents = 83_000L,
