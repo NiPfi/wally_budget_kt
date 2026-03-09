@@ -231,7 +231,11 @@ private fun EvidenceSection(
                 val rows = snapshot.evidence.chunked(2)
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     rows.forEach { rowItems ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
                             rowItems.forEach { item ->
                                 EvidenceCard(
                                     item = item,
