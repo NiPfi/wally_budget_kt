@@ -43,6 +43,8 @@ import net.loeu.wallybudget.data.model.Expense
 import net.loeu.wallybudget.data.model.ExpenseDaySection
 import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.domain.config.ForecastConfig
+import net.loeu.wallybudget.ui.calculateAvailableRecoverableOverspendCentsFromForecast
+import net.loeu.wallybudget.ui.calculateSafeToSpendNowCents
 import net.loeu.wallybudget.ui.screens.expenses.ExpenseItem
 import net.loeu.wallybudget.util.CurrencyFormatter
 
