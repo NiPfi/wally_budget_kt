@@ -334,6 +334,7 @@ fun OverviewPage(
                 collapseProgress = collapseProgress,
                 isLoading = isLoading,
                 useWarningTint = useWarningTint,
+                tagSecondaryMetrics = true,
                 onSafeTodayInfoClick = { showSafeTodayDetails.value = true },
                 onNavigateToSettings = onNavigateToSettings,
                 modifier = Modifier

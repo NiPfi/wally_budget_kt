@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -40,6 +41,7 @@ fun SummaryCard(
     collapseProgress: Float,
     isLoading: Boolean = false,
     useWarningTint: Boolean = false,
+    tagSecondaryMetrics: Boolean = false,
     onSafeTodayInfoClick: (() -> Unit)? = null,
     onNavigateToSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -206,6 +208,13 @@ fun SummaryCard(
                         alpha = secondaryMetricsProgress
                         translationY = bottomOffsetPx
                     }
+                    .then(
+                        if (tagSecondaryMetrics) {
+                            Modifier.testTag("home_summary_secondary_metrics")
+                        } else {
+                            Modifier
+                        }
+                    )
                     .collapseHeight(secondaryMetricsProgress),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
