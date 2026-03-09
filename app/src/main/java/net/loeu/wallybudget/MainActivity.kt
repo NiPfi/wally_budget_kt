@@ -40,6 +40,7 @@ import net.loeu.wallybudget.ui.screens.history.HistoryScreen
 import net.loeu.wallybudget.ui.screens.home.AddExpenseSheet
 import net.loeu.wallybudget.ui.screens.home.HomeScreen
 import net.loeu.wallybudget.ui.screens.onboarding.OnboardingScreen
+import net.loeu.wallybudget.ui.screens.overview.PlaceholderShimmerProvider
 import net.loeu.wallybudget.ui.screens.settings.SettingsScreen
 import net.loeu.wallybudget.ui.theme.WallyBudgetTheme
 import net.loeu.wallybudget.ui.viewmodel.BudgetViewModel
@@ -54,6 +55,8 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.window.core.layout.WindowSizeClass
 import androidx.window.core.layout.WindowSizeClass.Companion.HEIGHT_DP_MEDIUM_LOWER_BOUND
+import net.loeu.wallybudget.data.model.BudgetState
+import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.data.model.recordedDate
 
 class MainActivity : ComponentActivity() {
@@ -110,6 +113,9 @@ fun BudgetApp(
     val historySections by viewModel.historySections.collectAsState()
     val pendingCycleCloseoutState by viewModel.pendingCycleCloseoutState.collectAsState()
     val isAddExpenseSheetVisible by viewModel.isAddExpenseSheetVisible.collectAsState()
+    val isHomeDataLoading = budgetState == null || spendingForecast == null
+    val displayBudgetState = budgetState ?: loadingBudgetState(effectiveCurrentDate)
+    val displaySpendingForecast = spendingForecast ?: SpendingForecast()
 
     when {
         isOnboardingCompleted != true -> {
@@ -137,27 +143,35 @@ fun BudgetApp(
         }
 
         else -> {
-            MainNavigationShell(
-                budgetState = budgetState,
-                todayExpenses = todayExpenses,
-                effectiveCurrentDate = effectiveCurrentDate,
-                activeCycleExpenseSections = activeCycleExpenseSections,
-                spendingForecast = spendingForecast,
-                historySections = historySections,
-                userSettings = userSettings,
-                showAddExpenseSheet = isAddExpenseSheetVisible,
-                onShowAddExpenseSheet = { viewModel.showAddExpenseSheet() },
-                onHideAddExpenseSheet = { viewModel.hideAddExpenseSheet() },
-                onAddExpense = { amountCents, description, icon, date ->
-                    viewModel.addExpense(amountCents, description, icon, date)
-                },
-                onUpdateExpense = { expense -> viewModel.updateExpense(expense) },
-                onDeleteExpense = { expense -> viewModel.deleteExpense(expense) },
-                onRestoreExpense = { expense -> viewModel.restoreDeletedExpense(expense) },
-                onUpdateBudget = { budgetCents -> viewModel.updateMonthlyBudget(budgetCents) },
-                onUpdatePayday = { payday -> viewModel.updatePaydayDate(payday) },
-                modifier = modifier
-            )
+            val shellContent: @Composable () -> Unit = {
+                MainNavigationShell(
+                    budgetState = displayBudgetState,
+                    todayExpenses = todayExpenses,
+                    effectiveCurrentDate = effectiveCurrentDate,
+                    activeCycleExpenseSections = activeCycleExpenseSections,
+                    spendingForecast = displaySpendingForecast,
+                    isHomeDataLoading = isHomeDataLoading,
+                    historySections = historySections,
+                    userSettings = userSettings,
+                    showAddExpenseSheet = isAddExpenseSheetVisible,
+                    onShowAddExpenseSheet = { viewModel.showAddExpenseSheet() },
+                    onHideAddExpenseSheet = { viewModel.hideAddExpenseSheet() },
+                    onAddExpense = { amountCents, description, icon, date ->
+                        viewModel.addExpense(amountCents, description, icon, date)
+                    },
+                    onUpdateExpense = { expense -> viewModel.updateExpense(expense) },
+                    onDeleteExpense = { expense -> viewModel.deleteExpense(expense) },
+                    onRestoreExpense = { expense -> viewModel.restoreDeletedExpense(expense) },
+                    onUpdateBudget = { budgetCents -> viewModel.updateMonthlyBudget(budgetCents) },
+                    onUpdatePayday = { payday -> viewModel.updatePaydayDate(payday) },
+                    modifier = modifier
+                )
+            }
+            if (isHomeDataLoading) {
+                PlaceholderShimmerProvider(content = shellContent)
+            } else {
+                shellContent()
+            }
         }
     }
 }
@@ -170,6 +184,7 @@ private fun MainNavigationShell(
     effectiveCurrentDate: LocalDate,
     activeCycleExpenseSections: List<net.loeu.wallybudget.data.model.ExpenseDaySection>,
     spendingForecast: net.loeu.wallybudget.data.model.SpendingForecast,
+    isHomeDataLoading: Boolean,
     historySections: List<net.loeu.wallybudget.data.model.ExpenseCycleSection>,
     userSettings: net.loeu.wallybudget.data.model.UserSettings,
     showAddExpenseSheet: Boolean,
@@ -290,6 +305,7 @@ private fun MainNavigationShell(
                     activeCycleExpenseSections = activeCycleExpenseSections,
                     historySections = historySections,
                     spendingForecast = spendingForecast,
+                    isLoadingData = isHomeDataLoading,
                     onAddExpense = onAddExpense,
                     onRestoreExpense = onRestoreExpense,
                     onUpdateExpense = onUpdateExpense,
@@ -323,6 +339,20 @@ private fun MainNavigationShell(
             }
         }
     }
+}
+
+private fun loadingBudgetState(currentDate: LocalDate): BudgetState {
+    return BudgetState(
+        monthlyBudgetCents = 1_000_00L,
+        totalSpentThisCycleCents = 0L,
+        dailyBudgetCents = 35_00L,
+        spentTodayCents = 0L,
+        remainingTodayCents = 35_00L,
+        daysRemainingInCycle = 12,
+        cumulativeSavingsCents = 0L,
+        paydayDate = currentDate.dayOfMonth.coerceAtLeast(1),
+        cycleStartDate = currentDate.minusDays(18)
+    )
 }
 
 @Composable

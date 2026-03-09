@@ -18,9 +18,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import net.loeu.wallybudget.util.CurrencyFormatter
 
 private const val MIN_VISUALIZATION_RANGE_CENTS = 100L
 
@@ -31,8 +31,17 @@ fun ForecastRangeIndicator(
     projectedCents: Long,
     budgetLimitCents: Long,
     modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
     scale: Float = 1.0f
 ) {
+    if (isLoading) {
+        ForecastRangeIndicatorPlaceholder(
+            modifier = modifier,
+            scale = scale
+        )
+        return
+    }
+
     val actualRange = (upperBoundCents - lowerBoundCents).coerceAtLeast(MIN_VISUALIZATION_RANGE_CENTS)
     val minView = (lowerBoundCents - actualRange * 0.25).coerceAtLeast(0.0).toLong()
     val maxView = (upperBoundCents + actualRange * 0.25).toLong()
@@ -111,11 +120,15 @@ fun ForecastRangeIndicator(
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = (11 * scale).sp), 
                     color = lowerLabelColor
                 )
-                Text(
-                    text = CurrencyFormatter.format(lowerBoundCents), 
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = (12 * scale).sp), 
+                AnimatedCounter(
+                    amountCents = lowerBoundCents,
+                    textStyle = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = (12 * scale).sp,
+                        fontWeight = FontWeight.Bold
+                    ),
                     color = lowerValueColor,
-                    fontWeight = FontWeight.Bold
+                    animate = false,
+                    textAlign = TextAlign.Start
                 )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -125,11 +138,15 @@ fun ForecastRangeIndicator(
                     color = projectedColor, 
                     fontWeight = FontWeight.Bold
                 )
-                Text(
-                    text = CurrencyFormatter.format(projectedCents), 
-                    style = MaterialTheme.typography.titleMedium.copy(fontSize = (18 * scale).sp), 
-                    color = projectedColor, 
-                    fontWeight = FontWeight.Black
+                AnimatedCounter(
+                    amountCents = projectedCents,
+                    textStyle = MaterialTheme.typography.titleMedium.copy(
+                        fontSize = (18 * scale).sp,
+                        fontWeight = FontWeight.Black
+                    ),
+                    color = projectedColor,
+                    animate = false,
+                    textAlign = TextAlign.Center
                 )
             }
             Column(horizontalAlignment = Alignment.End) {
@@ -138,11 +155,82 @@ fun ForecastRangeIndicator(
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = (11 * scale).sp), 
                     color = upperLabelColor
                 )
-                Text(
-                    text = CurrencyFormatter.format(upperBoundCents), 
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = (12 * scale).sp), 
+                AnimatedCounter(
+                    amountCents = upperBoundCents,
+                    textStyle = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = (12 * scale).sp,
+                        fontWeight = FontWeight.Bold
+                    ),
                     color = upperValueColor,
-                    fontWeight = FontWeight.Bold
+                    animate = false,
+                    textAlign = TextAlign.End
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ForecastRangeIndicatorPlaceholder(
+    modifier: Modifier = Modifier,
+    scale: Float = 1f
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height((24 * scale).dp),
+            contentAlignment = Alignment.Center
+        ) {
+            LoadingValuePlaceholder(
+                sampleText = "MMMMMMMMMMMM",
+                textStyle = MaterialTheme.typography.bodySmall.copy(fontSize = (12 * scale).sp),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+                fillWidth = true
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = (4 * scale).dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(horizontalAlignment = Alignment.Start) {
+                Text(
+                    text = "Conservative",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = (11 * scale).sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                LoadingValuePlaceholder(
+                    sampleText = "$8,888",
+                    textStyle = MaterialTheme.typography.bodySmall.copy(fontSize = (12 * scale).sp),
+                    textAlign = TextAlign.Start
+                )
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Projected",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = (11 * scale).sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                LoadingValuePlaceholder(
+                    sampleText = "$8,888",
+                    textStyle = MaterialTheme.typography.titleMedium.copy(fontSize = (18 * scale).sp),
+                    textAlign = TextAlign.Center
+                )
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "High Pace",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = (11 * scale).sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                LoadingValuePlaceholder(
+                    sampleText = "$8,888",
+                    textStyle = MaterialTheme.typography.bodySmall.copy(fontSize = (12 * scale).sp),
+                    textAlign = TextAlign.End
                 )
             }
         }

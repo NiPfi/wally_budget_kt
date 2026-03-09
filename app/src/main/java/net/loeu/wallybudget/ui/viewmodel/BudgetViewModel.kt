@@ -54,21 +54,11 @@ class BudgetViewModel(
         )
 
     // Budget state
-    val budgetState: StateFlow<BudgetState> = repository.getBudgetState()
+    val budgetState: StateFlow<BudgetState?> = repository.getBudgetState()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = BudgetState(
-                monthlyBudgetCents = 0L,
-                totalSpentThisCycleCents = 0L,
-                dailyBudgetCents = 0L,
-                spentTodayCents = 0L,
-                remainingTodayCents = 0L,
-                daysRemainingInCycle = 0,
-                cumulativeSavingsCents = 0L,
-                paydayDate = 1,
-                cycleStartDate = LocalDate.now()
-            )
+            initialValue = null
         )
 
     // Today's expenses
@@ -94,11 +84,11 @@ class BudgetViewModel(
             initialValue = emptyList()
         )
 
-    val spendingForecast: StateFlow<SpendingForecast> = repository.getSpendingForecast()
+    val spendingForecast: StateFlow<SpendingForecast?> = repository.getSpendingForecast()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = SpendingForecast()
+            initialValue = null
         )
 
     val historySections: StateFlow<List<ExpenseCycleSection>> = repository.getHistorySections()

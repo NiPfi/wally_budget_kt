@@ -10,11 +10,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import net.loeu.wallybudget.data.model.BudgetState
-import net.loeu.wallybudget.util.CurrencyFormatter
 import kotlin.math.abs
 
 @Composable
@@ -23,6 +22,7 @@ fun SpendingDetailsCard(
     previousExpensesTotal: Long,
     dailyAdjustmentCents: Long,
     adjustedDailyAllowanceCents: Long,
+    isLoading: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -37,36 +37,86 @@ fun SpendingDetailsCard(
             fontWeight = FontWeight.Bold
         )
 
-        DetailRowSmall("Cycle spent", CurrencyFormatter.format(budgetState.totalSpentThisCycleCents))
-        DetailRowSmall("Past days", CurrencyFormatter.format(previousExpensesTotal))
-        DetailRowSmall("Spent today", CurrencyFormatter.format(budgetState.spentTodayCents))
+        DetailRowSmall("Cycle spent") {
+            AnimatedCounter(
+                amountCents = budgetState.totalSpentThisCycleCents,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                animate = false,
+                textAlign = TextAlign.End,
+                placeholder = isLoading,
+                placeholderText = "$8,888"
+            )
+        }
+        DetailRowSmall("Past days") {
+            AnimatedCounter(
+                amountCents = previousExpensesTotal,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                animate = false,
+                textAlign = TextAlign.End,
+                placeholder = isLoading,
+                placeholderText = "$8,888"
+            )
+        }
+        DetailRowSmall("Spent today") {
+            AnimatedCounter(
+                amountCents = budgetState.spentTodayCents,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                animate = false,
+                textAlign = TextAlign.End,
+                placeholder = isLoading,
+                placeholderText = "$888"
+            )
+        }
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-        DetailRowSmall("Base daily allowance", CurrencyFormatter.format(budgetState.dailyBudgetCents))
+        DetailRowSmall("Base daily allowance") {
+            AnimatedCounter(
+                amountCents = budgetState.dailyBudgetCents,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                animate = false,
+                textAlign = TextAlign.End,
+                placeholder = isLoading,
+                placeholderText = "$888"
+            )
+        }
         DetailRowSmall(
-            "Budget adjustment",
-            "${if (dailyAdjustmentCents >= 0L) "+" else "-"}${CurrencyFormatter.format(abs(dailyAdjustmentCents))}",
-            valueColor = if (dailyAdjustmentCents >= 0L) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.error
-            }
-        )
-        DetailRowSmall(
-            "Effective allowance",
-            CurrencyFormatter.format(adjustedDailyAllowanceCents),
-            fontWeight = FontWeight.Bold
-        )
+            label = "Budget adjustment"
+        ) {
+            AnimatedCounter(
+                amountCents = abs(dailyAdjustmentCents),
+                formatter = { value ->
+                    "${if (dailyAdjustmentCents >= 0L) "+" else "-"}${net.loeu.wallybudget.util.CurrencyFormatter.format(value)}"
+                },
+                textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                animate = false,
+                textAlign = TextAlign.End,
+                color = if (dailyAdjustmentCents >= 0L) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.error
+                },
+                placeholder = isLoading,
+                placeholderText = "+$888"
+            )
+        }
+        DetailRowSmall("Effective allowance") {
+            AnimatedCounter(
+                amountCents = adjustedDailyAllowanceCents,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                animate = false,
+                textAlign = TextAlign.End,
+                placeholder = isLoading,
+                placeholderText = "$888"
+            )
+        }
     }
 }
 
 @Composable
 private fun DetailRowSmall(
     label: String,
-    value: String,
-    valueColor: Color = MaterialTheme.colorScheme.onSurface,
-    fontWeight: FontWeight = FontWeight.Medium
+    valueContent: @Composable () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -77,11 +127,6 @@ private fun DetailRowSmall(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyLarge,
-            color = valueColor,
-            fontWeight = fontWeight
-        )
+        valueContent()
     }
 }

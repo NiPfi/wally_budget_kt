@@ -17,25 +17,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.domain.config.ForecastConfig
-import net.loeu.wallybudget.util.CurrencyFormatter
 
 @Composable
 fun ForecastCard(
     spendingForecast: SpendingForecast,
     displayedRecoverableOverspendCents: Long,
     budgetState: BudgetState,
+    isLoading: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(enabled = !isLoading, onClick = onClick)
             .padding(horizontal = 4.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
@@ -69,7 +70,7 @@ fun ForecastCard(
                 Text(
                     text = "Details",
                     style = MaterialTheme.typography.labelLarge,
-                    color = tint,
+                    color = tint.copy(alpha = if (isLoading) 0.45f else 1f),
                     modifier = Modifier.padding(start = 6.dp)
                 )
             }
@@ -91,18 +92,23 @@ fun ForecastCard(
                     MaterialTheme.colorScheme.onSurfaceVariant
                 }
             )
-            Text(
-                text = CurrencyFormatter.formatSigned(spendingForecast.estimatedEndCycleRemainingCents),
-                style = MaterialTheme.typography.titleLarge.copy(
+            AnimatedCounter(
+                amountCents = spendingForecast.estimatedEndCycleRemainingCents,
+                signed = true,
+                textStyle = MaterialTheme.typography.titleLarge.copy(
                     fontSize = 18.sp,
-                    lineHeight = 24.sp
+                    lineHeight = 24.sp,
+                    fontWeight = FontWeight.Black
                 ),
                 color = if (spendingForecast.isProjectedOverBudget) {
                     MaterialTheme.colorScheme.error
                 } else {
                     MaterialTheme.colorScheme.onSurface
                 },
-                fontWeight = FontWeight.Black
+                animate = false,
+                textAlign = TextAlign.Start,
+                placeholder = isLoading,
+                placeholderText = "$8,888"
             )
         }
 
@@ -111,10 +117,11 @@ fun ForecastCard(
             upperBoundCents = spendingForecast.upperBoundCents,
             projectedCents = spendingForecast.projectedTotalSpentCents,
             budgetLimitCents = budgetState.monthlyBudgetCents,
+            isLoading = isLoading,
             scale = 1f
         )
 
-        if (displayedRecoverableOverspendCents > 0L) {
+        if (displayedRecoverableOverspendCents > 0L || isLoading) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
             Row(
@@ -123,10 +130,19 @@ fun ForecastCard(
                 verticalAlignment = Alignment.Top
             ) {
                 ForecastMetaMetric(
-                    label = "Recoverable overspend",
-                    value = CurrencyFormatter.format(displayedRecoverableOverspendCents),
-                    valueColor = MaterialTheme.colorScheme.primary
-                )
+                    label = "Recoverable overspend"
+                ) {
+                    AnimatedCounter(
+                        amountCents = displayedRecoverableOverspendCents,
+                        textStyle = MaterialTheme.typography.titleSmall.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = MaterialTheme.colorScheme.primary,
+                        animate = false,
+                        placeholder = isLoading,
+                        placeholderText = "$888"
+                    )
+                }
             }
         }
     }
@@ -135,9 +151,8 @@ fun ForecastCard(
 @Composable
 private fun ForecastMetaMetric(
     label: String,
-    value: String,
-    valueColor: androidx.compose.ui.graphics.Color,
-    alignEnd: Boolean = false
+    alignEnd: Boolean = false,
+    valueContent: @Composable () -> Unit
 ) {
     Column(
         horizontalAlignment = if (alignEnd) Alignment.End else Alignment.Start,
@@ -148,11 +163,6 @@ private fun ForecastMetaMetric(
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleSmall,
-            color = valueColor,
-            fontWeight = FontWeight.Bold
-        )
+        valueContent()
     }
 }
