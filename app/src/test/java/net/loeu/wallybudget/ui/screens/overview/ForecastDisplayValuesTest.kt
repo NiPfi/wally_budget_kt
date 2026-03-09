@@ -49,4 +49,15 @@ class ForecastDisplayValuesTest {
             )
         )
     }
+
+    @Test
+    fun calculateAvailableRecoverableOverspendCents_staysZeroWhenForecastMarksNoRecoverableHeadroom() {
+        assertEquals(
+            0L,
+            calculateAvailableRecoverableOverspendCents(
+                remainingTodayCents = 1_000L,
+                recoverableOverspendCents = 0L
+            )
+        )
+    }
 }
