@@ -20,7 +20,8 @@ data class ExpenseCycleSection(
     val surplusCents: Long,
     val daySections: List<ExpenseDaySection>,
     val isActiveCycle: Boolean,
-    val isReadOnly: Boolean
+    val isReadOnly: Boolean,
+    val isCompletedCycle: Boolean = false
 )
 
 data class PendingCycleCloseoutState(

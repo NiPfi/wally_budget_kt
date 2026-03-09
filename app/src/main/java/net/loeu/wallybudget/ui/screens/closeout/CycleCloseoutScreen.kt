@@ -223,7 +223,8 @@ private fun PendingCycleCloseoutState.toExpenseCycleSection(): ExpenseCycleSecti
         surplusCents = surplusCents,
         daySections = daySections,
         isActiveCycle = false,
-        isReadOnly = false
+        isReadOnly = false,
+        isCompletedCycle = true
     )
 }
 
