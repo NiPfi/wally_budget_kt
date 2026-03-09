@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import net.loeu.wallybudget.data.model.Expense
 import net.loeu.wallybudget.data.model.description
 import net.loeu.wallybudget.data.model.iconRes
+import net.loeu.wallybudget.ui.screens.overview.AnimatedCounter
 import net.loeu.wallybudget.util.CurrencyFormatter
 import java.time.Instant
 import java.time.LocalTime
@@ -24,6 +25,8 @@ import java.time.format.DateTimeFormatter
 fun ExpenseItem(
     expense: Expense,
     modifier: Modifier = Modifier,
+    animateAmount: Boolean = false,
+    showDivider: Boolean = true,
     onEdit: (() -> Unit)? = null
 ) {
     Column(
@@ -62,13 +65,23 @@ fun ExpenseItem(
                 )
             }
 
-            Text(
-                text = CurrencyFormatter.format(expense.amountCents),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
+            if (animateAmount) {
+                AnimatedCounter(
+                    amountCents = expense.amountCents,
+                    textStyle = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                Text(
+                    text = CurrencyFormatter.format(expense.amountCents),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        if (showDivider) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        }
     }
 }
 

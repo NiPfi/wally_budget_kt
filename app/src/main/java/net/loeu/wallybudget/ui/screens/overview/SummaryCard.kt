@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
@@ -37,6 +38,7 @@ fun SummaryCard(
     budgetState: BudgetState,
     recoverableOverspendCents: Long = 0L,
     collapseProgress: Float,
+    isLoading: Boolean = false,
     useWarningTint: Boolean = false,
     onSafeTodayInfoClick: (() -> Unit)? = null,
     onNavigateToSettings: (() -> Unit)? = null,
@@ -96,21 +98,25 @@ fun SummaryCard(
                         verticalAlignment = Alignment.Bottom,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(
-                            text = CurrencyFormatter.formatSigned(budgetState.remainingTodayCents),
-                            style = MaterialTheme.typography.headlineMedium.copy(
+                        AnimatedCounter(
+                            amountCents = budgetState.remainingTodayCents,
+                            signed = true,
+                            textStyle = MaterialTheme.typography.headlineMedium.copy(
                                 fontSize = amountFontSize,
-                                lineHeight = amountLineHeight
+                                lineHeight = amountLineHeight,
+                                fontWeight = FontWeight.Black
                             ),
-                            fontWeight = FontWeight.Black,
                             color = if (budgetState.remainingTodayCents >= 0L) {
                                 contentColor
                             } else {
                                 MaterialTheme.colorScheme.error
-                            }
+                            },
+                            textAlign = TextAlign.Start,
+                            placeholder = isLoading,
+                            placeholderText = "$8,888"
                         )
                         if (
-                            recoverableOverspendCents > 0L &&
+                            (recoverableOverspendCents > 0L || isLoading) &&
                             onSafeTodayInfoClick != null
                         ) {
                             val isSafeTodayChipVisible = safeTodayAlpha > 0f
@@ -118,22 +124,27 @@ fun SummaryCard(
                                 modifier = Modifier
                                     .graphicsLayer { alpha = safeTodayAlpha }
                                     .clickable(
-                                        enabled = isSafeTodayChipVisible,
+                                        enabled = isSafeTodayChipVisible && !isLoading,
                                         onClick = onSafeTodayInfoClick
                                     ),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Text(
-                                    text = "+ ${CurrencyFormatter.format(recoverableOverspendCents)}",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = contentColor
+                                AnimatedCounter(
+                                    amountCents = recoverableOverspendCents,
+                                    formatter = { "+ ${CurrencyFormatter.format(it)}" },
+                                    textStyle = MaterialTheme.typography.titleSmall.copy(
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = contentColor,
+                                    animate = false,
+                                    placeholder = isLoading,
+                                    placeholderText = "+ $888"
                                 )
                                 Icon(
                                     imageVector = Icons.Default.Info,
                                     contentDescription = "Safe today details",
-                                    tint = contentColor.copy(alpha = 0.72f),
+                                    tint = contentColor.copy(alpha = if (isLoading) 0.32f else 0.72f),
                                     modifier = Modifier
                                         .padding(top = 1.dp)
                                         .size(16.dp)
@@ -174,11 +185,15 @@ fun SummaryCard(
                             style = MaterialTheme.typography.labelSmall,
                             color = contentColor.copy(alpha = 0.68f)
                         )
-                        Text(
-                            text = budgetState.daysRemainingInCycle.toString(),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = contentColor
+                        AnimatedIntegerCounter(
+                            value = budgetState.daysRemainingInCycle,
+                            textStyle = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = contentColor,
+                            animate = true,
+                            placeholder = isLoading,
+                            placeholderText = "88"
                         )
                     }
                 }
@@ -196,22 +211,53 @@ fun SummaryCard(
             ) {
                 SummaryMetric(
                     "Cycle left",
-                    CurrencyFormatter.formatSigned(budgetState.remainingCycleCents),
                     contentColor = contentColor
-                )
+                ) {
+                    AnimatedCounter(
+                        amountCents = budgetState.remainingCycleCents,
+                        signed = true,
+                        textStyle = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = contentColor,
+                        animate = false,
+                        placeholder = isLoading,
+                        placeholderText = "$8,888"
+                    )
+                }
                 SummaryMetric(
                     "Days left",
-                    budgetState.daysRemainingInCycle.toString(),
                     alignment = Alignment.End,
                     alpha = (1f - progress * 1.6f).coerceIn(0f, 1f),
                     contentColor = contentColor
-                )
+                ) {
+                    AnimatedIntegerCounter(
+                        value = budgetState.daysRemainingInCycle,
+                        textStyle = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = contentColor,
+                        animate = false,
+                        placeholder = isLoading,
+                        placeholderText = "88"
+                    )
+                }
                 SummaryMetric(
                     "Spent today",
-                    CurrencyFormatter.format(budgetState.spentTodayCents),
                     alignment = Alignment.End,
                     contentColor = contentColor
-                )
+                ) {
+                    AnimatedCounter(
+                        amountCents = budgetState.spentTodayCents,
+                        textStyle = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = contentColor,
+                        animate = false,
+                        placeholder = isLoading,
+                        placeholderText = "$888"
+                    )
+                }
             }
         }
     }
@@ -220,10 +266,10 @@ fun SummaryCard(
 @Composable
 private fun SummaryMetric(
     label: String,
-    value: String,
     alignment: Alignment.Horizontal = Alignment.Start,
     alpha: Float = 1f,
-    contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer
+    contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
+    valueContent: @Composable () -> Unit
 ) {
     Column(
         horizontalAlignment = alignment,
@@ -234,12 +280,7 @@ private fun SummaryMetric(
             style = MaterialTheme.typography.labelSmall,
             color = contentColor.copy(alpha = 0.68f)
         )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = contentColor
-        )
+        valueContent()
     }
 }
 
