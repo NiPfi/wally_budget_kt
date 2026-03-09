@@ -36,6 +36,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -296,16 +297,70 @@ fun HistoryScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@Composable
+fun CycleLedgerScreen(
+    section: ExpenseCycleSection,
+    title: String,
+    onEditExpense: (Expense) -> Unit,
+    onAddExpenseForDate: (LocalDate) -> Unit,
+    modifier: Modifier = Modifier,
+    onNavigateBack: (() -> Unit)? = null
+) {
+    Scaffold(
+        modifier = modifier,
+        topBar = {
+            TopAppBar(
+                title = { Text(title) },
+                navigationIcon = {
+                    if (onNavigateBack != null) {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            CycleLedgerPage(
+                section = section,
+                onEditExpense = onEditExpense,
+                onAddExpenseForDate = onAddExpenseForDate,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .widthIn(max = 760.dp)
+                    .fillMaxWidth(),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 14.dp,
+                    bottom = 28.dp
+                )
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CycleLedgerPage(
     section: ExpenseCycleSection,
     onEditExpense: (Expense) -> Unit,
-    onAddExpenseForDate: (LocalDate) -> Unit
+    onAddExpenseForDate: (LocalDate) -> Unit,
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(bottom = 24.dp)
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 24.dp),
+        modifier = modifier,
+        contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         stickyHeader {
