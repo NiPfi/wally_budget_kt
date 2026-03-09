@@ -30,4 +30,18 @@ class ExpenseEntryDatePolicyTest {
 
         assertEquals(requestedDate, resolvedDate)
     }
+
+    @Test
+    fun resolveRequestedDate_clampsFutureDateToEffectiveCurrentDate() {
+        val requestedDate = LocalDate.of(2026, 3, 9)
+        val effectiveCurrentDate = LocalDate.of(2026, 3, 8)
+
+        val resolvedDate = ExpenseEntryDatePolicy.resolveRequestedDate(
+            requestedDate = requestedDate,
+            effectiveCurrentDate = effectiveCurrentDate
+        )
+
+        assertEquals(effectiveCurrentDate, resolvedDate)
+    }
+
 }
