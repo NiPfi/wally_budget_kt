@@ -4,6 +4,39 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+fun ensureOnlyEmulatorDevicesForConnectedTests() {
+    val process = ProcessBuilder("adb", "devices", "-l")
+        .redirectErrorStream(true)
+        .start()
+    val adbOutput = process.inputStream.bufferedReader().use { it.readText() }
+
+    if (process.waitFor() != 0) {
+        throw org.gradle.api.GradleException("Failed to query adb devices before running connected tests.")
+    }
+
+    val physicalDevices = adbOutput
+        .lineSequence()
+        .map(String::trim)
+        .filter { line ->
+            line.isNotBlank() &&
+                !line.startsWith("List of devices attached") &&
+                "\tdevice" in line &&
+                !line.startsWith("emulator-")
+        }
+        .toList()
+
+    if (physicalDevices.isNotEmpty()) {
+        throw org.gradle.api.GradleException(
+            buildString {
+                appendLine("Refusing to run connected Android tests on physical devices.")
+                appendLine("Disconnect authorized phones/tablets and retry.")
+                appendLine("Detected physical devices:")
+                physicalDevices.forEach { appendLine(" - $it") }
+            }.trimEnd()
+        )
+    }
+}
+
 android {
     namespace = "net.loeu.wallybudget"
     compileSdk = 36
@@ -83,4 +116,12 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+tasks.matching { task ->
+    task.name.startsWith("connected") && task.name.endsWith("AndroidTest")
+}.configureEach {
+    doFirst {
+        ensureOnlyEmulatorDevicesForConnectedTests()
+    }
 }
