@@ -70,6 +70,7 @@ fun HomeScreen(
     val showLedgerPane = windowSizeClass.isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND)
     val isShortHeight = !windowSizeClass.isHeightAtLeastBreakpoint(HEIGHT_DP_MEDIUM_LOWER_BOUND)
     val preferCompactSummary = showLedgerPane && isShortHeight
+    val contentVerticalPadding = if (showLedgerPane && isShortHeight) 0.dp else 12.dp
     val selectedDateForExpenseEpochDay = rememberSaveable { mutableLongStateOf(currentDate.toEpochDay()) }
     var expenseBeingEdited by remember { mutableStateOf<Expense?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -111,17 +112,21 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp, vertical = if (showLedgerPane && isShortHeight) 0.dp else 12.dp),
+                .padding(paddingValues),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             timelineLockReason?.let { reason ->
-                TimelineLockBanner(reason = reason)
+                TimelineLockBanner(
+                    reason = reason,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                )
             }
 
             if (showLedgerPane) {
                 Row(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(vertical = contentVerticalPadding),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     OverviewPage(
@@ -167,7 +172,9 @@ fun HomeScreen(
                     onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null,
                     enableHeaderCollapse = true,
                     defaultCollapsedHeader = false,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(vertical = contentVerticalPadding)
                 )
             }
         }
