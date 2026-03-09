@@ -210,7 +210,8 @@ class BudgetRepository(
                 surplusCents = budgetState.remainingCycleCents,
                 daySections = activeCycleDaySections,
                 isActiveCycle = true,
-                isReadOnly = timelineLockState.isLocked
+                isReadOnly = timelineLockState.isLocked,
+                isCompletedCycle = false
             )
 
             val futureExpenses = allExpenses.filter { it.recordedDate().isAfter(today) }
@@ -239,7 +240,8 @@ class BudgetRepository(
                     surplusCents = budgetState.monthlyBudgetCents - futureTotalSpent,
                     daySections = futureDaySections,
                     isActiveCycle = false,
-                    isReadOnly = true
+                    isReadOnly = true,
+                    isCompletedCycle = false
                 )
             }
 
@@ -274,7 +276,8 @@ class BudgetRepository(
                         surplusCents = monthlyHistory.surplusCents,
                         daySections = daySections,
                         isActiveCycle = false,
-                        isReadOnly = true
+                        isReadOnly = true,
+                        isCompletedCycle = true
                     )
                 }
 

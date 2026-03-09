@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -159,23 +160,11 @@ fun HistoryScreen(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    if (onNavigateToSettings != null) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            IconButton(onClick = onNavigateToSettings) {
-                                Icon(
-                                    imageVector = Icons.Default.Settings,
-                                    contentDescription = "Settings"
-                                )
-                            }
-                        }
-                    }
-                    CyclePagerIndicator(
+                    CompactHistoryHeader(
                         pageCount = compactPagerSections.size,
                         currentPage = pagerState.currentPage,
-                        showSwipeHint = showInitialSwipeHint
+                        showSwipeHint = showInitialSwipeHint,
+                        onNavigateToSettings = onNavigateToSettings
                     )
                     HorizontalPager(
                         state = pagerState,
@@ -355,7 +344,7 @@ private fun CycleLedgerPage(
     section: ExpenseCycleSection,
     onEditExpense: (Expense) -> Unit,
     onAddExpenseForDate: (LocalDate) -> Unit,
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier.fillMaxSize(),
     contentPadding: PaddingValues = PaddingValues(bottom = 24.dp)
 ) {
     LazyColumn(
@@ -377,19 +366,71 @@ private fun CycleLedgerPage(
 }
 
 @Composable
-private fun CyclePagerIndicator(
+private fun CompactHistoryHeader(
     pageCount: Int,
     currentPage: Int,
     showSwipeHint: Boolean,
+    onNavigateToSettings: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
-    if (pageCount <= 1) return
-
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        AnimatedVisibility(visible = showSwipeHint && currentPage == pageCount - 1) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (pageCount > 1) {
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CyclePagerDots(
+                        pageCount = pageCount,
+                        currentPage = currentPage
+                    )
+                }
+            } else {
+                Spacer(modifier = Modifier.weight(1f))
+            }
+
+            if (onNavigateToSettings != null) {
+                IconButton(onClick = onNavigateToSettings) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Settings"
+                    )
+                }
+            }
+        }
+
+        if (pageCount > 1) {
+            CyclePagerHint(
+                currentPage = currentPage,
+                pageCount = pageCount,
+                showSwipeHint = showSwipeHint
+            )
+        }
+    }
+}
+
+@Composable
+private fun CyclePagerHint(
+    currentPage: Int,
+    pageCount: Int,
+    showSwipeHint: Boolean,
+    modifier: Modifier = Modifier
+) {
+    AnimatedVisibility(
+        visible = showSwipeHint && currentPage == pageCount - 1,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -407,25 +448,35 @@ private fun CyclePagerIndicator(
                 )
             }
         }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center
-        ) {
-            repeat(pageCount) { page ->
-                Box(
-                    modifier = Modifier
-                        .padding(horizontal = 4.dp)
-                        .size(if (page == currentPage) 8.dp else 6.dp)
-                        .background(
-                            color = if (page == currentPage) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.outlineVariant
-                            },
-                            shape = CircleShape
-                        )
-                )
-            }
+    }
+}
+
+@Composable
+private fun CyclePagerDots(
+    pageCount: Int,
+    currentPage: Int,
+    modifier: Modifier = Modifier
+) {
+    if (pageCount <= 1) return
+
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        repeat(pageCount) { page ->
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 4.dp)
+                    .size(if (page == currentPage) 8.dp else 6.dp)
+                    .background(
+                        color = if (page == currentPage) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.outlineVariant
+                        },
+                        shape = CircleShape
+                    )
+            )
         }
     }
 }
@@ -449,7 +500,7 @@ private fun CycleHeader(
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = if (section.isReadOnly) {
+                text = if (section.isCompletedCycle) {
                     if (section.surplusCents >= 0L) {
                         "Finished ${CurrencyFormatter.format(abs(section.surplusCents))} under budget"
                     } else {
