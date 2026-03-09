@@ -52,25 +52,26 @@ fun ForecastCard(
             )
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val icon = if (spendingForecast.confidenceScore < ForecastConfig.MIN_CONFIDENCE_THRESHOLD) {
-                    Icons.Default.Warning
-                } else {
+                val isLowConfidence = spendingForecast.confidenceScore < ForecastConfig.MIN_CONFIDENCE_THRESHOLD
+                val indicatorIcon = if (isLoading || !isLowConfidence) {
                     Icons.Default.Info
-                }
-                val tint = if (spendingForecast.confidenceScore < ForecastConfig.MIN_CONFIDENCE_THRESHOLD) {
-                    MaterialTheme.colorScheme.error
                 } else {
-                    MaterialTheme.colorScheme.primary
+                    Icons.Default.Warning
+                }
+                val indicatorTint = when {
+                    isLoading -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                    isLowConfidence -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.primary
                 }
                 Icon(
-                    imageVector = icon,
+                    imageVector = indicatorIcon,
                     contentDescription = null,
-                    tint = tint
+                    tint = indicatorTint
                 )
                 Text(
                     text = "Details",
                     style = MaterialTheme.typography.labelLarge,
-                    color = tint.copy(alpha = if (isLoading) 0.45f else 1f),
+                    color = indicatorTint,
                     modifier = Modifier.padding(start = 6.dp)
                 )
             }
