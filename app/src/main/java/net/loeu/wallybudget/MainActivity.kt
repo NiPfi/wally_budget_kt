@@ -190,7 +190,7 @@ private fun MainNavigationShell(
     effectiveCurrentDate: LocalDate,
     activeCycleExpenseSections: List<net.loeu.wallybudget.data.model.ExpenseDaySection>,
     spendingForecast: net.loeu.wallybudget.data.model.SpendingForecast,
-    monthlyHistoryState: StateFlow<List<MonthlyHistory>>,
+    monthlyHistoryState: StateFlow<List<MonthlyHistory>?>,
     isHomeDataLoading: Boolean,
     historySections: List<net.loeu.wallybudget.data.model.ExpenseCycleSection>,
     userSettings: net.loeu.wallybudget.data.model.UserSettings,
@@ -366,12 +366,13 @@ private fun MainNavigationShell(
             }
             composable(Screen.Analysis.route) {
                 val monthlyHistory by monthlyHistoryState.collectAsState()
+                val isAnalysisLoading = isHomeDataLoading || monthlyHistory == null
                 AnalysisScreen(
                     budgetState = budgetState,
                     spendingForecast = spendingForecast,
-                    monthlyHistory = monthlyHistory,
+                    monthlyHistory = monthlyHistory.orEmpty(),
                     timelineLockReason = timelineLockReason,
-                    isLoading = isHomeDataLoading,
+                    isLoading = isAnalysisLoading,
                     onNavigateToSettings = if (usesVerticalNavigation) {
                         null
                     } else {

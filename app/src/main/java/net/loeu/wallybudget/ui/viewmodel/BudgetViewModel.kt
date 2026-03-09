@@ -82,11 +82,11 @@ class BudgetViewModel(
         )
 
     // Monthly history
-    val monthlyHistory: StateFlow<List<MonthlyHistory>> = repository.getMonthlyHistory()
+    val monthlyHistory: StateFlow<List<MonthlyHistory>?> = repository.getMonthlyHistory()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
+            initialValue = null
         )
 
     val spendingForecast: StateFlow<SpendingForecast?> = repository.getSpendingForecast()
