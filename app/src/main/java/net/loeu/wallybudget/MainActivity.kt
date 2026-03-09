@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import kotlinx.coroutines.flow.StateFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -57,6 +58,7 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.window.core.layout.WindowSizeClass.Companion.HEIGHT_DP_MEDIUM_LOWER_BOUND
 import net.loeu.wallybudget.data.model.BudgetState
+import net.loeu.wallybudget.data.model.MonthlyHistory
 import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.data.model.recordedDate
 
@@ -111,7 +113,6 @@ fun BudgetApp(
     val todayExpenses by viewModel.todayExpenses.collectAsState()
     val activeCycleExpenseSections by viewModel.activeCycleExpenseSections.collectAsState()
     val spendingForecast by viewModel.spendingForecast.collectAsState()
-    val monthlyHistory by viewModel.monthlyHistory.collectAsState()
     val historySections by viewModel.historySections.collectAsState()
     val pendingCycleCloseoutState by viewModel.pendingCycleCloseoutState.collectAsState()
     val timelineLockState by viewModel.timelineLockState.collectAsState()
@@ -153,7 +154,7 @@ fun BudgetApp(
                     effectiveCurrentDate = effectiveCurrentDate,
                     activeCycleExpenseSections = activeCycleExpenseSections,
                     spendingForecast = displaySpendingForecast,
-                    monthlyHistory = monthlyHistory,
+                    monthlyHistoryState = viewModel.monthlyHistory,
                     isHomeDataLoading = isHomeDataLoading,
                     historySections = historySections,
                     userSettings = userSettings,
@@ -189,7 +190,7 @@ private fun MainNavigationShell(
     effectiveCurrentDate: LocalDate,
     activeCycleExpenseSections: List<net.loeu.wallybudget.data.model.ExpenseDaySection>,
     spendingForecast: net.loeu.wallybudget.data.model.SpendingForecast,
-    monthlyHistory: List<net.loeu.wallybudget.data.model.MonthlyHistory>,
+    monthlyHistoryState: StateFlow<List<MonthlyHistory>>,
     isHomeDataLoading: Boolean,
     historySections: List<net.loeu.wallybudget.data.model.ExpenseCycleSection>,
     userSettings: net.loeu.wallybudget.data.model.UserSettings,
@@ -364,6 +365,7 @@ private fun MainNavigationShell(
                 )
             }
             composable(Screen.Analysis.route) {
+                val monthlyHistory by monthlyHistoryState.collectAsState()
                 AnalysisScreen(
                     budgetState = budgetState,
                     spendingForecast = spendingForecast,

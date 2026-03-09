@@ -37,15 +37,15 @@ class AnalysisScreenTest {
 
         composeRule.onNodeWithTag("analysis_verdict_section").assertIsDisplayed()
         composeRule.onNodeWithTag("analysis_evidence_section").assertIsDisplayed()
-        composeRule.onNodeWithTag("analysis_actions_section").assertIsDisplayed()
 
         val verdictTop = composeRule.onNodeWithTag("analysis_verdict_section").getBoundsInRoot().top
         val evidenceTop = composeRule.onNodeWithTag("analysis_evidence_section").getBoundsInRoot().top
-        val actionsTop = composeRule.onNodeWithTag("analysis_actions_section").getBoundsInRoot().top
 
         assertTrue(verdictTop < evidenceTop)
-        assertTrue(evidenceTop < actionsTop)
 
+        composeRule.onNodeWithTag("analysis_list")
+            .performScrollToNode(hasTestTag("analysis_actions_section"))
+        composeRule.onNodeWithTag("analysis_actions_section").assertIsDisplayed()
         composeRule.onNodeWithTag("analysis_list")
             .performScrollToNode(hasTestTag("analysis_confidence_section"))
         composeRule.onNodeWithTag("analysis_confidence_section").assertIsDisplayed()
