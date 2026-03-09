@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -26,6 +27,7 @@ import net.loeu.wallybudget.util.CurrencyFormatter
 @Composable
 fun ForecastCard(
     spendingForecast: SpendingForecast,
+    displayedRecoverableOverspendCents: Long,
     budgetState: BudgetState,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -110,6 +112,47 @@ fun ForecastCard(
             projectedCents = spendingForecast.projectedTotalSpentCents,
             budgetLimitCents = budgetState.monthlyBudgetCents,
             scale = 1f
+        )
+
+        if (displayedRecoverableOverspendCents > 0L) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.Top
+            ) {
+                ForecastMetaMetric(
+                    label = "Recoverable overspend",
+                    value = CurrencyFormatter.format(displayedRecoverableOverspendCents),
+                    valueColor = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ForecastMetaMetric(
+    label: String,
+    value: String,
+    valueColor: androidx.compose.ui.graphics.Color,
+    alignEnd: Boolean = false
+) {
+    Column(
+        horizontalAlignment = if (alignEnd) Alignment.End else Alignment.Start,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleSmall,
+            color = valueColor,
+            fontWeight = FontWeight.Bold
         )
     }
 }

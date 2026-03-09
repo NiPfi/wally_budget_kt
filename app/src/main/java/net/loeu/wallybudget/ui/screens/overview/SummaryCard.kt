@@ -1,12 +1,15 @@
 package net.loeu.wallybudget.ui.screens.overview
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,8 +35,10 @@ import kotlin.math.roundToInt
 @Composable
 fun SummaryCard(
     budgetState: BudgetState,
+    recoverableOverspendCents: Long = 0L,
     collapseProgress: Float,
     useWarningTint: Boolean = false,
+    onSafeTodayInfoClick: (() -> Unit)? = null,
     onNavigateToSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -47,6 +52,7 @@ fun SummaryCard(
     val secondaryMetricsProgress = 1f - progress
     val amountFontSize = lerp(22.sp, 17.sp, progress)
     val amountLineHeight = lerp(28.sp, 20.sp, progress)
+    val safeTodayAlpha = (1f - progress * 1.5f).coerceIn(0f, 1f)
     val rightTopOffsetPx = with(density) { ((1f - topDaysAlpha) * 6.dp.toPx()) }
     val iconOffsetPx = with(density) { (progress * -4.dp.toPx()) }
     val bottomOffsetPx = with(density) { ((1f - secondaryMetricsProgress) * -6.dp.toPx()) }
@@ -86,19 +92,55 @@ fun SummaryCard(
                         style = MaterialTheme.typography.labelSmall,
                         color = contentColor.copy(alpha = 0.72f)
                     )
-                    Text(
-                        text = CurrencyFormatter.formatSigned(budgetState.remainingTodayCents),
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            fontSize = amountFontSize,
-                            lineHeight = amountLineHeight
-                        ),
-                        fontWeight = FontWeight.Black,
-                        color = if (budgetState.remainingTodayCents >= 0L) {
-                            contentColor
-                        } else {
-                            MaterialTheme.colorScheme.error
+                    Row(
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = CurrencyFormatter.formatSigned(budgetState.remainingTodayCents),
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontSize = amountFontSize,
+                                lineHeight = amountLineHeight
+                            ),
+                            fontWeight = FontWeight.Black,
+                            color = if (budgetState.remainingTodayCents >= 0L) {
+                                contentColor
+                            } else {
+                                MaterialTheme.colorScheme.error
+                            }
+                        )
+                        if (
+                            recoverableOverspendCents > 0L &&
+                            onSafeTodayInfoClick != null
+                        ) {
+                            val isSafeTodayChipVisible = safeTodayAlpha > 0f
+                            Row(
+                                modifier = Modifier
+                                    .graphicsLayer { alpha = safeTodayAlpha }
+                                    .clickable(
+                                        enabled = isSafeTodayChipVisible,
+                                        onClick = onSafeTodayInfoClick
+                                    ),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "+ ${CurrencyFormatter.format(recoverableOverspendCents)}",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = contentColor
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = "Safe today details",
+                                    tint = contentColor.copy(alpha = 0.72f),
+                                    modifier = Modifier
+                                        .padding(top = 1.dp)
+                                        .size(16.dp)
+                                )
+                            }
                         }
-                    )
+                    }
                 }
 
                 Box(
