@@ -2,26 +2,12 @@ package net.loeu.wallybudget.data.repository
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.After
-import org.junit.Before
 import org.junit.Test
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 class TimelineLockPolicyTest {
-    private lateinit var previousLocale: Locale
-
-    @Before
-    fun setUp() {
-        previousLocale = Locale.getDefault()
-        Locale.setDefault(Locale.US)
-    }
-
-    @After
-    fun tearDown() {
-        Locale.setDefault(previousLocale)
-    }
-
     @Test
     fun resolve_unlocksWhenTimelineIsConsistent() {
         val state = TimelineLockPolicy.resolve(
@@ -44,7 +30,7 @@ class TimelineLockPolicyTest {
         )
 
         assertTrue(state.isLocked)
-        assertTrue(state.reason!!.contains("Mar 1, 2026"))
+        assertTrue(state.reason!!.contains(displayDate(LocalDate.of(2026, 3, 1))))
     }
 
     @Test
@@ -57,6 +43,14 @@ class TimelineLockPolicyTest {
         )
 
         assertTrue(state.isLocked)
-        assertTrue(state.reason!!.contains("Mar 6, 2026"))
+        assertTrue(state.reason!!.contains(displayDate(LocalDate.of(2026, 3, 6))))
+    }
+
+    private fun displayDate(date: LocalDate): String {
+        return date.format(
+            DateTimeFormatter
+                .ofPattern("MMM d, yyyy")
+                .withLocale(Locale.getDefault())
+        )
     }
 }
