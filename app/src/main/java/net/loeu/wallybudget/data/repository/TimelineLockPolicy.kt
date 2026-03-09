@@ -3,9 +3,10 @@ package net.loeu.wallybudget.data.repository
 import net.loeu.wallybudget.data.model.TimelineLockState
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 internal object TimelineLockPolicy {
-    private val displayDateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy")
+    private const val DISPLAY_DATE_PATTERN = "MMM d, yyyy"
 
     fun resolve(
         effectiveCurrentDate: LocalDate,
@@ -40,5 +41,11 @@ internal object TimelineLockPolicy {
         )
     }
 
-    private fun LocalDate.display(): String = format(displayDateFormatter)
+    private fun LocalDate.display(): String {
+        return format(
+            DateTimeFormatter
+                .ofPattern(DISPLAY_DATE_PATTERN)
+                .withLocale(Locale.getDefault())
+        )
+    }
 }
