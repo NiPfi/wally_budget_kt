@@ -112,6 +112,7 @@ fun BudgetApp(
     val spendingForecast by viewModel.spendingForecast.collectAsState()
     val historySections by viewModel.historySections.collectAsState()
     val pendingCycleCloseoutState by viewModel.pendingCycleCloseoutState.collectAsState()
+    val timelineLockState by viewModel.timelineLockState.collectAsState()
     val isAddExpenseSheetVisible by viewModel.isAddExpenseSheetVisible.collectAsState()
     val isHomeDataLoading = budgetState == null || spendingForecast == null
     val displayBudgetState = budgetState ?: loadingBudgetState(effectiveCurrentDate)
@@ -164,6 +165,7 @@ fun BudgetApp(
                     onRestoreExpense = { expense -> viewModel.restoreDeletedExpense(expense) },
                     onUpdateBudget = { budgetCents -> viewModel.updateMonthlyBudget(budgetCents) },
                     onUpdatePayday = { payday -> viewModel.updatePaydayDate(payday) },
+                    timelineLockReason = timelineLockState.reason,
                     modifier = modifier
                 )
             }
@@ -196,6 +198,7 @@ private fun MainNavigationShell(
     onRestoreExpense: (net.loeu.wallybudget.data.model.Expense) -> Unit,
     onUpdateBudget: (Long) -> Unit,
     onUpdatePayday: (Int) -> Unit,
+    timelineLockReason: String?,
     modifier: Modifier = Modifier
 ) {
     val navController = rememberNavController()
@@ -314,7 +317,8 @@ private fun MainNavigationShell(
                     showTopRightSettingsAction = !usesVerticalNavigation,
                     showAddExpenseSheet = showAddExpenseSheet,
                     onShowAddExpenseSheet = onShowAddExpenseSheet,
-                    onHideAddExpenseSheet = onHideAddExpenseSheet
+                    onHideAddExpenseSheet = onHideAddExpenseSheet,
+                    timelineLockReason = timelineLockReason
                 )
             }
             composable(Screen.History.route) {
@@ -326,7 +330,9 @@ private fun MainNavigationShell(
                     onDeleteExpense = onDeleteExpense,
                     onNavigateToSettings = if (usesVerticalNavigation) null else {
                         { navController.navigate(Screen.Settings.route) }
-                    }
+                    },
+                    interactionsEnabled = timelineLockReason == null,
+                    timelineLockReason = timelineLockReason
                 )
             }
             composable(Screen.Settings.route) {

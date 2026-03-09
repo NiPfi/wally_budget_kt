@@ -18,6 +18,7 @@ import net.loeu.wallybudget.data.model.ExpenseDaySection
 import net.loeu.wallybudget.data.model.MonthlyHistory
 import net.loeu.wallybudget.data.model.PendingCycleCloseoutState
 import net.loeu.wallybudget.data.model.SpendingForecast
+import net.loeu.wallybudget.data.model.TimelineLockState
 import net.loeu.wallybudget.data.model.UserSettings
 import net.loeu.wallybudget.data.repository.BudgetRepository
 import net.loeu.wallybudget.data.time.CurrentDateProvider
@@ -105,6 +106,13 @@ class BudgetViewModel(
             initialValue = null
         )
 
+    val timelineLockState: StateFlow<TimelineLockState> = repository.getTimelineLockState()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = TimelineLockState()
+        )
+
     // UI state
     private val _isAddExpenseSheetVisible = MutableStateFlow(false)
     val isAddExpenseSheetVisible = _isAddExpenseSheetVisible.asStateFlow()
@@ -134,10 +142,10 @@ class BudgetViewModel(
      */
     fun addExpense(amountCents: Long, description: String, icon: ExpenseCategory? = null, date: LocalDate? = null) {
         viewModelScope.launch {
-            val effectiveDate = repository.syncObservedDate(
-                settings = userSettings.value,
-                observedDate = currentDateProvider.currentDate()
-            )
+            val effectiveDate = currentEffectiveDateForMutation() ?: run {
+                _isAddExpenseSheetVisible.value = false
+                return@launch
+            }
             val resolvedDate = ExpenseEntryDatePolicy.resolveRequestedDate(date, effectiveDate)
             val timestamp = if (resolvedDate == effectiveDate) {
                 Instant.now().toEpochMilli()
@@ -161,6 +169,7 @@ class BudgetViewModel(
      */
     fun updateExpense(expense: Expense) {
         viewModelScope.launch {
+            if (currentEffectiveDateForMutation() == null) return@launch
             repository.updateExpense(expense)
         }
     }
@@ -170,12 +179,14 @@ class BudgetViewModel(
      */
     fun deleteExpense(expense: Expense) {
         viewModelScope.launch {
+            if (currentEffectiveDateForMutation() == null) return@launch
             repository.deleteExpense(expense)
         }
     }
 
     fun restoreDeletedExpense(expense: Expense) {
         viewModelScope.launch {
+            if (currentEffectiveDateForMutation() == null) return@launch
             repository.addExpense(expense.copy(id = 0L))
         }
     }
@@ -234,6 +245,19 @@ class BudgetViewModel(
     fun updatePaydayDate(day: Int) {
         viewModelScope.launch {
             repository.updatePaydayDate(day)
+        }
+    }
+
+    private suspend fun currentEffectiveDateForMutation(): LocalDate? {
+        val settings = userSettings.value
+        val effectiveDate = repository.syncObservedDate(
+            settings = settings,
+            observedDate = currentDateProvider.currentDate()
+        )
+        return if (repository.isExpenseMutationLocked(settings, effectiveDate)) {
+            null
+        } else {
+            effectiveDate
         }
     }
 }

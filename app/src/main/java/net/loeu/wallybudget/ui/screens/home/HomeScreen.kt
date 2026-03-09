@@ -1,6 +1,7 @@
 package net.loeu.wallybudget.ui.screens.home
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -15,6 +16,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +38,7 @@ import net.loeu.wallybudget.data.model.ExpenseCycleSection
 import net.loeu.wallybudget.data.model.ExpenseDaySection
 import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.data.model.recordedDate
+import net.loeu.wallybudget.ui.components.TimelineLockBanner
 import net.loeu.wallybudget.ui.screens.history.HistoryScreen
 import net.loeu.wallybudget.ui.screens.overview.OverviewPage
 import java.time.LocalDate
@@ -60,6 +63,7 @@ fun HomeScreen(
     showAddExpenseSheet: Boolean,
     onShowAddExpenseSheet: () -> Unit,
     onHideAddExpenseSheet: () -> Unit,
+    timelineLockReason: String? = null,
     modifier: Modifier = Modifier
 ) {
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
@@ -70,6 +74,14 @@ fun HomeScreen(
     var expenseBeingEdited by remember { mutableStateOf<Expense?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val canEditExpenses = !isLoadingData && timelineLockReason == null
+
+    LaunchedEffect(canEditExpenses) {
+        if (!canEditExpenses) {
+            expenseBeingEdited = null
+            onHideAddExpenseSheet()
+        }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -77,16 +89,16 @@ fun HomeScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    if (isLoadingData) return@FloatingActionButton
+                    if (!canEditExpenses) return@FloatingActionButton
                     selectedDateForExpenseEpochDay.longValue = currentDate.toEpochDay()
                     onShowAddExpenseSheet()
                 },
-                containerColor = if (isLoadingData) {
+                containerColor = if (!canEditExpenses) {
                     MaterialTheme.colorScheme.surfaceVariant
                 } else {
                     MaterialTheme.colorScheme.primary
                 },
-                contentColor = if (isLoadingData) {
+                contentColor = if (!canEditExpenses) {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 } else {
                     MaterialTheme.colorScheme.onPrimary
@@ -96,56 +108,72 @@ fun HomeScreen(
             }
         }
     ) { paddingValues ->
-        if (showLedgerPane) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(horizontal = 16.dp, vertical = if (isShortHeight) 0.dp else 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp, vertical = if (showLedgerPane && isShortHeight) 0.dp else 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            timelineLockReason?.let { reason ->
+                TimelineLockBanner(reason = reason)
+            }
+
+            if (showLedgerPane) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    OverviewPage(
+                        budgetState = budgetState,
+                        todayExpenses = todayExpenses,
+                        activeCycleExpenseSections = activeCycleExpenseSections,
+                        spendingForecast = spendingForecast,
+                        isLoading = isLoadingData,
+                        onEditTodayExpense = if (canEditExpenses) {
+                            { expenseBeingEdited = it }
+                        } else {
+                            null
+                        },
+                        onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null,
+                        showTodayExpensesSection = false,
+                        enableHeaderCollapse = preferCompactSummary,
+                        defaultCollapsedHeader = preferCompactSummary,
+                        modifier = Modifier.weight(1.08f)
+                    )
+                    HistoryScreen(
+                        historySections = historySections,
+                        onAddExpense = onAddExpense,
+                        onRestoreExpense = onRestoreExpense,
+                        onUpdateExpense = onUpdateExpense,
+                        onDeleteExpense = onDeleteExpense,
+                        modifier = Modifier.weight(0.92f),
+                        embedded = true,
+                        interactionsEnabled = canEditExpenses
+                    )
+                }
+            } else {
                 OverviewPage(
                     budgetState = budgetState,
                     todayExpenses = todayExpenses,
                     activeCycleExpenseSections = activeCycleExpenseSections,
                     spendingForecast = spendingForecast,
                     isLoading = isLoadingData,
-                    onEditTodayExpense = { expenseBeingEdited = it },
+                    onEditTodayExpense = if (canEditExpenses) {
+                        { expenseBeingEdited = it }
+                    } else {
+                        null
+                    },
                     onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null,
-                    showTodayExpensesSection = false,
-                    enableHeaderCollapse = preferCompactSummary,
-                    defaultCollapsedHeader = preferCompactSummary,
-                    modifier = Modifier.weight(1.08f)
-                )
-                HistoryScreen(
-                    historySections = historySections,
-                    onAddExpense = onAddExpense,
-                    onRestoreExpense = onRestoreExpense,
-                    onUpdateExpense = onUpdateExpense,
-                    onDeleteExpense = onDeleteExpense,
-                    modifier = Modifier.weight(0.92f),
-                    embedded = true
+                    enableHeaderCollapse = true,
+                    defaultCollapsedHeader = false,
+                    modifier = Modifier.weight(1f)
                 )
             }
-        } else {
-            OverviewPage(
-                budgetState = budgetState,
-                todayExpenses = todayExpenses,
-                activeCycleExpenseSections = activeCycleExpenseSections,
-                spendingForecast = spendingForecast,
-                isLoading = isLoadingData,
-                onEditTodayExpense = { expenseBeingEdited = it },
-                onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null,
-                enableHeaderCollapse = true,
-                defaultCollapsedHeader = false,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            )
         }
     }
 
-    if (showAddExpenseSheet && !isLoadingData) {
+    if (showAddExpenseSheet && canEditExpenses) {
         val selectedDate = LocalDate.ofEpochDay(selectedDateForExpenseEpochDay.longValue)
         AddExpenseSheet(
             onDismiss = onHideAddExpenseSheet,
@@ -170,7 +198,7 @@ fun HomeScreen(
         )
     }
 
-    expenseBeingEdited?.takeIf { !isLoadingData }?.let { editingExpense ->
+    expenseBeingEdited?.takeIf { canEditExpenses }?.let { editingExpense ->
         AddExpenseSheet(
             onDismiss = { expenseBeingEdited = null },
             onSubmitExpense = { amountCents, description, icon ->
