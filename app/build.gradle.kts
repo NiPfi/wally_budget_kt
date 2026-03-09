@@ -1,11 +1,49 @@
+import java.io.File
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
 }
 
+fun resolveAdbExecutable(): String {
+    val localProperties = Properties()
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { input ->
+            localProperties.load(input)
+        }
+    }
+
+    val sdkDir = sequenceOf(
+        localProperties.getProperty("sdk.dir"),
+        System.getenv("ANDROID_SDK_ROOT"),
+        System.getenv("ANDROID_HOME")
+    )
+        .filterNotNull()
+        .map { path -> File(path) }
+        .firstOrNull { it.exists() }
+        ?: throw org.gradle.api.GradleException(
+            "Unable to locate the Android SDK for connected test device checks."
+        )
+
+    val adbName = if (org.gradle.internal.os.OperatingSystem.current().isWindows) {
+        "adb.exe"
+    } else {
+        "adb"
+    }
+    val adbFile = sdkDir.resolve("platform-tools").resolve(adbName)
+    if (!adbFile.exists()) {
+        throw org.gradle.api.GradleException(
+            "Unable to locate adb at ${adbFile.absolutePath} for connected test device checks."
+        )
+    }
+    return adbFile.absolutePath
+}
+
 fun ensureOnlyEmulatorDevicesForConnectedTests() {
-    val process = ProcessBuilder("adb", "devices", "-l")
+    val process = ProcessBuilder(resolveAdbExecutable(), "devices", "-l")
         .redirectErrorStream(true)
         .start()
     val adbOutput = process.inputStream.bufferedReader().use { it.readText() }
