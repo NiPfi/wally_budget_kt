@@ -59,6 +59,7 @@ import net.loeu.wallybudget.data.model.ExpenseCategory
 import net.loeu.wallybudget.data.model.ExpenseCycleSection
 import net.loeu.wallybudget.data.model.recordedDate
 import net.loeu.wallybudget.data.model.ExpenseDaySection
+import net.loeu.wallybudget.ui.components.TimelineLockBanner
 import net.loeu.wallybudget.ui.screens.expenses.ExpenseItem
 import net.loeu.wallybudget.ui.screens.home.AddExpenseSheet
 import net.loeu.wallybudget.util.CurrencyFormatter
@@ -80,7 +81,9 @@ fun HistoryScreen(
     onDeleteExpense: (Expense) -> Unit,
     onNavigateToSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
-    embedded: Boolean = false
+    embedded: Boolean = false,
+    interactionsEnabled: Boolean = true,
+    timelineLockReason: String? = null
 ) {
     val isCompact = !currentWindowAdaptiveInfo().windowSizeClass
         .isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND)
@@ -101,6 +104,13 @@ fun HistoryScreen(
     var expenseBeingEdited by remember { mutableStateOf<Expense?>(null) }
     var isAddSheetVisible by remember { mutableStateOf(false) }
 
+    LaunchedEffect(interactionsEnabled) {
+        if (!interactionsEnabled) {
+            expenseBeingEdited = null
+            isAddSheetVisible = false
+        }
+    }
+
     LaunchedEffect(pagerState.currentPage, compactPagerSections.size) {
         val currentCyclePage = compactPagerSections.lastIndex
         if (compactPagerSections.size > 1 && pagerState.currentPage != currentCyclePage) {
@@ -113,98 +123,112 @@ fun HistoryScreen(
         contentWindowInsets = if (embedded) WindowInsets() else ScaffoldDefaults.contentWindowInsets,
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
-        if (historySections.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No cycle data yet.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (!embedded && timelineLockReason != null) {
+                TimelineLockBanner(
+                    reason = timelineLockReason,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                 )
             }
-        } else if (!embedded && isCompact) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                if (onNavigateToSettings != null) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        IconButton(onClick = onNavigateToSettings) {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = "Settings"
-                            )
-                        }
-                    }
-                }
-                CyclePagerIndicator(
-                    pageCount = compactPagerSections.size,
-                    currentPage = pagerState.currentPage,
-                    showSwipeHint = showInitialSwipeHint
-                )
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize()
-                ) { page ->
-                    CycleLedgerPage(
-                        section = compactPagerSections[page],
-                        onEditExpense = { expenseBeingEdited = it },
-                        onAddExpenseForDate = { date ->
-                            selectedDateEpochDay.longValue = date.toEpochDay()
-                            isAddSheetVisible = true
-                        }
+
+            if (historySections.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No cycle data yet.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            }
-        } else {
-            val sectionsToShow = if (embedded) historySections.take(1) else historySections
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            ) {
-                LazyColumn(
+            } else if (!embedded && isCompact) {
+                Column(
                     modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .widthIn(max = if (embedded) 560.dp else 760.dp)
-                        .fillMaxWidth(),
-                    contentPadding = PaddingValues(
-                        start = 16.dp,
-                        end = 16.dp,
-                        top = if (embedded) 8.dp else 14.dp,
-                        bottom = 28.dp
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(18.dp)
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    sectionsToShow.forEach { section ->
-                        if (!embedded) {
-                            stickyHeader(key = "cycle-${section.title}") {
-                                CycleHeader(section = section)
+                    if (onNavigateToSettings != null) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            IconButton(onClick = onNavigateToSettings) {
+                                Icon(
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = "Settings"
+                                )
                             }
                         }
-                        items(
-                            items = section.daySections,
-                            key = { daySection -> "${section.title}-${daySection.date.toEpochDay()}" }
-                        ) { daySection ->
-                            LedgerDaySection(
-                                daySection = daySection,
-                                onEditExpense = { expenseBeingEdited = it },
-                                onAddExpenseForDate = { date ->
-                                    selectedDateEpochDay.longValue = date.toEpochDay()
-                                    isAddSheetVisible = true
+                    }
+                    CyclePagerIndicator(
+                        pageCount = compactPagerSections.size,
+                        currentPage = pagerState.currentPage,
+                        showSwipeHint = showInitialSwipeHint
+                    )
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize()
+                    ) { page ->
+                        CycleLedgerPage(
+                            section = compactPagerSections[page],
+                            onEditExpense = { expenseBeingEdited = it },
+                            onAddExpenseForDate = { date ->
+                                selectedDateEpochDay.longValue = date.toEpochDay()
+                                isAddSheetVisible = true
+                            }
+                        )
+                    }
+                }
+            } else {
+                val sectionsToShow = if (embedded) historySections.take(1) else historySections
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .widthIn(max = if (embedded) 560.dp else 760.dp)
+                            .fillMaxWidth(),
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            end = 16.dp,
+                            top = if (embedded) 8.dp else 14.dp,
+                            bottom = 28.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(18.dp)
+                    ) {
+                        sectionsToShow.forEach { section ->
+                            if (!embedded) {
+                                stickyHeader(key = "cycle-${section.title}") {
+                                    CycleHeader(section = section)
                                 }
-                            )
+                            }
+                            items(
+                                items = section.daySections,
+                                key = { daySection -> "${section.title}-${daySection.date.toEpochDay()}" }
+                            ) { daySection ->
+                                LedgerDaySection(
+                                    daySection = daySection,
+                                    onEditExpense = { expenseBeingEdited = it },
+                                    onAddExpenseForDate = { date ->
+                                        selectedDateEpochDay.longValue = date.toEpochDay()
+                                        isAddSheetVisible = true
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -212,7 +236,7 @@ fun HistoryScreen(
         }
     }
 
-    if (isAddSheetVisible) {
+    if (isAddSheetVisible && interactionsEnabled) {
         val selectedDate = LocalDate.ofEpochDay(selectedDateEpochDay.longValue)
         AddExpenseSheet(
             onDismiss = { isAddSheetVisible = false },
@@ -226,7 +250,7 @@ fun HistoryScreen(
         )
     }
 
-    expenseBeingEdited?.let { editingExpense ->
+    expenseBeingEdited?.takeIf { interactionsEnabled }?.let { editingExpense ->
         AddExpenseSheet(
             onDismiss = { expenseBeingEdited = null },
             onSubmitExpense = { amountCents, description, icon ->
