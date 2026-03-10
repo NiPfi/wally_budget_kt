@@ -6,7 +6,6 @@ package net.loeu.wallybudget.domain.model
 data class UserSettings(
     val monthlyBudgetCents: Long = 0L,
     val paydayDate: Int = 1, // Day of month (1-31)
-    val forecastSensitivityPercent: Int = 60,
     val lastResetTimestamp: Long = 0L,
     val lastSeenDate: String? = null,
     val isOnboardingCompleted: Boolean = false,
