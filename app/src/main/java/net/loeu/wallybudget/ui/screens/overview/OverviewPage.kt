@@ -21,6 +21,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.Modifier
@@ -43,6 +44,7 @@ import net.loeu.wallybudget.domain.config.ForecastConfig
 import net.loeu.wallybudget.ui.calculateAvailableRecoverableOverspendCentsFromForecast
 import net.loeu.wallybudget.ui.calculateSafeToSpendNowCents
 import net.loeu.wallybudget.util.CurrencyFormatter
+import kotlin.math.roundToInt
 
 @Composable
 fun OverviewPage(
@@ -233,7 +235,11 @@ fun OverviewPage(
         )
     }
 
-    SubcomposeLayout(modifier = modifier.nestedScroll(nestedScrollConnection)) { constraints ->
+    SubcomposeLayout(
+        modifier = modifier
+            .nestedScroll(nestedScrollConnection)
+            .clipToBounds()
+    ) { constraints ->
         val horizontalPaddingPx = with(density) { headerHorizontalPadding.roundToPx() }
         val topPaddingPx = with(density) { headerTopPadding.roundToPx() }
         val bottomSpacingPx = with(density) { headerBottomSpacing.roundToPx() }
@@ -249,6 +255,7 @@ fun OverviewPage(
                 recoverableOverspendCents = availableRecoverableOverspendCents,
                 collapseProgress = 0f,
                 isLoading = isLoading,
+                animateCounters = false,
                 useWarningTint = useWarningTint,
                 onSafeTodayInfoClick = { showSafeTodayDetails.value = true },
                 onNavigateToSettings = onNavigateToSettings,
@@ -262,6 +269,7 @@ fun OverviewPage(
                 recoverableOverspendCents = availableRecoverableOverspendCents,
                 collapseProgress = 1f,
                 isLoading = isLoading,
+                animateCounters = false,
                 useWarningTint = useWarningTint,
                 onSafeTodayInfoClick = { showSafeTodayDetails.value = true },
                 onNavigateToSettings = onNavigateToSettings,
@@ -276,15 +284,12 @@ fun OverviewPage(
         }
         maxCollapseRangePx.value = maxCollapsePx
 
+        val clampedCollapseOffsetPx = collapseOffsetPx.coerceIn(0f, maxCollapsePx)
         val collapseProgress = if (maxCollapsePx == 0f) {
             0f
         } else {
-            (collapseOffsetPx.coerceIn(0f, maxCollapsePx) / maxCollapsePx).coerceIn(0f, 1f)
+            (clampedCollapseOffsetPx / maxCollapsePx).coerceIn(0f, 1f)
         }
-        val currentHeaderHeightPx = (
-            expandedHeaderHeightPx +
-                ((collapsedHeaderHeightPx - expandedHeaderHeightPx) * collapseProgress)
-            ).toInt()
 
         val contentPlaceables = subcompose("content") {
             LazyColumn(
@@ -292,7 +297,7 @@ fun OverviewPage(
                 state = listState,
                 contentPadding = PaddingValues(
                     top = with(density) {
-                        (currentHeaderHeightPx + topPaddingPx + bottomSpacingPx).toDp()
+                        (expandedHeaderHeightPx + topPaddingPx + bottomSpacingPx).toDp()
                     },
                     bottom = bottomContentPadding
                 ),
@@ -333,6 +338,7 @@ fun OverviewPage(
                 recoverableOverspendCents = availableRecoverableOverspendCents,
                 collapseProgress = collapseProgress,
                 isLoading = isLoading,
+                animateCounters = true,
                 useWarningTint = useWarningTint,
                 tagSecondaryMetrics = true,
                 onSafeTodayInfoClick = { showSafeTodayDetails.value = true },
@@ -344,7 +350,8 @@ fun OverviewPage(
         }.map { it.measure(headerConstraints) }
 
         layout(constraints.maxWidth, constraints.maxHeight) {
-            contentPlaceables.forEach { it.placeRelative(0, 0) }
+            val contentOffsetY = -clampedCollapseOffsetPx.roundToInt()
+            contentPlaceables.forEach { it.placeRelative(0, contentOffsetY) }
             headerPlaceables.forEach { it.placeRelative(horizontalPaddingPx, topPaddingPx) }
         }
     }

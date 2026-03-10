@@ -40,6 +40,7 @@ fun SummaryCard(
     recoverableOverspendCents: Long = 0L,
     collapseProgress: Float,
     isLoading: Boolean = false,
+    animateCounters: Boolean = true,
     useWarningTint: Boolean = false,
     tagSecondaryMetrics: Boolean = false,
     onSafeTodayInfoClick: (() -> Unit)? = null,
@@ -113,6 +114,8 @@ fun SummaryCard(
                             } else {
                                 MaterialTheme.colorScheme.error
                             },
+                            animate = animateCounters,
+                            animateOnFirstResolvedValue = animateCounters,
                             textAlign = TextAlign.Start,
                             placeholder = isLoading,
                             placeholderText = "$8,888"
@@ -193,7 +196,8 @@ fun SummaryCard(
                                 fontWeight = FontWeight.Bold
                             ),
                             color = contentColor,
-                            animate = true,
+                            animate = animateCounters,
+                            animateOnFirstResolvedValue = animateCounters,
                             placeholder = isLoading,
                             placeholderText = "88"
                         )
@@ -229,7 +233,8 @@ fun SummaryCard(
                             fontWeight = FontWeight.Bold
                         ),
                         color = contentColor,
-                        animate = false,
+                        animate = animateCounters,
+                        animateOnFirstResolvedValue = animateCounters,
                         placeholder = isLoading,
                         placeholderText = "$8,888"
                     )
@@ -246,7 +251,8 @@ fun SummaryCard(
                             fontWeight = FontWeight.Bold
                         ),
                         color = contentColor,
-                        animate = false,
+                        animate = animateCounters,
+                        animateOnFirstResolvedValue = animateCounters,
                         placeholder = isLoading,
                         placeholderText = "88"
                     )
@@ -262,7 +268,8 @@ fun SummaryCard(
                             fontWeight = FontWeight.Bold
                         ),
                         color = contentColor,
-                        animate = false,
+                        animate = animateCounters,
+                        animateOnFirstResolvedValue = animateCounters,
                         placeholder = isLoading,
                         placeholderText = "$888"
                     )
