@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -16,6 +17,8 @@ import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.ExpenseCycleSection
 import net.loeu.wallybudget.domain.model.ExpenseDaySection
+import net.loeu.wallybudget.domain.model.HistoryState
+import net.loeu.wallybudget.domain.model.HomeOverviewState
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
 import net.loeu.wallybudget.domain.model.SpendingForecast
@@ -56,8 +59,19 @@ class BudgetViewModel(
 ) : ViewModel() {
 
     val userSettingsFlow: Flow<UserSettings> = upstreamUserSettingsFlow
-    private val homeOverviewFlow = observeHomeOverviewUseCase()
-    private val historyStateFlow = observeHistoryUseCase(homeOverviewFlow)
+    private val homeOverviewState: StateFlow<HomeOverviewState?> = observeHomeOverviewUseCase()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
+    private val historyState: StateFlow<HistoryState?> = observeHistoryUseCase(
+        homeOverviewState.filterNotNull()
+    ).stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = null
+    )
 
     // User settings
     val userSettings: StateFlow<UserSettings> = userSettingsFlow
@@ -67,8 +81,8 @@ class BudgetViewModel(
             initialValue = UserSettings()
         )
 
-    val effectiveCurrentDate: StateFlow<LocalDate> = homeOverviewFlow
-        .map { it.effectiveCurrentDate }
+    val effectiveCurrentDate: StateFlow<LocalDate> = homeOverviewState
+        .map { it?.effectiveCurrentDate ?: currentDateProvider.currentDate() }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -76,8 +90,8 @@ class BudgetViewModel(
         )
 
     // Budget state
-    val budgetState: StateFlow<BudgetState?> = homeOverviewFlow
-        .map { it.budgetState }
+    val budgetState: StateFlow<BudgetState?> = homeOverviewState
+        .map { it?.budgetState }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -85,16 +99,16 @@ class BudgetViewModel(
         )
 
     // Today's expenses
-    val todayExpenses: StateFlow<List<Expense>> = homeOverviewFlow
-        .map { it.todayExpenses }
+    val todayExpenses: StateFlow<List<Expense>> = homeOverviewState
+        .map { it?.todayExpenses ?: emptyList() }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
 
-    val activeCycleExpenseSections: StateFlow<List<ExpenseDaySection>> = homeOverviewFlow
-        .map { it.activeCycleExpenseSections }
+    val activeCycleExpenseSections: StateFlow<List<ExpenseDaySection>> = homeOverviewState
+        .map { it?.activeCycleExpenseSections ?: emptyList() }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -102,8 +116,8 @@ class BudgetViewModel(
         )
 
     // Monthly history
-    val monthlyHistory: StateFlow<List<MonthlyHistory>?> = historyStateFlow
-        .map { it.monthlyHistory }
+    val monthlyHistory: StateFlow<List<MonthlyHistory>?> = historyState
+        .map { it?.monthlyHistory }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -117,24 +131,24 @@ class BudgetViewModel(
             initialValue = null
         )
 
-    val historySections: StateFlow<List<ExpenseCycleSection>> = historyStateFlow
-        .map { it.historySections }
+    val historySections: StateFlow<List<ExpenseCycleSection>> = historyState
+        .map { it?.historySections ?: emptyList() }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
 
-    val pendingCycleCloseoutState: StateFlow<PendingCycleCloseoutState?> = homeOverviewFlow
-        .map { it.pendingCycleCloseoutState }
+    val pendingCycleCloseoutState: StateFlow<PendingCycleCloseoutState?> = homeOverviewState
+        .map { it?.pendingCycleCloseoutState }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = null
         )
 
-    val timelineLockState: StateFlow<TimelineLockState> = homeOverviewFlow
-        .map { it.timelineLockState }
+    val timelineLockState: StateFlow<TimelineLockState> = homeOverviewState
+        .map { it?.timelineLockState ?: TimelineLockState() }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
