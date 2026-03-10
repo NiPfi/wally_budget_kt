@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -33,10 +31,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseDaySection
@@ -191,7 +191,7 @@ fun OverviewPage(
             },
             icon = {
                 androidx.compose.material3.Icon(
-                    imageVector = Icons.Default.Info,
+                    painter = painterResource(R.drawable.ic_info),
                     contentDescription = null
                 )
             }
@@ -242,7 +242,7 @@ fun OverviewPage(
             },
             icon = {
                 androidx.compose.material3.Icon(
-                    imageVector = Icons.Default.Info,
+                    painter = painterResource(R.drawable.ic_info),
                     contentDescription = null
                 )
             }

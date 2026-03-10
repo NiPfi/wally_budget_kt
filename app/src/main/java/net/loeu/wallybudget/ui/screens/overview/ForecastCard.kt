@@ -6,15 +6,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.platform.testTag
@@ -22,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.config.ForecastConfig
@@ -63,9 +62,9 @@ fun ForecastCard(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val indicatorIcon = if (isLoading || !isLowConfidence) {
-                    Icons.Default.Info
+                    R.drawable.ic_info
                 } else {
-                    Icons.Default.Warning
+                    R.drawable.ic_warning
                 }
                 val indicatorTint = when {
                     isLoading -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
@@ -73,7 +72,7 @@ fun ForecastCard(
                     else -> MaterialTheme.colorScheme.primary
                 }
                 Icon(
-                    imageVector = indicatorIcon,
+                    painter = painterResource(indicatorIcon),
                     contentDescription = null,
                     tint = indicatorTint
                 )

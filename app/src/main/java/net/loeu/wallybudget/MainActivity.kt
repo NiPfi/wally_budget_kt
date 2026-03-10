@@ -8,11 +8,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoGraph
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +23,7 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.flow.StateFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.navigation.compose.NavHost
@@ -67,6 +63,8 @@ import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.model.recordedDate
+
+private const val HomeNavigationLabel = "Overview"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -251,8 +249,13 @@ private fun MainNavigationShell(
                                 restoreState = true
                             }
                         },
-                        icon = { Icon(Icons.Default.Home, contentDescription = null) },
-                        label = { Text("Home") }
+                        icon = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_dashboard),
+                                contentDescription = null
+                            )
+                        },
+                        label = { Text(HomeNavigationLabel) }
                     )
                     MainNavigationItem(
                         selected = currentRoute == Screen.Analysis.route,
@@ -263,7 +266,12 @@ private fun MainNavigationShell(
                                 restoreState = true
                             }
                         },
-                        icon = { Icon(Icons.Default.AutoGraph, contentDescription = null) },
+                        icon = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_analytics),
+                                contentDescription = null
+                            )
+                        },
                         label = { Text("Analysis") }
                     )
                     MainNavigationItem(
@@ -275,7 +283,12 @@ private fun MainNavigationShell(
                                 restoreState = true
                             }
                         },
-                        icon = { Icon(Icons.Default.History, contentDescription = null) },
+                        icon = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_history),
+                                contentDescription = null
+                            )
+                        },
                         label = { Text("History") }
                     )
                 }
@@ -288,7 +301,12 @@ private fun MainNavigationShell(
                             restoreState = true
                         }
                     },
-                    icon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                    icon = {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_settings),
+                            contentDescription = null
+                        )
+                    },
                     label = { Text("Settings") }
                 )
             } else {
@@ -301,8 +319,13 @@ private fun MainNavigationShell(
                             restoreState = true
                         }
                     },
-                    icon = { Icon(Icons.Default.Home, contentDescription = null) },
-                    label = { Text("Home") }
+                    icon = {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_dashboard),
+                            contentDescription = null
+                        )
+                    },
+                    label = { Text(HomeNavigationLabel) }
                 )
                 MainNavigationItem(
                     selected = currentRoute == Screen.Analysis.route,
@@ -313,7 +336,12 @@ private fun MainNavigationShell(
                             restoreState = true
                         }
                     },
-                    icon = { Icon(Icons.Default.AutoGraph, contentDescription = null) },
+                    icon = {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_analytics),
+                            contentDescription = null
+                        )
+                    },
                     label = { Text("Analysis") }
                 )
                 MainNavigationItem(
@@ -325,7 +353,12 @@ private fun MainNavigationShell(
                             restoreState = true
                         }
                     },
-                    icon = { Icon(Icons.Default.History, contentDescription = null) },
+                    icon = {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_history),
+                            contentDescription = null
+                        )
+                    },
                     label = { Text("History") }
                 )
             }

@@ -8,9 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -25,11 +22,13 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
+import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.util.CurrencyFormatter
 import kotlin.math.roundToInt
@@ -146,7 +145,7 @@ fun SummaryCard(
                                     placeholderText = "+ $888"
                                 )
                                 Icon(
-                                    imageVector = Icons.Default.Info,
+                                    painter = painterResource(R.drawable.ic_info),
                                     contentDescription = "Safe today details",
                                     tint = contentColor.copy(alpha = if (isLoading) 0.32f else 0.72f),
                                     modifier = Modifier
@@ -170,7 +169,7 @@ fun SummaryCard(
                             }
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Settings,
+                                painter = painterResource(R.drawable.ic_settings),
                                 contentDescription = "Settings",
                                 tint = contentColor
                             )
