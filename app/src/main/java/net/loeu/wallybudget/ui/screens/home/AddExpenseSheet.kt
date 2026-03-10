@@ -5,9 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,6 +13,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.description
 import net.loeu.wallybudget.domain.model.iconRes
@@ -73,7 +71,7 @@ fun AddExpenseSheet(
                 if (onDeleteExpense != null) {
                     IconButton(onClick = onDeleteExpense) {
                         Icon(
-                            imageVector = Icons.Default.Delete,
+                            painter = painterResource(R.drawable.ic_delete),
                             contentDescription = "Delete expense",
                             tint = MaterialTheme.colorScheme.error
                         )
@@ -81,7 +79,7 @@ fun AddExpenseSheet(
                 } else {
                     IconButton(onClick = onDismiss) {
                         Icon(
-                            imageVector = Icons.Default.Close,
+                            painter = painterResource(R.drawable.ic_close),
                             contentDescription = "Close"
                         )
                     }

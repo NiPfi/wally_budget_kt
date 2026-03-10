@@ -2,13 +2,13 @@ package net.loeu.wallybudget.ui.screens.settings
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.util.CurrencyFormatter
 
@@ -43,7 +43,7 @@ fun SettingsScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            painter = painterResource(R.drawable.ic_arrow_back),
                             contentDescription = "Back"
                         )
                     }

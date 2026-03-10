@@ -1,0 +1,23 @@
+config:
+  validation: true
+  warningsAsErrors: false
+
+naming:
+  FunctionNaming:
+    ignoreAnnotated:
+      - "Composable"
+  TopLevelPropertyNaming:
+    constantPattern: "[A-Z][_A-Z0-9]*"
+
+complexity:
+  LongParameterList:
+    ignoreDefaultParameters: true
+
+style:
+  ForbiddenImport:
+    active: true
+    forbiddenImports:
+      - "androidx.compose.material.icons.**"
+  MagicNumber:
+    ignorePropertyDeclaration: true
+    ignoreCompanionObjectPropertyDeclaration: true

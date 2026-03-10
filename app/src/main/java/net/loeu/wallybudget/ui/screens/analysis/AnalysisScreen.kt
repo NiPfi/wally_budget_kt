@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -27,11 +25,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass.Companion.WIDTH_DP_MEDIUM_LOWER_BOUND
+import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.SpendingForecast
@@ -131,7 +131,7 @@ private fun HeaderRow(
         if (onNavigateToSettings != null) {
             IconButton(onClick = onNavigateToSettings) {
                 Icon(
-                    imageVector = Icons.Default.Settings,
+                    painter = painterResource(R.drawable.ic_settings),
                     contentDescription = "Open settings"
                 )
             }

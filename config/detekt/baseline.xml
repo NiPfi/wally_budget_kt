@@ -1,0 +1,174 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ComplexCondition:OnboardingScreen.kt:budgetCents != null &amp;&amp; budgetCents &gt; 0L &amp;&amp; payday != null &amp;&amp; payday in 1..31</ID>
+    <ID>ConstructorParameterNaming:ExpenseCategory.kt:ExpenseCategory$@get:DrawableRes private val _iconRes: Int</ID>
+    <ID>ConstructorParameterNaming:ExpenseCategory.kt:ExpenseCategory$private val _description: String</ID>
+    <ID>CyclomaticComplexMethod:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$fun create: AnalysisSnapshot</ID>
+    <ID>CyclomaticComplexMethod:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$private fun buildRecommendations: List&lt;AnalysisRecommendation&gt;</ID>
+    <ID>CyclomaticComplexMethod:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$private fun summary: String</ID>
+    <ID>CyclomaticComplexMethod:AnimatedCounter.kt:@Composable private fun AnimatedValueText</ID>
+    <ID>CyclomaticComplexMethod:HistoryScreen.kt:@OptIn( ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class, ExperimentalFoundationApi::class ) @Composable fun HistoryScreen</ID>
+    <ID>CyclomaticComplexMethod:HomeScreen.kt:@OptIn(ExperimentalMaterial3AdaptiveApi::class) @Composable fun HomeScreen</ID>
+    <ID>CyclomaticComplexMethod:OverviewPage.kt:@Composable fun OverviewPage</ID>
+    <ID>CyclomaticComplexMethod:SpendingForecastCalculator.kt:SpendingForecastCalculator$fun forecastMonthlySpending: SpendingForecast</ID>
+    <ID>LongMethod:AddExpenseSheet.kt:@OptIn(ExperimentalMaterial3Api::class) @Composable fun AddExpenseSheet</ID>
+    <ID>LongMethod:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$fun create: AnalysisSnapshot</ID>
+    <ID>LongMethod:AnimatedCounter.kt:@Composable private fun AnimatedValueText</ID>
+    <ID>LongMethod:CycleCloseoutScreen.kt:@Composable fun CycleCloseoutScreen</ID>
+    <ID>LongMethod:ForecastCard.kt:@Composable fun ForecastCard</ID>
+    <ID>LongMethod:ForecastRangeIndicator.kt:@Composable fun ForecastRangeIndicator</ID>
+    <ID>LongMethod:ForecastRangeIndicator.kt:@Composable private fun ForecastRangeIndicatorPlaceholder</ID>
+    <ID>LongMethod:HistoryScreen.kt:@OptIn( ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class, ExperimentalFoundationApi::class ) @Composable fun HistoryScreen</ID>
+    <ID>LongMethod:HomeScreen.kt:@OptIn(ExperimentalMaterial3AdaptiveApi::class) @Composable fun HomeScreen</ID>
+    <ID>LongMethod:MainActivity.kt:@Composable fun BudgetApp</ID>
+    <ID>LongMethod:MainActivity.kt:@Composable private fun PendingCycleFlow</ID>
+    <ID>LongMethod:MainActivity.kt:@OptIn(ExperimentalMaterial3AdaptiveApi::class) @Composable private fun MainNavigationShell</ID>
+    <ID>LongMethod:ObserveForecastUseCase.kt:ObserveForecastUseCase$@OptIn(ExperimentalCoroutinesApi::class) operator fun invoke: Flow&lt;SpendingForecast&gt;</ID>
+    <ID>LongMethod:ObserveHistoryUseCase.kt:ObserveHistoryUseCase$private fun buildHistorySections: List&lt;ExpenseCycleSection&gt;</ID>
+    <ID>LongMethod:ObserveHomeOverviewUseCase.kt:ObserveHomeOverviewUseCase$@OptIn(ExperimentalCoroutinesApi::class) operator fun invoke: Flow&lt;HomeOverviewState&gt;</ID>
+    <ID>LongMethod:OnboardingScreen.kt:@Composable fun OnboardingScreen</ID>
+    <ID>LongMethod:OverviewPage.kt:@Composable fun OverviewPage</ID>
+    <ID>LongMethod:PerformMonthlyResetUseCase.kt:PerformMonthlyResetUseCase$suspend operator fun invoke</ID>
+    <ID>LongMethod:SettingsScreen.kt:@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen</ID>
+    <ID>LongMethod:SpendingDetailsCard.kt:@Composable fun SpendingDetailsCard</ID>
+    <ID>LongMethod:SpendingForecastCalculator.kt:SpendingForecastCalculator$fun forecastMonthlySpending: SpendingForecast</ID>
+    <ID>LongMethod:SpendingTodayPane.kt:@Composable private fun TodayExpensesSection</ID>
+    <ID>LongMethod:SummaryCard.kt:@Composable fun SummaryCard</ID>
+    <ID>MagicNumber:AddExpenseSheet.kt:4</ID>
+    <ID>MagicNumber:AnalysisScreen.kt:3</ID>
+    <ID>MagicNumber:AnalysisScreen.kt:4</ID>
+    <ID>MagicNumber:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$0.10</ID>
+    <ID>MagicNumber:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$0.25</ID>
+    <ID>MagicNumber:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$0.45</ID>
+    <ID>MagicNumber:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$0.55</ID>
+    <ID>MagicNumber:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$0.70</ID>
+    <ID>MagicNumber:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$10</ID>
+    <ID>MagicNumber:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$1_000L</ID>
+    <ID>MagicNumber:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$3</ID>
+    <ID>MagicNumber:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$5</ID>
+    <ID>MagicNumber:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$500L</ID>
+    <ID>MagicNumber:AnimatedCounter.kt:0.92f</ID>
+    <ID>MagicNumber:BudgetCalculationService.kt:BudgetCalculationService$31</ID>
+    <ID>MagicNumber:BudgetUseCaseSupport.kt:0.85</ID>
+    <ID>MagicNumber:BudgetUseCaseSupport.kt:1.15</ID>
+    <ID>MagicNumber:CurrencyFormatter.kt:CurrencyFormatter$100.0</ID>
+    <ID>MagicNumber:ForecastRangeIndicator.kt:0.25</ID>
+    <ID>MagicNumber:ForecastRangeIndicator.kt:10</ID>
+    <ID>MagicNumber:ForecastRangeIndicator.kt:12</ID>
+    <ID>MagicNumber:ForecastRangeIndicator.kt:20</ID>
+    <ID>MagicNumber:ForecastRangeIndicator.kt:24</ID>
+    <ID>MagicNumber:ForecastRangeIndicator.kt:6</ID>
+    <ID>MagicNumber:HistoryScreen.kt:5000</ID>
+    <ID>MagicNumber:HomeScreen.kt:0.92f</ID>
+    <ID>MagicNumber:HomeScreen.kt:1.08f</ID>
+    <ID>MagicNumber:HomeScreen.kt:5000</ID>
+    <ID>MagicNumber:LoadingPlaceholder.kt:0.18f</ID>
+    <ID>MagicNumber:LoadingPlaceholder.kt:0.22f</ID>
+    <ID>MagicNumber:LoadingPlaceholder.kt:0.35f</ID>
+    <ID>MagicNumber:LoadingPlaceholder.kt:0.3f</ID>
+    <ID>MagicNumber:LoadingPlaceholder.kt:0.5f</ID>
+    <ID>MagicNumber:MainActivity.kt:18</ID>
+    <ID>MagicNumber:MonthlyHistory.kt:MonthlyHistory$3</ID>
+    <ID>MagicNumber:OverviewPage.kt:100</ID>
+    <ID>MagicNumber:SettingsFormValidation.kt:31</ID>
+    <ID>MagicNumber:SpendingForecastCalculator.kt:SpendingForecastCalculator$0.10</ID>
+    <ID>MagicNumber:SpendingForecastCalculator.kt:SpendingForecastCalculator$0.20</ID>
+    <ID>MagicNumber:SpendingForecastCalculator.kt:SpendingForecastCalculator$0.25</ID>
+    <ID>MagicNumber:SpendingForecastCalculator.kt:SpendingForecastCalculator$0.35</ID>
+    <ID>MagicNumber:SpendingForecastCalculator.kt:SpendingForecastCalculator$0.40</ID>
+    <ID>MagicNumber:SpendingForecastCalculator.kt:SpendingForecastCalculator$0.55</ID>
+    <ID>MagicNumber:SpendingForecastCalculator.kt:SpendingForecastCalculator$0.7</ID>
+    <ID>MagicNumber:SpendingForecastCalculator.kt:SpendingForecastCalculator$0.70</ID>
+    <ID>MagicNumber:SpendingForecastCalculator.kt:SpendingForecastCalculator$0.75</ID>
+    <ID>MagicNumber:SpendingForecastCalculator.kt:SpendingForecastCalculator$0.85</ID>
+    <ID>MagicNumber:SpendingForecastCalculator.kt:SpendingForecastCalculator$1.96</ID>
+    <ID>MagicNumber:SpendingForecastCalculator.kt:SpendingForecastCalculator$10.0</ID>
+    <ID>MagicNumber:SpendingForecastCalculator.kt:SpendingForecastCalculator$1e-10</ID>
+    <ID>MagicNumber:SpendingForecastCalculator.kt:SpendingForecastCalculator$200</ID>
+    <ID>MagicNumber:SpendingForecastCalculator.kt:SpendingForecastCalculator$30.0</ID>
+    <ID>MagicNumber:SpendingTodayPane.kt:3</ID>
+    <ID>MagicNumber:SpendingTodayPane.kt:4</ID>
+    <ID>MagicNumber:SummaryCard.kt:0.72f</ID>
+    <ID>MagicNumber:SummaryCard.kt:1.35f</ID>
+    <ID>MagicNumber:SummaryCard.kt:1.5f</ID>
+    <ID>MatchingDeclarationName:BudgetUseCaseSupport.kt:CycleRange</ID>
+    <ID>MatchingDeclarationName:SettingsFormValidation.kt:SettingsFormValidationResult</ID>
+    <ID>MaxLineLength:AnalysisScreen.kt:sampleText = "Confidence is moderate. The signal is usable, but the range can still move over the next 3 days."</ID>
+    <ID>MaxLineLength:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$behaviorProfile.smoothedOverspendRate &lt; 0.25 &amp;&amp; behaviorProfile.averageSurplusCents &gt;= 0L</ID>
+    <ID>MaxLineLength:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$detail = "${behaviorProfile.largeOverspendCycles} of last ${behaviorProfile.cycleCount} cycles finished at least this far over budget."</ID>
+    <ID>MaxLineLength:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$detail = "0 of last ${behaviorProfile.cycleCount} cycles finished at least ${CurrencyFormatter.format(behaviorProfile.historicalOverspendThresholdCents)} over budget. Worst miss was ${CurrencyFormatter.format(behaviorProfile.maxOverspendCents)}."</ID>
+    <ID>MaxLineLength:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$detail = "Current projection ends above your ${CurrencyFormatter.format(budgetState.monthlyBudgetCents)} cycle budget."</ID>
+    <ID>MaxLineLength:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$detail = "Only ${behaviorProfile.cycleCount} completed cycle${if (behaviorProfile.cycleCount == 1) "" else "s"} available. Guidance will personalize after 3 completed cycles."</ID>
+    <ID>MaxLineLength:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$detail = "Projected finish leaves ${CurrencyFormatter.format(spendingForecast.estimatedEndCycleRemainingCents.coerceAtLeast(0L))} in the cycle."</ID>
+    <ID>MaxLineLength:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$detail = "Projected pace is ${CurrencyFormatter.format(spendingForecast.projectedDailySpendCents)} against ${CurrencyFormatter.format(budgetState.dailyBudgetCents)} per day."</ID>
+    <ID>MaxLineLength:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$detail = "Projected pace is ${CurrencyFormatter.format(spendingForecast.projectedDailySpendCents)} vs ${CurrencyFormatter.format(budgetState.dailyBudgetCents)} daily budget."</ID>
+    <ID>MaxLineLength:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$else -&gt; "has happened in ${behaviorProfile.largeOverspendCycles} of ${behaviorProfile.cycleCount} recent completed cycles."</ID>
+    <ID>MaxLineLength:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$return "$base Best estimate still leaves ${CurrencyFormatter.format(projectedBufferCents)}, and the budget is only crossed if spending finishes about that much above the current path."</ID>
+    <ID>MaxLineLength:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$return "$base Missing budget would require about ${CurrencyFormatter.format(behaviorProfile.requiredExtraSpendToMissBudgetCents)} more spending than the current projection, which $precedentText"</ID>
+    <ID>MaxLineLength:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$text = "Pull daily pace down by about ${CurrencyFormatter.format(paceGapCents)} to get closer to target."</ID>
+    <ID>MaxLineLength:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$val base = "Forecast range runs from ${CurrencyFormatter.format(spendingForecast.lowerBoundCents)} to ${CurrencyFormatter.format(spendingForecast.upperBoundCents)} total spend by cycle end."</ID>
+    <ID>MaxLineLength:BudgetCalculationService.kt:BudgetCalculationService$val allocatedBeforeTodayCents = ((settings.monthlyBudgetCents.toDouble() * daysBeforeToday) / daysInCycle).roundToLong()</ID>
+    <ID>MaxLineLength:BudgetCalculationService.kt:BudgetCalculationService$val distributedAdjustmentCents = (cycleVarianceBeforeTodayCents.toDouble() / remainingDaysForAdjustment).roundToLong()</ID>
+    <ID>MaxLineLength:BudgetDatabase.kt:BudgetDatabase.Companion.&lt;no name provided&gt;$"CREATE UNIQUE INDEX IF NOT EXISTS `index_monthly_history_year_month` ON `monthly_history` (`year`, `month`)"</ID>
+    <ID>MaxLineLength:CycleCloseoutScreen.kt:text = "${pendingCycle.cycleStartDate.format(DateTimeFormatter.ofPattern("MMM d"))} - ${pendingCycle.cycleEndDateExclusive.minusDays(1).format(DateTimeFormatter.ofPattern("MMM d, yyyy"))}"</ID>
+    <ID>MaxLineLength:CycleCloseoutScreen.kt:text = "Review the ending cycle if you need to correct an expense. Normal Home stays locked until you conclude this cycle."</ID>
+    <ID>MaxLineLength:ExpenseDao.kt:ExpenseDao$@Query("SELECT SUM(amountCents) FROM expenses WHERE expenseDate &gt;= :startDateInclusive AND expenseDate &lt; :endDateExclusive")</ID>
+    <ID>MaxLineLength:ForecastRangeIndicator.kt:val lowerLabelColor = if (lowerBoundCents &gt; budgetLimitCents) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant</ID>
+    <ID>MaxLineLength:ForecastRangeIndicator.kt:val lowerValueColor = if (lowerBoundCents &gt; budgetLimitCents) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface</ID>
+    <ID>MaxLineLength:ForecastRangeIndicator.kt:val projectedColor = if (projectedCents &gt; budgetLimitCents) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface</ID>
+    <ID>MaxLineLength:ForecastRangeIndicator.kt:val upperLabelColor = if (upperBoundCents &gt; budgetLimitCents) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant</ID>
+    <ID>MaxLineLength:ForecastRangeIndicator.kt:val upperValueColor = if (upperBoundCents &gt; budgetLimitCents) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface</ID>
+    <ID>MaxLineLength:HistoryScreen.kt:dateLabel = "Recorded for ${editingExpense.recordedDate().format(DateTimeFormatter.ofPattern("EEEE, MMM d"))}"</ID>
+    <ID>MaxLineLength:HomeScreen.kt:dateLabel = "Recorded for ${editingExpense.recordedDate().format(DateTimeFormatter.ofPattern("EEEE, MMM d"))}"</ID>
+    <ID>MaxLineLength:MainActivity.kt:dateLabel = "Recorded for ${editingExpense.recordedDate().format(DateTimeFormatter.ofPattern("EEEE, MMM d"))}"</ID>
+    <ID>MaxLineLength:ObserveHistoryUseCaseTest.kt:ObserveHistoryUseCaseTest$assertEquals(listOf("Current cycle", "Future-dated expenses", "Feb 25 - Mar 24, 2026", "Jan 25 - Feb 24, 2026"), state.historySections.map { it.title })</ID>
+    <ID>MaxLineLength:OnboardingScreen.kt:onComplete: (monthlyBudgetCents: Long, paydayDate: Int, cycleStartDate: LocalDate, previousExpensesCents: Long) -&gt; Unit</ID>
+    <ID>MaxLineLength:OverviewPage.kt:"Conservative shows a lower-spend path, Projected is the current best estimate, and High pace is a stress case for how the cycle could finish if spending speeds up."</ID>
+    <ID>MaxLineLength:OverviewPage.kt:"It is not free budget. It sits on top of today’s allowance and depends on forecast confidence and days left in the cycle."</ID>
+    <ID>MaxLineLength:OverviewPage.kt:"The + amount next to Today left is recoverable overspend: extra spending the forecast suggests you can still absorb and make back over the remaining cycle days."</ID>
+    <ID>MaxLineLength:OverviewPage.kt:"This projection combines your recent spending pace with prior cycle behavior to estimate where you may finish by cycle end."</ID>
+    <ID>MaxLineLength:OverviewPage.kt:DetailRow("Average daily pace", CurrencyFormatter.format(spendingForecast.dailyAverageWeightedCents))</ID>
+    <ID>MaxLineLength:OverviewPage.kt:DetailRow("Confidence", "${(spendingForecast.confidenceScore * 100).toInt()}% (${spendingForecast.confidenceRating})")</ID>
+    <ID>MaxLineLength:SettingsScreen.kt:var budgetText by remember { mutableStateOf(CurrencyFormatter.centsToDecimalString(userSettings.monthlyBudgetCents)) }</ID>
+    <ID>MaxLineLength:SpendingDetailsCard.kt:"${if (dailyAdjustmentCents &gt;= 0L) "+" else "-"}${net.loeu.wallybudget.util.CurrencyFormatter.format(value)}"</ID>
+    <ID>MaxLineLength:SpendingForecastCalculator.kt:SpendingForecastCalculator$(ForecastConfig.RECOVERABLE_OVERSPEND_TAPER_QUADRATIC_WEIGHT * remainingCycleShare * remainingCycleShare)</ID>
+    <ID>MaxLineLength:SpendingForecastCalculator.kt:SpendingForecastCalculator$trend.slope * trendWeight * ForecastConfig.TREND_DAMPENING_FACTOR * daysRemaining * (daysRemaining + 1) / 2.0</ID>
+    <ID>NewLineAtEndOfFile:ExampleUnitTest.kt:net.loeu.wallybudget.ExampleUnitTest.kt</ID>
+    <ID>NewLineAtEndOfFile:ExpenseEntryDatePolicyTest.kt:net.loeu.wallybudget.ui.viewmodel.ExpenseEntryDatePolicyTest.kt</ID>
+    <ID>NewLineAtEndOfFile:Type.kt:net.loeu.wallybudget.ui.theme.Type.kt</ID>
+    <ID>ReturnCount:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$private fun adjustedForecastRiskPoints: Int</ID>
+    <ID>ReturnCount:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$private fun behaviorEvidence: AnalysisEvidenceItem?</ID>
+    <ID>ReturnCount:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$private fun behaviorRiskPoints: Int</ID>
+    <ID>ReturnCount:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory$private fun rangeExplanation: String</ID>
+    <ID>ReturnCount:BudgetUseCaseSupport.kt:internal fun UserSettings.pendingCycleRangeOrNull: CycleRange?</ID>
+    <ID>ReturnCount:ObservedDatePolicy.kt:ObservedDatePolicy$fun shouldPersist: Boolean</ID>
+    <ID>ReturnCount:OverviewPage.kt:private fun consumeHeaderScroll: Offset</ID>
+    <ID>ReturnCount:PerformMonthlyResetUseCase.kt:PerformMonthlyResetUseCase$private suspend fun recoverMissingPendingCycle: CycleRange?</ID>
+    <ID>ReturnCount:SpendingForecastCalculator.kt:SpendingForecastCalculator$fun calculateWeightedTrend: TrendData</ID>
+    <ID>ReturnCount:SpendingForecastCalculator.kt:SpendingForecastCalculator$fun prepareAndCleanData: DataPrep</ID>
+    <ID>ReturnCount:SpendingForecastCalculator.kt:SpendingForecastCalculator$private fun calculatePercentile: Double</ID>
+    <ID>ReturnCount:SpendingForecastCalculator.kt:SpendingForecastCalculator$private fun detectOutliers: DataPrep.OutliersDetected?</ID>
+    <ID>TooGenericExceptionCaught:Expense.kt:exception: Exception</ID>
+    <ID>TooManyFunctions:AnalysisScreen.kt:net.loeu.wallybudget.ui.screens.analysis.AnalysisScreen.kt</ID>
+    <ID>TooManyFunctions:AnalysisSnapshotFactory.kt:AnalysisSnapshotFactory</ID>
+    <ID>TooManyFunctions:BudgetUseCaseSupport.kt:net.loeu.wallybudget.domain.usecase.internal.BudgetUseCaseSupport.kt</ID>
+    <ID>TooManyFunctions:BudgetViewModel.kt:BudgetViewModel : ViewModel</ID>
+    <ID>TopLevelPropertyNaming:AnimatedCounter.kt:private const val CHARACTER_REMOVAL_DELAY_MS = 180L</ID>
+    <ID>TopLevelPropertyNaming:AnimatedCounter.kt:private const val DIGIT_ROLL_DURATION_MS = 240</ID>
+    <ID>TopLevelPropertyNaming:AnimatedCounter.kt:private const val DIGIT_STAGGER_MS = 35</ID>
+    <ID>TopLevelPropertyNaming:ForecastRangeIndicator.kt:private const val MIN_VISUALIZATION_RANGE_CENTS = 100L</ID>
+    <ID>WildcardImport:AddExpenseSheet.kt:import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:AddExpenseSheet.kt:import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:AddExpenseSheet.kt:import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:ExampleUnitTest.kt:import org.junit.Assert.*</ID>
+    <ID>WildcardImport:ExpenseItem.kt:import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:OnboardingScreen.kt:import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:OnboardingScreen.kt:import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:OnboardingScreen.kt:import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:SettingsScreen.kt:import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:SettingsScreen.kt:import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:SettingsScreen.kt:import androidx.compose.runtime.*</ID>
+  </CurrentIssues>
+</SmellBaseline>
