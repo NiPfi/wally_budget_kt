@@ -283,7 +283,8 @@ class SpendingForecastCalculator {
         // Trend is also dampened by confidence to avoid wild swings on noisy data.
         val projectedRemainingCents = (
             dailyForecast * daysRemaining +
-            trend.slope * trendWeight * ForecastConfig.TREND_DAMPENING_FACTOR * daysRemaining * (daysRemaining + 1) / 2.0
+                trend.slope * trendWeight * ForecastConfig.TREND_DAMPENING_FACTOR *
+                daysRemaining * (daysRemaining + 1) / 2.0
         ).roundToLong().coerceAtLeast(0L)
 
         // Use the actual total spent this cycle (including today's real spending) for the final projection.
@@ -308,11 +309,14 @@ class SpendingForecastCalculator {
         // Confidence-adjusted margin of error
         val mean = prep.cleanedExpenses.average()
         val stdDev = if (prep.cleanedExpenses.size > 1) {
-            sqrt(prep.cleanedExpenses.sumOf { (it.toDouble() - mean).pow(2.0) } / (prep.cleanedExpenses.size - 1))
+            sqrt(
+                prep.cleanedExpenses.sumOf { (it.toDouble() - mean).pow(2.0) } /
+                    (prep.cleanedExpenses.size - 1)
+            )
         } else {
             0.0
         }
-        
+
         // Standard error of the sum for the remaining days (SE_sum = daily_stdDev * sqrt(N)).
         // We use a minimum uncertainty window to avoid artificially narrow bounds on the last day.
         val uncertaintyWindow = max(daysRemaining.toDouble(), ForecastConfig.MIN_UNCERTAINTY_DAYS)
@@ -372,10 +376,15 @@ class SpendingForecastCalculator {
             return 0L
         }
 
-        val remainingCycleShare = (daysRemaining.toDouble() / daysInCycle.toDouble()).coerceIn(0.0, 1.0)
+        val remainingCycleShare =
+            (daysRemaining.toDouble() / daysInCycle.toDouble()).coerceIn(0.0, 1.0)
         val taperedRemainingShare = (
-            ((1.0 - ForecastConfig.RECOVERABLE_OVERSPEND_TAPER_QUADRATIC_WEIGHT) * remainingCycleShare) +
-                (ForecastConfig.RECOVERABLE_OVERSPEND_TAPER_QUADRATIC_WEIGHT * remainingCycleShare * remainingCycleShare)
+            ((1.0 - ForecastConfig.RECOVERABLE_OVERSPEND_TAPER_QUADRATIC_WEIGHT) *
+                remainingCycleShare) +
+                (
+                    ForecastConfig.RECOVERABLE_OVERSPEND_TAPER_QUADRATIC_WEIGHT *
+                        remainingCycleShare * remainingCycleShare
+                    )
             ).coerceIn(0.0, 1.0)
 
         return (estimatedEndCycleRemainingCents * confidence * taperedRemainingShare)

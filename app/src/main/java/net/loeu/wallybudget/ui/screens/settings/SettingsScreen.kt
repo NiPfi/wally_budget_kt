@@ -43,7 +43,11 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var budgetText by remember { mutableStateOf(CurrencyFormatter.centsToDecimalString(userSettings.monthlyBudgetCents)) }
+    var budgetText by remember {
+        mutableStateOf(
+            CurrencyFormatter.centsToDecimalString(userSettings.monthlyBudgetCents)
+        )
+    }
     var paydayText by remember { mutableStateOf(userSettings.paydayDate.toString()) }
     var showBudgetError by remember { mutableStateOf(false) }
     var showPaydayError by remember { mutableStateOf(false) }

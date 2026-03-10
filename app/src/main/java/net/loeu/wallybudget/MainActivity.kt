@@ -531,7 +531,13 @@ private fun PendingCycleFlow(
             },
             title = "Edit cycle expense",
             confirmButtonText = "Save changes",
-            dateLabel = "Recorded for ${editingExpense.recordedDate().format(DateTimeFormatter.ofPattern("EEEE, MMM d"))}",
+            dateLabel = buildString {
+                append("Recorded for ")
+                append(
+                    editingExpense.recordedDate()
+                        .format(DateTimeFormatter.ofPattern("EEEE, MMM d"))
+                )
+            },
             initialAmountCents = editingExpense.amountCents,
             initialDescription = editingExpense.description,
             initialIcon = editingExpense.icon

@@ -99,9 +99,11 @@ fun CycleCloseoutScreen(
                     )
                     Text(
                         text = if (pendingCycle.surplusCents >= 0L) {
-                            "You finished ${CurrencyFormatter.format(pendingCycle.surplusCents)} under budget."
+                            "You finished " +
+                                "${CurrencyFormatter.format(pendingCycle.surplusCents)} under budget."
                         } else {
-                            "You finished ${CurrencyFormatter.format(kotlin.math.abs(pendingCycle.surplusCents))} over budget."
+                            "You finished " +
+                                "${CurrencyFormatter.format(kotlin.math.abs(pendingCycle.surplusCents))} over budget."
                         },
                         style = MaterialTheme.typography.bodyLarge
                     )

@@ -25,13 +25,29 @@ internal object TimelineLockPolicy {
         val latestExpenseDateText = latestExpenseDate?.display()
         val reason = when {
             reopenedClosedCycle && hasFutureExpenses -> {
-                "Your device date is ${effectiveCurrentDate.display()}, but WallyBudget already advanced to the cycle that started $resetDateText and has expenses recorded through $latestExpenseDateText. Expense changes are locked until the device date catches up."
+                buildString {
+                    append("Your device date is ${effectiveCurrentDate.display()}, ")
+                    append("but WallyBudget already advanced to the cycle that started ")
+                    append("$resetDateText and has expenses recorded through ")
+                    append("$latestExpenseDateText. Expense changes are locked until ")
+                    append("the device date catches up.")
+                }
             }
             reopenedClosedCycle -> {
-                "Your device date is ${effectiveCurrentDate.display()}, but WallyBudget already advanced to the cycle that started $resetDateText. Expense changes are locked until the device date catches up."
+                buildString {
+                    append("Your device date is ${effectiveCurrentDate.display()}, ")
+                    append("but WallyBudget already advanced to the cycle that started ")
+                    append("$resetDateText. Expense changes are locked until the ")
+                    append("device date catches up.")
+                }
             }
             else -> {
-                "Your device date is ${effectiveCurrentDate.display()}, but WallyBudget has expenses recorded through $latestExpenseDateText. Expense changes are locked until the device date catches up."
+                buildString {
+                    append("Your device date is ${effectiveCurrentDate.display()}, ")
+                    append("but WallyBudget has expenses recorded through ")
+                    append("$latestExpenseDateText. Expense changes are locked until ")
+                    append("the device date catches up.")
+                }
             }
         }
 

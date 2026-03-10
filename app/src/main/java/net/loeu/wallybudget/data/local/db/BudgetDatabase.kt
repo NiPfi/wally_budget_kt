@@ -85,7 +85,10 @@ abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
                 db.execSQL("DROP TABLE `monthly_history`")
                 db.execSQL("ALTER TABLE `monthly_history_new` RENAME TO `monthly_history`")
                 db.execSQL(
-                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_monthly_history_year_month` ON `monthly_history` (`year`, `month`)"
+                    """
+                    CREATE UNIQUE INDEX IF NOT EXISTS `index_monthly_history_year_month`
+                    ON `monthly_history` (`year`, `month`)
+                    """.trimIndent()
                 )
             }
         }
@@ -115,7 +118,8 @@ abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
                 db.execSQL(
                     """
                     INSERT OR IGNORE INTO `monthly_history_new` (
-                        `cycleStartDate`, `year`, `month`, `budgetAmountCents`, `totalSpentCents`, `surplusCents`, `cycleEndDate`, `endTimestamp`
+                        `cycleStartDate`, `year`, `month`, `budgetAmountCents`,
+                        `totalSpentCents`, `surplusCents`, `cycleEndDate`, `endTimestamp`
                     )
                     SELECT 
                         date(endTimestamp / 1000, 'unixepoch', '-1 month') as cycleStartDate,
@@ -161,7 +165,8 @@ abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
                 db.execSQL(
                     """
                     INSERT OR IGNORE INTO `monthly_history_new` (
-                        `cycleStartDate`, `year`, `month`, `budgetAmountCents`, `totalSpentCents`, `surplusCents`, `cycleEndDate`, `endTimestamp`
+                        `cycleStartDate`, `year`, `month`, `budgetAmountCents`,
+                        `totalSpentCents`, `surplusCents`, `cycleEndDate`, `endTimestamp`
                     )
                     SELECT 
                         printf('%04d-%02d-01', year, month) as cycleStartDate,
@@ -201,7 +206,8 @@ abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
                 db.execSQL(
                     """
                     INSERT INTO `monthly_history_new` (
-                        `cycleStartDate`, `budgetAmountCents`, `totalSpentCents`, `surplusCents`, `cycleEndDate`, `endTimestamp`
+                        `cycleStartDate`, `budgetAmountCents`, `totalSpentCents`,
+                        `surplusCents`, `cycleEndDate`, `endTimestamp`
                     )
                     SELECT 
                         `cycleStartDate`, 

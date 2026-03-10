@@ -367,7 +367,9 @@ private fun ConfidenceSection(
 
             if (isLoading || snapshot == null) {
                 LoadingValuePlaceholder(
-                    sampleText = "Confidence is moderate. The signal is usable, but the range can still move over the next 3 days.",
+                    sampleText =
+                        "Confidence is moderate. The signal is usable, but the " +
+                            "range can still move over the next 3 days.",
                     textStyle = MaterialTheme.typography.bodyLarge,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Start,
                     fillWidth = true

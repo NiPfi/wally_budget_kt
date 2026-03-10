@@ -249,7 +249,9 @@ internal object AnalysisSnapshotFactory {
             spendingForecast.estimatedEndCycleRemainingCents < 0L -> AnalysisEvidenceItem(
                 title = "Forecast pressure",
                 value = "Over by ${CurrencyFormatter.format(abs(spendingForecast.estimatedEndCycleRemainingCents))}",
-                detail = "Current projection ends above your ${CurrencyFormatter.format(budgetState.monthlyBudgetCents)} cycle budget.",
+                detail =
+                    "Current projection ends above your " +
+                        "${CurrencyFormatter.format(budgetState.monthlyBudgetCents)} cycle budget.",
                 tone = AnalysisEvidenceTone.Critical
             )
             upperRangeOverrunCents > 0L -> {
@@ -257,20 +259,37 @@ internal object AnalysisSnapshotFactory {
                     projectedBufferCents == 0L -> "Right at budget"
                     behaviorProfile?.hasPersonalizedHistory == true &&
                         behaviorProfile.requiredExtraSpendToMissBudgetCents > 0L -> {
-                        "Needs ${CurrencyFormatter.format(behaviorProfile.requiredExtraSpendToMissBudgetCents)} more to miss"
+                        "Needs " +
+                            CurrencyFormatter.format(
+                                behaviorProfile.requiredExtraSpendToMissBudgetCents
+                            ) +
+                            " more to miss"
                     }
                     else -> "Best estimate still under"
                 }
                 val detail = when {
                     projectedBufferCents == 0L -> {
-                        "Current projection lands on budget, while the high side reaches ${CurrencyFormatter.format(spendingForecast.upperBoundCents)}."
+                        "Current projection lands on budget, while the high side " +
+                            "reaches ${CurrencyFormatter.format(spendingForecast.upperBoundCents)}."
                     }
                     behaviorProfile?.hasPersonalizedHistory == true &&
                         behaviorProfile.requiredExtraSpendToMissBudgetCents > 0L -> {
-                        "Current projection still leaves ${CurrencyFormatter.format(projectedBufferCents)}. Budget is only missed if spending finishes about ${CurrencyFormatter.format(behaviorProfile.requiredExtraSpendToMissBudgetCents)} above the current path."
+                        buildString {
+                            append("Current projection still leaves ")
+                            append(CurrencyFormatter.format(projectedBufferCents))
+                            append(". Budget is only missed if spending finishes about ")
+                            append(
+                                CurrencyFormatter.format(
+                                    behaviorProfile.requiredExtraSpendToMissBudgetCents
+                                )
+                            )
+                            append(" above the current path.")
+                        }
                     }
                     else -> {
-                        "Current projection still leaves ${CurrencyFormatter.format(projectedBufferCents)}, while the high side reaches ${CurrencyFormatter.format(spendingForecast.upperBoundCents)}."
+                        "Current projection still leaves " +
+                            "${CurrencyFormatter.format(projectedBufferCents)}, while " +
+                            "the high side reaches ${CurrencyFormatter.format(spendingForecast.upperBoundCents)}."
                     }
                 }
                 AnalysisEvidenceItem(
@@ -340,7 +359,8 @@ internal object AnalysisSnapshotFactory {
         availableRecoverableOverspendCents: Long
     ): AnalysisEvidenceItem {
         val detail = if (availableRecoverableOverspendCents > 0L) {
-            "${CurrencyFormatter.format(availableRecoverableOverspendCents)} of recoverable headroom is still available today."
+            CurrencyFormatter.format(availableRecoverableOverspendCents) +
+                " of recoverable headroom is still available today."
         } else {
             "There is no recoverable buffer left beyond today's remaining allowance."
         }
@@ -396,7 +416,9 @@ internal object AnalysisSnapshotFactory {
 
         if (paceGapCents > 0L) {
             recommendations += AnalysisRecommendation(
-                text = "Pull daily pace down by about ${CurrencyFormatter.format(paceGapCents)} to get closer to target."
+                text =
+                    "Pull daily pace down by about " +
+                        "${CurrencyFormatter.format(paceGapCents)} to get closer to target."
             )
         }
 

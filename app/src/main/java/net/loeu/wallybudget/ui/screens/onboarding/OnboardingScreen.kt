@@ -33,7 +33,12 @@ import java.time.LocalDate
 
 @Composable
 fun OnboardingScreen(
-    onComplete: (monthlyBudgetCents: Long, paydayDate: Int, cycleStartDate: LocalDate, previousExpensesCents: Long) -> Unit,
+    onComplete: (
+        monthlyBudgetCents: Long,
+        paydayDate: Int,
+        cycleStartDate: LocalDate,
+        previousExpensesCents: Long
+    ) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var budgetText by remember { mutableStateOf("") }

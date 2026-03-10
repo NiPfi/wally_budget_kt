@@ -42,7 +42,7 @@ style:
     active: false
   MaxLineLength:
     active: true
-    maxLineLength: 140
+    maxLineLength: 120
   NewLineAtEndOfFile:
     active: true
   ReturnCount:

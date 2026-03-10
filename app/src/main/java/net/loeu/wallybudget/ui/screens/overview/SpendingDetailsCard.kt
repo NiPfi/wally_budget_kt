@@ -75,9 +75,14 @@ fun SpendingDetailsCard(
             AnimatedCounter(
                 amountCents = abs(dailyAdjustmentCents),
                 formatter = { value ->
-                    "${if (dailyAdjustmentCents >= 0L) "+" else "-"}${net.loeu.wallybudget.util.CurrencyFormatter.format(value)}"
+                    buildString {
+                        append(if (dailyAdjustmentCents >= 0L) "+" else "-")
+                        append(net.loeu.wallybudget.util.CurrencyFormatter.format(value))
+                    }
                 },
-                textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.Medium
+                ),
                 animate = true,
                 textAlign = TextAlign.End,
                 color = if (dailyAdjustmentCents >= 0L) {

@@ -63,7 +63,8 @@ private fun stableSummary(
         behaviorProfile?.hasPersonalizedHistory == true &&
         behaviorProfile.largeOverspendCycles == 0
     ) {
-        "Your current plan still finishes under budget, and a miss would require a larger overspend than your recent cycles usually show."
+        "Your current plan still finishes under budget, and a miss would " +
+            "require a larger overspend than your recent cycles usually show."
     } else {
         "Current pace and safe-today headroom still support an on-budget finish."
     }
@@ -88,11 +89,13 @@ private fun cautionSummary(
         hasRangeOnlyRisk &&
             behaviorProfile?.hasPersonalizedHistory == true &&
             behaviorProfile.smoothedLargeOverspendRate >= 0.25 -> {
-            "You are still under budget, but history shows misses of this size can happen if spending speeds up."
+            "You are still under budget, but history shows misses of this " +
+                "size can happen if spending speeds up."
         }
         confidenceBand == ConfidenceBand.Low -> {
             val days = monitorAfterDays ?: 2
-            "The forecast is still building, but current pace and headroom need a closer watch. Check back in $days day${if (days == 1) "" else "s"}."
+            "The forecast is still building, but current pace and headroom " +
+                "need a closer watch. Check back in $days day${if (days == 1) "" else "s"}."
         }
         safeToSpendNowCents == 0L -> {
             "You can still recover, but today's cushion is gone and the rest of the cycle is tighter."
@@ -109,7 +112,8 @@ private fun atRiskSummary(
         "Your current pace is likely to finish over budget unless you tighten spending now."
     } else {
         val days = monitorAfterDays ?: 2
-        "Signals are pointing high, but the forecast is still building. Keep spending tight and re-check in $days day${if (days == 1) "" else "s"}."
+        "Signals are pointing high, but the forecast is still building. " +
+            "Keep spending tight and re-check in $days day${if (days == 1) "" else "s"}."
     }
 }
 
@@ -118,14 +122,17 @@ internal fun confidenceExplanation(
     monitorAfterDays: Int?
 ): String {
     return when (confidenceBand) {
-        ConfidenceBand.High -> "Confidence is high. The forecast has enough cycle data to anchor your current pace."
+        ConfidenceBand.High ->
+            "Confidence is high. The forecast has enough cycle data to anchor your current pace."
         ConfidenceBand.Medium -> {
             val days = monitorAfterDays ?: 3
-            "Confidence is moderate. The signal is usable, but the range can still move over the next $days day${if (days == 1) "" else "s"}."
+            "Confidence is moderate. The signal is usable, but the range can " +
+                "still move over the next $days day${if (days == 1) "" else "s"}."
         }
         ConfidenceBand.Low -> {
             val days = monitorAfterDays ?: 2
-            "Confidence is low because this cycle still has limited signal. Use this as direction, not certainty, and check back in $days day${if (days == 1) "" else "s"}."
+            "Confidence is low because this cycle still has limited signal. " +
+                "Use this as direction, not certainty, and check back in $days day${if (days == 1) "" else "s"}."
         }
     }
 }
