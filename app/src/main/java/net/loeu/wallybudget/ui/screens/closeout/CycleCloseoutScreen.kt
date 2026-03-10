@@ -130,7 +130,9 @@ fun CycleCloseoutScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Review the ending cycle if you need to correct an expense. Normal Home stays locked until you conclude this cycle.",
+                        text = "Review the ending cycle if you need to correct an " +
+                            "expense. Normal Home stays locked until you conclude " +
+                            "this cycle.",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

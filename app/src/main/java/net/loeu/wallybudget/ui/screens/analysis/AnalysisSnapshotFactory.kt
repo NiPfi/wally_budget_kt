@@ -411,7 +411,11 @@ internal object AnalysisSnapshotFactory {
                 else -> AnalysisEvidenceItem(
                     title = "Overspend behavior",
                     value = "History supports this risk",
-                    detail = "${behaviorProfile.largeOverspendCycles} of last ${behaviorProfile.cycleCount} cycles finished at least this far over budget.",
+                    detail = buildString {
+                        append("${behaviorProfile.largeOverspendCycles} of last ")
+                        append("${behaviorProfile.cycleCount} cycles finished at least ")
+                        append("this far over budget.")
+                    },
                     tone = AnalysisEvidenceTone.Warning
                 )
             }

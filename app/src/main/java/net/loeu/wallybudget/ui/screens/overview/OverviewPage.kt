@@ -189,7 +189,8 @@ private fun ForecastDetailsDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    "This projection combines your recent spending pace with prior cycle behavior to estimate where you may finish by cycle end.",
+                    "This projection combines your recent spending pace with prior " +
+                        "cycle behavior to estimate where you may finish by cycle end.",
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
@@ -262,7 +263,8 @@ private fun SafeTodayDetailsDialog(
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
-                    "It is not free budget. It sits on top of today’s allowance and depends on forecast confidence and days left in the cycle.",
+                    "It is not free budget. It sits on top of today’s allowance and " +
+                        "depends on forecast confidence and days left in the cycle.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

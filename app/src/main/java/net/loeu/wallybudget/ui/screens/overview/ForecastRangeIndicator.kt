@@ -51,12 +51,32 @@ fun ForecastRangeIndicator(
     val highPos = ((upperBoundCents - minView).toDouble() / viewWidth).coerceIn(0.0, 1.0).toFloat()
     val projPos = ((projectedCents - minView).toDouble() / viewWidth).coerceIn(0.0, 1.0).toFloat()
 
-    val projectedColor = if (projectedCents > budgetLimitCents) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-    val lowerValueColor = if (lowerBoundCents > budgetLimitCents) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-    val lowerLabelColor = if (lowerBoundCents > budgetLimitCents) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-    val upperValueColor = if (upperBoundCents > budgetLimitCents) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-    val upperLabelColor = if (upperBoundCents > budgetLimitCents) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-    
+    val projectedColor = if (projectedCents > budgetLimitCents) {
+        MaterialTheme.colorScheme.error
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+    val lowerValueColor = if (lowerBoundCents > budgetLimitCents) {
+        MaterialTheme.colorScheme.error
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+    val lowerLabelColor = if (lowerBoundCents > budgetLimitCents) {
+        MaterialTheme.colorScheme.error
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val upperValueColor = if (upperBoundCents > budgetLimitCents) {
+        MaterialTheme.colorScheme.error
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+    val upperLabelColor = if (upperBoundCents > budgetLimitCents) {
+        MaterialTheme.colorScheme.error
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
     val trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
     val rangeShade = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
 

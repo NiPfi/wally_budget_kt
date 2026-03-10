@@ -63,7 +63,15 @@ class ObserveHistoryUseCaseTest {
         val state = useCase(kotlinx.coroutines.flow.flowOf(homeOverviewState)).first()
 
         assertEquals(2, state.monthlyHistory.size)
-        assertEquals(listOf("Current cycle", "Future-dated expenses", "Feb 25 - Mar 24, 2026", "Jan 25 - Feb 24, 2026"), state.historySections.map { it.title })
+        assertEquals(
+            listOf(
+                "Current cycle",
+                "Future-dated expenses",
+                "Feb 25 - Mar 24, 2026",
+                "Jan 25 - Feb 24, 2026"
+            ),
+            state.historySections.map { it.title }
+        )
         assertEquals(1, state.historySections[2].daySections.size)
         assertEquals(1_500L, state.historySections[2].daySections.single().totalSpentCents)
         assertEquals(1, state.historySections[3].daySections.size)
