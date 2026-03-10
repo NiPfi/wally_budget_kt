@@ -10,14 +10,6 @@ interface CycleOverviewDao {
     @Query(
         "SELECT expenseDate, SUM(amountCents) AS totalSpentCents " +
             "FROM expenses " +
-            "GROUP BY expenseDate " +
-            "ORDER BY expenseDate DESC"
-    )
-    fun observeAllDayTotals(): Flow<List<ExpenseDayTotalRow>>
-
-    @Query(
-        "SELECT expenseDate, SUM(amountCents) AS totalSpentCents " +
-            "FROM expenses " +
             "WHERE expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive " +
             "GROUP BY expenseDate " +
             "ORDER BY expenseDate DESC"
