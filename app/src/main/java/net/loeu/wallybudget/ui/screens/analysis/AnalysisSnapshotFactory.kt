@@ -13,6 +13,11 @@ internal object AnalysisSnapshotFactory {
 
     private const val PERSONALIZATION_MIN_CYCLES = 3
     private const val MAX_BEHAVIOR_CYCLES = 6
+    // Beta priors keep historical risk estimates usable with a small number of cycles.
+    private const val OVERSPEND_RATE_PRIOR_SUCCESSES = 1.0
+    private const val OVERSPEND_RATE_PRIOR_TOTAL = 4.0
+    private const val LARGE_OVERSPEND_RATE_PRIOR_SUCCESSES = 0.5
+    private const val LARGE_OVERSPEND_RATE_PRIOR_TOTAL = 3.0
 
     private data class HistoricalBehaviorProfile(
         val cycleCount: Int,
@@ -22,6 +27,7 @@ internal object AnalysisSnapshotFactory {
         val smoothedOverspendRate: Double,
         val smoothedLargeOverspendRate: Double,
         val requiredExtraSpendToMissBudgetCents: Long,
+        val historicalOverspendThresholdCents: Long,
         val largeOverspendCycles: Int
     ) {
         val hasPersonalizedHistory: Boolean
@@ -154,10 +160,12 @@ internal object AnalysisSnapshotFactory {
         } else {
             0L
         }
+        val historicalOverspendThresholdCents =
+            (spendingForecast.upperBoundCents - budgetState.monthlyBudgetCents).coerceAtLeast(0L)
         val overspendAmounts = history.map { max(0L, -it.surplusCents) }
         val overspendCycles = overspendAmounts.count { it > 0L }
         val largeOverspendCycles = overspendAmounts.count {
-            requiredExtraSpendToMissBudgetCents > 0L && it >= requiredExtraSpendToMissBudgetCents
+            historicalOverspendThresholdCents > 0L && it >= historicalOverspendThresholdCents
         }
 
         return HistoricalBehaviorProfile(
@@ -165,9 +173,12 @@ internal object AnalysisSnapshotFactory {
             overspendCycles = overspendCycles,
             averageSurplusCents = history.sumOf { it.surplusCents } / history.size,
             maxOverspendCents = overspendAmounts.maxOrNull() ?: 0L,
-            smoothedOverspendRate = (overspendCycles + 1.0) / (history.size + 4.0),
-            smoothedLargeOverspendRate = (largeOverspendCycles + 0.5) / (history.size + 3.0),
+            smoothedOverspendRate = (overspendCycles + OVERSPEND_RATE_PRIOR_SUCCESSES) /
+                (history.size + OVERSPEND_RATE_PRIOR_TOTAL),
+            smoothedLargeOverspendRate = (largeOverspendCycles + LARGE_OVERSPEND_RATE_PRIOR_SUCCESSES) /
+                (history.size + LARGE_OVERSPEND_RATE_PRIOR_TOTAL),
             requiredExtraSpendToMissBudgetCents = requiredExtraSpendToMissBudgetCents,
+            historicalOverspendThresholdCents = historicalOverspendThresholdCents,
             largeOverspendCycles = largeOverspendCycles
         )
     }
@@ -262,20 +273,34 @@ internal object AnalysisSnapshotFactory {
                 detail = "Current projection ends above your ${CurrencyFormatter.format(budgetState.monthlyBudgetCents)} cycle budget.",
                 tone = AnalysisEvidenceTone.Critical
             )
-            upperRangeOverrunCents > 0L -> AnalysisEvidenceItem(
-                title = "Forecast range",
-                value = if (behaviorProfile?.hasPersonalizedHistory == true && behaviorProfile.requiredExtraSpendToMissBudgetCents > 0L) {
-                    "Needs ${CurrencyFormatter.format(behaviorProfile.requiredExtraSpendToMissBudgetCents)} more to miss"
-                } else {
-                    "Best estimate still under"
-                },
-                detail = if (behaviorProfile?.hasPersonalizedHistory == true && behaviorProfile.requiredExtraSpendToMissBudgetCents > 0L) {
-                    "Current projection still leaves ${CurrencyFormatter.format(projectedBufferCents)}. Budget is only missed if spending finishes about ${CurrencyFormatter.format(behaviorProfile.requiredExtraSpendToMissBudgetCents)} above the current path."
-                } else {
-                    "Current projection still leaves ${CurrencyFormatter.format(projectedBufferCents)}, while the high side reaches ${CurrencyFormatter.format(spendingForecast.upperBoundCents)}."
-                },
-                tone = AnalysisEvidenceTone.Neutral
-            )
+            upperRangeOverrunCents > 0L -> {
+                val value = when {
+                    projectedBufferCents == 0L -> "Right at budget"
+                    behaviorProfile?.hasPersonalizedHistory == true &&
+                        behaviorProfile.requiredExtraSpendToMissBudgetCents > 0L -> {
+                        "Needs ${CurrencyFormatter.format(behaviorProfile.requiredExtraSpendToMissBudgetCents)} more to miss"
+                    }
+                    else -> "Best estimate still under"
+                }
+                val detail = when {
+                    projectedBufferCents == 0L -> {
+                        "Current projection lands on budget, while the high side reaches ${CurrencyFormatter.format(spendingForecast.upperBoundCents)}."
+                    }
+                    behaviorProfile?.hasPersonalizedHistory == true &&
+                        behaviorProfile.requiredExtraSpendToMissBudgetCents > 0L -> {
+                        "Current projection still leaves ${CurrencyFormatter.format(projectedBufferCents)}. Budget is only missed if spending finishes about ${CurrencyFormatter.format(behaviorProfile.requiredExtraSpendToMissBudgetCents)} above the current path."
+                    }
+                    else -> {
+                        "Current projection still leaves ${CurrencyFormatter.format(projectedBufferCents)}, while the high side reaches ${CurrencyFormatter.format(spendingForecast.upperBoundCents)}."
+                    }
+                }
+                AnalysisEvidenceItem(
+                    title = "Forecast range",
+                    value = value,
+                    detail = detail,
+                    tone = AnalysisEvidenceTone.Neutral
+                )
+            }
             else -> AnalysisEvidenceItem(
                 title = "Forecast pressure",
                 value = "Within budget",
@@ -352,7 +377,7 @@ internal object AnalysisSnapshotFactory {
                 behaviorProfile.largeOverspendCycles == 0 -> AnalysisEvidenceItem(
                     title = "Overspend behavior",
                     value = "Miss of this size is rare",
-                    detail = "0 of last ${behaviorProfile.cycleCount} cycles finished at least ${CurrencyFormatter.format(behaviorProfile.requiredExtraSpendToMissBudgetCents)} over budget. Worst miss was ${CurrencyFormatter.format(behaviorProfile.maxOverspendCents)}.",
+                    detail = "0 of last ${behaviorProfile.cycleCount} cycles finished at least ${CurrencyFormatter.format(behaviorProfile.historicalOverspendThresholdCents)} over budget. Worst miss was ${CurrencyFormatter.format(behaviorProfile.maxOverspendCents)}.",
                     tone = AnalysisEvidenceTone.Positive
                 )
                 behaviorProfile.largeOverspendCycles == 1 -> AnalysisEvidenceItem(

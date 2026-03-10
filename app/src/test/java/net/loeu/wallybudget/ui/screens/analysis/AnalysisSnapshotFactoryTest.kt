@@ -181,6 +181,24 @@ class AnalysisSnapshotFactoryTest {
         assertTrue(snapshot.rangeExplanation.contains("has not happened in 6 recent completed cycles"))
     }
 
+    @Test
+    fun forecastEvidence_handles_zeroBuffer_copy_cleanly() {
+        val snapshot = AnalysisSnapshotFactory.create(
+            budgetState = testBudgetState(),
+            spendingForecast = testForecast(
+                estimatedEndCycleRemainingCents = 0L,
+                upperBoundCents = 103_000L,
+                projectedDailySpendCents = 3_000L,
+                confidenceScore = 0.72
+            ),
+            monthlyHistory = histories(2_100L, 90_400L, 42_500L, 0L, 66_200L, -1_500L),
+            timelineLockReason = null
+        )
+
+        assertEquals("Right at budget", snapshot.evidence.first().value)
+        assertTrue(snapshot.evidence.first().detail.contains("lands on budget"))
+    }
+
     private fun testBudgetState(
         totalSpentThisCycleCents: Long = 80_000L,
         remainingTodayCents: Long = 2_000L
