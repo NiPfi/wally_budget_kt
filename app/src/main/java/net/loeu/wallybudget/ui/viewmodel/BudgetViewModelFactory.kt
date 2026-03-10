@@ -17,6 +17,7 @@ import net.loeu.wallybudget.domain.usecase.ObserveForecastUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveHomeOverviewUseCase
 import net.loeu.wallybudget.domain.usecase.PerformMonthlyResetUseCase
+import net.loeu.wallybudget.domain.usecase.ResolveMutationEffectiveDateUseCase
 import net.loeu.wallybudget.domain.usecase.SyncObservedDateUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateMonthlyBudgetUseCase
@@ -124,6 +125,13 @@ class BudgetViewModelFactory(
             budgetCalculationService = budgetCalculationService
         )
     }
+    private val resolveMutationEffectiveDateUseCase by lazy {
+        ResolveMutationEffectiveDateUseCase(
+            userSettingsStore = userPreferencesManager,
+            expenseDao = expenseDao,
+            budgetCalculationService = budgetCalculationService
+        )
+    }
     private val syncObservedDateUseCase by lazy { SyncObservedDateUseCase(userPreferencesManager) }
 
     @Suppress("UNCHECKED_CAST")
@@ -142,6 +150,7 @@ class BudgetViewModelFactory(
                 completeOnboardingUseCase = completeOnboardingUseCase,
                 performMonthlyResetUseCase = performMonthlyResetUseCase,
                 concludePendingCycleUseCase = concludePendingCycleUseCase,
+                resolveMutationEffectiveDateUseCase = resolveMutationEffectiveDateUseCase,
                 syncObservedDateUseCase = syncObservedDateUseCase,
                 currentDateProvider = currentDateProvider
             ) as T

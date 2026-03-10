@@ -33,6 +33,7 @@ import net.loeu.wallybudget.domain.usecase.ObserveForecastUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveHomeOverviewUseCase
 import net.loeu.wallybudget.domain.usecase.PerformMonthlyResetUseCase
+import net.loeu.wallybudget.domain.usecase.ResolveMutationEffectiveDateUseCase
 import net.loeu.wallybudget.domain.usecase.SyncObservedDateUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateMonthlyBudgetUseCase
@@ -54,6 +55,7 @@ class BudgetViewModel(
     private val completeOnboardingUseCase: CompleteOnboardingUseCase,
     private val performMonthlyResetUseCase: PerformMonthlyResetUseCase,
     private val concludePendingCycleUseCase: ConcludePendingCycleUseCase,
+    private val resolveMutationEffectiveDateUseCase: ResolveMutationEffectiveDateUseCase,
     private val syncObservedDateUseCase: SyncObservedDateUseCase,
     private val currentDateProvider: CurrentDateProvider
 ) : ViewModel() {
@@ -291,15 +293,9 @@ class BudgetViewModel(
     }
 
     private suspend fun currentEffectiveDateForMutation(): LocalDate? {
-        val settings = userSettings.value
-        val effectiveDate = syncObservedDateUseCase(
-            settings = settings,
+        return resolveMutationEffectiveDateUseCase(
+            settings = userSettings.value,
             observedDate = currentDateProvider.currentDate()
         )
-        return if (timelineLockState.value.isLocked) {
-            null
-        } else {
-            effectiveDate
-        }
     }
 }
