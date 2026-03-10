@@ -70,6 +70,42 @@ class AnalysisScreenTest {
     }
 
     @Test
+    fun analysis_screen_uses_stable_copy_when_rangeCrossing_is_not_supported_by_history() {
+        setAnalysisScreenContent(
+            spendingForecast = testForecast(
+                estimatedEndCycleRemainingCents = 13_180L,
+                upperBoundCents = 105_249L,
+                projectedDailySpendCents = 2_856L,
+                confidenceScore = 0.59,
+                recoverableOverspendCents = 3_473L
+            ),
+            monthlyHistory = histories(2_100L, 90_400L, 42_500L, 0L, 66_200L, -1_500L)
+        )
+
+        composeRule.onNodeWithText("On track").assertIsDisplayed()
+        composeRule.onNodeWithTag("analysis_verdict_section")
+            .assert(hasStateDescription("Analysis verdict stable"))
+    }
+
+    @Test
+    fun analysis_screen_uses_watchful_copy_when_history_shows_some_precedent() {
+        setAnalysisScreenContent(
+            spendingForecast = testForecast(
+                estimatedEndCycleRemainingCents = 13_180L,
+                upperBoundCents = 105_249L,
+                projectedDailySpendCents = 2_856L,
+                confidenceScore = 0.72,
+                recoverableOverspendCents = 3_473L
+            ),
+            monthlyHistory = histories(2_100L, 90_400L, 42_500L, -16_000L, 66_200L, -1_500L)
+        )
+
+        composeRule.onNodeWithText("Watch the upper range").assertIsDisplayed()
+        composeRule.onNodeWithTag("analysis_verdict_section")
+            .assert(hasStateDescription("Analysis verdict watchful"))
+    }
+
+    @Test
     fun analysis_screen_lowConfidence_explainer_mentions_monitorTiming() {
         setAnalysisScreenContent(
             spendingForecast = testForecast(
@@ -174,6 +210,19 @@ class AnalysisScreenTest {
         cycleEndDate = "2026-03-01",
         endTimestamp = 1L
     )
+
+    private fun histories(vararg surpluses: Long): List<MonthlyHistory> {
+        return surpluses.mapIndexed { index, surplusCents ->
+            MonthlyHistory(
+                cycleStartDate = LocalDate.of(2026, 2, 1).minusDays(index.toLong() * 31L).toString(),
+                budgetAmountCents = 100_000L,
+                totalSpentCents = 100_000L - surplusCents,
+                surplusCents = surplusCents,
+                cycleEndDate = LocalDate.of(2026, 3, 1).minusDays(index.toLong() * 31L).toString(),
+                endTimestamp = LocalDate.of(2026, 3, 1).minusDays(index.toLong() * 31L).toEpochDay()
+            )
+        }
+    }
 
     private fun hasStateDescription(value: String): SemanticsMatcher =
         SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, value)
