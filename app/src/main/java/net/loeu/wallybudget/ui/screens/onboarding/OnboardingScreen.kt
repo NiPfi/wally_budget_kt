@@ -63,74 +63,21 @@ fun OnboardingScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(
-            text = "Welcome to WallyBudget",
-            style = MaterialTheme.typography.headlineLarge,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-
-        Text(
-            text = "Let's set up your monthly budget",
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-
-        HorizontalDivider(modifier = Modifier.fillMaxWidth())
-
-        OutlinedTextField(
-            value = budgetText,
-            onValueChange = {
+        OnboardingIntro()
+        OnboardingFormFields(
+            budgetText = budgetText,
+            paydayText = paydayText,
+            showError = showError,
+            onBudgetChange = {
                 budgetText = it
                 showError = false
             },
-            label = { Text("Monthly Budget") },
-            placeholder = { Text("1000.00") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            singleLine = true,
-            isError = showError && budgetText.toDoubleOrNull() == null,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                focusedLabelColor = MaterialTheme.colorScheme.primary,
-                unfocusedLabelColor = MaterialTheme.colorScheme.onSurface,
-                focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
-            ),
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        OutlinedTextField(
-            value = paydayText,
-            onValueChange = {
+            onPaydayChange = {
                 if (it.isEmpty() || (it.toIntOrNull() != null && it.toInt() in 1..31)) {
                     paydayText = it
                     showError = false
                 }
-            },
-            label = { Text("Payday (1-31)") },
-            placeholder = { Text("1") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
-            isError = showError && (paydayText.toIntOrNull() == null || paydayText.toInt() !in 1..31),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                focusedLabelColor = MaterialTheme.colorScheme.primary,
-                unfocusedLabelColor = MaterialTheme.colorScheme.onSurface,
-                focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
-            ),
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Text(
-            text = "Pick the payday date for your cycle. WallyBudget will keep using this day every month.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Start,
-            modifier = Modifier.fillMaxWidth()
+            }
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -164,6 +111,80 @@ fun OnboardingScreen(
 
         OnboardingHelpText()
     }
+}
+
+@Composable
+private fun OnboardingIntro() {
+    Text(
+        text = "Welcome to WallyBudget",
+        style = MaterialTheme.typography.headlineLarge,
+        textAlign = TextAlign.Center,
+        color = MaterialTheme.colorScheme.onSurface
+    )
+
+    Text(
+        text = "Let's set up your monthly budget",
+        style = MaterialTheme.typography.bodyLarge,
+        textAlign = TextAlign.Center,
+        color = MaterialTheme.colorScheme.onSurface
+    )
+
+    HorizontalDivider(modifier = Modifier.fillMaxWidth())
+}
+
+@Composable
+private fun OnboardingFormFields(
+    budgetText: String,
+    paydayText: String,
+    showError: Boolean,
+    onBudgetChange: (String) -> Unit,
+    onPaydayChange: (String) -> Unit
+) {
+    OutlinedTextField(
+        value = budgetText,
+        onValueChange = onBudgetChange,
+        label = { Text("Monthly Budget") },
+        placeholder = { Text("1000.00") },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        singleLine = true,
+        isError = showError && budgetText.toDoubleOrNull() == null,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
+            unfocusedLabelColor = MaterialTheme.colorScheme.onSurface,
+            focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+        ),
+        modifier = Modifier.fillMaxWidth()
+    )
+
+    OutlinedTextField(
+        value = paydayText,
+        onValueChange = onPaydayChange,
+        label = { Text("Payday (1-31)") },
+        placeholder = { Text("1") },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        singleLine = true,
+        isError = showError && (paydayText.toIntOrNull() == null || paydayText.toInt() !in 1..31),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
+            unfocusedLabelColor = MaterialTheme.colorScheme.onSurface,
+            focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+        ),
+        modifier = Modifier.fillMaxWidth()
+    )
+
+    Text(
+        text = "Pick the payday date for your cycle. WallyBudget will keep using this day every month.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurface,
+        textAlign = TextAlign.Start,
+        modifier = Modifier.fillMaxWidth()
+    )
 }
 
 @Composable

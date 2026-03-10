@@ -229,213 +229,44 @@ class SpendingForecastCalculator {
         completedCycleDailyAverages: List<Long>,
         daysInMonth: Int
     ): SpendingForecast {
-        val dailyAllowance = budgetState.monthlyBudgetCents / daysInMonth
         val completedCurrentCycleExpenses = currentCycleExpenses.dropLast(1)
-        val combinedExpenses = allHistoricalExpenses + completedCurrentCycleExpenses
-        val prep = prepareAndCleanData(combinedExpenses)
         val daysElapsed = currentCycleExpenses.size
-        val daysRemaining = (daysInMonth - daysElapsed).coerceAtLeast(0)
-        val completedDays = completedCurrentCycleExpenses.size
-        val adjustedOutlierCount = prep.outlierCount
-
-        // Long-term average: simple average of cleaned historical data (stable baseline)
-        val longTermAverage = if (prep.cleanedExpenses.isNotEmpty()) {
-            prep.cleanedExpenses.average()
-        } else {
-            0.0
-        }
-        val cyclePriorAverage = calculateCyclePriorAverage(
-            completedCycleDailyAverages = completedCycleDailyAverages,
-            fallbackDailyAverage = longTermAverage.roundToLong().takeIf { it > 0L } ?: dailyAllowance
-        )
-        val currentPaceEstimate = calculateCurrentPaceEstimate(
+        val projectionInputs = buildForecastProjectionInputs(
             budgetState = budgetState,
+            allHistoricalExpenses = allHistoricalExpenses,
             completedCurrentCycleExpenses = completedCurrentCycleExpenses,
-            completedDays = completedDays,
-            cyclePriorAverage = cyclePriorAverage
+            completedCycleDailyAverages = completedCycleDailyAverages,
+            daysInMonth = daysInMonth,
+            daysElapsed = daysElapsed
         )
-        val currentEvidenceWeight = (
-            completedDays / (completedDays + ForecastConfig.PRIOR_STRENGTH_DAYS)
-        ).coerceIn(0.0, 1.0)
-
-        val completedNonZeroDays = completedCurrentCycleExpenses.count { it > 0L }
-        val trend = if (
-            completedCurrentCycleExpenses.size >= ForecastConfig.MIN_COMPLETED_DAYS_FOR_CURRENT_TREND &&
-            completedNonZeroDays >= ForecastConfig.MIN_NON_ZERO_DAYS_FOR_CURRENT_TREND
-        ) {
-            calculateWeightedTrend(completedCurrentCycleExpenses, ForecastConfig.DECAY_FACTOR)
-        } else {
-            TrendData(0.0, 0.0)
-        }
-        val confidence = calculateForecastConfidence(prep.cleanedExpenses, adjustedOutlierCount, daysElapsed)
-        val trendWeight = (currentEvidenceWeight * confidence).coerceIn(0.0, 1.0)
-
-        // Completed cycles define the prior and completed current-cycle days update that prior
-        // gradually, so sparse recent activity does not overwhelm the longer-term baseline.
-        val dailyForecast = (
-            (1.0 - currentEvidenceWeight) * cyclePriorAverage +
-            currentEvidenceWeight * currentPaceEstimate
-        ).roundToLong()
-
-        // Properly account for linear trend accumulation over time.
-        // Formula: Sum of (dailyForecast + slope * day) for day = 1 to daysRemaining.
-        // Result: dailyForecast * daysRemaining + slope * (daysRemaining * (daysRemaining + 1) / 2)
-        // Trend is also dampened by confidence to avoid wild swings on noisy data.
-        val projectedRemainingCents = (
-            dailyForecast * daysRemaining +
-                trend.slope * trendWeight * ForecastConfig.TREND_DAMPENING_FACTOR *
-                daysRemaining * (daysRemaining + 1) / 2.0
-        ).roundToLong().coerceAtLeast(0L)
-
-        // Use the actual total spent this cycle (including today's real spending) for the final projection.
-        val projectedTotalSpentCents = budgetState.totalSpentThisCycleCents + projectedRemainingCents
-        val estimatedEndCycleRemainingCents = budgetState.monthlyBudgetCents - projectedTotalSpentCents
-        val spentBeforeTodayCents =
-            (budgetState.totalSpentThisCycleCents - budgetState.spentTodayCents).coerceAtLeast(0L)
-        val effectiveDailyAllowanceCents = budgetState.remainingTodayCents + budgetState.spentTodayCents
-        val recoverableOverspendBaselineRemainingCents =
-            budgetState.monthlyBudgetCents -
-                (spentBeforeTodayCents + effectiveDailyAllowanceCents + projectedRemainingCents)
-        val grossRecoverableOverspendCents = calculateRecoverableOverspend(
-            estimatedEndCycleRemainingCents = recoverableOverspendBaselineRemainingCents,
-            confidence = confidence,
-            daysRemaining = daysRemaining,
-            daysInCycle = daysInMonth
+        val projection = buildForecastProjection(
+            budgetState = budgetState,
+            daysInMonth = daysInMonth,
+            projectionInputs = projectionInputs
         )
-        val recoverableOverspendCents = grossRecoverableOverspendCents.coerceAtMost(
-            estimatedEndCycleRemainingCents.coerceAtLeast(0L)
-        )
-
-        // Confidence-adjusted margin of error
-        val mean = prep.cleanedExpenses.average()
-        val stdDev = if (prep.cleanedExpenses.size > 1) {
-            sqrt(
-                prep.cleanedExpenses.sumOf { (it.toDouble() - mean).pow(2.0) } /
-                    (prep.cleanedExpenses.size - 1)
-            )
-        } else {
-            0.0
-        }
-
-        // Standard error of the sum for the remaining days (SE_sum = daily_stdDev * sqrt(N)).
-        // We use a minimum uncertainty window to avoid artificially narrow bounds on the last day.
-        val uncertaintyWindow = max(daysRemaining.toDouble(), ForecastConfig.MIN_UNCERTAINTY_DAYS)
-        val standardErrorOfSum = stdDev * sqrt(uncertaintyWindow)
-
-        // Margin of error calculation.
-        // We use a baseline z-score of 1.96 (95% confidence level).
-        // Low heuristic confidence expands the interval to reflect additional uncertainty.
-        // The uncertainty expansion uses linear interpolation: expansion = 2.0 - confidence.
-        // This maps confidence=1.0 to 1.0x (no expansion) and confidence=0.0 to 2.0x (double width).
-        val zScore = 1.96
-        val uncertaintyExpansion = 2.0 - confidence
-        val marginOfError = zScore * standardErrorOfSum * uncertaintyExpansion
-        
-        val lowerBound = (projectedTotalSpentCents - marginOfError)
-            .roundToLong()
-            .coerceAtLeast(budgetState.totalSpentThisCycleCents)
-        val upperBound = (projectedTotalSpentCents + marginOfError).roundToLong()
-
-        val confidenceRating = when {
-            confidence >= 0.85 -> "Very High"
-            confidence >= 0.70 -> "High"
-            confidence >= 0.55 -> "Moderate"
-            confidence >= 0.40 -> "Low"
-            else -> "Very Low"
-        }
 
         return SpendingForecast(
-            estimatedEndCycleRemainingCents = estimatedEndCycleRemainingCents,
-            projectedTotalSpentCents = projectedTotalSpentCents,
-            projectedDailySpendCents = dailyForecast, // Using blended forecast as the "pace"
-            trendSlopePercent = if (dailyForecast > 0L) {
-                ((trend.slope / dailyForecast.toDouble()) * 100.0).roundToInt().coerceIn(-200, 200)
+            estimatedEndCycleRemainingCents = projection.estimatedEndCycleRemainingCents,
+            projectedTotalSpentCents = projection.projectedTotalSpentCents,
+            projectedDailySpendCents = projectionInputs.dailyForecast,
+            trendSlopePercent = if (projectionInputs.dailyForecast > 0L) {
+                (
+                    (projectionInputs.trend.slope / projectionInputs.dailyForecast.toDouble()) *
+                        100.0
+                    ).roundToInt().coerceIn(-200, 200)
             } else {
                 0
             },
-            confidenceScore = confidence,
-            confidenceRating = confidenceRating,
-            lowerBoundCents = lowerBound,
-            upperBoundCents = upperBound,
-            dailyAverageWeightedCents = dailyForecast,
-            trendSlopeCents = trend.slope,
-            detectedOutlierCount = adjustedOutlierCount,
-            usedDataPoints = prep.cleanedExpenses.size,
-            recoverableOverspendCents = recoverableOverspendCents,
-            grossRecoverableOverspendCents = grossRecoverableOverspendCents
-        )
-    }
-
-    private fun calculateRecoverableOverspend(
-        estimatedEndCycleRemainingCents: Long,
-        confidence: Double,
-        daysRemaining: Int,
-        daysInCycle: Int
-    ): Long {
-        if (estimatedEndCycleRemainingCents <= 0L || daysRemaining <= 0 || daysInCycle <= 0) {
-            return 0L
-        }
-
-        val remainingCycleShare =
-            (daysRemaining.toDouble() / daysInCycle.toDouble()).coerceIn(0.0, 1.0)
-        val taperedRemainingShare = (
-            ((1.0 - ForecastConfig.RECOVERABLE_OVERSPEND_TAPER_QUADRATIC_WEIGHT) *
-                remainingCycleShare) +
-                (
-                    ForecastConfig.RECOVERABLE_OVERSPEND_TAPER_QUADRATIC_WEIGHT *
-                        remainingCycleShare * remainingCycleShare
-                    )
-            ).coerceIn(0.0, 1.0)
-
-        return (estimatedEndCycleRemainingCents * confidence * taperedRemainingShare)
-            .roundToLong()
-            .coerceIn(0L, estimatedEndCycleRemainingCents)
-    }
-
-    private fun calculateCurrentPaceEstimate(
-        budgetState: BudgetState,
-        completedCurrentCycleExpenses: List<Long>,
-        completedDays: Int,
-        cyclePriorAverage: Long
-    ): Double {
-        val observedCycleAverage = if (completedDays > 0) {
-            (budgetState.totalSpentThisCycleCents - budgetState.spentTodayCents).toDouble() /
-                completedDays
-        } else {
-            cyclePriorAverage.toDouble()
-        }
-        val recentCompletedAverage = if (completedCurrentCycleExpenses.isNotEmpty()) {
-            calculateWeightedMovingAverage(
-                expenses = completedCurrentCycleExpenses,
-                windowSize = ForecastConfig.WEIGHTED_AVERAGE_WINDOW_DAYS,
-                decayFactor = ForecastConfig.DECAY_FACTOR
-            ).toDouble()
-        } else {
-            observedCycleAverage
-        }
-
-        return if (
-            completedDays >= ForecastConfig.MIN_DATA_POINTS_FOR_OUTLIERS &&
-            completedCurrentCycleExpenses.count { it > 0L } >= 2
-        ) {
-            (observedCycleAverage + recentCompletedAverage) / 2.0
-        } else {
-            observedCycleAverage
-        }
-    }
-
-    private fun calculateCyclePriorAverage(
-        completedCycleDailyAverages: List<Long>,
-        fallbackDailyAverage: Long
-    ): Long {
-        if (completedCycleDailyAverages.isEmpty()) {
-            return fallbackDailyAverage
-        }
-
-        return calculateWeightedMovingAverage(
-            expenses = completedCycleDailyAverages,
-            windowSize = ForecastConfig.PRIOR_CYCLE_WINDOW,
-            decayFactor = ForecastConfig.PRIOR_CYCLE_DECAY_FACTOR
+            confidenceScore = projectionInputs.confidence,
+            confidenceRating = projection.confidenceRating,
+            lowerBoundCents = projection.lowerBound,
+            upperBoundCents = projection.upperBound,
+            dailyAverageWeightedCents = projectionInputs.dailyForecast,
+            trendSlopeCents = projectionInputs.trend.slope,
+            detectedOutlierCount = projectionInputs.adjustedOutlierCount,
+            usedDataPoints = projectionInputs.prep.cleanedExpenses.size,
+            recoverableOverspendCents = projection.recoverableOverspendCents,
+            grossRecoverableOverspendCents = projection.grossRecoverableOverspendCents
         )
     }
 }
