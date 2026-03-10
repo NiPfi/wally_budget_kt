@@ -43,5 +43,4 @@ class ExpenseEntryDatePolicyTest {
 
         assertEquals(effectiveCurrentDate, resolvedDate)
     }
-
 }
