@@ -79,7 +79,6 @@ class BudgetViewModelFactory(
         ObserveHistoryUseCase(
             expenseDao = expenseDao,
             monthlyHistoryDao = monthlyHistoryDao,
-            cycleOverviewDao = cycleOverviewDao,
             budgetCalculationService = budgetCalculationService
         )
     }

@@ -4,7 +4,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import net.loeu.wallybudget.data.local.dao.CycleOverviewDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
 import net.loeu.wallybudget.data.local.entity.toDomainModel
@@ -17,15 +16,14 @@ import net.loeu.wallybudget.domain.model.HistoryState
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.groupByDate
 import net.loeu.wallybudget.domain.model.recordedDate
+import net.loeu.wallybudget.domain.model.sumByDate
 import net.loeu.wallybudget.domain.usecase.internal.buildContinuousDaySections
-import net.loeu.wallybudget.domain.usecase.internal.toDayTotalsMap
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import java.time.LocalDate
 
 class ObserveHistoryUseCase(
     private val expenseDao: ExpenseDao,
     private val monthlyHistoryDao: MonthlyHistoryDao,
-    private val cycleOverviewDao: CycleOverviewDao,
     private val budgetCalculationService: BudgetCalculationService
 ) {
     operator fun invoke(homeOverviewFlow: Flow<HomeOverviewState>): Flow<HistoryState> {
@@ -35,18 +33,15 @@ class ObserveHistoryUseCase(
         val history = monthlyHistoryDao.observeAll().map { entries ->
             entries.map { it.toDomainModel() }
         }
-        val allDayTotals = cycleOverviewDao.observeAllDayTotals().map { rows ->
-            rows.toDayTotalsMap()
-        }
 
         return combine(
             homeOverviewFlow,
             allExpenses,
-            history,
-            allDayTotals
-        ) { homeOverviewState, expenses, historyEntries, dayTotals ->
+            history
+        ) { homeOverviewState, expenses, historyEntries ->
             val monthlyHistory = historyEntries
                 .sortedByDescending { it.endTimestamp }
+            val dayTotals = expenses.sumByDate()
 
             HistoryState(
                 monthlyHistory = monthlyHistory,
