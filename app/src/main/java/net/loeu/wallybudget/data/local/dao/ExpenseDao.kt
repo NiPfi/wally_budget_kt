@@ -51,5 +51,8 @@ interface ExpenseDao : BaseInsertDao<ExpenseEntity> {
     fun observeAllOrderedDesc(): Flow<List<ExpenseEntity>>
 
     @Query("SELECT MAX(expenseDate) FROM expenses")
+    suspend fun findLatestExpenseDate(): String?
+
+    @Query("SELECT MAX(expenseDate) FROM expenses")
     fun observeLatestExpenseDate(): Flow<String?>
 }
