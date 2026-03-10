@@ -15,6 +15,7 @@ import net.loeu.wallybudget.domain.policy.TimelineLockPolicy
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import java.time.Instant
 import java.time.LocalDate
+import java.time.format.DateTimeParseException
 import java.time.ZoneId
 
 internal data class CycleRange(
@@ -29,7 +30,7 @@ internal fun UserSettings.lastResetDateOrNull(): LocalDate? {
         .toLocalDate()
 }
 
-internal fun UserSettings.lastSeenDateOrNull(): LocalDate? = lastSeenDate?.let(LocalDate::parse)
+internal fun UserSettings.lastSeenDateOrNull(): LocalDate? = lastSeenDate?.parseLocalDateOrNull()
 
 internal fun effectiveCurrentDate(
     settings: UserSettings,
@@ -42,8 +43,8 @@ internal fun effectiveCurrentDate(
 }
 
 internal fun UserSettings.pendingCycleRangeOrNull(): CycleRange? {
-    val start = pendingCycleStartDate?.let(LocalDate::parse) ?: return null
-    val end = pendingCycleEndDateExclusive?.let(LocalDate::parse) ?: return null
+    val start = pendingCycleStartDate?.parseLocalDateOrNull() ?: return null
+    val end = pendingCycleEndDateExclusive?.parseLocalDateOrNull() ?: return null
     return CycleRange(start = start, endExclusive = end)
 }
 
@@ -64,6 +65,14 @@ internal fun List<Expense>.filterByRange(
 
 internal fun List<ExpenseDayTotalRow>.toDayTotalsMap(): Map<LocalDate, Long> {
     return associate { row -> LocalDate.parse(row.expenseDate) to row.totalSpentCents }
+}
+
+private fun String.parseLocalDateOrNull(): LocalDate? {
+    return try {
+        LocalDate.parse(this)
+    } catch (_: DateTimeParseException) {
+        null
+    }
 }
 
 internal suspend fun archiveCycleIfNeeded(
