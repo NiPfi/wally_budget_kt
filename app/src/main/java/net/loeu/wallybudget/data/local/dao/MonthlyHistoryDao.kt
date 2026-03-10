@@ -1,11 +1,11 @@
-package net.loeu.wallybudget.data.local
+package net.loeu.wallybudget.data.local.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
-import net.loeu.wallybudget.data.model.MonthlyHistory
+import net.loeu.wallybudget.data.local.entity.MonthlyHistory
 
 @Dao
 interface MonthlyHistoryDao {
@@ -22,4 +22,3 @@ interface MonthlyHistoryDao {
     @Query("SELECT SUM(surplusCents) FROM monthly_history")
     suspend fun getCumulativeSavings(): Long?
 }
-

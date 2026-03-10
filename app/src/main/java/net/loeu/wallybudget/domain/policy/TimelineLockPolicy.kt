@@ -1,6 +1,6 @@
-package net.loeu.wallybudget.data.repository
+package net.loeu.wallybudget.domain.policy
 
-import net.loeu.wallybudget.data.model.TimelineLockState
+import net.loeu.wallybudget.domain.model.TimelineLockState
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale

@@ -1,4 +1,4 @@
-package net.loeu.wallybudget.data.model
+package net.loeu.wallybudget.domain.model
 
 import androidx.annotation.DrawableRes
 import net.loeu.wallybudget.R

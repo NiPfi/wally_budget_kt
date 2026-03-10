@@ -1,4 +1,4 @@
-package net.loeu.wallybudget.data.local
+package net.loeu.wallybudget.data.local.dao
 
 import androidx.room.Dao
 import androidx.room.Delete
@@ -6,7 +6,7 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
-import net.loeu.wallybudget.data.model.Expense
+import net.loeu.wallybudget.data.local.entity.Expense
 
 @Dao
 interface ExpenseDao {

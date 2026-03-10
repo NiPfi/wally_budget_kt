@@ -1,11 +1,11 @@
 package net.loeu.wallybudget.domain.service
 
-import net.loeu.wallybudget.data.model.BudgetState
-import net.loeu.wallybudget.data.model.Expense
-import net.loeu.wallybudget.data.model.MonthlyHistory
-import net.loeu.wallybudget.data.model.SpendingForecast
-import net.loeu.wallybudget.data.model.UserSettings
-import net.loeu.wallybudget.data.model.sumByDate
+import net.loeu.wallybudget.domain.model.BudgetState
+import net.loeu.wallybudget.data.local.entity.Expense
+import net.loeu.wallybudget.data.local.entity.MonthlyHistory
+import net.loeu.wallybudget.domain.model.SpendingForecast
+import net.loeu.wallybudget.domain.model.UserSettings
+import net.loeu.wallybudget.data.local.entity.sumByDate
 import net.loeu.wallybudget.domain.config.ForecastConfig
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit

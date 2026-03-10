@@ -1,7 +1,7 @@
-package net.loeu.wallybudget.data.local
+package net.loeu.wallybudget.data.local.db
 
 import androidx.room.TypeConverter
-import net.loeu.wallybudget.data.model.ExpenseCategory
+import net.loeu.wallybudget.domain.model.ExpenseCategory
 
 class Converters {
     @TypeConverter
@@ -14,4 +14,3 @@ class Converters {
         return value?.let { ExpenseCategory.valueOf(it) }
     }
 }
-

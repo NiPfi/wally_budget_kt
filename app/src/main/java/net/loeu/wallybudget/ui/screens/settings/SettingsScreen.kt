@@ -9,7 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import net.loeu.wallybudget.data.model.UserSettings
+import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.util.CurrencyFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)

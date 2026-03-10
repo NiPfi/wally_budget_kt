@@ -57,16 +57,16 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.window.core.layout.WindowSizeClass.Companion.HEIGHT_DP_MEDIUM_LOWER_BOUND
-import net.loeu.wallybudget.data.model.BudgetState
-import net.loeu.wallybudget.data.model.Expense
-import net.loeu.wallybudget.data.model.ExpenseCategory
-import net.loeu.wallybudget.data.model.ExpenseCycleSection
-import net.loeu.wallybudget.data.model.ExpenseDaySection
-import net.loeu.wallybudget.data.model.MonthlyHistory
-import net.loeu.wallybudget.data.model.PendingCycleCloseoutState
-import net.loeu.wallybudget.data.model.SpendingForecast
-import net.loeu.wallybudget.data.model.UserSettings
-import net.loeu.wallybudget.data.model.recordedDate
+import net.loeu.wallybudget.domain.model.BudgetState
+import net.loeu.wallybudget.data.local.entity.Expense
+import net.loeu.wallybudget.domain.model.ExpenseCategory
+import net.loeu.wallybudget.ui.model.ExpenseCycleSection
+import net.loeu.wallybudget.ui.model.ExpenseDaySection
+import net.loeu.wallybudget.data.local.entity.MonthlyHistory
+import net.loeu.wallybudget.ui.model.PendingCycleCloseoutState
+import net.loeu.wallybudget.domain.model.SpendingForecast
+import net.loeu.wallybudget.domain.model.UserSettings
+import net.loeu.wallybudget.data.local.entity.recordedDate
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

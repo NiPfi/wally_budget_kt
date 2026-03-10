@@ -1,4 +1,4 @@
-package net.loeu.wallybudget.data.model
+package net.loeu.wallybudget.domain.model
 
 import java.time.LocalDate
 
@@ -19,4 +19,3 @@ data class BudgetState(
     val remainingCycleCents: Long
         get() = monthlyBudgetCents - totalSpentThisCycleCents
 }
-

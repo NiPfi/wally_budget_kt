@@ -7,8 +7,8 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import net.loeu.wallybudget.data.model.BudgetState
-import net.loeu.wallybudget.data.model.SpendingForecast
+import net.loeu.wallybudget.domain.model.BudgetState
+import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.config.ForecastConfig
 import net.loeu.wallybudget.ui.screens.overview.ForecastCard
 import net.loeu.wallybudget.ui.theme.WallyBudgetTheme

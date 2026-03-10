@@ -14,9 +14,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import net.loeu.wallybudget.data.model.BudgetState
-import net.loeu.wallybudget.data.model.MonthlyHistory
-import net.loeu.wallybudget.data.model.SpendingForecast
+import net.loeu.wallybudget.domain.model.BudgetState
+import net.loeu.wallybudget.data.local.entity.MonthlyHistory
+import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.ui.screens.analysis.AnalysisScreen
 import net.loeu.wallybudget.ui.theme.WallyBudgetTheme
 import org.junit.Assert.assertTrue

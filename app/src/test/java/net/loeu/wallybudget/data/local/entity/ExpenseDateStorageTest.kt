@@ -1,4 +1,4 @@
-package net.loeu.wallybudget.data.model
+package net.loeu.wallybudget.data.local.entity
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

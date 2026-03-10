@@ -1,4 +1,4 @@
-package net.loeu.wallybudget.data.model
+package net.loeu.wallybudget.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.Ignore

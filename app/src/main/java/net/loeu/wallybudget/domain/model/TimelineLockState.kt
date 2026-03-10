@@ -1,4 +1,4 @@
-package net.loeu.wallybudget.data.model
+package net.loeu.wallybudget.domain.model
 
 data class TimelineLockState(
     val isLocked: Boolean = false,
