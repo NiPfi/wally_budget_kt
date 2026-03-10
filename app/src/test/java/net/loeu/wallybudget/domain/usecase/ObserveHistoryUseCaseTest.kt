@@ -17,6 +17,8 @@ class ObserveHistoryUseCaseTest {
     fun invoke_buildsCurrentFutureAndCompletedSections_inDisplayOrder() = runBlocking {
         val expenseDao = FakeExpenseDao(
             listOf(
+                expenseEntityOn(4L, LocalDate.of(2026, 3, 10), 1_500L),
+                expenseEntityOn(5L, LocalDate.of(2026, 2, 5), 2_500L),
                 expenseEntityOn(1L, LocalDate.of(2026, 4, 10), 2_000L),
                 expenseEntityOn(2L, LocalDate.of(2026, 4, 12), 3_000L),
                 expenseEntityOn(3L, LocalDate.of(2026, 3, 28), 4_000L)
@@ -39,7 +41,8 @@ class ObserveHistoryUseCaseTest {
         val useCase = ObserveHistoryUseCase(
             expenseDao = expenseDao,
             monthlyHistoryDao = historyDao,
-            cycleOverviewDao = FakeCycleOverviewDao(expenseDao)
+            cycleOverviewDao = FakeCycleOverviewDao(expenseDao),
+            budgetCalculationService = BudgetCalculationService()
         )
         val budgetCalculationService = BudgetCalculationService()
         val today = LocalDate.of(2026, 4, 10)
@@ -62,5 +65,9 @@ class ObserveHistoryUseCaseTest {
 
         assertEquals(2, state.monthlyHistory.size)
         assertEquals(listOf("Current cycle", "Future-dated expenses", "Feb 25 - Mar 24, 2026", "Jan 25 - Feb 24, 2026"), state.historySections.map { it.title })
+        assertEquals(1, state.historySections[2].daySections.size)
+        assertEquals(1_500L, state.historySections[2].daySections.single().totalSpentCents)
+        assertEquals(1, state.historySections[3].daySections.size)
+        assertEquals(2_500L, state.historySections[3].daySections.single().totalSpentCents)
     }
 }

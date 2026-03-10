@@ -18,14 +18,15 @@ import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.groupByDate
 import net.loeu.wallybudget.domain.model.recordedDate
 import net.loeu.wallybudget.domain.usecase.internal.buildContinuousDaySections
-import net.loeu.wallybudget.domain.usecase.internal.filterByRange
 import net.loeu.wallybudget.domain.usecase.internal.toDayTotalsMap
+import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import java.time.LocalDate
 
 class ObserveHistoryUseCase(
     private val expenseDao: ExpenseDao,
     private val monthlyHistoryDao: MonthlyHistoryDao,
-    private val cycleOverviewDao: CycleOverviewDao
+    private val cycleOverviewDao: CycleOverviewDao,
+    private val budgetCalculationService: BudgetCalculationService
 ) {
     operator fun invoke(homeOverviewFlow: Flow<HomeOverviewState>): Flow<HistoryState> {
         val allExpenses = expenseDao.observeAllOrderedDesc().map { expenses ->
@@ -71,10 +72,12 @@ class ObserveHistoryUseCase(
     ): List<ExpenseCycleSection> {
         val sections = mutableListOf<ExpenseCycleSection>()
         val currentCycleStart = budgetState.cycleStartDate
-        val activeCycleExpenses = allExpenses.filterByRange(
-            start = currentCycleStart,
-            endExclusive = today.plusDays(1)
+        val (expensesByCycleStart, futureExpenses) = bucketExpensesByCycleStart(
+            allExpenses = allExpenses,
+            paydayDate = budgetState.paydayDate,
+            today = today
         )
+        val activeCycleExpenses = expensesByCycleStart[currentCycleStart].orEmpty()
         val activeCycleDaySections = buildContinuousDaySections(
             start = currentCycleStart,
             endInclusive = today,
@@ -95,10 +98,9 @@ class ObserveHistoryUseCase(
             daySections = activeCycleDaySections,
             isActiveCycle = true,
             isReadOnly = !isEditable,
-            isCompletedCycle = false
+                isCompletedCycle = false
         )
 
-        val futureExpenses = allExpenses.filter { it.recordedDate().isAfter(today) }
         if (futureExpenses.isNotEmpty()) {
             val futureDaySections = futureExpenses
                 .groupByDate()
@@ -133,10 +135,7 @@ class ObserveHistoryUseCase(
             .filterNot { it.getCycleStart() == currentCycleStart }
             .sortedByDescending { it.endTimestamp }
             .map { monthlyEntry ->
-                val cycleExpenses = allExpenses.filterByRange(
-                    start = monthlyEntry.getCycleStart(),
-                    endExclusive = monthlyEntry.getCycleEnd()
-                )
+                val cycleExpenses = expensesByCycleStart[monthlyEntry.getCycleStart()].orEmpty()
                 val daySections = cycleExpenses
                     .groupByDate()
                     .toSortedMap(compareByDescending { it })
@@ -165,5 +164,30 @@ class ObserveHistoryUseCase(
             }
 
         return sections
+    }
+
+    private fun bucketExpensesByCycleStart(
+        allExpenses: List<Expense>,
+        paydayDate: Int,
+        today: LocalDate
+    ): Pair<Map<LocalDate, List<Expense>>, List<Expense>> {
+        val expensesByCycleStart = linkedMapOf<LocalDate, MutableList<Expense>>()
+        val futureExpenses = mutableListOf<Expense>()
+
+        allExpenses.forEach { expense ->
+            val recordedDate = expense.recordedDate()
+            if (recordedDate.isAfter(today)) {
+                futureExpenses += expense
+                return@forEach
+            }
+
+            val cycleStart = budgetCalculationService.getCycleStartDate(
+                now = recordedDate,
+                paydayDate = paydayDate
+            )
+            expensesByCycleStart.getOrPut(cycleStart) { mutableListOf() } += expense
+        }
+
+        return expensesByCycleStart to futureExpenses
     }
 }
