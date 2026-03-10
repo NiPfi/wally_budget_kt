@@ -2,6 +2,8 @@ package net.loeu.wallybudget.domain.usecase
 
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import net.loeu.wallybudget.domain.model.HomeOverviewState
+import net.loeu.wallybudget.domain.model.TimelineLockState
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import org.junit.Assert.assertEquals
@@ -37,13 +39,26 @@ class ObserveHistoryUseCaseTest {
         val useCase = ObserveHistoryUseCase(
             expenseDao = expenseDao,
             monthlyHistoryDao = historyDao,
-            cycleOverviewDao = FakeCycleOverviewDao(expenseDao),
-            userSettingsStore = settingsStore,
-            currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
-            budgetCalculationService = BudgetCalculationService()
+            cycleOverviewDao = FakeCycleOverviewDao(expenseDao)
+        )
+        val budgetCalculationService = BudgetCalculationService()
+        val today = LocalDate.of(2026, 4, 10)
+        val homeOverviewState = HomeOverviewState(
+            effectiveCurrentDate = today,
+            budgetState = budgetCalculationService.calculateBudgetState(
+                settings = settingsStore.currentSettings,
+                now = today,
+                totalSpentThisCycleCents = 6_000L,
+                spentTodayCents = 2_000L,
+                cumulativeSavingsCents = 0L
+            ),
+            todayExpenses = emptyList(),
+            activeCycleExpenseSections = emptyList(),
+            pendingCycleCloseoutState = null,
+            timelineLockState = TimelineLockState()
         )
 
-        val state = useCase().first()
+        val state = useCase(kotlinx.coroutines.flow.flowOf(homeOverviewState)).first()
 
         assertEquals(2, state.monthlyHistory.size)
         assertEquals(listOf("Current cycle", "Future-dated expenses", "Feb 25 - Mar 24, 2026", "Jan 25 - Feb 24, 2026"), state.historySections.map { it.title })

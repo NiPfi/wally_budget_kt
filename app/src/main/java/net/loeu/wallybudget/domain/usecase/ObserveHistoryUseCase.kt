@@ -8,41 +8,26 @@ import net.loeu.wallybudget.data.local.dao.CycleOverviewDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
 import net.loeu.wallybudget.data.local.entity.toDomainModel
-import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
-import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCycleSection
 import net.loeu.wallybudget.domain.model.ExpenseDaySection
+import net.loeu.wallybudget.domain.model.HomeOverviewState
 import net.loeu.wallybudget.domain.model.HistoryState
 import net.loeu.wallybudget.domain.model.MonthlyHistory
+import net.loeu.wallybudget.domain.model.groupByDate
 import net.loeu.wallybudget.domain.model.recordedDate
-import net.loeu.wallybudget.domain.service.BudgetCalculationService
-import net.loeu.wallybudget.domain.usecase.internal.buildBudgetState
 import net.loeu.wallybudget.domain.usecase.internal.buildContinuousDaySections
-import net.loeu.wallybudget.domain.usecase.internal.buildTimelineLockState
-import net.loeu.wallybudget.domain.usecase.internal.effectiveCurrentDate
 import net.loeu.wallybudget.domain.usecase.internal.filterByRange
-import net.loeu.wallybudget.domain.usecase.internal.groupByLocalDate
 import net.loeu.wallybudget.domain.usecase.internal.toDayTotalsMap
 import java.time.LocalDate
 
 class ObserveHistoryUseCase(
     private val expenseDao: ExpenseDao,
     private val monthlyHistoryDao: MonthlyHistoryDao,
-    private val cycleOverviewDao: CycleOverviewDao,
-    private val userSettingsStore: UserSettingsStore,
-    private val currentDateProvider: CurrentDateProvider,
-    private val budgetCalculationService: BudgetCalculationService
+    private val cycleOverviewDao: CycleOverviewDao
 ) {
-    operator fun invoke(): Flow<HistoryState> {
-        val userSettings = userSettingsStore.userSettings
-        val effectiveDate = combine(
-            userSettings,
-            currentDateProvider.observeCurrentDate()
-        ) { settings, observedDate ->
-            effectiveCurrentDate(settings, observedDate)
-        }.distinctUntilChanged()
+    operator fun invoke(homeOverviewFlow: Flow<HomeOverviewState>): Flow<HistoryState> {
         val allExpenses = expenseDao.observeAllOrderedDesc().map { expenses ->
             expenses.map { it.toDomainModel() }
         }
@@ -54,38 +39,11 @@ class ObserveHistoryUseCase(
         }
 
         return combine(
-            userSettings,
-            effectiveDate,
+            homeOverviewFlow,
             allExpenses,
             history,
             allDayTotals
-        ) { settings, today, expenses, historyEntries, dayTotals ->
-            val currentCycleRange = budgetCalculationService.getCurrentCycleProgressRange(
-                now = today,
-                paydayDate = settings.paydayDate
-            )
-            val totalSpentThisCycleCents = expenseDao.totalSpentInRange(
-                currentCycleRange.start.toString(),
-                currentCycleRange.endExclusive.toString()
-            ) ?: 0L
-            val spentTodayCents = expenseDao.totalSpentInRange(
-                today.toString(),
-                today.plusDays(1).toString()
-            ) ?: 0L
-            val budgetState = buildBudgetState(
-                settings = settings,
-                today = today,
-                history = historyEntries,
-                totalSpentThisCycleCents = totalSpentThisCycleCents,
-                spentTodayCents = spentTodayCents,
-                budgetCalculationService = budgetCalculationService
-            )
-            val timelineLockState = buildTimelineLockState(
-                settings = settings,
-                effectiveCurrentDate = today,
-                latestExpenseDate = expenses.firstOrNull()?.recordedDate(),
-                budgetCalculationService = budgetCalculationService
-            )
+        ) { homeOverviewState, expenses, historyEntries, dayTotals ->
             val monthlyHistory = historyEntries
                 .filter { it.totalSpentCents > 0L }
                 .sortedByDescending { it.endTimestamp }
@@ -96,9 +54,9 @@ class ObserveHistoryUseCase(
                     monthlyHistory = monthlyHistory,
                     allExpenses = expenses,
                     dayTotals = dayTotals,
-                    budgetState = budgetState,
-                    today = today,
-                    isEditable = !timelineLockState.isLocked
+                    budgetState = homeOverviewState.budgetState,
+                    today = homeOverviewState.effectiveCurrentDate,
+                    isEditable = !homeOverviewState.timelineLockState.isLocked
                 )
             )
         }.distinctUntilChanged()
@@ -121,7 +79,7 @@ class ObserveHistoryUseCase(
         val activeCycleDaySections = buildContinuousDaySections(
             start = currentCycleStart,
             endInclusive = today,
-            expensesByDate = activeCycleExpenses.groupByLocalDate(),
+            expensesByDate = activeCycleExpenses.groupByDate(),
             dayTotals = dayTotals,
             remainingBudgetForDay = { totalSpent -> budgetState.dailyBudgetCents - totalSpent },
             isEditable = isEditable,
@@ -144,7 +102,7 @@ class ObserveHistoryUseCase(
         val futureExpenses = allExpenses.filter { it.recordedDate().isAfter(today) }
         if (futureExpenses.isNotEmpty()) {
             val futureDaySections = futureExpenses
-                .groupByLocalDate()
+                .groupByDate()
                 .toSortedMap(compareByDescending { it })
                 .map { (date, expenses) ->
                     ExpenseDaySection(
@@ -181,7 +139,7 @@ class ObserveHistoryUseCase(
                     endExclusive = monthlyEntry.getCycleEnd()
                 )
                 val daySections = cycleExpenses
-                    .groupByLocalDate()
+                    .groupByDate()
                     .toSortedMap(compareByDescending { it })
                     .map { (date, expenses) ->
                         ExpenseDaySection(

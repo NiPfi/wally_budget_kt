@@ -1,5 +1,8 @@
 package net.loeu.wallybudget.domain.usecase.internal
 
+import net.loeu.wallybudget.data.local.dao.ExpenseDao
+import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
+import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.data.local.querymodel.ExpenseDayTotalRow
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.Expense
@@ -7,7 +10,6 @@ import net.loeu.wallybudget.domain.model.ExpenseDaySection
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.TimelineLockState
 import net.loeu.wallybudget.domain.model.UserSettings
-import net.loeu.wallybudget.domain.model.recordedDate
 import net.loeu.wallybudget.domain.policy.ObservedDatePolicy
 import net.loeu.wallybudget.domain.policy.TimelineLockPolicy
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
@@ -60,12 +62,43 @@ internal fun List<Expense>.filterByRange(
     }
 }
 
-internal fun List<Expense>.groupByLocalDate(): Map<LocalDate, List<Expense>> {
-    return groupBy(Expense::recordedDate)
-}
-
 internal fun List<ExpenseDayTotalRow>.toDayTotalsMap(): Map<LocalDate, Long> {
     return associate { row -> LocalDate.parse(row.expenseDate) to row.totalSpentCents }
+}
+
+internal suspend fun archiveCycleIfNeeded(
+    expenseDao: ExpenseDao,
+    monthlyHistoryDao: MonthlyHistoryDao,
+    budgetCalculationService: BudgetCalculationService,
+    settings: UserSettings,
+    cycleStart: LocalDate,
+    cycleEnd: LocalDate
+) {
+    val totalSpentCents = expenseDao.totalSpentInRange(
+        cycleStart.toString(),
+        cycleEnd.toString()
+    ) ?: 0L
+    val expenseCount = expenseDao.countInRange(
+        cycleStart.toString(),
+        cycleEnd.toString()
+    )
+    if (expenseCount == 0) {
+        return
+    }
+
+    monthlyHistoryDao.insert(
+        MonthlyHistory(
+            cycleStartDate = cycleStart.toString(),
+            budgetAmountCents = settings.monthlyBudgetCents,
+            totalSpentCents = totalSpentCents,
+            surplusCents = budgetCalculationService.calculateSurplus(
+                settings.monthlyBudgetCents,
+                totalSpentCents
+            ),
+            cycleEndDate = cycleEnd.toString(),
+            endTimestamp = cycleEnd.toStartOfDayMillis()
+        ).toEntity()
+    )
 }
 
 internal fun buildBudgetState(

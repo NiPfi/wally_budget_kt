@@ -78,10 +78,7 @@ class BudgetViewModelFactory(
         ObserveHistoryUseCase(
             expenseDao = expenseDao,
             monthlyHistoryDao = monthlyHistoryDao,
-            cycleOverviewDao = cycleOverviewDao,
-            userSettingsStore = userPreferencesManager,
-            currentDateProvider = currentDateProvider,
-            budgetCalculationService = budgetCalculationService
+            cycleOverviewDao = cycleOverviewDao
         )
     }
 
@@ -133,7 +130,7 @@ class BudgetViewModelFactory(
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(BudgetViewModel::class.java)) {
             return BudgetViewModel(
-                userSettingsFlow = userPreferencesManager.userSettings,
+                upstreamUserSettingsFlow = userPreferencesManager.userSettings,
                 observeHomeOverviewUseCase = observeHomeOverviewUseCase,
                 observeHistoryUseCase = observeHistoryUseCase,
                 observeForecastUseCase = observeForecastUseCase,

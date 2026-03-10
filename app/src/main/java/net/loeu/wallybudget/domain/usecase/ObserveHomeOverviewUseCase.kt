@@ -10,8 +10,11 @@ import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
 import net.loeu.wallybudget.data.local.entity.toDomainModel
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.time.CurrentDateProvider
+import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.HomeOverviewState
 import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
+import net.loeu.wallybudget.domain.model.UserSettings
+import net.loeu.wallybudget.domain.model.groupByDate
 import net.loeu.wallybudget.domain.model.recordedDate
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.usecase.internal.buildBudgetState
@@ -20,9 +23,9 @@ import net.loeu.wallybudget.domain.usecase.internal.buildTimelineLockState
 import net.loeu.wallybudget.domain.usecase.internal.buildTrendSummary
 import net.loeu.wallybudget.domain.usecase.internal.effectiveCurrentDate
 import net.loeu.wallybudget.domain.usecase.internal.filterByRange
-import net.loeu.wallybudget.domain.usecase.internal.groupByLocalDate
 import net.loeu.wallybudget.domain.usecase.internal.pendingCycleRangeOrNull
 import net.loeu.wallybudget.domain.usecase.internal.toDayTotalsMap
+import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
 class ObserveHomeOverviewUseCase(
@@ -95,7 +98,7 @@ class ObserveHomeOverviewUseCase(
             val activeCycleSections = buildContinuousDaySections(
                 start = budgetState.cycleStartDate,
                 endInclusive = today,
-                expensesByDate = activeCycleExpenses.groupByLocalDate(),
+                expensesByDate = activeCycleExpenses.groupByDate(),
                 dayTotals = dayTotals,
                 remainingBudgetForDay = { totalSpent ->
                     budgetState.dailyBudgetCents - totalSpent
@@ -120,9 +123,9 @@ class ObserveHomeOverviewUseCase(
     }
 
     private fun buildPendingCycleCloseoutState(
-        settings: net.loeu.wallybudget.domain.model.UserSettings,
-        expenses: List<net.loeu.wallybudget.domain.model.Expense>,
-        dayTotals: Map<java.time.LocalDate, Long>
+        settings: UserSettings,
+        expenses: List<Expense>,
+        dayTotals: Map<LocalDate, Long>
     ): PendingCycleCloseoutState? {
         val pendingCycle = settings.pendingCycleRangeOrNull() ?: return null
         val cycleExpenses = expenses.filterByRange(
@@ -136,7 +139,7 @@ class ObserveHomeOverviewUseCase(
         val daySections = buildContinuousDaySections(
             start = pendingCycle.start,
             endInclusive = pendingCycle.endExclusive.minusDays(1),
-            expensesByDate = cycleExpenses.groupByLocalDate(),
+            expensesByDate = cycleExpenses.groupByDate(),
             dayTotals = dayTotals,
             remainingBudgetForDay = { totalSpent -> baseDailyBudget - totalSpent },
             isEditable = true,
