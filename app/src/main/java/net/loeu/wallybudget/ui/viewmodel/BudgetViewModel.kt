@@ -186,7 +186,11 @@ class BudgetViewModel(
      */
     fun addExpense(amountCents: Long, description: String, icon: ExpenseCategory? = null, date: LocalDate? = null) {
         viewModelScope.launch {
-            val effectiveDate = currentEffectiveDateForMutation() ?: run {
+            val effectiveDate = currentEffectiveDateForMutation(
+                resolveMutationEffectiveDateUseCase = resolveMutationEffectiveDateUseCase,
+                settings = userSettings.value,
+                currentDateProvider = currentDateProvider
+            ) ?: run {
                 _isAddExpenseSheetVisible.value = false
                 return@launch
             }
@@ -213,7 +217,15 @@ class BudgetViewModel(
      */
     fun updateExpense(expense: Expense) {
         viewModelScope.launch {
-            if (currentEffectiveDateForMutation() == null) return@launch
+            if (
+                currentEffectiveDateForMutation(
+                    resolveMutationEffectiveDateUseCase = resolveMutationEffectiveDateUseCase,
+                    settings = userSettings.value,
+                    currentDateProvider = currentDateProvider
+                ) == null
+            ) {
+                return@launch
+            }
             updateExpenseUseCase(expense)
         }
     }
@@ -223,14 +235,30 @@ class BudgetViewModel(
      */
     fun deleteExpense(expense: Expense) {
         viewModelScope.launch {
-            if (currentEffectiveDateForMutation() == null) return@launch
+            if (
+                currentEffectiveDateForMutation(
+                    resolveMutationEffectiveDateUseCase = resolveMutationEffectiveDateUseCase,
+                    settings = userSettings.value,
+                    currentDateProvider = currentDateProvider
+                ) == null
+            ) {
+                return@launch
+            }
             deleteExpenseUseCase(expense)
         }
     }
 
     fun restoreDeletedExpense(expense: Expense) {
         viewModelScope.launch {
-            if (currentEffectiveDateForMutation() == null) return@launch
+            if (
+                currentEffectiveDateForMutation(
+                    resolveMutationEffectiveDateUseCase = resolveMutationEffectiveDateUseCase,
+                    settings = userSettings.value,
+                    currentDateProvider = currentDateProvider
+                ) == null
+            ) {
+                return@launch
+            }
             addExpenseUseCase(expense.copy(id = 0L))
         }
     }
@@ -291,11 +319,15 @@ class BudgetViewModel(
             updatePaydayDateUseCase(day)
         }
     }
+}
 
-    private suspend fun currentEffectiveDateForMutation(): LocalDate? {
-        return resolveMutationEffectiveDateUseCase(
-            settings = userSettings.value,
-            observedDate = currentDateProvider.currentDate()
-        )
-    }
+private suspend fun currentEffectiveDateForMutation(
+    resolveMutationEffectiveDateUseCase: ResolveMutationEffectiveDateUseCase,
+    settings: UserSettings,
+    currentDateProvider: CurrentDateProvider
+): LocalDate? {
+    return resolveMutationEffectiveDateUseCase(
+        settings = settings,
+        observedDate = currentDateProvider.currentDate()
+    )
 }

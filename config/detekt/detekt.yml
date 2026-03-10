@@ -7,14 +7,17 @@ complexity:
     active: true
     allowedConditions: 4
   CyclomaticComplexMethod:
-    active: false
+    active: true
+    allowedComplexity: 20
   LongMethod:
     active: false
   LongParameterList:
     active: true
     ignoreDefaultParameters: true
   TooManyFunctions:
-    active: false
+    active: true
+    allowedFunctionsPerFile: 12
+    allowedFunctionsPerClass: 11
 
 exceptions:
   TooGenericExceptionCaught:
