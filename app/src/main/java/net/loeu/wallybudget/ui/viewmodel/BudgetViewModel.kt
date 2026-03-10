@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import net.loeu.wallybudget.domain.model.BudgetState
@@ -20,18 +21,43 @@ import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.TimelineLockState
 import net.loeu.wallybudget.domain.model.UserSettings
-import net.loeu.wallybudget.data.repository.BudgetRepository
 import net.loeu.wallybudget.data.time.CurrentDateProvider
+import net.loeu.wallybudget.domain.usecase.AddExpenseUseCase
+import net.loeu.wallybudget.domain.usecase.CompleteOnboardingUseCase
+import net.loeu.wallybudget.domain.usecase.ConcludePendingCycleUseCase
+import net.loeu.wallybudget.domain.usecase.DeleteExpenseUseCase
+import net.loeu.wallybudget.domain.usecase.ObserveForecastUseCase
+import net.loeu.wallybudget.domain.usecase.ObserveHistoryUseCase
+import net.loeu.wallybudget.domain.usecase.ObserveHomeOverviewUseCase
+import net.loeu.wallybudget.domain.usecase.PerformMonthlyResetUseCase
+import net.loeu.wallybudget.domain.usecase.SyncObservedDateUseCase
+import net.loeu.wallybudget.domain.usecase.UpdateExpenseUseCase
+import net.loeu.wallybudget.domain.usecase.UpdateMonthlyBudgetUseCase
+import net.loeu.wallybudget.domain.usecase.UpdatePaydayDateUseCase
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
 class BudgetViewModel(
-    private val repository: BudgetRepository,
+    userSettingsFlow: Flow<UserSettings>,
+    observeHomeOverviewUseCase: ObserveHomeOverviewUseCase,
+    observeHistoryUseCase: ObserveHistoryUseCase,
+    observeForecastUseCase: ObserveForecastUseCase,
+    private val addExpenseUseCase: AddExpenseUseCase,
+    private val updateExpenseUseCase: UpdateExpenseUseCase,
+    private val deleteExpenseUseCase: DeleteExpenseUseCase,
+    private val updateMonthlyBudgetUseCase: UpdateMonthlyBudgetUseCase,
+    private val updatePaydayDateUseCase: UpdatePaydayDateUseCase,
+    private val completeOnboardingUseCase: CompleteOnboardingUseCase,
+    private val performMonthlyResetUseCase: PerformMonthlyResetUseCase,
+    private val concludePendingCycleUseCase: ConcludePendingCycleUseCase,
+    private val syncObservedDateUseCase: SyncObservedDateUseCase,
     private val currentDateProvider: CurrentDateProvider
 ) : ViewModel() {
 
-    val userSettingsFlow: Flow<UserSettings> = repository.userSettings
+    val userSettingsFlow: Flow<UserSettings> = userSettingsFlow
+    private val homeOverviewFlow = observeHomeOverviewUseCase()
+    private val historyStateFlow = observeHistoryUseCase()
 
     // User settings
     val userSettings: StateFlow<UserSettings> = userSettingsFlow
@@ -41,7 +67,8 @@ class BudgetViewModel(
             initialValue = UserSettings()
         )
 
-    val effectiveCurrentDate: StateFlow<LocalDate> = repository.getEffectiveCurrentDate()
+    val effectiveCurrentDate: StateFlow<LocalDate> = homeOverviewFlow
+        .map { it.effectiveCurrentDate }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -49,7 +76,8 @@ class BudgetViewModel(
         )
 
     // Budget state
-    val budgetState: StateFlow<BudgetState?> = repository.getBudgetState()
+    val budgetState: StateFlow<BudgetState?> = homeOverviewFlow
+        .map { it.budgetState }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -57,14 +85,16 @@ class BudgetViewModel(
         )
 
     // Today's expenses
-    val todayExpenses: StateFlow<List<Expense>> = repository.getTodayExpenses()
+    val todayExpenses: StateFlow<List<Expense>> = homeOverviewFlow
+        .map { it.todayExpenses }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
 
-    val activeCycleExpenseSections: StateFlow<List<ExpenseDaySection>> = repository.getActiveCycleExpenseSections()
+    val activeCycleExpenseSections: StateFlow<List<ExpenseDaySection>> = homeOverviewFlow
+        .map { it.activeCycleExpenseSections }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -72,35 +102,39 @@ class BudgetViewModel(
         )
 
     // Monthly history
-    val monthlyHistory: StateFlow<List<MonthlyHistory>?> = repository.getMonthlyHistory()
+    val monthlyHistory: StateFlow<List<MonthlyHistory>?> = historyStateFlow
+        .map { it.monthlyHistory }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = null
         )
 
-    val spendingForecast: StateFlow<SpendingForecast?> = repository.getSpendingForecast()
+    val spendingForecast: StateFlow<SpendingForecast?> = observeForecastUseCase()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = null
         )
 
-    val historySections: StateFlow<List<ExpenseCycleSection>> = repository.getHistorySections()
+    val historySections: StateFlow<List<ExpenseCycleSection>> = historyStateFlow
+        .map { it.historySections }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
 
-    val pendingCycleCloseoutState: StateFlow<PendingCycleCloseoutState?> = repository.getPendingCycleCloseoutState()
+    val pendingCycleCloseoutState: StateFlow<PendingCycleCloseoutState?> = homeOverviewFlow
+        .map { it.pendingCycleCloseoutState }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = null
         )
 
-    val timelineLockState: StateFlow<TimelineLockState> = repository.getTimelineLockState()
+    val timelineLockState: StateFlow<TimelineLockState> = homeOverviewFlow
+        .map { it.timelineLockState }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -117,8 +151,8 @@ class BudgetViewModel(
             combine(userSettingsFlow, currentDateProvider.observeCurrentDate()) { settings, observedDate ->
                 settings to observedDate
             }.collect { (settings, observedDate) ->
-                val effectiveDate = repository.syncObservedDate(settings, observedDate)
-                repository.checkAndPerformMonthlyReset(settings, effectiveDate)
+                val effectiveDate = syncObservedDateUseCase(settings, observedDate)
+                performMonthlyResetUseCase(settings, effectiveDate)
             }
         }
     }
@@ -126,8 +160,8 @@ class BudgetViewModel(
     fun refreshCycleState() {
         viewModelScope.launch {
             val settings = userSettings.value
-            val effectiveDate = repository.syncObservedDate(settings, currentDateProvider.currentDate())
-            repository.checkAndPerformMonthlyReset(settings, effectiveDate)
+            val effectiveDate = syncObservedDateUseCase(settings, currentDateProvider.currentDate())
+            performMonthlyResetUseCase(settings, effectiveDate)
         }
     }
 
@@ -153,7 +187,7 @@ class BudgetViewModel(
                 timestamp = timestamp,
                 expenseDate = resolvedDate.toString()
             )
-            repository.addExpense(expense)
+            addExpenseUseCase(expense)
             _isAddExpenseSheetVisible.value = false
         }
     }
@@ -164,7 +198,7 @@ class BudgetViewModel(
     fun updateExpense(expense: Expense) {
         viewModelScope.launch {
             if (currentEffectiveDateForMutation() == null) return@launch
-            repository.updateExpense(expense)
+            updateExpenseUseCase(expense)
         }
     }
 
@@ -174,20 +208,20 @@ class BudgetViewModel(
     fun deleteExpense(expense: Expense) {
         viewModelScope.launch {
             if (currentEffectiveDateForMutation() == null) return@launch
-            repository.deleteExpense(expense)
+            deleteExpenseUseCase(expense)
         }
     }
 
     fun restoreDeletedExpense(expense: Expense) {
         viewModelScope.launch {
             if (currentEffectiveDateForMutation() == null) return@launch
-            repository.addExpense(expense.copy(id = 0L))
+            addExpenseUseCase(expense.copy(id = 0L))
         }
     }
 
     fun concludePendingCycle() {
         viewModelScope.launch {
-            repository.concludePendingCycle(userSettings.value)
+            concludePendingCycleUseCase(userSettings.value)
         }
     }
 
@@ -215,7 +249,7 @@ class BudgetViewModel(
         previousExpensesCents: Long
     ) {
         viewModelScope.launch {
-            repository.completeOnboarding(
+            completeOnboardingUseCase(
                 monthlyBudgetCents = monthlyBudgetCents,
                 paydayDate = paydayDate,
                 cycleStartDate = cycleStartDate,
@@ -229,7 +263,7 @@ class BudgetViewModel(
      */
     fun updateMonthlyBudget(amountCents: Long) {
         viewModelScope.launch {
-            repository.updateMonthlyBudget(amountCents)
+            updateMonthlyBudgetUseCase(amountCents)
         }
     }
 
@@ -238,13 +272,13 @@ class BudgetViewModel(
      */
     fun updatePaydayDate(day: Int) {
         viewModelScope.launch {
-            repository.updatePaydayDate(day)
+            updatePaydayDateUseCase(day)
         }
     }
 
     private suspend fun currentEffectiveDateForMutation(): LocalDate? {
         val settings = userSettings.value
-        val effectiveDate = repository.syncObservedDate(
+        val effectiveDate = syncObservedDateUseCase(
             settings = settings,
             observedDate = currentDateProvider.currentDate()
         )

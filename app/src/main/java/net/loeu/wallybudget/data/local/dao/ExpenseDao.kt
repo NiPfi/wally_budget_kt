@@ -2,17 +2,13 @@ package net.loeu.wallybudget.data.local.dao
 
 import androidx.room.Dao
 import androidx.room.Delete
-import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
 
 @Dao
-interface ExpenseDao {
-    @Insert
-    suspend fun insert(expense: ExpenseEntity): Long
-
+interface ExpenseDao : BaseInsertDao<ExpenseEntity> {
     @Update
     suspend fun update(expense: ExpenseEntity)
 
@@ -20,49 +16,39 @@ interface ExpenseDao {
     suspend fun delete(expense: ExpenseEntity)
 
     @Query("SELECT COUNT(*) FROM expenses")
-    fun observeExpenseCount(): Flow<Int>
+    fun observeCount(): Flow<Int>
 
     @Query(
         "SELECT * FROM expenses " +
             "WHERE expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive " +
             "ORDER BY expenseDate DESC, timestamp DESC, id DESC"
     )
-    fun getExpensesByDateRange(
+    fun observeInRange(
         startDateInclusive: String,
         endDateExclusive: String
     ): Flow<List<ExpenseEntity>>
 
-    @Query(
-        "SELECT * FROM expenses " +
-            "WHERE expenseDate >= :startDateInclusive AND expenseDate < :effectiveEndDateExclusive " +
-            "ORDER BY expenseDate DESC, timestamp DESC, id DESC"
-    )
-    fun getExpensesByDateRangeWithEffectiveEndTime(
-        startDateInclusive: String,
-        effectiveEndDateExclusive: String
-    ): Flow<List<ExpenseEntity>>
-
     @Query("SELECT SUM(amountCents) FROM expenses WHERE expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive")
-    suspend fun getTotalSpentInRange(startDateInclusive: String, endDateExclusive: String): Long?
+    suspend fun totalSpentInRange(startDateInclusive: String, endDateExclusive: String): Long?
 
     @Query("SELECT COUNT(*) FROM expenses WHERE expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive")
-    suspend fun getExpenseCountInRange(startDateInclusive: String, endDateExclusive: String): Int
+    suspend fun countInRange(startDateInclusive: String, endDateExclusive: String): Int
 
     @Query("SELECT * FROM expenses WHERE id = :expenseId")
-    suspend fun getExpenseById(expenseId: Long): ExpenseEntity?
+    suspend fun findById(expenseId: Long): ExpenseEntity?
 
     @Query("DELETE FROM expenses WHERE expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive")
-    suspend fun deleteExpensesInRange(startDateInclusive: String, endDateExclusive: String)
+    suspend fun deleteInRange(startDateInclusive: String, endDateExclusive: String)
 
     @Query(
         "SELECT * FROM expenses " +
             "WHERE expenseDate >= :sinceDateInclusive " +
             "ORDER BY expenseDate ASC, timestamp ASC, id ASC"
     )
-    fun getExpensesSince(sinceDateInclusive: String): Flow<List<ExpenseEntity>>
+    fun observeSince(sinceDateInclusive: String): Flow<List<ExpenseEntity>>
 
     @Query("SELECT * FROM expenses ORDER BY expenseDate DESC, timestamp DESC, id DESC")
-    fun getAllExpensesOrderedByTimestampDesc(): Flow<List<ExpenseEntity>>
+    fun observeAllOrderedDesc(): Flow<List<ExpenseEntity>>
 
     @Query("SELECT MAX(expenseDate) FROM expenses")
     fun observeLatestExpenseDate(): Flow<String?>

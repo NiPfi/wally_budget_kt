@@ -6,11 +6,21 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.room.Room
 import net.loeu.wallybudget.data.local.db.BudgetDatabase
 import net.loeu.wallybudget.data.local.preferences.UserPreferencesManager
-import net.loeu.wallybudget.data.local.source.BudgetLocalDataSource
-import net.loeu.wallybudget.data.repository.BudgetRepository
 import net.loeu.wallybudget.data.time.SystemCurrentDateProvider
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.SpendingForecastCalculator
+import net.loeu.wallybudget.domain.usecase.AddExpenseUseCase
+import net.loeu.wallybudget.domain.usecase.CompleteOnboardingUseCase
+import net.loeu.wallybudget.domain.usecase.ConcludePendingCycleUseCase
+import net.loeu.wallybudget.domain.usecase.DeleteExpenseUseCase
+import net.loeu.wallybudget.domain.usecase.ObserveForecastUseCase
+import net.loeu.wallybudget.domain.usecase.ObserveHistoryUseCase
+import net.loeu.wallybudget.domain.usecase.ObserveHomeOverviewUseCase
+import net.loeu.wallybudget.domain.usecase.PerformMonthlyResetUseCase
+import net.loeu.wallybudget.domain.usecase.SyncObservedDateUseCase
+import net.loeu.wallybudget.domain.usecase.UpdateExpenseUseCase
+import net.loeu.wallybudget.domain.usecase.UpdateMonthlyBudgetUseCase
+import net.loeu.wallybudget.domain.usecase.UpdatePaydayDateUseCase
 
 class BudgetViewModelFactory(
     private val context: Context
@@ -49,22 +59,95 @@ class BudgetViewModelFactory(
         BudgetCalculationService(forecastCalculator)
     }
 
-    private val repository by lazy {
-        BudgetRepository(
-            localDataSource = BudgetLocalDataSource(
-                expenseDao = database.expenseDao(),
-                monthlyHistoryDao = database.monthlyHistoryDao(),
-                userPreferencesManager = userPreferencesManager
-            ),
-            budgetCalculationService = budgetCalculationService,
-            currentDateProvider = currentDateProvider
+    private val expenseDao by lazy { database.expenseDao() }
+    private val monthlyHistoryDao by lazy { database.monthlyHistoryDao() }
+    private val cycleOverviewDao by lazy { database.cycleOverviewDao() }
+
+    private val observeHomeOverviewUseCase by lazy {
+        ObserveHomeOverviewUseCase(
+            expenseDao = expenseDao,
+            monthlyHistoryDao = monthlyHistoryDao,
+            cycleOverviewDao = cycleOverviewDao,
+            userPreferencesManager = userPreferencesManager,
+            currentDateProvider = currentDateProvider,
+            budgetCalculationService = budgetCalculationService
         )
     }
+
+    private val observeHistoryUseCase by lazy {
+        ObserveHistoryUseCase(
+            expenseDao = expenseDao,
+            monthlyHistoryDao = monthlyHistoryDao,
+            cycleOverviewDao = cycleOverviewDao,
+            userPreferencesManager = userPreferencesManager,
+            currentDateProvider = currentDateProvider,
+            budgetCalculationService = budgetCalculationService
+        )
+    }
+
+    private val observeForecastUseCase by lazy {
+        ObserveForecastUseCase(
+            expenseDao = expenseDao,
+            monthlyHistoryDao = monthlyHistoryDao,
+            userPreferencesManager = userPreferencesManager,
+            currentDateProvider = currentDateProvider,
+            budgetCalculationService = budgetCalculationService
+        )
+    }
+
+    private val addExpenseUseCase by lazy { AddExpenseUseCase(expenseDao) }
+    private val updateExpenseUseCase by lazy { UpdateExpenseUseCase(expenseDao) }
+    private val deleteExpenseUseCase by lazy { DeleteExpenseUseCase(expenseDao) }
+    private val updateMonthlyBudgetUseCase by lazy { UpdateMonthlyBudgetUseCase(userPreferencesManager) }
+    private val updatePaydayDateUseCase by lazy { UpdatePaydayDateUseCase(userPreferencesManager) }
+    private val completeOnboardingUseCase by lazy {
+        CompleteOnboardingUseCase(
+            database = database,
+            monthlyHistoryDao = monthlyHistoryDao,
+            userPreferencesManager = userPreferencesManager,
+            currentDateProvider = currentDateProvider,
+            budgetCalculationService = budgetCalculationService
+        )
+    }
+    private val performMonthlyResetUseCase by lazy {
+        PerformMonthlyResetUseCase(
+            database = database,
+            expenseDao = expenseDao,
+            monthlyHistoryDao = monthlyHistoryDao,
+            userPreferencesManager = userPreferencesManager,
+            budgetCalculationService = budgetCalculationService
+        )
+    }
+    private val concludePendingCycleUseCase by lazy {
+        ConcludePendingCycleUseCase(
+            database = database,
+            expenseDao = expenseDao,
+            monthlyHistoryDao = monthlyHistoryDao,
+            userPreferencesManager = userPreferencesManager,
+            budgetCalculationService = budgetCalculationService
+        )
+    }
+    private val syncObservedDateUseCase by lazy { SyncObservedDateUseCase(userPreferencesManager) }
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(BudgetViewModel::class.java)) {
-            return BudgetViewModel(repository, currentDateProvider) as T
+            return BudgetViewModel(
+                userSettingsFlow = userPreferencesManager.userSettings,
+                observeHomeOverviewUseCase = observeHomeOverviewUseCase,
+                observeHistoryUseCase = observeHistoryUseCase,
+                observeForecastUseCase = observeForecastUseCase,
+                addExpenseUseCase = addExpenseUseCase,
+                updateExpenseUseCase = updateExpenseUseCase,
+                deleteExpenseUseCase = deleteExpenseUseCase,
+                updateMonthlyBudgetUseCase = updateMonthlyBudgetUseCase,
+                updatePaydayDateUseCase = updatePaydayDateUseCase,
+                completeOnboardingUseCase = completeOnboardingUseCase,
+                performMonthlyResetUseCase = performMonthlyResetUseCase,
+                concludePendingCycleUseCase = concludePendingCycleUseCase,
+                syncObservedDateUseCase = syncObservedDateUseCase,
+                currentDateProvider = currentDateProvider
+            ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

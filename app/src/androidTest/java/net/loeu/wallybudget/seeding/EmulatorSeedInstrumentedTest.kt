@@ -84,9 +84,9 @@ class EmulatorSeedInstrumentedTest {
 
             assertTrue(
                 database.monthlyHistoryDao()
-                    .getHistoryForCycle(seedPlan.historyCycles.first().cycleStartDate.toString()) != null
+                    .findByCycleStart(seedPlan.historyCycles.first().cycleStartDate.toString()) != null
             )
-            assertTrue((database.expenseDao().getTotalSpentInRange("1900-01-01", "2999-01-01") ?: 0L) > 0L)
+            assertTrue((database.expenseDao().totalSpentInRange("1900-01-01", "2999-01-01") ?: 0L) > 0L)
         } finally {
             database.close()
         }
