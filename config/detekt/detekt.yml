@@ -8,7 +8,7 @@ complexity:
     allowedConditions: 3
   CyclomaticComplexMethod:
     active: true
-    allowedComplexity: 16
+    allowedComplexity: 15
   LongMethod:
     active: false
   LongParameterList:
