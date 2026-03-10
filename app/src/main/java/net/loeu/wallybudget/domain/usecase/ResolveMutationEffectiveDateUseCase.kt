@@ -1,6 +1,5 @@
 package net.loeu.wallybudget.domain.usecase
 
-import kotlinx.coroutines.flow.first
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.domain.model.UserSettings
@@ -13,10 +12,11 @@ class ResolveMutationEffectiveDateUseCase(
     private val expenseDao: ExpenseDao,
     private val budgetCalculationService: BudgetCalculationService
 ) {
+    private val syncObservedDateUseCase = SyncObservedDateUseCase(userSettingsStore)
+
     suspend operator fun invoke(settings: UserSettings, observedDate: LocalDate): LocalDate? {
-        val effectiveDate = SyncObservedDateUseCase(userSettingsStore).invoke(settings, observedDate)
-        val latestExpenseDate = expenseDao.observeLatestExpenseDate()
-            .first()
+        val effectiveDate = syncObservedDateUseCase(settings, observedDate)
+        val latestExpenseDate = expenseDao.findLatestExpenseDate()
             ?.let(LocalDate::parse)
         val timelineLockState = buildTimelineLockState(
             settings = settings,

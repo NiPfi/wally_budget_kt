@@ -163,6 +163,9 @@ internal class FakeExpenseDao(
 
     override fun observeAllOrderedDesc(): Flow<List<ExpenseEntity>> = allExpensesFlow
 
+    override suspend fun findLatestExpenseDate(): String? =
+        expenses.maxOfOrNull { it.expenseDate }
+
     override fun observeLatestExpenseDate(): Flow<String?> =
         allExpensesFlow.map { entries -> entries.maxOfOrNull { it.expenseDate } }
 
