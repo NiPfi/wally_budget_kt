@@ -7,8 +7,8 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import net.loeu.wallybudget.domain.model.BudgetState
-import net.loeu.wallybudget.data.local.entity.Expense
-import net.loeu.wallybudget.ui.model.ExpenseDaySection
+import net.loeu.wallybudget.domain.model.Expense
+import net.loeu.wallybudget.domain.model.ExpenseDaySection
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.ui.screens.overview.OverviewPage
 import net.loeu.wallybudget.ui.theme.WallyBudgetTheme

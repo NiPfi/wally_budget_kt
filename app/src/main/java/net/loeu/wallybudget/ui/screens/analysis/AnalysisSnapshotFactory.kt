@@ -1,7 +1,7 @@
 package net.loeu.wallybudget.ui.screens.analysis
 
 import net.loeu.wallybudget.domain.model.BudgetState
-import net.loeu.wallybudget.data.local.entity.MonthlyHistory
+import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.ui.calculateAvailableRecoverableOverspendCentsFromForecast
 import net.loeu.wallybudget.ui.calculateSafeToSpendNowCents

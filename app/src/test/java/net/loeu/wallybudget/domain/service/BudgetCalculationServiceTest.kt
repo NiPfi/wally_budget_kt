@@ -1,8 +1,8 @@
 package net.loeu.wallybudget.domain.service
 
 import net.loeu.wallybudget.domain.model.BudgetState
-import net.loeu.wallybudget.data.local.entity.Expense
-import net.loeu.wallybudget.data.local.entity.MonthlyHistory
+import net.loeu.wallybudget.domain.model.Expense
+import net.loeu.wallybudget.domain.model.MonthlyHistory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

@@ -11,7 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import net.loeu.wallybudget.data.local.entity.Expense
+import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.description
 import net.loeu.wallybudget.domain.model.iconRes
 import net.loeu.wallybudget.ui.screens.overview.AnimatedCounter

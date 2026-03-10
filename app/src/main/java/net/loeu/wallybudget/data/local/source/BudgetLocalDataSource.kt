@@ -1,11 +1,14 @@
 package net.loeu.wallybudget.data.local.source
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
-import net.loeu.wallybudget.data.local.entity.Expense
-import net.loeu.wallybudget.data.local.entity.MonthlyHistory
 import net.loeu.wallybudget.data.local.preferences.UserPreferencesManager
+import net.loeu.wallybudget.data.local.entity.toDomainModel
+import net.loeu.wallybudget.data.local.entity.toEntity
+import net.loeu.wallybudget.domain.model.Expense
+import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.UserSettings
 import java.time.LocalDate
 
@@ -21,26 +24,31 @@ class BudgetLocalDataSource(
     fun getExpensesByDateRange(
         startDateInclusive: String,
         endDateExclusive: String
-    ): Flow<List<Expense>> = expenseDao.getExpensesByDateRange(startDateInclusive, endDateExclusive)
+    ): Flow<List<Expense>> {
+        return expenseDao.getExpensesByDateRange(startDateInclusive, endDateExclusive)
+            .map { expenses -> expenses.map { it.toDomainModel() } }
+    }
 
     fun getExpensesSince(sinceDateInclusive: String): Flow<List<Expense>> {
         return expenseDao.getExpensesSince(sinceDateInclusive)
+            .map { expenses -> expenses.map { it.toDomainModel() } }
     }
 
     fun getAllExpensesOrderedByTimestampDesc(): Flow<List<Expense>> {
         return expenseDao.getAllExpensesOrderedByTimestampDesc()
+            .map { expenses -> expenses.map { it.toDomainModel() } }
     }
 
     fun observeLatestExpenseDate(): Flow<String?> = expenseDao.observeLatestExpenseDate()
 
-    suspend fun addExpense(expense: Expense): Long = expenseDao.insert(expense)
+    suspend fun addExpense(expense: Expense): Long = expenseDao.insert(expense.toEntity())
 
     suspend fun updateExpense(expense: Expense) {
-        expenseDao.update(expense)
+        expenseDao.update(expense.toEntity())
     }
 
     suspend fun deleteExpense(expense: Expense) {
-        expenseDao.delete(expense)
+        expenseDao.delete(expense.toEntity())
     }
 
     suspend fun getTotalSpentInRange(
@@ -53,14 +61,17 @@ class BudgetLocalDataSource(
         endDateExclusive: String
     ): Int = expenseDao.getExpenseCountInRange(startDateInclusive, endDateExclusive)
 
-    fun getAllHistory(): Flow<List<MonthlyHistory>> = monthlyHistoryDao.getAllHistory()
+    fun getAllHistory(): Flow<List<MonthlyHistory>> {
+        return monthlyHistoryDao.getAllHistory()
+            .map { history -> history.map { it.toDomainModel() } }
+    }
 
     suspend fun getHistoryForCycle(cycleStartDate: String): MonthlyHistory? {
-        return monthlyHistoryDao.getHistoryForCycle(cycleStartDate)
+        return monthlyHistoryDao.getHistoryForCycle(cycleStartDate)?.toDomainModel()
     }
 
     suspend fun insertHistory(history: MonthlyHistory) {
-        monthlyHistoryDao.insert(history)
+        monthlyHistoryDao.insert(history.toEntity())
     }
 
     suspend fun updateMonthlyBudget(amountCents: Long) {
