@@ -13,7 +13,7 @@ complexity:
     active: false
   LongParameterList:
     active: true
-    ignoreDefaultParameters: true
+    ignoreDefaultParameters: false
   TooManyFunctions:
     active: true
     allowedFunctionsPerFile: 11
