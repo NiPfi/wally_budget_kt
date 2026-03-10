@@ -42,7 +42,6 @@ class ObserveHistoryUseCaseTest {
         val useCase = ObserveHistoryUseCase(
             expenseDao = expenseDao,
             monthlyHistoryDao = historyDao,
-            cycleOverviewDao = FakeCycleOverviewDao(expenseDao),
             budgetCalculationService = budgetCalculationService
         )
         val today = LocalDate.of(2026, 4, 10)
