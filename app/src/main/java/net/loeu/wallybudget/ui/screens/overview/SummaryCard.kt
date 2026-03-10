@@ -28,7 +28,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.util.CurrencyFormatter
@@ -49,14 +48,14 @@ fun SummaryCard(
 ) {
     val progress = collapseProgress.coerceIn(0f, 1f)
     val density = LocalDensity.current
-    val horizontalPadding = lerp(20.dp, 16.dp, progress)
-    val verticalPadding = lerp(18.dp, 8.dp, progress)
-    val contentSpacing = lerp(12.dp, 4.dp, progress)
+    val horizontalPadding = 16.dp
+    val verticalPadding = 12.dp
+    val contentSpacing = 8.dp
     val iconAlpha = (1f - progress * 1.35f).coerceIn(0f, 1f)
     val topDaysAlpha = progress
     val secondaryMetricsProgress = 1f - progress
-    val amountFontSize = lerp(22.sp, 17.sp, progress)
-    val amountLineHeight = lerp(28.sp, 20.sp, progress)
+    val amountFontSize = 20.sp
+    val amountLineHeight = 25.sp
     val safeTodayAlpha = (1f - progress * 1.5f).coerceIn(0f, 1f)
     val rightTopOffsetPx = with(density) { ((1f - topDaysAlpha) * 6.dp.toPx()) }
     val iconOffsetPx = with(density) { (progress * -4.dp.toPx()) }
@@ -75,7 +74,7 @@ fun SummaryCard(
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = containerColor,
-        tonalElevation = lerp(2.dp, 0.dp, progress),
+        tonalElevation = 0.dp,
         shape = MaterialTheme.shapes.extraLarge
     ) {
         Column(

@@ -15,9 +15,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -91,11 +96,15 @@ fun OverviewPage(
     var collapseOffsetPx by remember(defaultCollapsedHeader, density) {
         mutableFloatStateOf(defaultCollapseOffsetPx)
     }
+    var headerSettleAnimationToken by remember { mutableIntStateOf(0) }
+    var headerSettleTargetPx by remember { mutableFloatStateOf(defaultCollapseOffsetPx) }
+    var shouldAnimateHeaderSettle by remember { mutableStateOf(false) }
     val maxCollapseRangePx = remember { object { var value: Float = 0f } }
     val nestedScrollConnection = remember(listState, enableHeaderCollapse) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (!enableHeaderCollapse) return Offset.Zero
+                shouldAnimateHeaderSettle = false
                 return consumeHeaderScroll(
                     availableY = available.y,
                     collapseOffsetPx = collapseOffsetPx,
@@ -112,6 +121,7 @@ fun OverviewPage(
                 source: NestedScrollSource
             ): Offset {
                 if (!enableHeaderCollapse) return Offset.Zero
+                shouldAnimateHeaderSettle = false
                 return consumeHeaderScroll(
                     availableY = available.y,
                     collapseOffsetPx = collapseOffsetPx,
@@ -124,13 +134,36 @@ fun OverviewPage(
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
                 if (!enableHeaderCollapse) return Velocity.Zero
-                collapseOffsetPx = snapHeaderOffset(
-                    collapseOffsetPx.coerceIn(0f, maxCollapseRangePx.value),
+                val normalizedCollapseOffsetPx = collapseOffsetPx.coerceIn(0f, maxCollapseRangePx.value)
+                val snapTargetPx = snapHeaderOffset(
+                    normalizedCollapseOffsetPx,
                     maxCollapseRangePx.value
                 )
+                headerSettleTargetPx = snapTargetPx
+                headerSettleAnimationToken += 1
+                shouldAnimateHeaderSettle = snapTargetPx != normalizedCollapseOffsetPx
+                if (!shouldAnimateHeaderSettle) {
+                    collapseOffsetPx = snapTargetPx
+                }
                 return Velocity.Zero
             }
         }
+    }
+
+    LaunchedEffect(headerSettleAnimationToken, shouldAnimateHeaderSettle, headerSettleTargetPx) {
+        if (!shouldAnimateHeaderSettle) return@LaunchedEffect
+
+        animate(
+            initialValue = collapseOffsetPx,
+            targetValue = headerSettleTargetPx,
+            animationSpec = tween(
+                durationMillis = 180,
+                easing = FastOutSlowInEasing
+            )
+        ) { value, _ ->
+            collapseOffsetPx = value
+        }
+        shouldAnimateHeaderSettle = false
     }
 
     SideEffect {
