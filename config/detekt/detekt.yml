@@ -8,7 +8,7 @@ complexity:
     allowedConditions: 4
   CyclomaticComplexMethod:
     active: true
-    allowedComplexity: 20
+    allowedComplexity: 19
   LongMethod:
     active: false
   LongParameterList:
@@ -16,7 +16,7 @@ complexity:
     ignoreDefaultParameters: true
   TooManyFunctions:
     active: true
-    allowedFunctionsPerFile: 12
+    allowedFunctionsPerFile: 11
     allowedFunctionsPerClass: 11
 
 exceptions:
