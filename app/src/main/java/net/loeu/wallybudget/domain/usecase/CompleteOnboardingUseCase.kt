@@ -1,9 +1,9 @@
 package net.loeu.wallybudget.domain.usecase
 
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
-import net.loeu.wallybudget.data.local.db.BudgetDatabase
 import net.loeu.wallybudget.data.local.entity.toEntity
-import net.loeu.wallybudget.data.local.preferences.UserPreferencesManager
+import net.loeu.wallybudget.data.local.db.TransactionRunner
+import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
@@ -11,9 +11,9 @@ import net.loeu.wallybudget.domain.usecase.internal.toStartOfDayMillis
 import java.time.LocalDate
 
 class CompleteOnboardingUseCase(
-    private val database: BudgetDatabase,
+    private val transactionRunner: TransactionRunner,
     private val monthlyHistoryDao: MonthlyHistoryDao,
-    private val userPreferencesManager: UserPreferencesManager,
+    private val userSettingsStore: UserSettingsStore,
     private val currentDateProvider: CurrentDateProvider,
     private val budgetCalculationService: BudgetCalculationService
 ) {
@@ -28,7 +28,7 @@ class CompleteOnboardingUseCase(
                 cycleStartDate.minusDays(1),
                 paydayDate
             )
-            database.inTransaction {
+            transactionRunner.inTransaction {
                 monthlyHistoryDao.insert(
                     MonthlyHistory(
                         cycleStartDate = previousCycleStart.toString(),
@@ -45,10 +45,10 @@ class CompleteOnboardingUseCase(
             }
         }
 
-        userPreferencesManager.updateMonthlyBudget(monthlyBudgetCents)
-        userPreferencesManager.updatePaydayDate(paydayDate)
-        userPreferencesManager.updateLastResetTimestamp(cycleStartDate.toStartOfDayMillis())
-        userPreferencesManager.updateLastSeenDate(currentDateProvider.currentDate())
-        userPreferencesManager.completeOnboarding()
+        userSettingsStore.updateMonthlyBudget(monthlyBudgetCents)
+        userSettingsStore.updatePaydayDate(paydayDate)
+        userSettingsStore.updateLastResetTimestamp(cycleStartDate.toStartOfDayMillis())
+        userSettingsStore.updateLastSeenDate(currentDateProvider.currentDate())
+        userSettingsStore.completeOnboarding()
     }
 }

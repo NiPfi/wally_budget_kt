@@ -18,12 +18,12 @@ import net.loeu.wallybudget.data.local.entity.MonthlyHistoryEntity
     exportSchema = false
 )
 @TypeConverters(Converters::class)
-abstract class BudgetDatabase : RoomDatabase() {
+abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
     abstract fun expenseDao(): ExpenseDao
     abstract fun monthlyHistoryDao(): MonthlyHistoryDao
     abstract fun cycleOverviewDao(): CycleOverviewDao
 
-    suspend fun <T> inTransaction(block: suspend () -> T): T = withTransaction { block() }
+    override suspend fun <T> inTransaction(block: suspend () -> T): T = withTransaction { block() }
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
