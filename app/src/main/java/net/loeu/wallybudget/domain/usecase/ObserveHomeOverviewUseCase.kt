@@ -39,6 +39,11 @@ private data class CurrentHomeOverviewInputs(
     val currentDayTotals: Map<LocalDate, Long>
 )
 
+private data class EffectiveHomeDateInputs(
+    val settings: UserSettings,
+    val today: LocalDate
+)
+
 class ObserveHomeOverviewUseCase(
     private val expenseDao: ExpenseDao,
     private val monthlyHistoryDao: MonthlyHistoryDao,
@@ -50,16 +55,22 @@ class ObserveHomeOverviewUseCase(
     @OptIn(ExperimentalCoroutinesApi::class)
     operator fun invoke(): Flow<HomeOverviewState> {
         val userSettings = userSettingsStore.userSettings
-        val effectiveDate = combine(
+        val effectiveInputs = combine(
             userSettings,
             currentDateProvider.observeCurrentDate()
         ) { settings, observedDate ->
-            effectiveCurrentDate(settings, observedDate)
+            EffectiveHomeDateInputs(
+                settings = settings,
+                today = effectiveCurrentDate(settings, observedDate)
+            )
         }.distinctUntilChanged()
-        val currentCycleRange = combine(userSettings, effectiveDate) { settings, today ->
+        val effectiveDate = effectiveInputs
+            .map { inputs -> inputs.today }
+            .distinctUntilChanged()
+        val currentCycleRange = effectiveInputs.map { inputs ->
             budgetCalculationService.getCurrentCycleProgressRange(
-                now = today,
-                paydayDate = settings.paydayDate
+                now = inputs.today,
+                paydayDate = inputs.settings.paydayDate
             )
         }.distinctUntilChanged()
         val currentCycleExpenses = currentCycleRange.flatMapLatest { range ->
