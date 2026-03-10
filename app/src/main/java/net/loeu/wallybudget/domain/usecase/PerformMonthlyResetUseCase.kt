@@ -124,6 +124,7 @@ class PerformMonthlyResetUseCase(
             endExclusive = currentCycleStart
         )
     }
+
     private fun buildEndedCycles(
         fromStart: LocalDate,
         untilExclusive: LocalDate,
