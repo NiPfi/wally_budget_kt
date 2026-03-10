@@ -39,7 +39,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 class BudgetViewModel(
-    userSettingsFlow: Flow<UserSettings>,
+    upstreamUserSettingsFlow: Flow<UserSettings>,
     observeHomeOverviewUseCase: ObserveHomeOverviewUseCase,
     observeHistoryUseCase: ObserveHistoryUseCase,
     observeForecastUseCase: ObserveForecastUseCase,
@@ -55,9 +55,9 @@ class BudgetViewModel(
     private val currentDateProvider: CurrentDateProvider
 ) : ViewModel() {
 
-    val userSettingsFlow: Flow<UserSettings> = userSettingsFlow
+    val userSettingsFlow: Flow<UserSettings> = upstreamUserSettingsFlow
     private val homeOverviewFlow = observeHomeOverviewUseCase()
-    private val historyStateFlow = observeHistoryUseCase()
+    private val historyStateFlow = observeHistoryUseCase(homeOverviewFlow)
 
     // User settings
     val userSettings: StateFlow<UserSettings> = userSettingsFlow
