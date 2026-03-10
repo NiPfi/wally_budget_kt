@@ -79,6 +79,7 @@ private fun TodayExpensesSection(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        val displayedExpenses = todayExpenses.take(4)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -122,7 +123,7 @@ private fun TodayExpensesSection(
                 )
             }
         } else {
-            todayExpenses.take(4).forEachIndexed { index, expense ->
+            displayedExpenses.forEachIndexed { index, expense ->
                 ExpenseItem(
                     expense = expense,
                     animateAmount = false,
@@ -131,7 +132,7 @@ private fun TodayExpensesSection(
                         { editExpense(expense) }
                     }
                 )
-                if (index != todayExpenses.take(4).lastIndex) {
+                if (index != displayedExpenses.lastIndex) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
@@ -141,7 +142,7 @@ private fun TodayExpensesSection(
 
 @Composable
 private fun LoadingExpenseRow() {
-    androidx.compose.foundation.layout.Row(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 10.dp),

@@ -39,7 +39,6 @@ import kotlinx.coroutines.launch
 import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.data.model.Expense
 import net.loeu.wallybudget.data.model.ExpenseCategory
-import net.loeu.wallybudget.data.model.ExpenseCycleSection
 import net.loeu.wallybudget.data.model.ExpenseDaySection
 import net.loeu.wallybudget.data.model.SpendingForecast
 import net.loeu.wallybudget.data.model.recordedDate
@@ -59,7 +58,6 @@ fun HomeScreen(
     todayExpenses: List<Expense>,
     currentDate: LocalDate,
     activeCycleExpenseSections: List<ExpenseDaySection>,
-    historySections: List<ExpenseCycleSection>,
     spendingForecast: SpendingForecast,
     isLoadingData: Boolean = false,
     onAddExpense: (Long, String, ExpenseCategory?, LocalDate) -> Unit,

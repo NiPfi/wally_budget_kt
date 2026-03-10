@@ -335,7 +335,6 @@ private fun MainNavigationShell(
                     todayExpenses = todayExpenses,
                     currentDate = effectiveCurrentDate,
                     activeCycleExpenseSections = activeCycleExpenseSections,
-                    historySections = historySections,
                     spendingForecast = spendingForecast,
                     isLoadingData = isHomeDataLoading,
                     onAddExpense = onAddExpense,
