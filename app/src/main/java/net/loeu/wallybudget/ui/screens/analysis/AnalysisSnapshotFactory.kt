@@ -249,7 +249,7 @@ internal object AnalysisSnapshotFactory {
         }
 
         val value = when {
-            historicalDeficitCount >= 2 -> "${historicalDeficitCount} of ${recentHistory.size} over"
+            historicalDeficitCount >= 2 -> "$historicalDeficitCount of ${recentHistory.size} over"
             historicalDeficitCount == 1 -> "Mixed recent cycles"
             else -> "Recent history supportive"
         }

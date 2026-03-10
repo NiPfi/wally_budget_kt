@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoGraph
 import androidx.compose.material.icons.filled.History
@@ -22,9 +21,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.flow.StateFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,8 +58,14 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.window.core.layout.WindowSizeClass.Companion.HEIGHT_DP_MEDIUM_LOWER_BOUND
 import net.loeu.wallybudget.data.model.BudgetState
+import net.loeu.wallybudget.data.model.Expense
+import net.loeu.wallybudget.data.model.ExpenseCategory
+import net.loeu.wallybudget.data.model.ExpenseCycleSection
+import net.loeu.wallybudget.data.model.ExpenseDaySection
 import net.loeu.wallybudget.data.model.MonthlyHistory
+import net.loeu.wallybudget.data.model.PendingCycleCloseoutState
 import net.loeu.wallybudget.data.model.SpendingForecast
+import net.loeu.wallybudget.data.model.UserSettings
 import net.loeu.wallybudget.data.model.recordedDate
 
 class MainActivity : ComponentActivity() {
@@ -185,22 +191,22 @@ fun BudgetApp(
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 private fun MainNavigationShell(
-    budgetState: net.loeu.wallybudget.data.model.BudgetState,
-    todayExpenses: List<net.loeu.wallybudget.data.model.Expense>,
+    budgetState: BudgetState,
+    todayExpenses: List<Expense>,
     effectiveCurrentDate: LocalDate,
-    activeCycleExpenseSections: List<net.loeu.wallybudget.data.model.ExpenseDaySection>,
-    spendingForecast: net.loeu.wallybudget.data.model.SpendingForecast,
+    activeCycleExpenseSections: List<ExpenseDaySection>,
+    spendingForecast: SpendingForecast,
     monthlyHistoryState: StateFlow<List<MonthlyHistory>?>,
     isHomeDataLoading: Boolean,
-    historySections: List<net.loeu.wallybudget.data.model.ExpenseCycleSection>,
-    userSettings: net.loeu.wallybudget.data.model.UserSettings,
+    historySections: List<ExpenseCycleSection>,
+    userSettings: UserSettings,
     showAddExpenseSheet: Boolean,
     onShowAddExpenseSheet: () -> Unit,
     onHideAddExpenseSheet: () -> Unit,
-    onAddExpense: (Long, String, net.loeu.wallybudget.data.model.ExpenseCategory?, LocalDate) -> Unit,
-    onUpdateExpense: (net.loeu.wallybudget.data.model.Expense) -> Unit,
-    onDeleteExpense: (net.loeu.wallybudget.data.model.Expense) -> Unit,
-    onRestoreExpense: (net.loeu.wallybudget.data.model.Expense) -> Unit,
+    onAddExpense: (Long, String, ExpenseCategory?, LocalDate) -> Unit,
+    onUpdateExpense: (Expense) -> Unit,
+    onDeleteExpense: (Expense) -> Unit,
+    onRestoreExpense: (Expense) -> Unit,
     onUpdateBudget: (Long) -> Unit,
     onUpdatePayday: (Int) -> Unit,
     timelineLockReason: String?,
@@ -422,19 +428,19 @@ private fun MainNavigationItem(
 
 @Composable
 private fun PendingCycleFlow(
-    pendingCycle: net.loeu.wallybudget.data.model.PendingCycleCloseoutState,
+    pendingCycle: PendingCycleCloseoutState,
     showAddExpenseSheet: Boolean,
     onShowAddExpenseSheet: () -> Unit,
     onHideAddExpenseSheet: () -> Unit,
     onConcludeCycle: () -> Unit,
-    onAddExpense: (Long, String, net.loeu.wallybudget.data.model.ExpenseCategory?, LocalDate) -> Unit,
-    onUpdateExpense: (net.loeu.wallybudget.data.model.Expense) -> Unit,
-    onDeleteExpense: (net.loeu.wallybudget.data.model.Expense) -> Unit,
+    onAddExpense: (Long, String, ExpenseCategory?, LocalDate) -> Unit,
+    onUpdateExpense: (Expense) -> Unit,
+    onDeleteExpense: (Expense) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val navController = rememberNavController()
-    var selectedDate by rememberSaveable { androidx.compose.runtime.mutableStateOf(pendingCycle.cycleEndDateExclusive.minusDays(1)) }
-    var expenseBeingEdited by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<net.loeu.wallybudget.data.model.Expense?>(null) }
+    var selectedDate by rememberSaveable { mutableStateOf(pendingCycle.cycleEndDateExclusive.minusDays(1)) }
+    var expenseBeingEdited by remember { mutableStateOf<Expense?>(null) }
 
     NavHost(
         navController = navController,

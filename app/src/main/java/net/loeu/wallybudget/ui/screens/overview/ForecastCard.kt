@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,9 +30,9 @@ import net.loeu.wallybudget.domain.config.ForecastConfig
 fun ForecastCard(
     spendingForecast: SpendingForecast,
     budgetState: BudgetState,
-    isLoading: Boolean = false,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isLoading: Boolean = false
 ) {
     val isLowConfidence = spendingForecast.confidenceScore < ForecastConfig.MIN_CONFIDENCE_THRESHOLD
     val detailsStateDescription = when {

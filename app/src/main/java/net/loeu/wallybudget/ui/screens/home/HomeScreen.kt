@@ -59,7 +59,6 @@ fun HomeScreen(
     currentDate: LocalDate,
     activeCycleExpenseSections: List<ExpenseDaySection>,
     spendingForecast: SpendingForecast,
-    isLoadingData: Boolean = false,
     onAddExpense: (Long, String, ExpenseCategory?, LocalDate) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
@@ -69,8 +68,9 @@ fun HomeScreen(
     showAddExpenseSheet: Boolean,
     onShowAddExpenseSheet: () -> Unit,
     onHideAddExpenseSheet: () -> Unit,
-    timelineLockReason: String? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isLoadingData: Boolean = false,
+    timelineLockReason: String? = null
 ) {
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
     val showLedgerPane = windowSizeClass.isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND)

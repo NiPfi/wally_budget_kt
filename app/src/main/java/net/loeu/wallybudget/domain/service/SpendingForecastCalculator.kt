@@ -235,7 +235,6 @@ class SpendingForecastCalculator {
         val completedCurrentCycleExpenses = currentCycleExpenses.dropLast(1)
         val combinedExpenses = allHistoricalExpenses + completedCurrentCycleExpenses
         val prep = prepareAndCleanData(combinedExpenses)
-        val currentCycleTrendSignal = completedCurrentCycleExpenses
         val daysElapsed = currentCycleExpenses.size
         val daysRemaining = (daysInMonth - daysElapsed).coerceAtLeast(0)
         val completedDays = completedCurrentCycleExpenses.size
@@ -257,8 +256,8 @@ class SpendingForecastCalculator {
             cyclePriorAverage.toDouble()
         }
         val recentCompletedAverage = when {
-            currentCycleTrendSignal.isNotEmpty() -> calculateWeightedMovingAverage(
-                expenses = currentCycleTrendSignal,
+            completedCurrentCycleExpenses.isNotEmpty() -> calculateWeightedMovingAverage(
+                expenses = completedCurrentCycleExpenses,
                 windowSize = ForecastConfig.WEIGHTED_AVERAGE_WINDOW_DAYS,
                 decayFactor = ForecastConfig.DECAY_FACTOR
             ).toDouble()
@@ -266,7 +265,7 @@ class SpendingForecastCalculator {
         }
         val currentPaceEstimate = if (
             completedDays >= ForecastConfig.MIN_DATA_POINTS_FOR_OUTLIERS &&
-            currentCycleTrendSignal.count { it > 0L } >= 2
+            completedCurrentCycleExpenses.count { it > 0L } >= 2
         ) {
             (observedCycleAverage + recentCompletedAverage) / 2.0
         } else {
@@ -276,12 +275,12 @@ class SpendingForecastCalculator {
             completedDays / (completedDays + ForecastConfig.PRIOR_STRENGTH_DAYS)
         ).coerceIn(0.0, 1.0)
 
-        val completedNonZeroDays = currentCycleTrendSignal.count { it > 0L }
+        val completedNonZeroDays = completedCurrentCycleExpenses.count { it > 0L }
         val trend = if (
-            currentCycleTrendSignal.size >= ForecastConfig.MIN_COMPLETED_DAYS_FOR_CURRENT_TREND &&
+            completedCurrentCycleExpenses.size >= ForecastConfig.MIN_COMPLETED_DAYS_FOR_CURRENT_TREND &&
             completedNonZeroDays >= ForecastConfig.MIN_NON_ZERO_DAYS_FOR_CURRENT_TREND
         ) {
-            calculateWeightedTrend(currentCycleTrendSignal, ForecastConfig.DECAY_FACTOR)
+            calculateWeightedTrend(completedCurrentCycleExpenses, ForecastConfig.DECAY_FACTOR)
         } else {
             TrendData(0.0, 0.0)
         }

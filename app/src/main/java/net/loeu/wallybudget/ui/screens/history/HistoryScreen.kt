@@ -82,8 +82,8 @@ fun HistoryScreen(
     onRestoreExpense: (Expense) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
-    onNavigateToSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    onNavigateToSettings: (() -> Unit)? = null,
     embedded: Boolean = false,
     interactionsEnabled: Boolean = true,
     timelineLockReason: String? = null
@@ -362,11 +362,11 @@ private fun CycleLedgerPage(
     section: ExpenseCycleSection,
     onEditExpense: (Expense) -> Unit,
     onAddExpenseForDate: (LocalDate) -> Unit,
-    modifier: Modifier = Modifier.fillMaxSize(),
+    modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(bottom = 24.dp)
 ) {
     LazyColumn(
-        modifier = modifier,
+        modifier = modifier.fillMaxSize(),
         contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
