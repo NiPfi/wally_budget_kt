@@ -37,38 +37,11 @@ fun SpendingDetailsCard(
             fontWeight = FontWeight.Bold
         )
 
-        DetailRowSmall("Cycle spent") {
-            AnimatedCounter(
-                amountCents = budgetState.totalSpentThisCycleCents,
-                textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                animate = true,
-                textAlign = TextAlign.End,
-                placeholder = isLoading,
-                placeholderText = "$8,888"
-            )
-        }
-        DetailRowSmall("Past days") {
-            AnimatedCounter(
-                amountCents = previousExpensesTotal,
-                textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                animate = true,
-                textAlign = TextAlign.End,
-                placeholder = isLoading,
-                placeholderText = "$8,888"
-            )
-        }
+        SpendingDetailAmountRow("Cycle spent", budgetState.totalSpentThisCycleCents, isLoading)
+        SpendingDetailAmountRow("Past days", previousExpensesTotal, isLoading)
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-        DetailRowSmall("Base daily allowance") {
-            AnimatedCounter(
-                amountCents = budgetState.dailyBudgetCents,
-                textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                animate = true,
-                textAlign = TextAlign.End,
-                placeholder = isLoading,
-                placeholderText = "$888"
-            )
-        }
+        SpendingDetailAmountRow("Base daily allowance", budgetState.dailyBudgetCents, isLoading)
         DetailRowSmall(
             label = "Budget adjustment"
         ) {
@@ -104,6 +77,24 @@ fun SpendingDetailsCard(
                 placeholderText = "$888"
             )
         }
+    }
+}
+
+@Composable
+private fun SpendingDetailAmountRow(
+    label: String,
+    amountCents: Long,
+    isLoading: Boolean
+) {
+    DetailRowSmall(label) {
+        AnimatedCounter(
+            amountCents = amountCents,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+            animate = true,
+            textAlign = TextAlign.End,
+            placeholder = isLoading,
+            placeholderText = if (amountCents >= 1000L) "$8,888" else "$888"
+        )
     }
 }
 

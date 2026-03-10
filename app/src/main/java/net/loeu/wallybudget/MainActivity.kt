@@ -97,16 +97,11 @@ fun BudgetApp(
         onPauseOrDispose { }
     }
 
-    val onboardingCompletedFlow = remember(viewModel) {
-        viewModel.userSettingsFlow.map { it.isOnboardingCompleted }
-    }
+    val onboardingCompletedFlow = remember(viewModel) { viewModel.userSettingsFlow.map { it.isOnboardingCompleted } }
     val isOnboardingCompleted by onboardingCompletedFlow.collectAsState(initial = null)
 
     if (isOnboardingCompleted == null) {
-        Box(
-            modifier = modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
         return

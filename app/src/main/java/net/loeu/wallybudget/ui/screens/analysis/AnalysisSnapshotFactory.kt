@@ -41,44 +41,22 @@ internal object AnalysisSnapshotFactory {
             budgetState = budgetState,
             spendingForecast = spendingForecast
         )
-
         val confidenceBand = confidenceBand(spendingForecast.confidenceScore)
-        val forecastRiskPoints = adjustedForecastRiskPoints(
+        val riskState = resolveSnapshotRiskState(
             budgetState = budgetState,
             spendingForecast = spendingForecast,
+            safeToSpendNowCents = safeToSpendNowCents,
+            paceGapCents = paceGapCents,
             confidenceBand = confidenceBand,
             behaviorProfile = behaviorProfile
         )
-        val behaviorRiskPoints = behaviorRiskPoints(
-            budgetState = budgetState,
-            spendingForecast = spendingForecast,
-            behaviorProfile = behaviorProfile
-        )
-        val totalRiskPoints = snapshotTotalRiskPoints(
-            budgetState = budgetState,
-            paceGapCents = paceGapCents,
-            safeToSpendNowCents = safeToSpendNowCents,
-            forecastRiskPoints = forecastRiskPoints,
-            behaviorRiskPoints = behaviorRiskPoints
-        )
-        val monitorAfterDays = monitorAfterDays(
-            daysRemainingInCycle = budgetState.daysRemainingInCycle,
-            confidenceBand = confidenceBand
-        )
-        val verdict = resolveAnalysisVerdict(
-            budgetState = budgetState,
-            spendingForecast = spendingForecast,
-            safeToSpendNowCents = safeToSpendNowCents,
-            totalRiskPoints = totalRiskPoints
-        )
-
         val recommendations = buildRecommendations(
-            verdict = verdict,
+            verdict = riskState.verdict,
             budgetState = budgetState,
             spendingForecast = spendingForecast,
             safeToSpendNowCents = safeToSpendNowCents,
             paceGapCents = paceGapCents,
-            monitorAfterDays = monitorAfterDays,
+            monitorAfterDays = riskState.monitorAfterDays,
             timelineLockReason = timelineLockReason
         )
         val historyFallbackText = historyFallbackText(
@@ -95,7 +73,7 @@ internal object AnalysisSnapshotFactory {
         )
 
         return buildAnalysisSnapshot(
-            verdict = verdict,
+            verdict = riskState.verdict,
             confidenceBand = confidenceBand,
             budgetState = budgetState,
             spendingForecast = spendingForecast,
@@ -103,7 +81,7 @@ internal object AnalysisSnapshotFactory {
             safeToSpendNowCents = safeToSpendNowCents,
             evidence = evidence,
             recommendations = recommendations,
-            monitorAfterDays = monitorAfterDays,
+            monitorAfterDays = riskState.monitorAfterDays,
             showHistoryFallback = behaviorHistory.isEmpty(),
             historyFallbackText = historyFallbackText
         )
@@ -147,7 +125,7 @@ internal object AnalysisSnapshotFactory {
         )
     }
 
-    private fun adjustedForecastRiskPoints(
+    internal fun adjustedForecastRiskPoints(
         budgetState: BudgetState,
         spendingForecast: SpendingForecast,
         confidenceBand: ConfidenceBand,
@@ -183,7 +161,7 @@ internal object AnalysisSnapshotFactory {
         }
     }
 
-    private fun behaviorRiskPoints(
+    internal fun behaviorRiskPoints(
         budgetState: BudgetState,
         spendingForecast: SpendingForecast,
         behaviorProfile: HistoricalBehaviorProfile?
@@ -516,6 +494,52 @@ private fun snapshotTotalRiskPoints(
         else -> 0
     }
     return forecastRiskPoints + behaviorRiskPoints + paceRiskPoints + safeTodayRiskPoints
+}
+
+private data class SnapshotRiskState(
+    val totalRiskPoints: Int,
+    val monitorAfterDays: Int?,
+    val verdict: AnalysisVerdictLevel
+)
+
+private fun resolveSnapshotRiskState(
+    budgetState: BudgetState,
+    spendingForecast: SpendingForecast,
+    safeToSpendNowCents: Long,
+    paceGapCents: Long,
+    confidenceBand: ConfidenceBand,
+    behaviorProfile: HistoricalBehaviorProfile?
+): SnapshotRiskState {
+    val totalRiskPoints = snapshotTotalRiskPoints(
+        budgetState = budgetState,
+        paceGapCents = paceGapCents,
+        safeToSpendNowCents = safeToSpendNowCents,
+        forecastRiskPoints = AnalysisSnapshotFactory.adjustedForecastRiskPoints(
+            budgetState = budgetState,
+            spendingForecast = spendingForecast,
+            confidenceBand = confidenceBand,
+            behaviorProfile = behaviorProfile
+        ),
+        behaviorRiskPoints = AnalysisSnapshotFactory.behaviorRiskPoints(
+            budgetState = budgetState,
+            spendingForecast = spendingForecast,
+            behaviorProfile = behaviorProfile
+        )
+    )
+    val monitorAfterDays = monitorAfterDays(
+        daysRemainingInCycle = budgetState.daysRemainingInCycle,
+        confidenceBand = confidenceBand
+    )
+    return SnapshotRiskState(
+        totalRiskPoints = totalRiskPoints,
+        monitorAfterDays = monitorAfterDays,
+        verdict = resolveAnalysisVerdict(
+            budgetState = budgetState,
+            spendingForecast = spendingForecast,
+            safeToSpendNowCents = safeToSpendNowCents,
+            totalRiskPoints = totalRiskPoints
+        )
+    )
 }
 
 private fun historyStillBuildingEvidence(

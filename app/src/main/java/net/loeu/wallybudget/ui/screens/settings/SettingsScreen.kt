@@ -117,10 +117,7 @@ fun SettingsScreen(
     }
 
     LaunchedEffect(showSaveSnackbar) {
-        if (showSaveSnackbar) {
-            snackbarHostState.showSnackbar("Settings saved!")
-            showSaveSnackbar = false
-        }
+        if (showSaveSnackbar) { snackbarHostState.showSnackbar("Settings saved!"); showSaveSnackbar = false }
     }
 }
 
