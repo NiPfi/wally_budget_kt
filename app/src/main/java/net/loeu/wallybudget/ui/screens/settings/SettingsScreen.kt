@@ -23,6 +23,8 @@ fun SettingsScreen(
 ) {
     var budgetText by remember { mutableStateOf(CurrencyFormatter.centsToDecimalString(userSettings.monthlyBudgetCents)) }
     var paydayText by remember { mutableStateOf(userSettings.paydayDate.toString()) }
+    var showBudgetError by remember { mutableStateOf(false) }
+    var showPaydayError by remember { mutableStateOf(false) }
     var showSaveSnackbar by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val paydayEditingEnabled = !userSettings.isOnboardingCompleted
@@ -30,6 +32,8 @@ fun SettingsScreen(
     LaunchedEffect(userSettings) {
         budgetText = CurrencyFormatter.centsToDecimalString(userSettings.monthlyBudgetCents)
         paydayText = userSettings.paydayDate.toString()
+        showBudgetError = false
+        showPaydayError = false
     }
 
     Scaffold(
@@ -63,11 +67,20 @@ fun SettingsScreen(
 
             OutlinedTextField(
                 value = budgetText,
-                onValueChange = { budgetText = it },
+                onValueChange = {
+                    budgetText = it
+                    showBudgetError = false
+                },
                 label = { Text("Monthly Budget") },
                 placeholder = { Text("1000.00") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
+                isError = showBudgetError,
+                supportingText = if (showBudgetError) {
+                    { Text("Enter a budget greater than 0.00") }
+                } else {
+                    null
+                },
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -78,6 +91,7 @@ fun SettingsScreen(
                 onValueChange = {
                     if (paydayEditingEnabled && (it.isEmpty() || (it.toIntOrNull() ?: 0) in 1..31)) {
                         paydayText = it
+                        showPaydayError = false
                     }
                 },
                 label = { Text("Payday (Day of Month)") },
@@ -85,9 +99,12 @@ fun SettingsScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
                 enabled = paydayEditingEnabled,
+                isError = showPaydayError,
                 supportingText = {
                     Text(
-                        if (paydayEditingEnabled) {
+                        if (showPaydayError) {
+                            "Enter a day between 1 and 31"
+                        } else if (paydayEditingEnabled) {
                             "Enter a day between 1 and 31"
                         } else {
                             "Locked after setup to keep your existing cycle history accurate."
@@ -101,20 +118,21 @@ fun SettingsScreen(
 
             Button(
                 onClick = {
-                    val budgetCents = CurrencyFormatter.parseAmountToCents(budgetText)
-                    val payday = paydayText.toIntOrNull()?.takeIf { paydayEditingEnabled }
+                    val validation = validateSettingsForm(
+                        budgetText = budgetText,
+                        paydayText = paydayText,
+                        paydayEditingEnabled = paydayEditingEnabled
+                    )
+                    showBudgetError = !validation.isBudgetValid
+                    showPaydayError = !validation.isPaydayValid
 
-                    if (budgetCents != null && budgetCents > 0L) {
-                        onUpdateBudget(budgetCents)
-                    }
-                    if (payday != null && payday in 1..31) {
-                        onUpdatePayday(payday)
+                    if (!validation.isValid) {
+                        return@Button
                     }
 
-                    val paydaySaveAccepted = !paydayEditingEnabled || (payday != null && payday in 1..31)
-                    if (budgetCents != null && budgetCents > 0L && paydaySaveAccepted) {
-                        showSaveSnackbar = true
-                    }
+                    onUpdateBudget(requireNotNull(validation.budgetCents))
+                    validation.payday?.let(onUpdatePayday)
+                    showSaveSnackbar = true
                 },
                 modifier = Modifier
                     .fillMaxWidth()
