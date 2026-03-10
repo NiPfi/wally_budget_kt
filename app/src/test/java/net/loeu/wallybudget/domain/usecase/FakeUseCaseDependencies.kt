@@ -126,8 +126,6 @@ internal class FakeExpenseDao(
         refresh()
     }
 
-    override fun observeCount(): Flow<Int> = allExpensesFlow.map { it.size }
-
     override fun observeInRange(
         startDateInclusive: String,
         endDateExclusive: String
@@ -145,13 +143,6 @@ internal class FakeExpenseDao(
 
     override suspend fun countInRange(startDateInclusive: String, endDateExclusive: String): Int {
         return expenses.count { it.expenseDate >= startDateInclusive && it.expenseDate < endDateExclusive }
-    }
-
-    override suspend fun findById(expenseId: Long): ExpenseEntity? = expenses.firstOrNull { it.id == expenseId }
-
-    override suspend fun deleteInRange(startDateInclusive: String, endDateExclusive: String) {
-        expenses.removeAll { it.expenseDate >= startDateInclusive && it.expenseDate < endDateExclusive }
-        refresh()
     }
 
     override fun observeSince(sinceDateInclusive: String): Flow<List<ExpenseEntity>> {
