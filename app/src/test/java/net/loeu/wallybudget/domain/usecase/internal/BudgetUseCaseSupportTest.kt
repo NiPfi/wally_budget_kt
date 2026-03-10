@@ -39,17 +39,22 @@ class BudgetUseCaseSupportTest {
     }
 
     @Test
-    fun pendingCycleRangeOrNull_returnsNull_forNonIncreasingRange() {
+    fun pendingCycleRangeOrNull_returnsNull_forSameDayRange() {
         val sameDaySettings = UserSettings(
             pendingCycleStartDate = "2026-03-25",
             pendingCycleEndDateExclusive = "2026-03-25"
         )
+
+        assertNull(sameDaySettings.pendingCycleRangeOrNull())
+    }
+
+    @Test
+    fun pendingCycleRangeOrNull_returnsNull_forReversedRange() {
         val reversedSettings = UserSettings(
             pendingCycleStartDate = "2026-04-25",
             pendingCycleEndDateExclusive = "2026-03-25"
         )
 
-        assertNull(sameDaySettings.pendingCycleRangeOrNull())
         assertNull(reversedSettings.pendingCycleRangeOrNull())
     }
 }
