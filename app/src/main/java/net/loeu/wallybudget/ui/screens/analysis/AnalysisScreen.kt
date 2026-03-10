@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -149,6 +148,7 @@ private fun VerdictSection(
         isLoading -> "Analysis loading"
         snapshot?.verdictLevel == AnalysisVerdictLevel.AtRisk -> "Analysis verdict at risk"
         snapshot?.verdictLevel == AnalysisVerdictLevel.Caution -> "Analysis verdict caution"
+        snapshot?.verdictLevel == AnalysisVerdictLevel.Watchful -> "Analysis verdict watchful"
         else -> "Analysis verdict stable"
     }
 
@@ -178,32 +178,56 @@ private fun VerdictSection(
                     fillWidth = true
                 )
             } else {
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = snapshot.headline,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = snapshot.summary,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    }
-                    AssistChip(
-                        onClick = {},
-                        enabled = false,
-                        label = { Text("Confidence: ${snapshot.confidenceLabel}") }
+                    Text(
+                        text = snapshot.headline,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    ConfidenceBadge(
+                        label = snapshot.confidenceLabel,
+                        modifier = Modifier.align(Alignment.Start)
+                    )
+                    Text(
+                        text = snapshot.summary,
+                        style = MaterialTheme.typography.bodyLarge
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ConfidenceBadge(
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = MaterialTheme.shapes.medium,
+        tonalElevation = 1.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Confidence",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold
+            )
         }
     }
 }
@@ -414,17 +438,17 @@ private fun PlaceholderEvidenceCard() {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             LoadingValuePlaceholder(
-                sampleText = "Forecast pressure",
+                sampleText = "Forecast range",
                 textStyle = MaterialTheme.typography.labelLarge,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Start
             )
             LoadingValuePlaceholder(
-                sampleText = "Range crosses budget",
+                sampleText = "Best estimate still under",
                 textStyle = MaterialTheme.typography.titleMedium,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Start
             )
             LoadingValuePlaceholder(
-                sampleText = "Best estimate stays under, but the upper range reaches $2,450.00.",
+                sampleText = "Current projection still leaves $200.00, but the upper range reaches $2,450.00.",
                 textStyle = MaterialTheme.typography.bodyMedium,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Start,
                 fillWidth = true
@@ -473,6 +497,7 @@ private fun verdictContainerColor(
     isLoading -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
     verdict == AnalysisVerdictLevel.AtRisk -> MaterialTheme.colorScheme.errorContainer
     verdict == AnalysisVerdictLevel.Caution -> MaterialTheme.colorScheme.tertiaryContainer
+    verdict == AnalysisVerdictLevel.Watchful -> MaterialTheme.colorScheme.secondaryContainer
     else -> MaterialTheme.colorScheme.primaryContainer
 }
 

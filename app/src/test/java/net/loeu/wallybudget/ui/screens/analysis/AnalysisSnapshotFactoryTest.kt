@@ -3,8 +3,8 @@ package net.loeu.wallybudget.ui.screens.analysis
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.SpendingForecast
+import net.loeu.wallybudget.util.CurrencyFormatter
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
@@ -21,11 +21,7 @@ class AnalysisSnapshotFactoryTest {
                 projectedDailySpendCents = 4_500L,
                 confidenceScore = 0.82
             ),
-            monthlyHistory = listOf(
-                history(surplusCents = -6_000L, offsetDays = 1),
-                history(surplusCents = -3_000L, offsetDays = 35),
-                history(surplusCents = 8_000L, offsetDays = 70)
-            ),
+            monthlyHistory = histories(8_000L, 4_000L, -1_500L),
             timelineLockReason = null
         )
 
@@ -33,24 +29,70 @@ class AnalysisSnapshotFactoryTest {
     }
 
     @Test
-    fun projectedOverBudget_lowConfidence_withoutHardRisk_isCaution() {
+    fun supportiveHistory_rangeOnlyRisk_isStable() {
         val snapshot = AnalysisSnapshotFactory.create(
             budgetState = testBudgetState(),
             spendingForecast = testForecast(
-                estimatedEndCycleRemainingCents = -8_000L,
-                upperBoundCents = 110_000L,
-                projectedDailySpendCents = 4_200L,
-                confidenceScore = 0.40
+                estimatedEndCycleRemainingCents = 13_180L,
+                upperBoundCents = 105_249L,
+                projectedDailySpendCents = 2_856L,
+                confidenceScore = 0.59,
+                recoverableOverspendCents = 3_473L
             ),
-            monthlyHistory = emptyList(),
+            monthlyHistory = histories(2_100L, 90_400L, 42_500L, 0L, 66_200L, -1_500L),
+            timelineLockReason = null
+        )
+
+        assertEquals(AnalysisVerdictLevel.Stable, snapshot.verdictLevel)
+        assertEquals("On track", snapshot.headline)
+        assertTrue(snapshot.summary.contains("larger overspend"))
+        assertEquals("Overspend behavior", snapshot.evidence.last().title)
+        assertEquals("Miss of this size is rare", snapshot.evidence.last().value)
+        assertTrue(snapshot.evidence.last().detail.contains("0 of last 6 cycles"))
+    }
+
+    @Test
+    fun mixedHistory_rangeOnlyRisk_isWatchful() {
+        val snapshot = AnalysisSnapshotFactory.create(
+            budgetState = testBudgetState(),
+            spendingForecast = testForecast(
+                estimatedEndCycleRemainingCents = 13_180L,
+                upperBoundCents = 105_249L,
+                projectedDailySpendCents = 2_856L,
+                confidenceScore = 0.72,
+                recoverableOverspendCents = 3_473L
+            ),
+            monthlyHistory = histories(2_100L, 90_400L, 42_500L, -16_000L, 66_200L, -1_500L),
+            timelineLockReason = null
+        )
+
+        assertEquals(AnalysisVerdictLevel.Watchful, snapshot.verdictLevel)
+        assertEquals("Watch the upper range", snapshot.headline)
+        assertTrue(snapshot.summary.contains("worth watching"))
+        assertEquals("Some precedent", snapshot.evidence.last().value)
+    }
+
+    @Test
+    fun repeatedLargeOverspends_rangeOnlyRisk_isCaution() {
+        val snapshot = AnalysisSnapshotFactory.create(
+            budgetState = testBudgetState(),
+            spendingForecast = testForecast(
+                estimatedEndCycleRemainingCents = 13_180L,
+                upperBoundCents = 105_249L,
+                projectedDailySpendCents = 2_856L,
+                confidenceScore = 0.72,
+                recoverableOverspendCents = 3_473L
+            ),
+            monthlyHistory = histories(2_100L, -18_000L, 42_500L, -16_000L, 66_200L, -1_500L),
             timelineLockReason = null
         )
 
         assertEquals(AnalysisVerdictLevel.Caution, snapshot.verdictLevel)
+        assertEquals("History supports this risk", snapshot.evidence.last().value)
     }
 
     @Test
-    fun underBudget_lowSafeTodayHeadroom_isCaution() {
+    fun underBudget_lowSafeTodayHeadroom_isCaution_evenWithSupportiveHistory() {
         val snapshot = AnalysisSnapshotFactory.create(
             budgetState = testBudgetState(remainingTodayCents = 300L),
             spendingForecast = testForecast(
@@ -60,11 +102,46 @@ class AnalysisSnapshotFactoryTest {
                 confidenceScore = 0.64,
                 recoverableOverspendCents = 0L
             ),
-            monthlyHistory = listOf(history(surplusCents = -2_000L)),
+            monthlyHistory = histories(2_100L, 90_400L, 42_500L, 0L, 66_200L, -1_500L),
             timelineLockReason = null
         )
 
         assertEquals(AnalysisVerdictLevel.Caution, snapshot.verdictLevel)
+    }
+
+    @Test
+    fun supportiveHistory_withFastCurrentPace_isWatchful() {
+        val snapshot = AnalysisSnapshotFactory.create(
+            budgetState = testBudgetState(),
+            spendingForecast = testForecast(
+                estimatedEndCycleRemainingCents = 9_000L,
+                upperBoundCents = 103_000L,
+                projectedDailySpendCents = 3_200L,
+                confidenceScore = 0.72
+            ),
+            monthlyHistory = histories(2_100L, 90_400L, 42_500L, 0L, 66_200L, -1_500L),
+            timelineLockReason = null
+        )
+
+        assertEquals(AnalysisVerdictLevel.Watchful, snapshot.verdictLevel)
+    }
+
+    @Test
+    fun insufficientHistory_keepsFallbackRangeOnlyBehavior() {
+        val snapshot = AnalysisSnapshotFactory.create(
+            budgetState = testBudgetState(),
+            spendingForecast = testForecast(
+                estimatedEndCycleRemainingCents = 13_180L,
+                upperBoundCents = 105_249L,
+                projectedDailySpendCents = 2_856L,
+                confidenceScore = 0.72
+            ),
+            monthlyHistory = histories(4_000L, -1_500L),
+            timelineLockReason = null
+        )
+
+        assertEquals(AnalysisVerdictLevel.Watchful, snapshot.verdictLevel)
+        assertEquals("History still building", snapshot.evidence.last().value)
     }
 
     @Test
@@ -86,48 +163,40 @@ class AnalysisSnapshotFactoryTest {
     }
 
     @Test
-    fun alreadyOverCycleBudget_isAtRisk_regardlessOfConfidence() {
-        val snapshot = AnalysisSnapshotFactory.create(
-            budgetState = testBudgetState(
-                totalSpentThisCycleCents = 103_000L,
-                remainingTodayCents = -800L
-            ),
-            spendingForecast = testForecast(
-                estimatedEndCycleRemainingCents = -3_000L,
-                upperBoundCents = 106_000L,
-                projectedDailySpendCents = 4_000L,
-                confidenceScore = 0.32,
-                recoverableOverspendCents = 0L
-            ),
-            monthlyHistory = emptyList(),
-            timelineLockReason = null
-        )
-
-        assertEquals(AnalysisVerdictLevel.AtRisk, snapshot.verdictLevel)
-    }
-
-    @Test
-    fun recentHistory_twoOfLastThreeOverBudget_elevatesHistorySignal() {
+    fun rangeExplanation_mentionsRequiredExtraSpend_andHistoricalPrecedent() {
         val snapshot = AnalysisSnapshotFactory.create(
             budgetState = testBudgetState(),
             spendingForecast = testForecast(
-                estimatedEndCycleRemainingCents = 6_000L,
-                upperBoundCents = 97_000L,
-                projectedDailySpendCents = 3_000L,
-                confidenceScore = 0.71
+                estimatedEndCycleRemainingCents = 13_180L,
+                upperBoundCents = 105_249L,
+                projectedDailySpendCents = 2_856L,
+                confidenceScore = 0.59,
+                recoverableOverspendCents = 3_473L
             ),
-            monthlyHistory = listOf(
-                history(surplusCents = -7_000L, offsetDays = 1),
-                history(surplusCents = -2_500L, offsetDays = 35),
-                history(surplusCents = 4_000L, offsetDays = 70)
-            ),
+            monthlyHistory = histories(2_100L, 90_400L, 42_500L, 0L, 66_200L, -1_500L),
             timelineLockReason = null
         )
 
-        val historyEvidence = snapshot.evidence.last()
-        assertEquals("Historical tendency", historyEvidence.title)
-        assertTrue(historyEvidence.value.contains("2 of 3 over"))
-        assertFalse(snapshot.showHistoryFallback)
+        assertTrue(snapshot.rangeExplanation.contains(CurrencyFormatter.format(13_180L)))
+        assertTrue(snapshot.rangeExplanation.contains("has not happened in 6 recent completed cycles"))
+    }
+
+    @Test
+    fun forecastEvidence_handles_zeroBuffer_copy_cleanly() {
+        val snapshot = AnalysisSnapshotFactory.create(
+            budgetState = testBudgetState(),
+            spendingForecast = testForecast(
+                estimatedEndCycleRemainingCents = 0L,
+                upperBoundCents = 103_000L,
+                projectedDailySpendCents = 3_000L,
+                confidenceScore = 0.72
+            ),
+            monthlyHistory = histories(2_100L, 90_400L, 42_500L, 0L, 66_200L, -1_500L),
+            timelineLockReason = null
+        )
+
+        assertEquals("Right at budget", snapshot.evidence.first().value)
+        assertTrue(snapshot.evidence.first().detail.contains("lands on budget"))
     }
 
     private fun testBudgetState(
@@ -163,15 +232,17 @@ class AnalysisSnapshotFactoryTest {
         grossRecoverableOverspendCents = recoverableOverspendCents
     )
 
-    private fun history(
-        surplusCents: Long,
-        offsetDays: Long = 0
-    ) = MonthlyHistory(
-        cycleStartDate = LocalDate.of(2026, 2, 1).minusDays(offsetDays).toString(),
-        budgetAmountCents = 100_000L,
-        totalSpentCents = 100_000L - surplusCents,
-        surplusCents = surplusCents,
-        cycleEndDate = LocalDate.of(2026, 3, 1).minusDays(offsetDays).toString(),
-        endTimestamp = LocalDate.of(2026, 3, 1).minusDays(offsetDays).toEpochDay()
-    )
+    private fun histories(vararg surpluses: Long): List<MonthlyHistory> {
+        return surpluses.mapIndexed { index, surplusCents ->
+            val cycleEnd = LocalDate.of(2026, 3, 1).minusDays(index.toLong() * 31L)
+            MonthlyHistory(
+                cycleStartDate = cycleEnd.minusDays(29).toString(),
+                budgetAmountCents = 100_000L,
+                totalSpentCents = 100_000L - surplusCents,
+                surplusCents = surplusCents,
+                cycleEndDate = cycleEnd.toString(),
+                endTimestamp = cycleEnd.toEpochDay()
+            )
+        }
+    }
 }

@@ -154,7 +154,7 @@ fun OverviewPage(
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
-                        "Conservative shows a lower-spend path, Projected is the current best estimate, and High pace shows a faster-spend path.",
+                        "Conservative shows a lower-spend path, Projected is the current best estimate, and High pace is a stress case for how the cycle could finish if spending speeds up.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

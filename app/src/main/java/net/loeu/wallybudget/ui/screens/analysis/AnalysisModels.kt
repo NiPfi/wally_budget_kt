@@ -2,6 +2,7 @@ package net.loeu.wallybudget.ui.screens.analysis
 
 internal enum class AnalysisVerdictLevel {
     Stable,
+    Watchful,
     Caution,
     AtRisk
 }
