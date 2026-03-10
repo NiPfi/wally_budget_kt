@@ -53,15 +53,15 @@ fun OverviewPage(
     todayExpenses: List<Expense>,
     activeCycleExpenseSections: List<ExpenseDaySection>,
     spendingForecast: SpendingForecast,
-    isLoading: Boolean = false,
     onEditTodayExpense: ((Expense) -> Unit)?,
+    modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
     onNavigateToSettings: (() -> Unit)? = null,
     showSpendingDetailsSection: Boolean = true,
     showTodayExpensesSection: Boolean = true,
     enableHeaderCollapse: Boolean = true,
     defaultCollapsedHeader: Boolean = false,
-    bottomContentPadding: Dp = 24.dp,
-    modifier: Modifier = Modifier
+    bottomContentPadding: Dp = 24.dp
 ) {
     val headerHorizontalPadding = 12.dp
     val headerTopPadding = if (defaultCollapsedHeader) 0.dp else 8.dp
@@ -94,6 +94,7 @@ fun OverviewPage(
     val maxCollapseRangePx = remember { object { var value: Float = 0f } }
     val nestedScrollConnection = remember(listState, enableHeaderCollapse) {
         object : NestedScrollConnection {
+            @Suppress("UNUSED_PARAMETER")
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (!enableHeaderCollapse) return Offset.Zero
                 return consumeHeaderScroll(
@@ -106,6 +107,7 @@ fun OverviewPage(
                 )
             }
 
+            @Suppress("UNUSED_PARAMETER")
             override fun onPostScroll(
                 consumed: Offset,
                 available: Offset,
@@ -122,6 +124,7 @@ fun OverviewPage(
                 )
             }
 
+            @Suppress("UNUSED_PARAMETER", "SameReturnValue")
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
                 if (!enableHeaderCollapse) return Velocity.Zero
                 collapseOffsetPx = snapHeaderOffset(

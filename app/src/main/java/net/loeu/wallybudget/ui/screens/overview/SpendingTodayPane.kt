@@ -26,10 +26,10 @@ fun SpendingTodayPane(
     budgetState: BudgetState,
     todayExpenses: List<Expense>,
     activeCycleExpenseSections: List<ExpenseDaySection>,
-    isLoading: Boolean = false,
     onEditTodayExpense: ((Expense) -> Unit)?,
-    showTodayExpensesSection: Boolean = true,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
+    showTodayExpensesSection: Boolean = true
 ) {
     val previousExpensesTotal = activeCycleExpenseSections
         .filterNot { it.isToday }

@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import net.loeu.wallybudget.data.model.Expense
 import net.loeu.wallybudget.data.model.ExpenseCycleSection
 import net.loeu.wallybudget.data.model.PendingCycleCloseoutState
 import net.loeu.wallybudget.ui.screens.history.CycleLedgerScreen
@@ -199,8 +200,8 @@ private fun InsightRow(label: String, value: String) {
 fun CycleCloseoutReviewScreen(
     pendingCycle: PendingCycleCloseoutState,
     onNavigateBack: () -> Unit,
-    onEditExpense: (net.loeu.wallybudget.data.model.Expense) -> Unit,
-    onAddExpenseForDate: (java.time.LocalDate) -> Unit,
+    onEditExpense: (Expense) -> Unit,
+    onAddExpenseForDate: (LocalDate) -> Unit,
     modifier: Modifier = Modifier
 ) {
     CycleLedgerScreen(

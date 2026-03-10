@@ -22,8 +22,8 @@ fun SpendingDetailsCard(
     previousExpensesTotal: Long,
     dailyAdjustmentCents: Long,
     adjustedDailyAllowanceCents: Long,
-    isLoading: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isLoading: Boolean = false
 ) {
     Column(
         modifier = modifier

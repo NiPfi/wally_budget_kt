@@ -47,8 +47,8 @@ fun AnalysisScreen(
     monthlyHistory: List<MonthlyHistory>,
     timelineLockReason: String?,
     isLoading: Boolean,
-    onNavigateToSettings: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateToSettings: (() -> Unit)? = null
 ) {
     val isWideLayout = currentWindowAdaptiveInfo()
         .windowSizeClass

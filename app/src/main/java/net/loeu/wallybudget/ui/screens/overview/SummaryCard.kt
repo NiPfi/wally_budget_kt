@@ -37,15 +37,15 @@ import kotlin.math.roundToInt
 @Composable
 fun SummaryCard(
     budgetState: BudgetState,
-    recoverableOverspendCents: Long = 0L,
     collapseProgress: Float,
+    modifier: Modifier = Modifier,
+    recoverableOverspendCents: Long = 0L,
     isLoading: Boolean = false,
     animateCounters: Boolean = true,
     useWarningTint: Boolean = false,
     tagSecondaryMetrics: Boolean = false,
     onSafeTodayInfoClick: (() -> Unit)? = null,
-    onNavigateToSettings: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    onNavigateToSettings: (() -> Unit)? = null
 ) {
     val progress = collapseProgress.coerceIn(0f, 1f)
     val density = LocalDensity.current
@@ -53,12 +53,11 @@ fun SummaryCard(
     val verticalPadding = lerp(18.dp, 8.dp, progress)
     val contentSpacing = lerp(12.dp, 4.dp, progress)
     val iconAlpha = (1f - progress * 1.35f).coerceIn(0f, 1f)
-    val topDaysAlpha = progress
     val secondaryMetricsProgress = 1f - progress
     val amountFontSize = lerp(22.sp, 17.sp, progress)
     val amountLineHeight = lerp(28.sp, 20.sp, progress)
     val safeTodayAlpha = (1f - progress * 1.5f).coerceIn(0f, 1f)
-    val rightTopOffsetPx = with(density) { ((1f - topDaysAlpha) * 6.dp.toPx()) }
+    val rightTopOffsetPx = with(density) { ((1f - progress) * 6.dp.toPx()) }
     val iconOffsetPx = with(density) { (progress * -4.dp.toPx()) }
     val bottomOffsetPx = with(density) { ((1f - secondaryMetricsProgress) * -6.dp.toPx()) }
     val containerColor = if (useWarningTint) {
@@ -181,7 +180,7 @@ fun SummaryCard(
                     Column(
                         horizontalAlignment = Alignment.End,
                         modifier = Modifier.graphicsLayer {
-                            alpha = topDaysAlpha
+                            alpha = progress
                             translationY = rightTopOffsetPx
                         }
                     ) {

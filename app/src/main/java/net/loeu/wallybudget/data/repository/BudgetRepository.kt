@@ -11,7 +11,6 @@ import net.loeu.wallybudget.data.local.MonthlyHistoryDao
 import net.loeu.wallybudget.data.local.UserPreferencesManager
 import net.loeu.wallybudget.data.model.BudgetState
 import net.loeu.wallybudget.data.model.Expense
-import net.loeu.wallybudget.data.model.ExpenseCategory
 import net.loeu.wallybudget.data.model.ExpenseCycleSection
 import net.loeu.wallybudget.data.model.ExpenseDaySection
 import net.loeu.wallybudget.data.model.MonthlyHistory
@@ -567,7 +566,7 @@ class BudgetRepository(
         val startDate = start.toString()
         val endDate = endExclusive.toString()
         return filter { expense ->
-            expense.expenseDate >= startDate && expense.expenseDate < endDate
+            expense.expenseDate in startDate..<endDate
         }
     }
 
