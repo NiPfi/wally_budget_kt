@@ -15,9 +15,6 @@ interface ExpenseDao : BaseInsertDao<ExpenseEntity> {
     @Delete
     suspend fun delete(expense: ExpenseEntity)
 
-    @Query("SELECT COUNT(*) FROM expenses")
-    fun observeCount(): Flow<Int>
-
     @Query(
         "SELECT * FROM expenses " +
             "WHERE expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive " +
@@ -33,12 +30,6 @@ interface ExpenseDao : BaseInsertDao<ExpenseEntity> {
 
     @Query("SELECT COUNT(*) FROM expenses WHERE expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive")
     suspend fun countInRange(startDateInclusive: String, endDateExclusive: String): Int
-
-    @Query("SELECT * FROM expenses WHERE id = :expenseId")
-    suspend fun findById(expenseId: Long): ExpenseEntity?
-
-    @Query("DELETE FROM expenses WHERE expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive")
-    suspend fun deleteInRange(startDateInclusive: String, endDateExclusive: String)
 
     @Query(
         "SELECT * FROM expenses " +
