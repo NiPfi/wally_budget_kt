@@ -69,8 +69,7 @@ class EmulatorSeedInstrumentedTest {
             }
 
             (seedPlan.historyCycles.flatMap { it.expenses } +
-                seedPlan.currentCycle.expenses +
-                seedPlan.futureExpenses)
+                seedPlan.currentCycle.expenses)
                 .forEach { spec ->
                     database.expenseDao().insert(spec.toExpense())
                 }
@@ -161,8 +160,7 @@ class EmulatorSeedInstrumentedTest {
         val monthlyBudgetCents: Long,
         val paydayDate: Int,
         val historyCycles: List<SeedCycleSnapshot>,
-        val currentCycle: SeedCycleSnapshot,
-        val futureExpenses: List<SeedExpenseSpec>
+        val currentCycle: SeedCycleSnapshot
     )
 
     private object SeedPlanFactory {
@@ -254,8 +252,7 @@ class EmulatorSeedInstrumentedTest {
                 monthlyBudgetCents = MONTHLY_BUDGET_CENTS,
                 paydayDate = PAYDAY_DATE,
                 historyCycles = historyCyclesDescending.reversed(),
-                currentCycle = buildCurrentCycle(currentCycleStart, currentCycleEndExclusive, today),
-                futureExpenses = buildFutureExpenses(today, currentCycleEndExclusive)
+                currentCycle = buildCurrentCycle(currentCycleStart, currentCycleEndExclusive, today)
             )
         }
 
@@ -317,24 +314,6 @@ class EmulatorSeedInstrumentedTest {
             }
 
             return SeedCycleSnapshot(cycleStartDate, cycleEndDateExclusive, expenses)
-        }
-
-        private fun buildFutureExpenses(today: LocalDate, currentCycleEndExclusive: LocalDate): List<SeedExpenseSpec> {
-            val futureDate = if (today.plusDays(1).isBefore(currentCycleEndExclusive)) {
-                today.plusDays(1)
-            } else {
-                currentCycleEndExclusive
-            }
-
-            return listOf(
-                SeedExpenseSpec(
-                    expenseDate = futureDate,
-                    amountCents = 4_800L,
-                    description = "Scheduled grocery run",
-                    icon = ExpenseCategory.GROCERIES,
-                    minutesAfterMidnight = 18 * 60L
-                )
-            )
         }
 
         private fun scaleAmounts(baseAmounts: List<Long>, targetTotal: Long): List<Long> {
