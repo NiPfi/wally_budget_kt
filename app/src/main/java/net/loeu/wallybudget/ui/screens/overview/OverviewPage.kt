@@ -16,6 +16,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -123,9 +124,19 @@ fun OverviewPage(
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
                 if (!enableHeaderCollapse) return Velocity.Zero
-                collapseOffsetPx = snapHeaderOffset(collapseOffsetPx, maxCollapseRangePx.value)
+                collapseOffsetPx = snapHeaderOffset(
+                    collapseOffsetPx.coerceIn(0f, maxCollapseRangePx.value),
+                    maxCollapseRangePx.value
+                )
                 return Velocity.Zero
             }
+        }
+    }
+
+    SideEffect {
+        val normalizedCollapseOffsetPx = collapseOffsetPx.coerceIn(0f, maxCollapseRangePx.value)
+        if (normalizedCollapseOffsetPx != collapseOffsetPx) {
+            collapseOffsetPx = normalizedCollapseOffsetPx
         }
     }
 
@@ -364,16 +375,21 @@ private fun consumeHeaderScroll(
     maxCollapsePx: Float,
     canExpand: Boolean
 ): Offset {
-    if (availableY < 0f && collapseOffsetPx < maxCollapsePx) {
-        val newOffset = (collapseOffsetPx - availableY).coerceAtMost(maxCollapsePx)
-        val consumed = newOffset - collapseOffsetPx
+    val normalizedCollapseOffsetPx = collapseOffsetPx.coerceIn(0f, maxCollapsePx)
+    if (normalizedCollapseOffsetPx != collapseOffsetPx) {
+        setCollapseOffsetPx(normalizedCollapseOffsetPx)
+    }
+
+    if (availableY < 0f && normalizedCollapseOffsetPx < maxCollapsePx) {
+        val newOffset = (normalizedCollapseOffsetPx - availableY).coerceAtMost(maxCollapsePx)
+        val consumed = newOffset - normalizedCollapseOffsetPx
         setCollapseOffsetPx(newOffset)
         return Offset(0f, -consumed)
     }
 
-    if (availableY > 0f && canExpand && collapseOffsetPx > 0f) {
-        val newOffset = (collapseOffsetPx - availableY).coerceAtLeast(0f)
-        val consumed = collapseOffsetPx - newOffset
+    if (availableY > 0f && canExpand && normalizedCollapseOffsetPx > 0f) {
+        val newOffset = (normalizedCollapseOffsetPx - availableY).coerceAtLeast(0f)
+        val consumed = normalizedCollapseOffsetPx - newOffset
         setCollapseOffsetPx(newOffset)
         return Offset(0f, consumed)
     }
