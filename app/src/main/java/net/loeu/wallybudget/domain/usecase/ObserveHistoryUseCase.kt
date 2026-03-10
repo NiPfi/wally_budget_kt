@@ -45,7 +45,6 @@ class ObserveHistoryUseCase(
             allDayTotals
         ) { homeOverviewState, expenses, historyEntries, dayTotals ->
             val monthlyHistory = historyEntries
-                .filter { it.totalSpentCents > 0L }
                 .sortedByDescending { it.endTimestamp }
 
             HistoryState(

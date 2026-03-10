@@ -77,7 +77,7 @@ class ObserveForecastUseCase(
             budgetCalculationService.calculateSpendingForecast(
                 budgetState = budgetState,
                 now = today,
-                monthlyHistory = historyEntries.filter { it.totalSpentCents > 0L },
+                monthlyHistory = historyEntries,
                 recentExpenses = recentExpenseEntries
             )
         }.distinctUntilChanged()
