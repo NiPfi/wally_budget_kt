@@ -38,13 +38,13 @@ class ObserveHistoryUseCaseTest {
                     .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
             )
         )
+        val budgetCalculationService = BudgetCalculationService()
         val useCase = ObserveHistoryUseCase(
             expenseDao = expenseDao,
             monthlyHistoryDao = historyDao,
             cycleOverviewDao = FakeCycleOverviewDao(expenseDao),
-            budgetCalculationService = BudgetCalculationService()
+            budgetCalculationService = budgetCalculationService
         )
-        val budgetCalculationService = BudgetCalculationService()
         val today = LocalDate.of(2026, 4, 10)
         val homeOverviewState = HomeOverviewState(
             effectiveCurrentDate = today,

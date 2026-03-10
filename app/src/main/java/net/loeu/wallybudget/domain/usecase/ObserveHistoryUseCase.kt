@@ -98,7 +98,7 @@ class ObserveHistoryUseCase(
             daySections = activeCycleDaySections,
             isActiveCycle = true,
             isReadOnly = !isEditable,
-                isCompletedCycle = false
+            isCompletedCycle = false
         )
 
         if (futureExpenses.isNotEmpty()) {
