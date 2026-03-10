@@ -11,12 +11,12 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import net.loeu.wallybudget.domain.model.BudgetState
-import net.loeu.wallybudget.data.local.entity.Expense
+import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
-import net.loeu.wallybudget.ui.model.ExpenseCycleSection
-import net.loeu.wallybudget.ui.model.ExpenseDaySection
-import net.loeu.wallybudget.data.local.entity.MonthlyHistory
-import net.loeu.wallybudget.ui.model.PendingCycleCloseoutState
+import net.loeu.wallybudget.domain.model.ExpenseCycleSection
+import net.loeu.wallybudget.domain.model.ExpenseDaySection
+import net.loeu.wallybudget.domain.model.MonthlyHistory
+import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.TimelineLockState
 import net.loeu.wallybudget.domain.model.UserSettings

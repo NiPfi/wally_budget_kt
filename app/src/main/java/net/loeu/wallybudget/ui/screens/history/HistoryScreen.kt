@@ -57,11 +57,11 @@ import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.window.core.layout.WindowSizeClass.Companion.WIDTH_DP_MEDIUM_LOWER_BOUND
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import net.loeu.wallybudget.data.local.entity.Expense
+import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
-import net.loeu.wallybudget.ui.model.ExpenseCycleSection
-import net.loeu.wallybudget.data.local.entity.recordedDate
-import net.loeu.wallybudget.ui.model.ExpenseDaySection
+import net.loeu.wallybudget.domain.model.ExpenseCycleSection
+import net.loeu.wallybudget.domain.model.recordedDate
+import net.loeu.wallybudget.domain.model.ExpenseDaySection
 import net.loeu.wallybudget.ui.components.TimelineLockBanner
 import net.loeu.wallybudget.ui.screens.expenses.ExpenseItem
 import net.loeu.wallybudget.ui.screens.home.AddExpenseSheet

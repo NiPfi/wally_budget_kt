@@ -26,9 +26,9 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import net.loeu.wallybudget.data.local.entity.Expense
-import net.loeu.wallybudget.ui.model.ExpenseCycleSection
-import net.loeu.wallybudget.ui.model.PendingCycleCloseoutState
+import net.loeu.wallybudget.domain.model.Expense
+import net.loeu.wallybudget.domain.model.ExpenseCycleSection
+import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
 import net.loeu.wallybudget.ui.screens.history.CycleLedgerScreen
 import net.loeu.wallybudget.util.CurrencyFormatter
 import java.time.LocalDate

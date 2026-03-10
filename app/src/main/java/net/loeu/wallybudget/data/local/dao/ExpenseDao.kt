@@ -6,18 +6,18 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
-import net.loeu.wallybudget.data.local.entity.Expense
+import net.loeu.wallybudget.data.local.entity.ExpenseEntity
 
 @Dao
 interface ExpenseDao {
     @Insert
-    suspend fun insert(expense: Expense): Long
+    suspend fun insert(expense: ExpenseEntity): Long
 
     @Update
-    suspend fun update(expense: Expense)
+    suspend fun update(expense: ExpenseEntity)
 
     @Delete
-    suspend fun delete(expense: Expense)
+    suspend fun delete(expense: ExpenseEntity)
 
     @Query("SELECT COUNT(*) FROM expenses")
     fun observeExpenseCount(): Flow<Int>
@@ -30,7 +30,7 @@ interface ExpenseDao {
     fun getExpensesByDateRange(
         startDateInclusive: String,
         endDateExclusive: String
-    ): Flow<List<Expense>>
+    ): Flow<List<ExpenseEntity>>
 
     @Query(
         "SELECT * FROM expenses " +
@@ -40,7 +40,7 @@ interface ExpenseDao {
     fun getExpensesByDateRangeWithEffectiveEndTime(
         startDateInclusive: String,
         effectiveEndDateExclusive: String
-    ): Flow<List<Expense>>
+    ): Flow<List<ExpenseEntity>>
 
     @Query("SELECT SUM(amountCents) FROM expenses WHERE expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive")
     suspend fun getTotalSpentInRange(startDateInclusive: String, endDateExclusive: String): Long?
@@ -49,7 +49,7 @@ interface ExpenseDao {
     suspend fun getExpenseCountInRange(startDateInclusive: String, endDateExclusive: String): Int
 
     @Query("SELECT * FROM expenses WHERE id = :expenseId")
-    suspend fun getExpenseById(expenseId: Long): Expense?
+    suspend fun getExpenseById(expenseId: Long): ExpenseEntity?
 
     @Query("DELETE FROM expenses WHERE expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive")
     suspend fun deleteExpensesInRange(startDateInclusive: String, endDateExclusive: String)
@@ -59,10 +59,10 @@ interface ExpenseDao {
             "WHERE expenseDate >= :sinceDateInclusive " +
             "ORDER BY expenseDate ASC, timestamp ASC, id ASC"
     )
-    fun getExpensesSince(sinceDateInclusive: String): Flow<List<Expense>>
+    fun getExpensesSince(sinceDateInclusive: String): Flow<List<ExpenseEntity>>
 
     @Query("SELECT * FROM expenses ORDER BY expenseDate DESC, timestamp DESC, id DESC")
-    fun getAllExpensesOrderedByTimestampDesc(): Flow<List<Expense>>
+    fun getAllExpensesOrderedByTimestampDesc(): Flow<List<ExpenseEntity>>
 
     @Query("SELECT MAX(expenseDate) FROM expenses")
     fun observeLatestExpenseDate(): Flow<String?>

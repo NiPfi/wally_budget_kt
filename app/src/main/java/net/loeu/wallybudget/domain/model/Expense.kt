@@ -1,25 +1,13 @@
-package net.loeu.wallybudget.data.local.entity
+package net.loeu.wallybudget.domain.model
 
-import androidx.room.Entity
-import androidx.room.Index
-import androidx.room.PrimaryKey
-import net.loeu.wallybudget.domain.model.ExpenseCategory
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
 /**
- * Represents a single expense entry
+ * Represents a single expense entry in the app domain.
  */
-@Entity(
-    tableName = "expenses",
-    indices = [
-        Index(value = ["timestamp"]),
-        Index(value = ["expenseDate"])
-    ]
-)
 data class Expense(
-    @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val amountCents: Long,
     val description: String,

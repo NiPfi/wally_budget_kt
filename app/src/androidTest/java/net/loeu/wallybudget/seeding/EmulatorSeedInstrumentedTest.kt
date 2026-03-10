@@ -5,10 +5,11 @@ import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import net.loeu.wallybudget.data.local.db.BudgetDatabase
+import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.data.local.preferences.UserPreferencesManager
-import net.loeu.wallybudget.data.local.entity.Expense
+import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
-import net.loeu.wallybudget.data.local.entity.MonthlyHistory
+import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -64,14 +65,14 @@ class EmulatorSeedInstrumentedTest {
                         ),
                         cycleEndDate = cycle.cycleEndDateExclusive.toString(),
                         endTimestamp = cycle.cycleEndDateExclusive.toStartOfDayMillis()
-                    )
+                    ).toEntity()
                 )
             }
 
             (seedPlan.historyCycles.flatMap { it.expenses } +
                 seedPlan.currentCycle.expenses)
                 .forEach { spec ->
-                    database.expenseDao().insert(spec.toExpense())
+                    database.expenseDao().insert(spec.toExpense().toEntity())
                 }
 
             prefs.updateMonthlyBudget(seedPlan.monthlyBudgetCents)

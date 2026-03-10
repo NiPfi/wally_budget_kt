@@ -7,11 +7,11 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
-import net.loeu.wallybudget.data.local.entity.Expense
-import net.loeu.wallybudget.data.local.entity.MonthlyHistory
+import net.loeu.wallybudget.data.local.entity.ExpenseEntity
+import net.loeu.wallybudget.data.local.entity.MonthlyHistoryEntity
 
 @Database(
-    entities = [Expense::class, MonthlyHistory::class],
+    entities = [ExpenseEntity::class, MonthlyHistoryEntity::class],
     version = 7,
     exportSchema = false
 )
