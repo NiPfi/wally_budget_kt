@@ -64,21 +64,17 @@ internal object AnalysisSnapshotFactory {
             safeToSpendNowCents < max(1_000L, budgetState.dailyBudgetCents / 2) -> 1
             else -> 0
         }
-        val hardRisk = budgetState.remainingCycleCents <= 0L ||
-            (safeToSpendNowCents == 0L && budgetState.remainingTodayCents < 0L) ||
-            spendingForecast.estimatedEndCycleRemainingCents < 0L
         val totalRiskPoints = forecastRiskPoints + behaviorRiskPoints + paceRiskPoints + safeTodayRiskPoints
         val monitorAfterDays = monitorAfterDays(
             daysRemainingInCycle = budgetState.daysRemainingInCycle,
             confidenceBand = confidenceBand
         )
-
-        val verdict = when {
-            hardRisk || totalRiskPoints >= 5 -> AnalysisVerdictLevel.AtRisk
-            totalRiskPoints >= 3 -> AnalysisVerdictLevel.Caution
-            totalRiskPoints >= 1 -> AnalysisVerdictLevel.Watchful
-            else -> AnalysisVerdictLevel.Stable
-        }
+        val verdict = resolveAnalysisVerdict(
+            budgetState = budgetState,
+            spendingForecast = spendingForecast,
+            safeToSpendNowCents = safeToSpendNowCents,
+            totalRiskPoints = totalRiskPoints
+        )
 
         val recommendations = buildRecommendations(
             verdict = verdict,
