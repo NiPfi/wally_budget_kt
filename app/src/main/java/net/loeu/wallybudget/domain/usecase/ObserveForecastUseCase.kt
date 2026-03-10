@@ -16,6 +16,7 @@ import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.usecase.internal.buildBudgetState
 import net.loeu.wallybudget.domain.usecase.internal.effectiveCurrentDate
+import net.loeu.wallybudget.domain.usecase.internal.filterByRange
 
 class ObserveForecastUseCase(
     private val expenseDao: ExpenseDao,
@@ -58,14 +59,16 @@ class ObserveForecastUseCase(
                 now = today,
                 paydayDate = settings.paydayDate
             )
-            val totalSpentThisCycleCents = expenseDao.totalSpentInRange(
-                currentCycleRange.start.toString(),
-                currentCycleRange.endExclusive.toString()
-            ) ?: 0L
-            val spentTodayCents = expenseDao.totalSpentInRange(
-                today.toString(),
-                today.plusDays(1).toString()
-            ) ?: 0L
+            val currentCycleExpenses = recentExpenseEntries.filterByRange(
+                start = currentCycleRange.start,
+                endExclusive = currentCycleRange.endExclusive
+            )
+            val todayExpenses = currentCycleExpenses.filterByRange(
+                start = today,
+                endExclusive = today.plusDays(1)
+            )
+            val totalSpentThisCycleCents = currentCycleExpenses.sumOf { it.amountCents }
+            val spentTodayCents = todayExpenses.sumOf { it.amountCents }
             val budgetState = buildBudgetState(
                 settings = settings,
                 today = today,
