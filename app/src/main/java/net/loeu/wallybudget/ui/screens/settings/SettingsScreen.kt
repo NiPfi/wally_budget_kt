@@ -25,6 +25,7 @@ fun SettingsScreen(
     var paydayText by remember { mutableStateOf(userSettings.paydayDate.toString()) }
     var showSaveSnackbar by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val paydayEditingEnabled = !userSettings.isOnboardingCompleted
 
     LaunchedEffect(userSettings) {
         budgetText = CurrencyFormatter.centsToDecimalString(userSettings.monthlyBudgetCents)
@@ -75,7 +76,7 @@ fun SettingsScreen(
             OutlinedTextField(
                 value = paydayText,
                 onValueChange = {
-                    if (it.isEmpty() || (it.toIntOrNull() ?: 0) in 1..31) {
+                    if (paydayEditingEnabled && (it.isEmpty() || (it.toIntOrNull() ?: 0) in 1..31)) {
                         paydayText = it
                     }
                 },
@@ -83,8 +84,15 @@ fun SettingsScreen(
                 placeholder = { Text("1") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
+                enabled = paydayEditingEnabled,
                 supportingText = {
-                    Text("Enter a day between 1 and 31")
+                    Text(
+                        if (paydayEditingEnabled) {
+                            "Enter a day between 1 and 31"
+                        } else {
+                            "Locked after setup to keep your existing cycle history accurate."
+                        }
+                    )
                 },
                 modifier = Modifier.fillMaxWidth()
             )
@@ -94,7 +102,7 @@ fun SettingsScreen(
             Button(
                 onClick = {
                     val budgetCents = CurrencyFormatter.parseAmountToCents(budgetText)
-                    val payday = paydayText.toIntOrNull()
+                    val payday = paydayText.toIntOrNull()?.takeIf { paydayEditingEnabled }
 
                     if (budgetCents != null && budgetCents > 0L) {
                         onUpdateBudget(budgetCents)
@@ -103,7 +111,8 @@ fun SettingsScreen(
                         onUpdatePayday(payday)
                     }
 
-                    if (budgetCents != null && payday != null && budgetCents > 0L && payday in 1..31) {
+                    val paydaySaveAccepted = !paydayEditingEnabled || (payday != null && payday in 1..31)
+                    if (budgetCents != null && budgetCents > 0L && paydaySaveAccepted) {
                         showSaveSnackbar = true
                     }
                 },
