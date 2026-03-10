@@ -64,7 +64,7 @@ import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.model.recordedDate
 
-private const val HomeNavigationLabel = "Overview"
+private const val OVERVIEW_NAVIGATION_LABEL = "Overview"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -255,7 +255,7 @@ private fun MainNavigationShell(
                                 contentDescription = null
                             )
                         },
-                        label = { Text(HomeNavigationLabel) }
+                        label = { Text(OVERVIEW_NAVIGATION_LABEL) }
                     )
                     MainNavigationItem(
                         selected = currentRoute == Screen.Analysis.route,
@@ -325,7 +325,7 @@ private fun MainNavigationShell(
                             contentDescription = null
                         )
                     },
-                    label = { Text(HomeNavigationLabel) }
+                    label = { Text(OVERVIEW_NAVIGATION_LABEL) }
                 )
                 MainNavigationItem(
                     selected = currentRoute == Screen.Analysis.route,

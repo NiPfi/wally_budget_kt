@@ -61,7 +61,7 @@ fun ForecastCard(
             )
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val indicatorIcon = if (isLoading || !isLowConfidence) {
+                val indicatorIconRes = if (isLoading || !isLowConfidence) {
                     R.drawable.ic_info
                 } else {
                     R.drawable.ic_warning
@@ -72,7 +72,7 @@ fun ForecastCard(
                     else -> MaterialTheme.colorScheme.primary
                 }
                 Icon(
-                    painter = painterResource(indicatorIcon),
+                    painter = painterResource(indicatorIconRes),
                     contentDescription = null,
                     tint = indicatorTint
                 )
