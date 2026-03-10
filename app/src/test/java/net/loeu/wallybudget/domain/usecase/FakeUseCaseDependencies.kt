@@ -216,9 +216,13 @@ internal class FakeMonthlyHistoryDao(
 internal class FakeCycleOverviewDao(
     private val expenseDao: FakeExpenseDao
 ) : CycleOverviewDao {
-    override fun observeAllDayTotals(): Flow<List<ExpenseDayTotalRow>> {
+    override fun observeDayTotalsInRange(
+        startDateInclusive: String,
+        endDateExclusive: String
+    ): Flow<List<ExpenseDayTotalRow>> {
         return expenseDao.observeAllOrderedDesc().map { expenses ->
             expenses
+                .filter { it.expenseDate >= startDateInclusive && it.expenseDate < endDateExclusive }
                 .groupBy { it.expenseDate }
                 .toSortedMap(compareByDescending { it })
                 .map { (date, entries) ->
@@ -227,15 +231,6 @@ internal class FakeCycleOverviewDao(
                         totalSpentCents = entries.sumOf { it.amountCents }
                     )
                 }
-        }
-    }
-
-    override fun observeDayTotalsInRange(
-        startDateInclusive: String,
-        endDateExclusive: String
-    ): Flow<List<ExpenseDayTotalRow>> {
-        return observeAllDayTotals().map { rows ->
-            rows.filter { it.expenseDate >= startDateInclusive && it.expenseDate < endDateExclusive }
         }
     }
 }
