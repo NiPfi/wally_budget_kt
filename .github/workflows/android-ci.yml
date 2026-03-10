@@ -32,5 +32,8 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
+      - name: Run detekt
+        run: ./gradlew :app:detekt
+
       - name: Verify debug build and unit tests
         run: ./gradlew :app:assembleDebug :app:testDebugUnitTest
