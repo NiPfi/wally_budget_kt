@@ -1,11 +1,11 @@
 package net.loeu.wallybudget.domain.usecase
 
-import net.loeu.wallybudget.data.local.preferences.UserPreferencesManager
+import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 
 class UpdateMonthlyBudgetUseCase(
-    private val userPreferencesManager: UserPreferencesManager
+    private val userSettingsStore: UserSettingsStore
 ) {
     suspend operator fun invoke(amountCents: Long) {
-        userPreferencesManager.updateMonthlyBudget(amountCents)
+        userSettingsStore.updateMonthlyBudget(amountCents)
     }
 }

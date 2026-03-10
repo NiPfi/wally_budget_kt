@@ -20,7 +20,7 @@ private const val FORECAST_SENSITIVITY_MIN = 20
 private const val FORECAST_SENSITIVITY_MAX = 90
 private const val FORECAST_SENSITIVITY_DEFAULT = 60
 
-class UserPreferencesManager(private val context: Context) {
+class UserPreferencesManager(private val context: Context) : UserSettingsStore {
 
     private object PreferenceKeys {
         val MONTHLY_BUDGET_CENTS = longPreferencesKey("monthly_budget_cents")
@@ -34,7 +34,7 @@ class UserPreferencesManager(private val context: Context) {
         val PENDING_CYCLE_DETECTED_AT_TIMESTAMP = longPreferencesKey("pending_cycle_detected_at_timestamp")
     }
 
-    val userSettings: Flow<UserSettings> = context.dataStore.data.map { preferences ->
+    override val userSettings: Flow<UserSettings> = context.dataStore.data.map { preferences ->
         UserSettings(
             monthlyBudgetCents = preferences[PreferenceKeys.MONTHLY_BUDGET_CENTS] ?: 0L,
             paydayDate = preferences[PreferenceKeys.PAYDAY_DATE] ?: 1,
@@ -50,37 +50,37 @@ class UserPreferencesManager(private val context: Context) {
         )
     }
 
-    suspend fun updateMonthlyBudget(amountCents: Long) {
+    override suspend fun updateMonthlyBudget(amountCents: Long) {
         context.dataStore.edit { preferences ->
             preferences[PreferenceKeys.MONTHLY_BUDGET_CENTS] = amountCents
         }
     }
 
-    suspend fun updatePaydayDate(day: Int) {
+    override suspend fun updatePaydayDate(day: Int) {
         context.dataStore.edit { preferences ->
             preferences[PreferenceKeys.PAYDAY_DATE] = day
         }
     }
 
-    suspend fun updateLastResetTimestamp(timestamp: Long) {
+    override suspend fun updateLastResetTimestamp(timestamp: Long) {
         context.dataStore.edit { preferences ->
             preferences[PreferenceKeys.LAST_RESET_TIMESTAMP] = timestamp
         }
     }
 
-    suspend fun updateLastSeenDate(date: LocalDate) {
+    override suspend fun updateLastSeenDate(date: LocalDate) {
         context.dataStore.edit { preferences ->
             preferences[PreferenceKeys.LAST_SEEN_DATE] = date.toString()
         }
     }
 
-    suspend fun completeOnboarding() {
+    override suspend fun completeOnboarding() {
         context.dataStore.edit { preferences ->
             preferences[PreferenceKeys.ONBOARDING_COMPLETED] = true
         }
     }
 
-    suspend fun setPendingCycle(
+    override suspend fun setPendingCycle(
         cycleStartDate: LocalDate,
         cycleEndDateExclusive: LocalDate,
         detectedAtTimestamp: Long
@@ -92,7 +92,7 @@ class UserPreferencesManager(private val context: Context) {
         }
     }
 
-    suspend fun clearPendingCycle() {
+    override suspend fun clearPendingCycle() {
         context.dataStore.edit { preferences ->
             preferences.remove(PreferenceKeys.PENDING_CYCLE_START_DATE)
             preferences.remove(PreferenceKeys.PENDING_CYCLE_END_DATE_EXCLUSIVE)

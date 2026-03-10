@@ -2,9 +2,9 @@ package net.loeu.wallybudget.domain.usecase
 
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
-import net.loeu.wallybudget.data.local.db.BudgetDatabase
+import net.loeu.wallybudget.data.local.db.TransactionRunner
 import net.loeu.wallybudget.data.local.entity.toEntity
-import net.loeu.wallybudget.data.local.preferences.UserPreferencesManager
+import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
@@ -16,10 +16,10 @@ import java.time.Instant
 import java.time.LocalDate
 
 class PerformMonthlyResetUseCase(
-    private val database: BudgetDatabase,
+    private val transactionRunner: TransactionRunner,
     private val expenseDao: ExpenseDao,
     private val monthlyHistoryDao: MonthlyHistoryDao,
-    private val userPreferencesManager: UserPreferencesManager,
+    private val userSettingsStore: UserSettingsStore,
     private val budgetCalculationService: BudgetCalculationService
 ) {
     suspend operator fun invoke(settings: UserSettings, now: LocalDate) {
@@ -34,7 +34,7 @@ class PerformMonthlyResetUseCase(
 
         if (!budgetCalculationService.shouldPerformReset(now, settings.paydayDate, lastResetDate)) {
             recoveryPendingCycle?.let { pendingCycle ->
-                userPreferencesManager.setPendingCycle(
+                userSettingsStore.setPendingCycle(
                     cycleStartDate = pendingCycle.start,
                     cycleEndDateExclusive = pendingCycle.endExclusive,
                     detectedAtTimestamp = Instant.now().toEpochMilli()
@@ -46,7 +46,7 @@ class PerformMonthlyResetUseCase(
         var clearPending = false
         var nextPendingCycle: CycleRange? = null
 
-        database.inTransaction {
+        transactionRunner.inTransaction {
             if (existingPending != null && existingPending.endExclusive.isBefore(currentCycleStart)) {
                 archiveCycleIfNeeded(settings, existingPending.start, existingPending.endExclusive)
                 clearPending = true
@@ -69,22 +69,22 @@ class PerformMonthlyResetUseCase(
         }
 
         if (clearPending) {
-            userPreferencesManager.clearPendingCycle()
+            userSettingsStore.clearPendingCycle()
         }
         when {
-            nextPendingCycle != null -> userPreferencesManager.setPendingCycle(
+            nextPendingCycle != null -> userSettingsStore.setPendingCycle(
                 cycleStartDate = nextPendingCycle.start,
                 cycleEndDateExclusive = nextPendingCycle.endExclusive,
                 detectedAtTimestamp = Instant.now().toEpochMilli()
             )
 
-            recoveryPendingCycle != null -> userPreferencesManager.setPendingCycle(
+            recoveryPendingCycle != null -> userSettingsStore.setPendingCycle(
                 cycleStartDate = recoveryPendingCycle.start,
                 cycleEndDateExclusive = recoveryPendingCycle.endExclusive,
                 detectedAtTimestamp = Instant.now().toEpochMilli()
             )
         }
-        userPreferencesManager.updateLastResetTimestamp(currentCycleStart.toStartOfDayMillis())
+        userSettingsStore.updateLastResetTimestamp(currentCycleStart.toStartOfDayMillis())
     }
 
     private suspend fun recoverMissingPendingCycle(

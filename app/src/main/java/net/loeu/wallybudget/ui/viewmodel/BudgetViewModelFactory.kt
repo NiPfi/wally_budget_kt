@@ -68,7 +68,7 @@ class BudgetViewModelFactory(
             expenseDao = expenseDao,
             monthlyHistoryDao = monthlyHistoryDao,
             cycleOverviewDao = cycleOverviewDao,
-            userPreferencesManager = userPreferencesManager,
+            userSettingsStore = userPreferencesManager,
             currentDateProvider = currentDateProvider,
             budgetCalculationService = budgetCalculationService
         )
@@ -79,7 +79,7 @@ class BudgetViewModelFactory(
             expenseDao = expenseDao,
             monthlyHistoryDao = monthlyHistoryDao,
             cycleOverviewDao = cycleOverviewDao,
-            userPreferencesManager = userPreferencesManager,
+            userSettingsStore = userPreferencesManager,
             currentDateProvider = currentDateProvider,
             budgetCalculationService = budgetCalculationService
         )
@@ -89,7 +89,7 @@ class BudgetViewModelFactory(
         ObserveForecastUseCase(
             expenseDao = expenseDao,
             monthlyHistoryDao = monthlyHistoryDao,
-            userPreferencesManager = userPreferencesManager,
+            userSettingsStore = userPreferencesManager,
             currentDateProvider = currentDateProvider,
             budgetCalculationService = budgetCalculationService
         )
@@ -102,28 +102,28 @@ class BudgetViewModelFactory(
     private val updatePaydayDateUseCase by lazy { UpdatePaydayDateUseCase(userPreferencesManager) }
     private val completeOnboardingUseCase by lazy {
         CompleteOnboardingUseCase(
-            database = database,
+            transactionRunner = database,
             monthlyHistoryDao = monthlyHistoryDao,
-            userPreferencesManager = userPreferencesManager,
+            userSettingsStore = userPreferencesManager,
             currentDateProvider = currentDateProvider,
             budgetCalculationService = budgetCalculationService
         )
     }
     private val performMonthlyResetUseCase by lazy {
         PerformMonthlyResetUseCase(
-            database = database,
+            transactionRunner = database,
             expenseDao = expenseDao,
             monthlyHistoryDao = monthlyHistoryDao,
-            userPreferencesManager = userPreferencesManager,
+            userSettingsStore = userPreferencesManager,
             budgetCalculationService = budgetCalculationService
         )
     }
     private val concludePendingCycleUseCase by lazy {
         ConcludePendingCycleUseCase(
-            database = database,
+            transactionRunner = database,
             expenseDao = expenseDao,
             monthlyHistoryDao = monthlyHistoryDao,
-            userPreferencesManager = userPreferencesManager,
+            userSettingsStore = userPreferencesManager,
             budgetCalculationService = budgetCalculationService
         )
     }

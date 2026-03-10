@@ -8,7 +8,7 @@ import net.loeu.wallybudget.data.local.dao.CycleOverviewDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
 import net.loeu.wallybudget.data.local.entity.toDomainModel
-import net.loeu.wallybudget.data.local.preferences.UserPreferencesManager
+import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.domain.model.HomeOverviewState
 import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
@@ -29,12 +29,12 @@ class ObserveHomeOverviewUseCase(
     private val expenseDao: ExpenseDao,
     private val monthlyHistoryDao: MonthlyHistoryDao,
     private val cycleOverviewDao: CycleOverviewDao,
-    private val userPreferencesManager: UserPreferencesManager,
+    private val userSettingsStore: UserSettingsStore,
     private val currentDateProvider: CurrentDateProvider,
     private val budgetCalculationService: BudgetCalculationService
 ) {
     operator fun invoke(): Flow<HomeOverviewState> {
-        val userSettings = userPreferencesManager.userSettings
+        val userSettings = userSettingsStore.userSettings
         val effectiveDate = combine(
             userSettings,
             currentDateProvider.observeCurrentDate()
