@@ -154,7 +154,9 @@ fun OverviewPage(
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
-                        "Conservative shows a lower-spend path, Projected is the current best estimate, and High pace is a stress case for how the cycle could finish if spending speeds up.",
+                        "Conservative shows a lower-spend path, Projected is the current " +
+                            "best estimate, and High pace is a stress case for how the " +
+                            "cycle could finish if spending speeds up.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -167,7 +169,11 @@ fun OverviewPage(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            DetailRow("Confidence", "${(spendingForecast.confidenceScore * 100).toInt()}% (${spendingForecast.confidenceRating})")
+                            DetailRow(
+                                "Confidence",
+                                "${(spendingForecast.confidenceScore * 100).toInt()}% " +
+                                    "(${spendingForecast.confidenceRating})"
+                            )
                             DetailRow("Average daily pace", CurrencyFormatter.format(spendingForecast.dailyAverageWeightedCents))
                             DetailRow("Window", "${spendingForecast.usedDataPoints} days")
                             val trendVal = spendingForecast.trendSlopeCents
@@ -205,7 +211,9 @@ fun OverviewPage(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        "The + amount next to Today left is recoverable overspend: extra spending the forecast suggests you can still absorb and make back over the remaining cycle days.",
+                        "The + amount next to Today left is recoverable overspend: extra " +
+                            "spending the forecast suggests you can still absorb and make " +
+                            "back over the remaining cycle days.",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(

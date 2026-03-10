@@ -82,7 +82,19 @@ fun CycleCloseoutScreen(
                         fontWeight = FontWeight.Black
                     )
                     Text(
-                        text = "${pendingCycle.cycleStartDate.format(DateTimeFormatter.ofPattern("MMM d"))} - ${pendingCycle.cycleEndDateExclusive.minusDays(1).format(DateTimeFormatter.ofPattern("MMM d, yyyy"))}",
+                        text = buildString {
+                            append(
+                                pendingCycle.cycleStartDate.format(
+                                    DateTimeFormatter.ofPattern("MMM d")
+                                )
+                            )
+                            append(" - ")
+                            append(
+                                pendingCycle.cycleEndDateExclusive
+                                    .minusDays(1)
+                                    .format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
+                            )
+                        },
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(

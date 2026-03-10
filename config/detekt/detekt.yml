@@ -10,7 +10,8 @@ complexity:
   LongMethod:
     active: false
   LongParameterList:
-    active: false
+    active: true
+    ignoreDefaultParameters: true
   TooManyFunctions:
     active: false
 
@@ -36,7 +37,8 @@ style:
   MagicNumber:
     active: false
   MaxLineLength:
-    active: false
+    active: true
+    maxLineLength: 160
   NewLineAtEndOfFile:
     active: true
   ReturnCount:

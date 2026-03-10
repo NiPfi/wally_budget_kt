@@ -9,30 +9,16 @@ import net.loeu.wallybudget.util.CurrencyFormatter
 import kotlin.math.abs
 import kotlin.math.max
 
+private const val PERSONALIZATION_MIN_CYCLES = 3
+
 internal object AnalysisSnapshotFactory {
 
-    private const val PERSONALIZATION_MIN_CYCLES = 3
     private const val MAX_BEHAVIOR_CYCLES = 6
     // Beta priors keep historical risk estimates usable with a small number of cycles.
     private const val OVERSPEND_RATE_PRIOR_SUCCESSES = 1.0
     private const val OVERSPEND_RATE_PRIOR_TOTAL = 4.0
     private const val LARGE_OVERSPEND_RATE_PRIOR_SUCCESSES = 0.5
     private const val LARGE_OVERSPEND_RATE_PRIOR_TOTAL = 3.0
-
-    private data class HistoricalBehaviorProfile(
-        val cycleCount: Int,
-        val overspendCycles: Int,
-        val averageSurplusCents: Long,
-        val maxOverspendCents: Long,
-        val smoothedOverspendRate: Double,
-        val smoothedLargeOverspendRate: Double,
-        val requiredExtraSpendToMissBudgetCents: Long,
-        val historicalOverspendThresholdCents: Long,
-        val largeOverspendCycles: Int
-    ) {
-        val hasPersonalizedHistory: Boolean
-            get() = cycleCount >= PERSONALIZATION_MIN_CYCLES
-    }
 
     fun create(
         budgetState: BudgetState,
@@ -304,7 +290,15 @@ internal object AnalysisSnapshotFactory {
             else -> AnalysisEvidenceItem(
                 title = "Forecast pressure",
                 value = "Within budget",
-                detail = "Projected finish leaves ${CurrencyFormatter.format(spendingForecast.estimatedEndCycleRemainingCents.coerceAtLeast(0L))} in the cycle.",
+                detail = buildString {
+                    append("Projected finish leaves ")
+                    append(
+                        CurrencyFormatter.format(
+                            spendingForecast.estimatedEndCycleRemainingCents.coerceAtLeast(0L)
+                        )
+                    )
+                    append(" in the cycle.")
+                },
                 tone = AnalysisEvidenceTone.Positive
             )
         }
@@ -319,7 +313,13 @@ internal object AnalysisSnapshotFactory {
             AnalysisEvidenceItem(
                 title = "Daily pace",
                 value = "${CurrencyFormatter.format(paceGapCents)} above target",
-                detail = "Projected pace is ${CurrencyFormatter.format(spendingForecast.projectedDailySpendCents)} vs ${CurrencyFormatter.format(budgetState.dailyBudgetCents)} daily budget.",
+                detail = buildString {
+                    append("Projected pace is ")
+                    append(CurrencyFormatter.format(spendingForecast.projectedDailySpendCents))
+                    append(" vs ")
+                    append(CurrencyFormatter.format(budgetState.dailyBudgetCents))
+                    append(" daily budget.")
+                },
                 tone = if (paceGapCents >= max(500L, budgetState.dailyBudgetCents / 10)) {
                     AnalysisEvidenceTone.Warning
                 } else {
@@ -330,7 +330,13 @@ internal object AnalysisSnapshotFactory {
             AnalysisEvidenceItem(
                 title = "Daily pace",
                 value = "At or below target",
-                detail = "Projected pace is ${CurrencyFormatter.format(spendingForecast.projectedDailySpendCents)} against ${CurrencyFormatter.format(budgetState.dailyBudgetCents)} per day.",
+                detail = buildString {
+                    append("Projected pace is ")
+                    append(CurrencyFormatter.format(spendingForecast.projectedDailySpendCents))
+                    append(" against ")
+                    append(CurrencyFormatter.format(budgetState.dailyBudgetCents))
+                    append(" per day.")
+                },
                 tone = AnalysisEvidenceTone.Positive
             )
         }
@@ -367,7 +373,11 @@ internal object AnalysisSnapshotFactory {
             return AnalysisEvidenceItem(
                 title = "Overspend behavior",
                 value = "History still building",
-                detail = "Only ${behaviorProfile.cycleCount} completed cycle${if (behaviorProfile.cycleCount == 1) "" else "s"} available. Guidance will personalize after 3 completed cycles.",
+                detail = buildString {
+                    append("Only ${behaviorProfile.cycleCount} completed cycle")
+                    append(if (behaviorProfile.cycleCount == 1) "" else "s")
+                    append(" available. Guidance will personalize after 3 completed cycles.")
+                },
                 tone = AnalysisEvidenceTone.Neutral
             )
         }
@@ -377,7 +387,17 @@ internal object AnalysisSnapshotFactory {
                 behaviorProfile.largeOverspendCycles == 0 -> AnalysisEvidenceItem(
                     title = "Overspend behavior",
                     value = "Miss of this size is rare",
-                    detail = "0 of last ${behaviorProfile.cycleCount} cycles finished at least ${CurrencyFormatter.format(behaviorProfile.historicalOverspendThresholdCents)} over budget. Worst miss was ${CurrencyFormatter.format(behaviorProfile.maxOverspendCents)}.",
+                    detail = buildString {
+                        append("0 of last ${behaviorProfile.cycleCount} cycles finished at least ")
+                        append(
+                            CurrencyFormatter.format(
+                                behaviorProfile.historicalOverspendThresholdCents
+                            )
+                        )
+                        append(" over budget. Worst miss was ")
+                        append(CurrencyFormatter.format(behaviorProfile.maxOverspendCents))
+                        append('.')
+                    },
                     tone = AnalysisEvidenceTone.Positive
                 )
                 behaviorProfile.largeOverspendCycles == 1 -> AnalysisEvidenceItem(
@@ -485,153 +505,194 @@ internal object AnalysisSnapshotFactory {
         return recommendations.take(3)
     }
 
-    private fun historyFallbackText(
-        showHistoryFallback: Boolean,
-        timelineLockReason: String?
-    ): String? {
-        if (!showHistoryFallback) return null
+}
 
-        return if (timelineLockReason != null) {
-            "History is still building. Guidance will sharpen after your first completed cycle is archived."
-        } else {
-            "Keep recording through this cycle. Guidance will sharpen after a completed cycle closes."
-        }
+private data class HistoricalBehaviorProfile(
+    val cycleCount: Int,
+    val overspendCycles: Int,
+    val averageSurplusCents: Long,
+    val maxOverspendCents: Long,
+    val smoothedOverspendRate: Double,
+    val smoothedLargeOverspendRate: Double,
+    val requiredExtraSpendToMissBudgetCents: Long,
+    val historicalOverspendThresholdCents: Long,
+    val largeOverspendCycles: Int
+) {
+    val hasPersonalizedHistory: Boolean
+        get() = cycleCount >= PERSONALIZATION_MIN_CYCLES
+}
+
+private fun historyFallbackText(
+    showHistoryFallback: Boolean,
+    timelineLockReason: String?
+): String? {
+    if (!showHistoryFallback) return null
+
+    return if (timelineLockReason != null) {
+        "History is still building. Guidance will sharpen after your first completed cycle is archived."
+    } else {
+        "Keep recording through this cycle. Guidance will sharpen after a completed cycle closes."
+    }
+}
+
+private fun headline(verdict: AnalysisVerdictLevel): String = when (verdict) {
+    AnalysisVerdictLevel.Stable -> "On track"
+    AnalysisVerdictLevel.Watchful -> "Watch the upper range"
+    AnalysisVerdictLevel.Caution -> "Needs attention"
+    AnalysisVerdictLevel.AtRisk -> "Risk of overspending"
+}
+
+private fun summary(
+    verdict: AnalysisVerdictLevel,
+    confidenceBand: ConfidenceBand,
+    budgetState: BudgetState,
+    spendingForecast: SpendingForecast,
+    behaviorProfile: HistoricalBehaviorProfile?,
+    safeToSpendNowCents: Long,
+    monitorAfterDays: Int?
+): String {
+    if (budgetState.remainingCycleCents <= 0L) {
+        return "You have already exhausted this cycle's budget, so further spend increases the deficit."
     }
 
-    private fun headline(verdict: AnalysisVerdictLevel): String = when (verdict) {
-        AnalysisVerdictLevel.Stable -> "On track"
-        AnalysisVerdictLevel.Watchful -> "Watch the upper range"
-        AnalysisVerdictLevel.Caution -> "Needs attention"
-        AnalysisVerdictLevel.AtRisk -> "Risk of overspending"
-    }
+    val hasRangeOnlyRisk = spendingForecast.estimatedEndCycleRemainingCents > 0L &&
+        spendingForecast.upperBoundCents > budgetState.monthlyBudgetCents
 
-    private fun summary(
-        verdict: AnalysisVerdictLevel,
-        confidenceBand: ConfidenceBand,
-        budgetState: BudgetState,
-        spendingForecast: SpendingForecast,
-        behaviorProfile: HistoricalBehaviorProfile?,
-        safeToSpendNowCents: Long,
-        monitorAfterDays: Int?
-    ): String {
-        if (budgetState.remainingCycleCents <= 0L) {
-            return "You have already exhausted this cycle's budget, so further spend increases the deficit."
-        }
-
-        val hasRangeOnlyRisk = spendingForecast.estimatedEndCycleRemainingCents > 0L &&
-            spendingForecast.upperBoundCents > budgetState.monthlyBudgetCents
-
-        return when (verdict) {
-            AnalysisVerdictLevel.Stable -> {
-                if (
-                    hasRangeOnlyRisk &&
-                    behaviorProfile?.hasPersonalizedHistory == true &&
-                    behaviorProfile.largeOverspendCycles == 0
-                ) {
-                    "Your current plan still finishes under budget, and a miss would require a larger overspend than your recent cycles usually show."
-                } else {
-                    "Current pace and safe-today headroom still support an on-budget finish."
-                }
-            }
-
-            AnalysisVerdictLevel.Watchful -> {
-                if (hasRangeOnlyRisk) {
-                    "You are still on track, but the upper range is worth watching if spending speeds up."
-                } else {
-                    "The budget still has room, but one signal is leaning tighter than the rest."
-                }
-            }
-
-            AnalysisVerdictLevel.Caution -> {
-                if (
-                    hasRangeOnlyRisk &&
-                    behaviorProfile?.hasPersonalizedHistory == true &&
-                    behaviorProfile.smoothedLargeOverspendRate >= 0.25
-                ) {
-                    "You are still under budget, but history shows misses of this size can happen if spending speeds up."
-                } else if (confidenceBand == ConfidenceBand.Low) {
-                    val days = monitorAfterDays ?: 2
-                    "The forecast is still building, but current pace and headroom need a closer watch. Check back in $days day${if (days == 1) "" else "s"}."
-                } else if (safeToSpendNowCents == 0L) {
-                    "You can still recover, but today's cushion is gone and the rest of the cycle is tighter."
-                } else {
-                    "You can still recover, but the current pace is running tighter than your budget allows."
-                }
-            }
-
-            AnalysisVerdictLevel.AtRisk -> {
-                if (confidenceBand == ConfidenceBand.High) {
-                    "Your current pace is likely to finish over budget unless you tighten spending now."
-                } else {
-                    val days = monitorAfterDays ?: 2
-                    "Signals are pointing high, but the forecast is still building. Keep spending tight and re-check in $days day${if (days == 1) "" else "s"}."
-                }
+    return when (verdict) {
+        AnalysisVerdictLevel.Stable -> {
+            if (
+                hasRangeOnlyRisk &&
+                behaviorProfile?.hasPersonalizedHistory == true &&
+                behaviorProfile.largeOverspendCycles == 0
+            ) {
+                "Your current plan still finishes under budget, and a miss would require a larger overspend than your recent cycles usually show."
+            } else {
+                "Current pace and safe-today headroom still support an on-budget finish."
             }
         }
-    }
 
-    private fun confidenceExplanation(
-        confidenceBand: ConfidenceBand,
-        monitorAfterDays: Int?
-    ): String {
-        return when (confidenceBand) {
-            ConfidenceBand.High -> "Confidence is high. The forecast has enough cycle data to anchor your current pace."
-            ConfidenceBand.Medium -> {
-                val days = monitorAfterDays ?: 3
-                "Confidence is moderate. The signal is usable, but the range can still move over the next $days day${if (days == 1) "" else "s"}."
+        AnalysisVerdictLevel.Watchful -> {
+            if (hasRangeOnlyRisk) {
+                "You are still on track, but the upper range is worth watching if spending speeds up."
+            } else {
+                "The budget still has room, but one signal is leaning tighter than the rest."
             }
-            ConfidenceBand.Low -> {
+        }
+
+        AnalysisVerdictLevel.Caution -> {
+            if (
+                hasRangeOnlyRisk &&
+                behaviorProfile?.hasPersonalizedHistory == true &&
+                behaviorProfile.smoothedLargeOverspendRate >= 0.25
+            ) {
+                "You are still under budget, but history shows misses of this size can happen if spending speeds up."
+            } else if (confidenceBand == ConfidenceBand.Low) {
                 val days = monitorAfterDays ?: 2
-                "Confidence is low because this cycle still has limited signal. Use this as direction, not certainty, and check back in $days day${if (days == 1) "" else "s"}."
+                "The forecast is still building, but current pace and headroom need a closer watch. Check back in $days day${if (days == 1) "" else "s"}."
+            } else if (safeToSpendNowCents == 0L) {
+                "You can still recover, but today's cushion is gone and the rest of the cycle is tighter."
+            } else {
+                "You can still recover, but the current pace is running tighter than your budget allows."
+            }
+        }
+
+        AnalysisVerdictLevel.AtRisk -> {
+            if (confidenceBand == ConfidenceBand.High) {
+                "Your current pace is likely to finish over budget unless you tighten spending now."
+            } else {
+                val days = monitorAfterDays ?: 2
+                "Signals are pointing high, but the forecast is still building. Keep spending tight and re-check in $days day${if (days == 1) "" else "s"}."
             }
         }
     }
+}
 
-    private fun rangeExplanation(
-        budgetState: BudgetState,
-        spendingForecast: SpendingForecast,
-        behaviorProfile: HistoricalBehaviorProfile?
-    ): String {
-        val base = "Forecast range runs from ${CurrencyFormatter.format(spendingForecast.lowerBoundCents)} to ${CurrencyFormatter.format(spendingForecast.upperBoundCents)} total spend by cycle end."
-        if (spendingForecast.upperBoundCents <= budgetState.monthlyBudgetCents) {
-            return base
+private fun confidenceExplanation(
+    confidenceBand: ConfidenceBand,
+    monitorAfterDays: Int?
+): String {
+    return when (confidenceBand) {
+        ConfidenceBand.High -> "Confidence is high. The forecast has enough cycle data to anchor your current pace."
+        ConfidenceBand.Medium -> {
+            val days = monitorAfterDays ?: 3
+            "Confidence is moderate. The signal is usable, but the range can still move over the next $days day${if (days == 1) "" else "s"}."
         }
+        ConfidenceBand.Low -> {
+            val days = monitorAfterDays ?: 2
+            "Confidence is low because this cycle still has limited signal. Use this as direction, not certainty, and check back in $days day${if (days == 1) "" else "s"}."
+        }
+    }
+}
 
-        if (
-            behaviorProfile?.hasPersonalizedHistory == true &&
-            behaviorProfile.requiredExtraSpendToMissBudgetCents > 0L
-        ) {
-            val precedentText = when (behaviorProfile.largeOverspendCycles) {
-                0 -> "has not happened in ${behaviorProfile.cycleCount} recent completed cycles."
-                1 -> "has happened in 1 of ${behaviorProfile.cycleCount} recent completed cycles."
-                else -> "has happened in ${behaviorProfile.largeOverspendCycles} of ${behaviorProfile.cycleCount} recent completed cycles."
+private fun rangeExplanation(
+    budgetState: BudgetState,
+    spendingForecast: SpendingForecast,
+    behaviorProfile: HistoricalBehaviorProfile?
+): String {
+    val base = buildString {
+        append("Forecast range runs from ")
+        append(CurrencyFormatter.format(spendingForecast.lowerBoundCents))
+        append(" to ")
+        append(CurrencyFormatter.format(spendingForecast.upperBoundCents))
+        append(" total spend by cycle end.")
+    }
+    if (spendingForecast.upperBoundCents <= budgetState.monthlyBudgetCents) {
+        return base
+    }
+
+    if (
+        behaviorProfile?.hasPersonalizedHistory == true &&
+        behaviorProfile.requiredExtraSpendToMissBudgetCents > 0L
+    ) {
+        val precedentText = when (behaviorProfile.largeOverspendCycles) {
+            0 -> "has not happened in ${behaviorProfile.cycleCount} recent completed cycles."
+            1 -> "has happened in 1 of ${behaviorProfile.cycleCount} recent completed cycles."
+            else -> {
+                "has happened in ${behaviorProfile.largeOverspendCycles} of " +
+                    "${behaviorProfile.cycleCount} recent completed cycles."
             }
-            return "$base Missing budget would require about ${CurrencyFormatter.format(behaviorProfile.requiredExtraSpendToMissBudgetCents)} more spending than the current projection, which $precedentText"
         }
-
-        val projectedBufferCents = spendingForecast.estimatedEndCycleRemainingCents.coerceAtLeast(0L)
-        return "$base Best estimate still leaves ${CurrencyFormatter.format(projectedBufferCents)}, and the budget is only crossed if spending finishes about that much above the current path."
+        return buildString {
+            append(base)
+            append(" Missing budget would require about ")
+            append(
+                CurrencyFormatter.format(
+                    behaviorProfile.requiredExtraSpendToMissBudgetCents
+                )
+            )
+            append(" more spending than the current projection, which ")
+            append(precedentText)
+        }
     }
 
-    private fun monitorAfterDays(
-        daysRemainingInCycle: Int,
-        confidenceBand: ConfidenceBand
-    ): Int? = when {
-        daysRemainingInCycle <= 3 -> 1
-        confidenceBand == ConfidenceBand.Low -> 2
-        confidenceBand == ConfidenceBand.Medium -> 3
-        else -> null
+    val projectedBufferCents = spendingForecast.estimatedEndCycleRemainingCents.coerceAtLeast(0L)
+    return buildString {
+        append(base)
+        append(" Best estimate still leaves ")
+        append(CurrencyFormatter.format(projectedBufferCents))
+        append(", and the budget is only crossed if spending finishes about ")
+        append("that much above the current path.")
     }
+}
 
-    private fun confidenceBand(confidenceScore: Double): ConfidenceBand = when {
-        confidenceScore >= 0.70 -> ConfidenceBand.High
-        confidenceScore >= 0.55 -> ConfidenceBand.Medium
-        else -> ConfidenceBand.Low
-    }
+private fun monitorAfterDays(
+    daysRemainingInCycle: Int,
+    confidenceBand: ConfidenceBand
+): Int? = when {
+    daysRemainingInCycle <= 3 -> 1
+    confidenceBand == ConfidenceBand.Low -> 2
+    confidenceBand == ConfidenceBand.Medium -> 3
+    else -> null
+}
 
-    private enum class ConfidenceBand(val label: String) {
-        High("High"),
-        Medium("Medium"),
-        Low("Low")
-    }
+private fun confidenceBand(confidenceScore: Double): ConfidenceBand = when {
+    confidenceScore >= 0.70 -> ConfidenceBand.High
+    confidenceScore >= 0.55 -> ConfidenceBand.Medium
+    else -> ConfidenceBand.Low
+}
+
+private enum class ConfidenceBand(val label: String) {
+    High("High"),
+    Medium("Medium"),
+    Low("Low")
 }
