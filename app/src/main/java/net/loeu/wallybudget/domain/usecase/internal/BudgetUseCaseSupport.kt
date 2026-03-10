@@ -45,6 +45,7 @@ internal fun effectiveCurrentDate(
 internal fun UserSettings.pendingCycleRangeOrNull(): CycleRange? {
     val start = pendingCycleStartDate?.parseLocalDateOrNull() ?: return null
     val end = pendingCycleEndDateExclusive?.parseLocalDateOrNull() ?: return null
+    if (!end.isAfter(start)) return null
     return CycleRange(start = start, endExclusive = end)
 }
 
