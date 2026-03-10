@@ -1,5 +1,8 @@
 package net.loeu.wallybudget.ui.screens.overview
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -15,15 +18,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -150,7 +150,7 @@ fun OverviewPage(
         }
     }
 
-    LaunchedEffect(headerSettleAnimationToken, shouldAnimateHeaderSettle, headerSettleTargetPx) {
+    LaunchedEffect(headerSettleAnimationToken, shouldAnimateHeaderSettle) {
         if (!shouldAnimateHeaderSettle) return@LaunchedEffect
 
         animate(
@@ -430,7 +430,7 @@ private fun consumeHeaderScroll(
     return Offset.Zero
 }
 
-private fun snapHeaderOffset(collapseOffsetPx: Float, maxCollapsePx: Float): Float {
+internal fun snapHeaderOffset(collapseOffsetPx: Float, maxCollapsePx: Float): Float {
     if (maxCollapsePx <= 0f) return 0f
     return if (collapseOffsetPx >= maxCollapsePx / 2f) {
         maxCollapsePx
