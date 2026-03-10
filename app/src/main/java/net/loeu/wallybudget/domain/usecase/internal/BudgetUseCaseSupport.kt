@@ -78,13 +78,6 @@ internal suspend fun archiveCycleIfNeeded(
         cycleStart.toString(),
         cycleEnd.toString()
     ) ?: 0L
-    val expenseCount = expenseDao.countInRange(
-        cycleStart.toString(),
-        cycleEnd.toString()
-    )
-    if (expenseCount == 0) {
-        return
-    }
 
     monthlyHistoryDao.insert(
         MonthlyHistory(

@@ -126,6 +126,41 @@ class BudgetCalculationServiceTest {
         assertTrue(forecast.projectedTotalSpentCents >= 900_00L)
     }
 
+    @Test
+    fun calculateSpendingForecast_zeroSpendCompletedCycle_setsLowPriorInsteadOfAllowanceFallback() {
+        val now = LocalDate.of(2026, 4, 25)
+
+        val forecast = service.calculateSpendingForecast(
+            budgetState = BudgetState(
+                monthlyBudgetCents = 100_000L,
+                totalSpentThisCycleCents = 0L,
+                dailyBudgetCents = 3_333L,
+                spentTodayCents = 0L,
+                remainingTodayCents = 3_333L,
+                daysRemainingInCycle = 30,
+                cumulativeSavingsCents = 100_000L,
+                paydayDate = 25,
+                cycleStartDate = now
+            ),
+            now = now,
+            monthlyHistory = listOf(
+                MonthlyHistory(
+                    cycleStartDate = "2026-03-25",
+                    budgetAmountCents = 100_000L,
+                    totalSpentCents = 0L,
+                    surplusCents = 100_000L,
+                    cycleEndDate = "2026-04-25",
+                    endTimestamp = 0L
+                )
+            ),
+            recentExpenses = emptyList()
+        )
+
+        assertEquals(0L, forecast.projectedDailySpendCents)
+        assertEquals(0L, forecast.projectedTotalSpentCents)
+        assertFalse(forecast.isProjectedOverBudget)
+    }
+
     private fun expenseOn(date: LocalDate, amountCents: Long): Expense {
         return Expense(
             amountCents = amountCents,
