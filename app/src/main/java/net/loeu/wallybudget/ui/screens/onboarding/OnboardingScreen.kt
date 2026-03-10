@@ -128,8 +128,12 @@ fun OnboardingScreen(
             onClick = {
                 val budgetCents = CurrencyFormatter.parseAmountToCents(budgetText)
                 val payday = paydayText.toIntOrNull()
+                val isValidSubmission = budgetCents != null &&
+                    budgetCents > 0L &&
+                    payday != null &&
+                    payday in 1..31
 
-                if (budgetCents != null && budgetCents > 0L && payday != null && payday in 1..31) {
+                if (isValidSubmission) {
                     val currentMonth = today.month
                     val currentYear = today.year
                     val maxDaysCurrent = today.lengthOfMonth()

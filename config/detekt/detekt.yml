@@ -5,7 +5,7 @@ config:
 complexity:
   ComplexCondition:
     active: true
-    allowedConditions: 4
+    allowedConditions: 3
   CyclomaticComplexMethod:
     active: true
     allowedComplexity: 19
