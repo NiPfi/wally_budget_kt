@@ -195,12 +195,14 @@ internal object AnalysisSnapshotFactory {
             else -> 0
         }
 
-        if (confidenceBand != ConfidenceBand.Low) return baseRisk
-        if (baseRisk == 0) return 0
-        if (spendingForecast.estimatedEndCycleRemainingCents < 0L) {
-            return (baseRisk - 1).coerceAtLeast(1)
+        return when {
+            confidenceBand != ConfidenceBand.Low -> baseRisk
+            baseRisk == 0 -> 0
+            spendingForecast.estimatedEndCycleRemainingCents < 0L -> {
+                (baseRisk - 1).coerceAtLeast(1)
+            }
+            else -> (baseRisk - 1).coerceAtLeast(0)
         }
-        return (baseRisk - 1).coerceAtLeast(0)
     }
 
     private fun behaviorRiskPoints(

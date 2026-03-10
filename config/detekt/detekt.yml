@@ -4,7 +4,8 @@ config:
 
 complexity:
   ComplexCondition:
-    active: false
+    active: true
+    allowedConditions: 4
   CyclomaticComplexMethod:
     active: false
   LongMethod:
@@ -27,7 +28,7 @@ naming:
   MatchingDeclarationName:
     active: false
   TopLevelPropertyNaming:
-    active: false
+    active: true
 
 style:
   ForbiddenImport:
@@ -42,6 +43,8 @@ style:
   NewLineAtEndOfFile:
     active: true
   ReturnCount:
-    active: false
+    active: true
+    max: 3
+    excludeGuardClauses: true
   WildcardImport:
     active: true

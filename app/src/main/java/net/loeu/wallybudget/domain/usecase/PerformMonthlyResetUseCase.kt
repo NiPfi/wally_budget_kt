@@ -108,21 +108,25 @@ class PerformMonthlyResetUseCase(
             currentCycleStart.minusDays(1),
             settings.paydayDate
         )
-        if (!previousCycleStart.isBefore(currentCycleStart)) return null
-
         val archivedPreviousCycle = monthlyHistoryDao.findByCycleStart(previousCycleStart.toString())
-        if (archivedPreviousCycle != null) return null
 
         val previousCycleExpenseCount = expenseDao.countInRange(
             previousCycleStart.toString(),
             currentCycleStart.toString()
         )
-        if (previousCycleExpenseCount == 0) return null
 
-        return CycleRange(
-            start = previousCycleStart,
-            endExclusive = currentCycleStart
-        )
+        return if (
+            previousCycleStart.isBefore(currentCycleStart) &&
+            archivedPreviousCycle == null &&
+            previousCycleExpenseCount > 0
+        ) {
+            CycleRange(
+                start = previousCycleStart,
+                endExclusive = currentCycleStart
+            )
+        } else {
+            null
+        }
     }
 
     private fun buildEndedCycles(
