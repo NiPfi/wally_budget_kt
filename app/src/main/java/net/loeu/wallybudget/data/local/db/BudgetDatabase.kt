@@ -4,7 +4,9 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
+import androidx.room.withTransaction
 import androidx.sqlite.db.SupportSQLiteDatabase
+import net.loeu.wallybudget.data.local.dao.CycleOverviewDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
@@ -19,6 +21,9 @@ import net.loeu.wallybudget.data.local.entity.MonthlyHistoryEntity
 abstract class BudgetDatabase : RoomDatabase() {
     abstract fun expenseDao(): ExpenseDao
     abstract fun monthlyHistoryDao(): MonthlyHistoryDao
+    abstract fun cycleOverviewDao(): CycleOverviewDao
+
+    suspend fun <T> inTransaction(block: suspend () -> T): T = withTransaction { block() }
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
