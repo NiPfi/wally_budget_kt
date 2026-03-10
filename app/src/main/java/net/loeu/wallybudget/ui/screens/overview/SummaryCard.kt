@@ -59,20 +59,11 @@ fun SummaryCard(
     val rightTopOffsetPx = with(density) { ((1f - progress) * 6.dp.toPx()) }
     val iconOffsetPx = with(density) { (progress * -4.dp.toPx()) }
     val bottomOffsetPx = with(density) { ((1f - secondaryMetricsProgress) * -6.dp.toPx()) }
-    val containerColor = if (useWarningTint) {
-        blendedAlertContainer()
-    } else {
-        MaterialTheme.colorScheme.primaryContainer
-    }
-    val contentColor = if (useWarningTint) {
-        blendedAlertContent()
-    } else {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    }
+    val colors = summaryCardColors(useWarningTint)
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = containerColor,
+        color = colors.container,
         tonalElevation = lerp(2.dp, 0.dp, progress),
         shape = MaterialTheme.shapes.extraLarge
     ) {
@@ -81,198 +72,290 @@ fun SummaryCard(
                 .padding(horizontal = horizontalPadding, vertical = verticalPadding),
             verticalArrangement = Arrangement.spacedBy(contentSpacing)
         ) {
+            SummaryCardPrimaryRow(
+                budgetState = budgetState,
+                amountFontSize = amountFontSize,
+                amountLineHeight = amountLineHeight,
+                contentColor = colors.content,
+                progress = progress,
+                iconAlpha = iconAlpha,
+                iconOffsetPx = iconOffsetPx,
+                rightTopOffsetPx = rightTopOffsetPx,
+                recoverableOverspendCents = recoverableOverspendCents,
+                safeTodayAlpha = safeTodayAlpha,
+                isLoading = isLoading,
+                animateCounters = animateCounters,
+                onSafeTodayInfoClick = onSafeTodayInfoClick,
+                onNavigateToSettings = onNavigateToSettings
+            )
+            SummaryCardSecondaryMetrics(
+                budgetState = budgetState,
+                secondaryMetricsProgress = secondaryMetricsProgress,
+                bottomOffsetPx = bottomOffsetPx,
+                progress = progress,
+                contentColor = colors.content,
+                animateCounters = animateCounters,
+                isLoading = isLoading,
+                tagSecondaryMetrics = tagSecondaryMetrics
+            )
+        }
+    }
+}
+
+private data class SummaryCardColors(
+    val container: Color,
+    val content: Color
+)
+
+@Composable
+private fun summaryCardColors(useWarningTint: Boolean): SummaryCardColors {
+    return SummaryCardColors(
+        container = if (useWarningTint) {
+            blendedAlertContainer()
+        } else {
+            MaterialTheme.colorScheme.primaryContainer
+        },
+        content = if (useWarningTint) {
+            blendedAlertContent()
+        } else {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        }
+    )
+}
+
+@Composable
+private fun SummaryCardPrimaryRow(
+    budgetState: BudgetState,
+    amountFontSize: androidx.compose.ui.unit.TextUnit,
+    amountLineHeight: androidx.compose.ui.unit.TextUnit,
+    contentColor: Color,
+    progress: Float,
+    iconAlpha: Float,
+    iconOffsetPx: Float,
+    rightTopOffsetPx: Float,
+    recoverableOverspendCents: Long,
+    safeTodayAlpha: Float,
+    isLoading: Boolean,
+    animateCounters: Boolean,
+    onSafeTodayInfoClick: (() -> Unit)?,
+    onNavigateToSettings: (() -> Unit)?
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(1.dp)
+        ) {
+            Text(
+                text = "TODAY LEFT",
+                style = MaterialTheme.typography.labelSmall,
+                color = contentColor.copy(alpha = 0.72f)
+            )
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(1.dp)
+                AnimatedCounter(
+                    amountCents = budgetState.remainingTodayCents,
+                    signed = true,
+                    textStyle = MaterialTheme.typography.headlineMedium.copy(
+                        fontSize = amountFontSize,
+                        lineHeight = amountLineHeight,
+                        fontWeight = FontWeight.Black
+                    ),
+                    color = if (budgetState.remainingTodayCents >= 0L) {
+                        contentColor
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    },
+                    animate = animateCounters,
+                    animateOnFirstResolvedValue = animateCounters,
+                    textAlign = TextAlign.Start,
+                    placeholder = isLoading,
+                    placeholderText = "$8,888"
+                )
+                SafeTodayChip(
+                    recoverableOverspendCents = recoverableOverspendCents,
+                    safeTodayAlpha = safeTodayAlpha,
+                    contentColor = contentColor,
+                    isLoading = isLoading,
+                    onSafeTodayInfoClick = onSafeTodayInfoClick
+                )
+            }
+        }
+
+        Box(contentAlignment = Alignment.CenterEnd) {
+            if (onNavigateToSettings != null) {
+                IconButton(
+                    onClick = onNavigateToSettings,
+                    modifier = Modifier.graphicsLayer {
+                        alpha = iconAlpha
+                        translationY = iconOffsetPx
+                    }
                 ) {
-                    Text(
-                        text = "TODAY LEFT",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = contentColor.copy(alpha = 0.72f)
+                    Icon(
+                        painter = painterResource(R.drawable.ic_settings),
+                        contentDescription = "Settings",
+                        tint = contentColor
                     )
-                    Row(
-                        verticalAlignment = Alignment.Bottom,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        AnimatedCounter(
-                            amountCents = budgetState.remainingTodayCents,
-                            signed = true,
-                            textStyle = MaterialTheme.typography.headlineMedium.copy(
-                                fontSize = amountFontSize,
-                                lineHeight = amountLineHeight,
-                                fontWeight = FontWeight.Black
-                            ),
-                            color = if (budgetState.remainingTodayCents >= 0L) {
-                                contentColor
-                            } else {
-                                MaterialTheme.colorScheme.error
-                            },
-                            animate = animateCounters,
-                            animateOnFirstResolvedValue = animateCounters,
-                            textAlign = TextAlign.Start,
-                            placeholder = isLoading,
-                            placeholderText = "$8,888"
-                        )
-                        if (
-                            (recoverableOverspendCents > 0L || isLoading) &&
-                            onSafeTodayInfoClick != null
-                        ) {
-                            val isSafeTodayChipVisible = safeTodayAlpha > 0f
-                            Row(
-                                modifier = Modifier
-                                    .graphicsLayer { alpha = safeTodayAlpha }
-                                    .clickable(
-                                        enabled = isSafeTodayChipVisible && !isLoading,
-                                        onClick = onSafeTodayInfoClick
-                                    ),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                AnimatedCounter(
-                                    amountCents = recoverableOverspendCents,
-                                    formatter = { "+ ${CurrencyFormatter.format(it)}" },
-                                    textStyle = MaterialTheme.typography.titleSmall.copy(
-                                        fontWeight = FontWeight.Bold
-                                    ),
-                                    color = contentColor,
-                                    animate = false,
-                                    placeholder = isLoading,
-                                    placeholderText = "+ $888"
-                                )
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_info),
-                                    contentDescription = "Safe today details",
-                                    tint = contentColor.copy(alpha = if (isLoading) 0.32f else 0.72f),
-                                    modifier = Modifier
-                                        .padding(top = 1.dp)
-                                        .size(16.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Box(
-                    contentAlignment = Alignment.CenterEnd
-                ) {
-                    if (onNavigateToSettings != null) {
-                        IconButton(
-                            onClick = onNavigateToSettings,
-                            modifier = Modifier.graphicsLayer {
-                                alpha = iconAlpha
-                                translationY = iconOffsetPx
-                            }
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_settings),
-                                contentDescription = "Settings",
-                                tint = contentColor
-                            )
-                        }
-                    }
-
-                    Column(
-                        horizontalAlignment = Alignment.End,
-                        modifier = Modifier.graphicsLayer {
-                            alpha = progress
-                            translationY = rightTopOffsetPx
-                        }
-                    ) {
-                        Text(
-                            text = "DAYS LEFT",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = contentColor.copy(alpha = 0.68f)
-                        )
-                        AnimatedIntegerCounter(
-                            value = budgetState.daysRemainingInCycle,
-                            textStyle = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = contentColor,
-                            animate = animateCounters,
-                            animateOnFirstResolvedValue = animateCounters,
-                            placeholder = isLoading,
-                            placeholderText = "88"
-                        )
-                    }
                 }
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .graphicsLayer {
-                        alpha = secondaryMetricsProgress
-                        translationY = bottomOffsetPx
-                    }
-                    .then(
-                        if (tagSecondaryMetrics) {
-                            Modifier.testTag("home_summary_secondary_metrics")
-                        } else {
-                            Modifier
-                        }
-                    )
-                    .collapseHeight(secondaryMetricsProgress),
-                horizontalArrangement = Arrangement.SpaceBetween
+            Column(
+                horizontalAlignment = Alignment.End,
+                modifier = Modifier.graphicsLayer {
+                    alpha = progress
+                    translationY = rightTopOffsetPx
+                }
             ) {
-                SummaryMetric(
-                    "Cycle left",
-                    contentColor = contentColor
-                ) {
-                    AnimatedCounter(
-                        amountCents = budgetState.remainingCycleCents,
-                        signed = true,
-                        textStyle = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = contentColor,
-                        animate = animateCounters,
-                        animateOnFirstResolvedValue = animateCounters,
-                        placeholder = isLoading,
-                        placeholderText = "$8,888"
-                    )
-                }
-                SummaryMetric(
-                    "Days left",
-                    alignment = Alignment.End,
-                    alpha = (1f - progress * 1.6f).coerceIn(0f, 1f),
-                    contentColor = contentColor
-                ) {
-                    AnimatedIntegerCounter(
-                        value = budgetState.daysRemainingInCycle,
-                        textStyle = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = contentColor,
-                        animate = animateCounters,
-                        animateOnFirstResolvedValue = animateCounters,
-                        placeholder = isLoading,
-                        placeholderText = "88"
-                    )
-                }
-                SummaryMetric(
-                    "Spent today",
-                    alignment = Alignment.End,
-                    contentColor = contentColor
-                ) {
-                    AnimatedCounter(
-                        amountCents = budgetState.spentTodayCents,
-                        textStyle = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = contentColor,
-                        animate = animateCounters,
-                        animateOnFirstResolvedValue = animateCounters,
-                        placeholder = isLoading,
-                        placeholderText = "$888"
-                    )
-                }
+                Text(
+                    text = "DAYS LEFT",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = contentColor.copy(alpha = 0.68f)
+                )
+                AnimatedIntegerCounter(
+                    value = budgetState.daysRemainingInCycle,
+                    textStyle = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = contentColor,
+                    animate = animateCounters,
+                    animateOnFirstResolvedValue = animateCounters,
+                    placeholder = isLoading,
+                    placeholderText = "88"
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun SafeTodayChip(
+    recoverableOverspendCents: Long,
+    safeTodayAlpha: Float,
+    contentColor: Color,
+    isLoading: Boolean,
+    onSafeTodayInfoClick: (() -> Unit)?
+) {
+    if ((recoverableOverspendCents <= 0L && !isLoading) || onSafeTodayInfoClick == null) {
+        return
+    }
+
+    val isVisible = safeTodayAlpha > 0f
+    Row(
+        modifier = Modifier
+            .graphicsLayer { alpha = safeTodayAlpha }
+            .clickable(
+                enabled = isVisible && !isLoading,
+                onClick = onSafeTodayInfoClick
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        AnimatedCounter(
+            amountCents = recoverableOverspendCents,
+            formatter = { "+ ${CurrencyFormatter.format(it)}" },
+            textStyle = MaterialTheme.typography.titleSmall.copy(
+                fontWeight = FontWeight.Bold
+            ),
+            color = contentColor,
+            animate = false,
+            placeholder = isLoading,
+            placeholderText = "+ $888"
+        )
+        Icon(
+            painter = painterResource(R.drawable.ic_info),
+            contentDescription = "Safe today details",
+            tint = contentColor.copy(alpha = if (isLoading) 0.32f else 0.72f),
+            modifier = Modifier
+                .padding(top = 1.dp)
+                .size(16.dp)
+        )
+    }
+}
+
+@Composable
+private fun SummaryCardSecondaryMetrics(
+    budgetState: BudgetState,
+    secondaryMetricsProgress: Float,
+    bottomOffsetPx: Float,
+    progress: Float,
+    contentColor: Color,
+    animateCounters: Boolean,
+    isLoading: Boolean,
+    tagSecondaryMetrics: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                alpha = secondaryMetricsProgress
+                translationY = bottomOffsetPx
+            }
+            .then(
+                if (tagSecondaryMetrics) {
+                    Modifier.testTag("home_summary_secondary_metrics")
+                } else {
+                    Modifier
+                }
+            )
+            .collapseHeight(secondaryMetricsProgress),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        SummaryMetric(
+            "Cycle left",
+            contentColor = contentColor
+        ) {
+            AnimatedCounter(
+                amountCents = budgetState.remainingCycleCents,
+                signed = true,
+                textStyle = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = contentColor,
+                animate = animateCounters,
+                animateOnFirstResolvedValue = animateCounters,
+                placeholder = isLoading,
+                placeholderText = "$8,888"
+            )
+        }
+        SummaryMetric(
+            "Days left",
+            alignment = Alignment.End,
+            alpha = (1f - progress * 1.6f).coerceIn(0f, 1f),
+            contentColor = contentColor
+        ) {
+            AnimatedIntegerCounter(
+                value = budgetState.daysRemainingInCycle,
+                textStyle = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = contentColor,
+                animate = animateCounters,
+                animateOnFirstResolvedValue = animateCounters,
+                placeholder = isLoading,
+                placeholderText = "88"
+            )
+        }
+        SummaryMetric(
+            "Spent today",
+            alignment = Alignment.End,
+            contentColor = contentColor
+        ) {
+            AnimatedCounter(
+                amountCents = budgetState.spentTodayCents,
+                textStyle = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = contentColor,
+                animate = animateCounters,
+                animateOnFirstResolvedValue = animateCounters,
+                placeholder = isLoading,
+                placeholderText = "$888"
+            )
         }
     }
 }

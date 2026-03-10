@@ -31,6 +31,12 @@ import androidx.compose.ui.unit.dp
 import net.loeu.wallybudget.util.CurrencyFormatter
 import java.time.LocalDate
 
+private data class OnboardingSubmission(
+    val budgetCents: Long,
+    val payday: Int,
+    val cycleStartDate: LocalDate
+)
+
 @Composable
 fun OnboardingScreen(
     onComplete: (
@@ -131,29 +137,18 @@ fun OnboardingScreen(
 
         Button(
             onClick = {
-                val budgetCents = CurrencyFormatter.parseAmountToCents(budgetText)
-                val payday = paydayText.toIntOrNull()
-                val isValidSubmission = budgetCents != null &&
-                    budgetCents > 0L &&
-                    payday != null &&
-                    payday in 1..31
-
-                if (isValidSubmission) {
-                    val currentMonth = today.month
-                    val currentYear = today.year
-                    val maxDaysCurrent = today.lengthOfMonth()
-                    val actualPaydayCurrent = minOf(payday, maxDaysCurrent)
-
-                    var cycleStartDate = LocalDate.of(currentYear, currentMonth, actualPaydayCurrent)
-
-                    if (cycleStartDate.isAfter(today)) {
-                        val prevMonthDate = today.minusMonths(1)
-                        val maxDaysPrev = prevMonthDate.lengthOfMonth()
-                        val actualPaydayPrev = minOf(payday, maxDaysPrev)
-                        cycleStartDate = LocalDate.of(prevMonthDate.year, prevMonthDate.month, actualPaydayPrev)
-                    }
-
-                    onComplete(budgetCents, payday, cycleStartDate, 0L)
+                val submission = resolveOnboardingSubmission(
+                    budgetText = budgetText,
+                    paydayText = paydayText,
+                    today = today
+                )
+                if (submission != null) {
+                    onComplete(
+                        submission.budgetCents,
+                        submission.payday,
+                        submission.cycleStartDate,
+                        0L
+                    )
                 } else {
                     showError = true
                 }
@@ -167,15 +162,52 @@ fun OnboardingScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(
-            text = "How it works:\n" +
-                    "• Your budget is divided by the remaining days in your cycle\n" +
-                    "• Savings from one day roll over to the next\n" +
-                    "• Your history is stored cycle-by-cycle from payday to payday",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Start,
-            modifier = Modifier.fillMaxWidth()
-        )
+        OnboardingHelpText()
     }
+}
+
+@Composable
+private fun OnboardingHelpText() {
+    Text(
+        text = "How it works:\n" +
+            "• Your budget is divided by the remaining days in your cycle\n" +
+            "• Savings from one day roll over to the next\n" +
+            "• Your history is stored cycle-by-cycle from payday to payday",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurface,
+        textAlign = TextAlign.Start,
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+private fun resolveOnboardingSubmission(
+    budgetText: String,
+    paydayText: String,
+    today: LocalDate
+): OnboardingSubmission? {
+    val budgetCents = CurrencyFormatter.parseAmountToCents(budgetText)
+    val payday = paydayText.toIntOrNull()
+    val hasValidBudget = budgetCents != null && budgetCents > 0L
+    val hasValidPayday = payday != null && payday in 1..31
+    if (!hasValidBudget || !hasValidPayday) {
+        return null
+    }
+
+    return OnboardingSubmission(
+        budgetCents = budgetCents,
+        payday = payday,
+        cycleStartDate = resolveCycleStartDate(payday, today)
+    )
+}
+
+private fun resolveCycleStartDate(payday: Int, today: LocalDate): LocalDate {
+    val actualPaydayCurrent = minOf(payday, today.lengthOfMonth())
+    val currentCycleStart = LocalDate.of(today.year, today.month, actualPaydayCurrent)
+    if (!currentCycleStart.isAfter(today)) {
+        return currentCycleStart
+    }
+
+    val previousMonthDate = today.minusMonths(1)
+    val actualPaydayPrevious = minOf(payday, previousMonthDate.lengthOfMonth())
+    return LocalDate.of(previousMonthDate.year, previousMonthDate.month, actualPaydayPrevious)
 }

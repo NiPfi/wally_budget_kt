@@ -19,6 +19,7 @@ import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.model.groupByDate
+import net.loeu.wallybudget.domain.service.CycleDateRange
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.usecase.internal.buildBudgetState
 import net.loeu.wallybudget.domain.usecase.internal.buildContinuousDaySections
@@ -55,71 +56,52 @@ class ObserveHomeOverviewUseCase(
     @OptIn(ExperimentalCoroutinesApi::class)
     operator fun invoke(): Flow<HomeOverviewState> {
         val userSettings = userSettingsStore.userSettings
-        val effectiveInputs = combine(
-            userSettings,
-            currentDateProvider.observeCurrentDate()
-        ) { settings, observedDate ->
-            EffectiveHomeDateInputs(
-                settings = settings,
-                today = effectiveCurrentDate(settings, observedDate)
-            )
-        }.distinctUntilChanged()
-        val effectiveDate = effectiveInputs
-            .map { inputs -> inputs.today }
-            .distinctUntilChanged()
-        val currentCycleRange = effectiveInputs.map { inputs ->
-            budgetCalculationService.getCurrentCycleProgressRange(
-                now = inputs.today,
-                paydayDate = inputs.settings.paydayDate
-            )
-        }.distinctUntilChanged()
-        val currentCycleExpenses = currentCycleRange.flatMapLatest { range ->
-            expenseDao.observeInRange(
-                startDateInclusive = range.start.toString(),
-                endDateExclusive = range.endExclusive.toString()
-            ).map { expenses -> expenses.map { it.toDomainModel() } }
-        }
-        val currentCycleDayTotals = currentCycleRange.flatMapLatest { range ->
-            cycleOverviewDao.observeDayTotalsInRange(
-                startDateInclusive = range.start.toString(),
-                endDateExclusive = range.endExclusive.toString()
-            ).map { rows -> rows.toDayTotalsMap() }
-        }
+        val effectiveInputs = observeEffectiveInputs(userSettings)
+        val currentCycleRange = observeCurrentCycleRange(effectiveInputs)
         val pendingCycle = userSettings
             .map { settings -> settings.pendingCycleRangeOrNull() }
             .distinctUntilChanged()
-        val pendingCycleExpenses = pendingCycle.flatMapLatest { range ->
-            if (range == null) {
-                flowOf(emptyList())
-            } else {
-                expenseDao.observeInRange(
-                    startDateInclusive = range.start.toString(),
-                    endDateExclusive = range.endExclusive.toString()
-                ).map { expenses -> expenses.map { it.toDomainModel() } }
-            }
-        }
-        val pendingCycleDayTotals = pendingCycle.flatMapLatest { range ->
-            if (range == null) {
-                flowOf(emptyMap<LocalDate, Long>())
-            } else {
-                cycleOverviewDao.observeDayTotalsInRange(
-                    startDateInclusive = range.start.toString(),
-                    endDateExclusive = range.endExclusive.toString()
-                ).map { rows -> rows.toDayTotalsMap() }
-            }
-        }
-        val latestExpenseDate = expenseDao.observeLatestExpenseDate().map { date ->
-            date?.let(LocalDate::parse)
-        }
+        val pendingCycleExpenses = observePendingCycleExpenses(pendingCycle)
+        val pendingCycleDayTotals = observePendingCycleDayTotals(pendingCycle)
+        val latestExpenseDate = observeLatestExpenseDate()
         val history = monthlyHistoryDao.observeAll().map { entries ->
             entries.map { it.toDomainModel() }
         }
-        val currentInputs = combine(
+        val currentInputs = observeCurrentInputs(
+            userSettings = userSettings,
+            effectiveInputs = effectiveInputs,
+            history = history,
+            currentCycleRange = currentCycleRange
+        )
+
+        return combine(
+            currentInputs,
+            pendingCycleExpenses,
+            pendingCycleDayTotals,
+            latestExpenseDate
+        ) { currentInputs, pendingExpenses, pendingDayTotals, latestRecordedExpenseDate ->
+            buildHomeOverviewState(
+                currentInputs = currentInputs,
+                pendingExpenses = pendingExpenses,
+                pendingDayTotals = pendingDayTotals,
+                latestRecordedExpenseDate = latestRecordedExpenseDate
+            )
+        }.distinctUntilChanged()
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observeCurrentInputs(
+        userSettings: Flow<UserSettings>,
+        effectiveInputs: Flow<EffectiveHomeDateInputs>,
+        history: Flow<List<MonthlyHistory>>,
+        currentCycleRange: Flow<CycleDateRange>
+    ): Flow<CurrentHomeOverviewInputs> {
+        return combine(
             userSettings,
-            effectiveDate,
-            currentCycleExpenses,
+            effectiveInputs.map { it.today }.distinctUntilChanged(),
+            observeExpensesInRange(currentCycleRange),
             history,
-            currentCycleDayTotals
+            observeDayTotalsInRange(currentCycleRange)
         ) { settings, today, currentExpenses, historyEntries, currentDayTotals ->
             CurrentHomeOverviewInputs(
                 settings = settings,
@@ -129,58 +111,143 @@ class ObserveHomeOverviewUseCase(
                 currentDayTotals = currentDayTotals
             )
         }
+    }
 
+    private fun observeEffectiveInputs(
+        userSettings: Flow<UserSettings>
+    ): Flow<EffectiveHomeDateInputs> {
         return combine(
-            currentInputs,
-            pendingCycleExpenses,
-            pendingCycleDayTotals,
-            latestExpenseDate
-        ) { currentInputs, pendingExpenses, pendingDayTotals, latestRecordedExpenseDate ->
-            val todayExpenses = currentInputs.currentExpenses.filterByRange(
-                start = currentInputs.today,
-                endExclusive = currentInputs.today.plusDays(1)
-            )
-            val totalSpentThisCycleCents = currentInputs.currentExpenses.sumOf { it.amountCents }
-            val spentTodayCents = todayExpenses.sumOf { it.amountCents }
-            val budgetState = buildBudgetState(
-                settings = currentInputs.settings,
-                today = currentInputs.today,
-                history = currentInputs.historyEntries,
-                totalSpentThisCycleCents = totalSpentThisCycleCents,
-                spentTodayCents = spentTodayCents,
-                budgetCalculationService = budgetCalculationService
-            )
-            val timelineLockState = buildTimelineLockState(
-                settings = currentInputs.settings,
-                effectiveCurrentDate = currentInputs.today,
-                latestExpenseDate = latestRecordedExpenseDate,
-                budgetCalculationService = budgetCalculationService
-            )
-            val activeCycleSections = buildContinuousDaySections(
-                start = budgetState.cycleStartDate,
-                endInclusive = currentInputs.today,
-                expensesByDate = currentInputs.currentExpenses.groupByDate(),
-                dayTotals = currentInputs.currentDayTotals,
-                remainingBudgetForDay = { totalSpent ->
-                    budgetState.dailyBudgetCents - totalSpent
-                },
-                isEditable = !timelineLockState.isLocked,
-                today = currentInputs.today
-            )
-
-            HomeOverviewState(
-                effectiveCurrentDate = currentInputs.today,
-                budgetState = budgetState,
-                todayExpenses = todayExpenses,
-                activeCycleExpenseSections = activeCycleSections,
-                pendingCycleCloseoutState = buildPendingCycleCloseoutState(
-                    settings = currentInputs.settings,
-                    expenses = pendingExpenses,
-                    dayTotals = pendingDayTotals
-                ),
-                timelineLockState = timelineLockState
+            userSettings,
+            currentDateProvider.observeCurrentDate()
+        ) { settings, observedDate ->
+            EffectiveHomeDateInputs(
+                settings = settings,
+                today = effectiveCurrentDate(settings, observedDate)
             )
         }.distinctUntilChanged()
+    }
+
+    private fun observeCurrentCycleRange(
+        effectiveInputs: Flow<EffectiveHomeDateInputs>
+    ): Flow<CycleDateRange> {
+        return effectiveInputs.map { inputs ->
+            budgetCalculationService.getCurrentCycleProgressRange(
+                now = inputs.today,
+                paydayDate = inputs.settings.paydayDate
+            )
+        }.distinctUntilChanged()
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observeExpensesInRange(
+        range: Flow<CycleDateRange>
+    ): Flow<List<Expense>> {
+        return range.flatMapLatest { cycleRange ->
+            expenseDao.observeInRange(
+                startDateInclusive = cycleRange.start.toString(),
+                endDateExclusive = cycleRange.endExclusive.toString()
+            ).map { expenses -> expenses.map { it.toDomainModel() } }
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observeDayTotalsInRange(
+        range: Flow<CycleDateRange>
+    ): Flow<Map<LocalDate, Long>> {
+        return range.flatMapLatest { cycleRange ->
+            cycleOverviewDao.observeDayTotalsInRange(
+                startDateInclusive = cycleRange.start.toString(),
+                endDateExclusive = cycleRange.endExclusive.toString()
+            ).map { rows -> rows.toDayTotalsMap() }
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observePendingCycleExpenses(
+        pendingCycle: Flow<net.loeu.wallybudget.domain.usecase.internal.CycleRange?>
+    ): Flow<List<Expense>> {
+        return pendingCycle.flatMapLatest { range ->
+            if (range == null) {
+                flowOf(emptyList())
+            } else {
+                expenseDao.observeInRange(
+                    startDateInclusive = range.start.toString(),
+                    endDateExclusive = range.endExclusive.toString()
+                ).map { expenses -> expenses.map { it.toDomainModel() } }
+            }
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observePendingCycleDayTotals(
+        pendingCycle: Flow<net.loeu.wallybudget.domain.usecase.internal.CycleRange?>
+    ): Flow<Map<LocalDate, Long>> {
+        return pendingCycle.flatMapLatest { range ->
+            if (range == null) {
+                flowOf(emptyMap())
+            } else {
+                cycleOverviewDao.observeDayTotalsInRange(
+                    startDateInclusive = range.start.toString(),
+                    endDateExclusive = range.endExclusive.toString()
+                ).map { rows -> rows.toDayTotalsMap() }
+            }
+        }
+    }
+
+    private fun observeLatestExpenseDate(): Flow<LocalDate?> {
+        return expenseDao.observeLatestExpenseDate().map { date ->
+            date?.let(LocalDate::parse)
+        }
+    }
+
+    private fun buildHomeOverviewState(
+        currentInputs: CurrentHomeOverviewInputs,
+        pendingExpenses: List<Expense>,
+        pendingDayTotals: Map<LocalDate, Long>,
+        latestRecordedExpenseDate: LocalDate?
+    ): HomeOverviewState {
+        val todayExpenses = currentInputs.currentExpenses.filterByRange(
+            start = currentInputs.today,
+            endExclusive = currentInputs.today.plusDays(1)
+        )
+        val totalSpentThisCycleCents = currentInputs.currentExpenses.sumOf { it.amountCents }
+        val spentTodayCents = todayExpenses.sumOf { it.amountCents }
+        val budgetState = buildBudgetState(
+            settings = currentInputs.settings,
+            today = currentInputs.today,
+            history = currentInputs.historyEntries,
+            totalSpentThisCycleCents = totalSpentThisCycleCents,
+            spentTodayCents = spentTodayCents,
+            budgetCalculationService = budgetCalculationService
+        )
+        val timelineLockState = buildTimelineLockState(
+            settings = currentInputs.settings,
+            effectiveCurrentDate = currentInputs.today,
+            latestExpenseDate = latestRecordedExpenseDate,
+            budgetCalculationService = budgetCalculationService
+        )
+        val activeCycleSections = buildContinuousDaySections(
+            start = budgetState.cycleStartDate,
+            endInclusive = currentInputs.today,
+            expensesByDate = currentInputs.currentExpenses.groupByDate(),
+            dayTotals = currentInputs.currentDayTotals,
+            remainingBudgetForDay = { totalSpent -> budgetState.dailyBudgetCents - totalSpent },
+            isEditable = !timelineLockState.isLocked,
+            today = currentInputs.today
+        )
+
+        return HomeOverviewState(
+            effectiveCurrentDate = currentInputs.today,
+            budgetState = budgetState,
+            todayExpenses = todayExpenses,
+            activeCycleExpenseSections = activeCycleSections,
+            pendingCycleCloseoutState = buildPendingCycleCloseoutState(
+                settings = currentInputs.settings,
+                expenses = pendingExpenses,
+                dayTotals = pendingDayTotals
+            ),
+            timelineLockState = timelineLockState
+        )
     }
 
     private fun buildPendingCycleCloseoutState(

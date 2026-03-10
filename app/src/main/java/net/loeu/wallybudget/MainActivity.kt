@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -213,14 +214,7 @@ private fun MainNavigationShell(
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val adaptiveInfo = currentWindowAdaptiveInfo()
-    val navigationLayoutType = if (
-        !adaptiveInfo.windowSizeClass.isHeightAtLeastBreakpoint(HEIGHT_DP_MEDIUM_LOWER_BOUND)
-    ) {
-        NavigationSuiteType.WideNavigationRailCollapsed
-    } else {
-        NavigationSuiteScaffoldDefaults.navigationSuiteType(adaptiveInfo)
-    }
+    val navigationLayoutType = mainNavigationLayoutType()
     val usesVerticalNavigation = when (navigationLayoutType) {
         NavigationSuiteType.NavigationRail,
         NavigationSuiteType.NavigationDrawer,
@@ -238,194 +232,204 @@ private fun MainNavigationShell(
             Arrangement.Top
         },
         navigationItems = {
-            if (usesVerticalNavigation) {
-                Column {
-                    MainNavigationItem(
-                        selected = currentRoute == Screen.Home.route,
-                        onClick = {
-                            navController.navigate(Screen.Home.route) {
-                                popUpTo(Screen.Home.route) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_dashboard),
-                                contentDescription = null
-                            )
-                        },
-                        label = { Text(OVERVIEW_NAVIGATION_LABEL) }
-                    )
-                    MainNavigationItem(
-                        selected = currentRoute == Screen.Analysis.route,
-                        onClick = {
-                            navController.navigate(Screen.Analysis.route) {
-                                popUpTo(Screen.Home.route) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_analytics),
-                                contentDescription = null
-                            )
-                        },
-                        label = { Text("Analysis") }
-                    )
-                    MainNavigationItem(
-                        selected = currentRoute == Screen.History.route,
-                        onClick = {
-                            navController.navigate(Screen.History.route) {
-                                popUpTo(Screen.Home.route) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_history),
-                                contentDescription = null
-                            )
-                        },
-                        label = { Text("History") }
-                    )
-                }
-                MainNavigationItem(
-                    selected = currentRoute == Screen.Settings.route,
-                    onClick = {
-                        navController.navigate(Screen.Settings.route) {
-                            popUpTo(Screen.Home.route) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    icon = {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_settings),
-                            contentDescription = null
-                        )
-                    },
-                    label = { Text("Settings") }
-                )
-            } else {
-                MainNavigationItem(
-                    selected = currentRoute == Screen.Home.route,
-                    onClick = {
-                        navController.navigate(Screen.Home.route) {
-                            popUpTo(Screen.Home.route) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    icon = {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_dashboard),
-                            contentDescription = null
-                        )
-                    },
-                    label = { Text(OVERVIEW_NAVIGATION_LABEL) }
-                )
-                MainNavigationItem(
-                    selected = currentRoute == Screen.Analysis.route,
-                    onClick = {
-                        navController.navigate(Screen.Analysis.route) {
-                            popUpTo(Screen.Home.route) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    icon = {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_analytics),
-                            contentDescription = null
-                        )
-                    },
-                    label = { Text("Analysis") }
-                )
-                MainNavigationItem(
-                    selected = currentRoute == Screen.History.route,
-                    onClick = {
-                        navController.navigate(Screen.History.route) {
-                            popUpTo(Screen.Home.route) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    icon = {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_history),
-                            contentDescription = null
-                        )
-                    },
-                    label = { Text("History") }
+            MainNavigationItems(
+                currentRoute = currentRoute,
+                usesVerticalNavigation = usesVerticalNavigation,
+                onNavigate = navController::navigateToTopLevel
+            )
+        }
+    ) {
+        MainNavigationHost(
+            navController = navController,
+            budgetState = budgetState,
+            todayExpenses = todayExpenses,
+            effectiveCurrentDate = effectiveCurrentDate,
+            activeCycleExpenseSections = activeCycleExpenseSections,
+            spendingForecast = spendingForecast,
+            monthlyHistoryState = monthlyHistoryState,
+            isHomeDataLoading = isHomeDataLoading,
+            historySections = historySections,
+            userSettings = userSettings,
+            showAddExpenseSheet = showAddExpenseSheet,
+            onShowAddExpenseSheet = onShowAddExpenseSheet,
+            onHideAddExpenseSheet = onHideAddExpenseSheet,
+            onAddExpense = onAddExpense,
+            onUpdateExpense = onUpdateExpense,
+            onDeleteExpense = onDeleteExpense,
+            onRestoreExpense = onRestoreExpense,
+            onUpdateBudget = onUpdateBudget,
+            onUpdatePayday = onUpdatePayday,
+            timelineLockReason = timelineLockReason,
+            usesVerticalNavigation = usesVerticalNavigation
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3AdaptiveApi::class)
+@Composable
+private fun mainNavigationLayoutType(): NavigationSuiteType {
+    val adaptiveInfo = currentWindowAdaptiveInfo()
+    return if (
+        !adaptiveInfo.windowSizeClass.isHeightAtLeastBreakpoint(HEIGHT_DP_MEDIUM_LOWER_BOUND)
+    ) {
+        NavigationSuiteType.WideNavigationRailCollapsed
+    } else {
+        NavigationSuiteScaffoldDefaults.navigationSuiteType(adaptiveInfo)
+    }
+}
+
+@Composable
+private fun MainNavigationItems(
+    currentRoute: String?,
+    usesVerticalNavigation: Boolean,
+    onNavigate: (Screen) -> Unit
+) {
+    val primaryScreens = listOf(Screen.Home, Screen.Analysis, Screen.History)
+    if (usesVerticalNavigation) {
+        Column {
+            primaryScreens.forEach { screen ->
+                MainTopLevelNavigationItem(
+                    screen = screen,
+                    selected = currentRoute == screen.route,
+                    onClick = { onNavigate(screen) }
                 )
             }
         }
+        MainTopLevelNavigationItem(
+            screen = Screen.Settings,
+            selected = currentRoute == Screen.Settings.route,
+            onClick = { onNavigate(Screen.Settings) }
+        )
+    } else {
+        primaryScreens.forEach { screen ->
+            MainTopLevelNavigationItem(
+                screen = screen,
+                selected = currentRoute == screen.route,
+                onClick = { onNavigate(screen) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun MainTopLevelNavigationItem(
+    screen: Screen,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val (iconRes, label) = when (screen) {
+        Screen.Home -> R.drawable.ic_dashboard to OVERVIEW_NAVIGATION_LABEL
+        Screen.Analysis -> R.drawable.ic_analytics to "Analysis"
+        Screen.History -> R.drawable.ic_history to "History"
+        Screen.Settings -> R.drawable.ic_settings to "Settings"
+        else -> R.drawable.ic_dashboard to OVERVIEW_NAVIGATION_LABEL
+    }
+    MainNavigationItem(
+        selected = selected,
+        onClick = onClick,
+        icon = {
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = null
+            )
+        },
+        label = { Text(label) }
+    )
+}
+
+private fun NavHostController.navigateToTopLevel(screen: Screen) {
+    navigate(screen.route) {
+        popUpTo(Screen.Home.route) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
+@Composable
+private fun MainNavigationHost(
+    navController: NavHostController,
+    budgetState: BudgetState,
+    todayExpenses: List<Expense>,
+    effectiveCurrentDate: LocalDate,
+    activeCycleExpenseSections: List<ExpenseDaySection>,
+    spendingForecast: SpendingForecast,
+    monthlyHistoryState: StateFlow<List<MonthlyHistory>?>,
+    isHomeDataLoading: Boolean,
+    historySections: List<ExpenseCycleSection>,
+    userSettings: UserSettings,
+    showAddExpenseSheet: Boolean,
+    onShowAddExpenseSheet: () -> Unit,
+    onHideAddExpenseSheet: () -> Unit,
+    onAddExpense: (Long, String, ExpenseCategory?, LocalDate) -> Unit,
+    onUpdateExpense: (Expense) -> Unit,
+    onDeleteExpense: (Expense) -> Unit,
+    onRestoreExpense: (Expense) -> Unit,
+    onUpdateBudget: (Long) -> Unit,
+    onUpdatePayday: (Int) -> Unit,
+    timelineLockReason: String?,
+    usesVerticalNavigation: Boolean
+) {
+    NavHost(
+        navController = navController,
+        startDestination = Screen.Home.route
     ) {
-        NavHost(
-            navController = navController,
-            startDestination = Screen.Home.route
-        ) {
-            composable(Screen.Home.route) {
-                HomeScreen(
-                    budgetState = budgetState,
-                    todayExpenses = todayExpenses,
-                    currentDate = effectiveCurrentDate,
-                    activeCycleExpenseSections = activeCycleExpenseSections,
-                    spendingForecast = spendingForecast,
-                    isLoadingData = isHomeDataLoading,
-                    onAddExpense = onAddExpense,
-                    onRestoreExpense = onRestoreExpense,
-                    onUpdateExpense = onUpdateExpense,
-                    onDeleteExpense = onDeleteExpense,
-                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                    showTopRightSettingsAction = !usesVerticalNavigation,
-                    showAddExpenseSheet = showAddExpenseSheet,
-                    onShowAddExpenseSheet = onShowAddExpenseSheet,
-                    onHideAddExpenseSheet = onHideAddExpenseSheet,
-                    timelineLockReason = timelineLockReason
-                )
-            }
-            composable(Screen.History.route) {
-                HistoryScreen(
-                    historySections = historySections,
-                    onAddExpense = onAddExpense,
-                    onRestoreExpense = onRestoreExpense,
-                    onUpdateExpense = onUpdateExpense,
-                    onDeleteExpense = onDeleteExpense,
-                    onNavigateToSettings = if (usesVerticalNavigation) null else {
-                        { navController.navigate(Screen.Settings.route) }
-                    },
-                    interactionsEnabled = timelineLockReason == null,
-                    timelineLockReason = timelineLockReason
-                )
-            }
-            composable(Screen.Analysis.route) {
-                val monthlyHistory by monthlyHistoryState.collectAsState()
-                val isAnalysisLoading = isHomeDataLoading || monthlyHistory == null
-                AnalysisScreen(
-                    budgetState = budgetState,
-                    spendingForecast = spendingForecast,
-                    monthlyHistory = monthlyHistory.orEmpty(),
-                    timelineLockReason = timelineLockReason,
-                    isLoading = isAnalysisLoading,
-                    onNavigateToSettings = if (usesVerticalNavigation) {
-                        null
-                    } else {
-                        { navController.navigate(Screen.Settings.route) }
-                    }
-                )
-            }
-            composable(Screen.Settings.route) {
-                SettingsScreen(
-                    userSettings = userSettings,
-                    onUpdateBudget = onUpdateBudget,
-                    onUpdatePayday = onUpdatePayday,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
+        composable(Screen.Home.route) {
+            HomeScreen(
+                budgetState = budgetState,
+                todayExpenses = todayExpenses,
+                currentDate = effectiveCurrentDate,
+                activeCycleExpenseSections = activeCycleExpenseSections,
+                spendingForecast = spendingForecast,
+                isLoadingData = isHomeDataLoading,
+                onAddExpense = onAddExpense,
+                onRestoreExpense = onRestoreExpense,
+                onUpdateExpense = onUpdateExpense,
+                onDeleteExpense = onDeleteExpense,
+                onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                showTopRightSettingsAction = !usesVerticalNavigation,
+                showAddExpenseSheet = showAddExpenseSheet,
+                onShowAddExpenseSheet = onShowAddExpenseSheet,
+                onHideAddExpenseSheet = onHideAddExpenseSheet,
+                timelineLockReason = timelineLockReason
+            )
+        }
+        composable(Screen.History.route) {
+            HistoryScreen(
+                historySections = historySections,
+                onAddExpense = onAddExpense,
+                onRestoreExpense = onRestoreExpense,
+                onUpdateExpense = onUpdateExpense,
+                onDeleteExpense = onDeleteExpense,
+                onNavigateToSettings = if (usesVerticalNavigation) null else {
+                    { navController.navigate(Screen.Settings.route) }
+                },
+                interactionsEnabled = timelineLockReason == null,
+                timelineLockReason = timelineLockReason
+            )
+        }
+        composable(Screen.Analysis.route) {
+            val monthlyHistory by monthlyHistoryState.collectAsState()
+            val isAnalysisLoading = isHomeDataLoading || monthlyHistory == null
+            AnalysisScreen(
+                budgetState = budgetState,
+                spendingForecast = spendingForecast,
+                monthlyHistory = monthlyHistory.orEmpty(),
+                timelineLockReason = timelineLockReason,
+                isLoading = isAnalysisLoading,
+                onNavigateToSettings = if (usesVerticalNavigation) {
+                    null
+                } else {
+                    { navController.navigate(Screen.Settings.route) }
+                }
+            )
+        }
+        composable(Screen.Settings.route) {
+            SettingsScreen(
+                userSettings = userSettings,
+                onUpdateBudget = onUpdateBudget,
+                onUpdatePayday = onUpdatePayday,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
     }
 }
