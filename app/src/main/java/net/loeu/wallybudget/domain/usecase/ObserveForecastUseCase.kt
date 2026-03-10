@@ -33,9 +33,6 @@ class ObserveForecastUseCase(
         ) { settings, observedDate ->
             effectiveCurrentDate(settings, observedDate)
         }.distinctUntilChanged()
-        val allExpenses = expenseDao.observeAllOrderedDesc().map { expenses ->
-            expenses.map { it.toDomainModel() }
-        }
         val history = monthlyHistoryDao.observeAll().map { entries ->
             entries.map { it.toDomainModel() }
         }
@@ -54,10 +51,9 @@ class ObserveForecastUseCase(
         return combine(
             userSettings,
             effectiveDate,
-            allExpenses,
             history,
             recentExpenses
-        ) { settings, today, expenses, historyEntries, recentExpenseEntries ->
+        ) { settings, today, historyEntries, recentExpenseEntries ->
             val currentCycleRange = budgetCalculationService.getCurrentCycleProgressRange(
                 now = today,
                 paydayDate = settings.paydayDate
