@@ -116,7 +116,7 @@ fun ForecastCard(
                 } else {
                     MaterialTheme.colorScheme.onSurface
                 },
-                animate = false,
+                animate = true,
                 textAlign = TextAlign.Start,
                 placeholder = isLoading,
                 placeholderText = "$8,888"

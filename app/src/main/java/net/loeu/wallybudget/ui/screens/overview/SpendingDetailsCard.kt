@@ -41,7 +41,7 @@ fun SpendingDetailsCard(
             AnimatedCounter(
                 amountCents = budgetState.totalSpentThisCycleCents,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                animate = false,
+                animate = true,
                 textAlign = TextAlign.End,
                 placeholder = isLoading,
                 placeholderText = "$8,888"
@@ -51,7 +51,7 @@ fun SpendingDetailsCard(
             AnimatedCounter(
                 amountCents = previousExpensesTotal,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                animate = false,
+                animate = true,
                 textAlign = TextAlign.End,
                 placeholder = isLoading,
                 placeholderText = "$8,888"
@@ -63,7 +63,7 @@ fun SpendingDetailsCard(
             AnimatedCounter(
                 amountCents = budgetState.dailyBudgetCents,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                animate = false,
+                animate = true,
                 textAlign = TextAlign.End,
                 placeholder = isLoading,
                 placeholderText = "$888"
@@ -78,7 +78,7 @@ fun SpendingDetailsCard(
                     "${if (dailyAdjustmentCents >= 0L) "+" else "-"}${net.loeu.wallybudget.util.CurrencyFormatter.format(value)}"
                 },
                 textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                animate = false,
+                animate = true,
                 textAlign = TextAlign.End,
                 color = if (dailyAdjustmentCents >= 0L) {
                     MaterialTheme.colorScheme.primary
@@ -93,7 +93,7 @@ fun SpendingDetailsCard(
             AnimatedCounter(
                 amountCents = adjustedDailyAllowanceCents,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                animate = false,
+                animate = true,
                 textAlign = TextAlign.End,
                 placeholder = isLoading,
                 placeholderText = "$888"
