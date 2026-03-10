@@ -480,23 +480,12 @@ internal object AnalysisSnapshotFactory {
             )
         }
 
-        if (spendingForecast.estimatedEndCycleRemainingCents < 0L) {
-            val timingSuffix = monitorAfterDays?.let { " Re-check in $it day${if (it == 1) "" else "s"}." } ?: ""
-            recommendations += AnalysisRecommendation(
-                text = "Treat the forecast as a real warning and tighten spending now.$timingSuffix"
-            )
-        } else if (spendingForecast.upperBoundCents > budgetState.monthlyBudgetCents) {
-            val timingSuffix = monitorAfterDays?.let { " Re-check in $it day${if (it == 1) "" else "s"}." } ?: ""
-            when (verdict) {
-                AnalysisVerdictLevel.Caution -> recommendations += AnalysisRecommendation(
-                    text = "Treat the upper range as a warning signal while you tighten spending.$timingSuffix"
-                )
-                AnalysisVerdictLevel.Watchful -> recommendations += AnalysisRecommendation(
-                    text = "Hold close to the current pace while more cycle data comes in.$timingSuffix"
-                )
-                else -> Unit
-            }
-        }
+        rangeRiskRecommendation(
+            verdict = verdict,
+            budgetState = budgetState,
+            spendingForecast = spendingForecast,
+            monitorAfterDays = monitorAfterDays
+        )?.let { recommendations += it }
 
         if (recommendations.isEmpty()) {
             recommendations += AnalysisRecommendation(
@@ -509,6 +498,35 @@ internal object AnalysisSnapshotFactory {
         }
 
         return recommendations.take(3)
+    }
+
+    private fun rangeRiskRecommendation(
+        verdict: AnalysisVerdictLevel,
+        budgetState: BudgetState,
+        spendingForecast: SpendingForecast,
+        monitorAfterDays: Int?
+    ): AnalysisRecommendation? {
+        val timingSuffix = monitorAfterDays?.let {
+            " Re-check in $it day${if (it == 1) "" else "s"}."
+        }.orEmpty()
+
+        return when {
+            spendingForecast.estimatedEndCycleRemainingCents < 0L -> {
+                AnalysisRecommendation(
+                    text = "Treat the forecast as a real warning and tighten spending now.$timingSuffix"
+                )
+            }
+            spendingForecast.upperBoundCents > budgetState.monthlyBudgetCents -> when (verdict) {
+                AnalysisVerdictLevel.Caution -> AnalysisRecommendation(
+                    text = "Treat the upper range as a warning signal while you tighten spending.$timingSuffix"
+                )
+                AnalysisVerdictLevel.Watchful -> AnalysisRecommendation(
+                    text = "Hold close to the current pace while more cycle data comes in.$timingSuffix"
+                )
+                else -> null
+            }
+            else -> null
+        }
     }
 
 }

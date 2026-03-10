@@ -250,27 +250,12 @@ class SpendingForecastCalculator {
             completedCycleDailyAverages = completedCycleDailyAverages,
             fallbackDailyAverage = longTermAverage.roundToLong().takeIf { it > 0L } ?: dailyAllowance
         )
-        val observedCycleAverage = if (completedDays > 0) {
-            (budgetState.totalSpentThisCycleCents - budgetState.spentTodayCents).toDouble() / completedDays
-        } else {
-            cyclePriorAverage.toDouble()
-        }
-        val recentCompletedAverage = when {
-            completedCurrentCycleExpenses.isNotEmpty() -> calculateWeightedMovingAverage(
-                expenses = completedCurrentCycleExpenses,
-                windowSize = ForecastConfig.WEIGHTED_AVERAGE_WINDOW_DAYS,
-                decayFactor = ForecastConfig.DECAY_FACTOR
-            ).toDouble()
-            else -> observedCycleAverage
-        }
-        val currentPaceEstimate = if (
-            completedDays >= ForecastConfig.MIN_DATA_POINTS_FOR_OUTLIERS &&
-            completedCurrentCycleExpenses.count { it > 0L } >= 2
-        ) {
-            (observedCycleAverage + recentCompletedAverage) / 2.0
-        } else {
-            observedCycleAverage
-        }
+        val currentPaceEstimate = calculateCurrentPaceEstimate(
+            budgetState = budgetState,
+            completedCurrentCycleExpenses = completedCurrentCycleExpenses,
+            completedDays = completedDays,
+            cyclePriorAverage = cyclePriorAverage
+        )
         val currentEvidenceWeight = (
             completedDays / (completedDays + ForecastConfig.PRIOR_STRENGTH_DAYS)
         ).coerceIn(0.0, 1.0)
@@ -398,6 +383,38 @@ class SpendingForecastCalculator {
         return (estimatedEndCycleRemainingCents * confidence * taperedRemainingShare)
             .roundToLong()
             .coerceIn(0L, estimatedEndCycleRemainingCents)
+    }
+
+    private fun calculateCurrentPaceEstimate(
+        budgetState: BudgetState,
+        completedCurrentCycleExpenses: List<Long>,
+        completedDays: Int,
+        cyclePriorAverage: Long
+    ): Double {
+        val observedCycleAverage = if (completedDays > 0) {
+            (budgetState.totalSpentThisCycleCents - budgetState.spentTodayCents).toDouble() /
+                completedDays
+        } else {
+            cyclePriorAverage.toDouble()
+        }
+        val recentCompletedAverage = if (completedCurrentCycleExpenses.isNotEmpty()) {
+            calculateWeightedMovingAverage(
+                expenses = completedCurrentCycleExpenses,
+                windowSize = ForecastConfig.WEIGHTED_AVERAGE_WINDOW_DAYS,
+                decayFactor = ForecastConfig.DECAY_FACTOR
+            ).toDouble()
+        } else {
+            observedCycleAverage
+        }
+
+        return if (
+            completedDays >= ForecastConfig.MIN_DATA_POINTS_FOR_OUTLIERS &&
+            completedCurrentCycleExpenses.count { it > 0L } >= 2
+        ) {
+            (observedCycleAverage + recentCompletedAverage) / 2.0
+        } else {
+            observedCycleAverage
+        }
     }
 
     private fun calculateCyclePriorAverage(
