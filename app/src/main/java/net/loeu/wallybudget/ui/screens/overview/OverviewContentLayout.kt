@@ -123,19 +123,14 @@ internal fun OverviewContentLayout(
             )
         }.map { it.measure(constraints) }
         val headerPlaceables = subcompose("currentHeader") {
-            SummaryCard(
+            CurrentSummaryHeader(
                 budgetState = budgetState,
-                recoverableOverspendCents = availableRecoverableOverspendCents,
+                availableRecoverableOverspendCents = availableRecoverableOverspendCents,
                 collapseProgress = collapseProgress,
                 isLoading = isLoading,
-                animateCounters = true,
                 useWarningTint = useWarningTint,
-                tagSecondaryMetrics = true,
-                onSafeTodayInfoClick = onShowSafeTodayDetails,
-                onNavigateToSettings = onNavigateToSettings,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("home_summary_section")
+                onShowSafeTodayDetails = onShowSafeTodayDetails,
+                onNavigateToSettings = onNavigateToSettings
             )
         }.map { it.measure(headerConstraints) }
 
@@ -145,6 +140,32 @@ internal fun OverviewContentLayout(
             headerPlaceables.forEach { it.placeRelative(horizontalPaddingPx, topPaddingPx) }
         }
     }
+}
+
+@Composable
+private fun CurrentSummaryHeader(
+    budgetState: BudgetState,
+    availableRecoverableOverspendCents: Long,
+    collapseProgress: Float,
+    isLoading: Boolean,
+    useWarningTint: Boolean,
+    onShowSafeTodayDetails: () -> Unit,
+    onNavigateToSettings: (() -> Unit)?
+) {
+    SummaryCard(
+        budgetState = budgetState,
+        recoverableOverspendCents = availableRecoverableOverspendCents,
+        collapseProgress = collapseProgress,
+        isLoading = isLoading,
+        animateCounters = true,
+        useWarningTint = useWarningTint,
+        tagSecondaryMetrics = true,
+        onSafeTodayInfoClick = onShowSafeTodayDetails,
+        onNavigateToSettings = onNavigateToSettings,
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("home_summary_section")
+    )
 }
 
 @Composable

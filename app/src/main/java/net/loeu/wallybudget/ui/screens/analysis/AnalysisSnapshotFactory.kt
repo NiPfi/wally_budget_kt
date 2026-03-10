@@ -90,40 +90,27 @@ internal object AnalysisSnapshotFactory {
             timelineLockReason = timelineLockReason
         )
 
-        return AnalysisSnapshot(
-            verdictLevel = verdict,
-            headline = headline(verdict),
-            summary = summary(
-                verdict = verdict,
-                confidenceBand = confidenceBand,
-                budgetState = budgetState,
-                spendingForecast = spendingForecast,
-                behaviorProfile = behaviorProfile,
-                safeToSpendNowCents = safeToSpendNowCents,
-                monitorAfterDays = monitorAfterDays
-            ),
-            evidence = buildEvidence(
-                budgetState = budgetState,
-                spendingForecast = spendingForecast,
-                paceGapCents = paceGapCents,
-                safeToSpendNowCents = safeToSpendNowCents,
-                availableRecoverableOverspendCents = availableRecoverableOverspendCents,
-                behaviorProfile = behaviorProfile
-            ),
+        return buildAnalysisSnapshot(
+            verdict = verdict,
+            confidenceBand = confidenceBand,
+            budgetState = budgetState,
+            spendingForecast = spendingForecast,
+            behaviorProfile = behaviorProfile,
+            safeToSpendNowCents = safeToSpendNowCents,
             recommendations = recommendations,
-            confidenceLabel = confidenceBand.label,
-            confidenceExplanation = confidenceExplanation(
-                confidenceBand = confidenceBand,
-                monitorAfterDays = monitorAfterDays
-            ),
-            rangeExplanation = rangeExplanation(
-                budgetState = budgetState,
-                spendingForecast = spendingForecast,
-                behaviorProfile = behaviorProfile
-            ),
             monitorAfterDays = monitorAfterDays,
             showHistoryFallback = behaviorHistory.isEmpty(),
-            historyFallbackText = historyFallbackText
+            historyFallbackText = historyFallbackText,
+            buildEvidence = { profile ->
+                buildEvidence(
+                    budgetState = budgetState,
+                    spendingForecast = spendingForecast,
+                    paceGapCents = paceGapCents,
+                    safeToSpendNowCents = safeToSpendNowCents,
+                    availableRecoverableOverspendCents = availableRecoverableOverspendCents,
+                    behaviorProfile = profile
+                )
+            }
         )
     }
 
@@ -471,6 +458,49 @@ internal object AnalysisSnapshotFactory {
         }
     }
 
+}
+
+private fun buildAnalysisSnapshot(
+    verdict: AnalysisVerdictLevel,
+    confidenceBand: ConfidenceBand,
+    budgetState: BudgetState,
+    spendingForecast: SpendingForecast,
+    behaviorProfile: HistoricalBehaviorProfile?,
+    safeToSpendNowCents: Long,
+    recommendations: List<AnalysisRecommendation>,
+    monitorAfterDays: Int?,
+    showHistoryFallback: Boolean,
+    historyFallbackText: String?,
+    buildEvidence: (HistoricalBehaviorProfile?) -> List<AnalysisEvidenceItem>
+): AnalysisSnapshot {
+    return AnalysisSnapshot(
+        verdictLevel = verdict,
+        headline = headline(verdict),
+        summary = summary(
+            verdict = verdict,
+            confidenceBand = confidenceBand,
+            budgetState = budgetState,
+            spendingForecast = spendingForecast,
+            behaviorProfile = behaviorProfile,
+            safeToSpendNowCents = safeToSpendNowCents,
+            monitorAfterDays = monitorAfterDays
+        ),
+        evidence = buildEvidence(behaviorProfile),
+        recommendations = recommendations,
+        confidenceLabel = confidenceBand.label,
+        confidenceExplanation = confidenceExplanation(
+            confidenceBand = confidenceBand,
+            monitorAfterDays = monitorAfterDays
+        ),
+        rangeExplanation = rangeExplanation(
+            budgetState = budgetState,
+            spendingForecast = spendingForecast,
+            behaviorProfile = behaviorProfile
+        ),
+        monitorAfterDays = monitorAfterDays,
+        showHistoryFallback = showHistoryFallback,
+        historyFallbackText = historyFallbackText
+    )
 }
 
 private fun historyStillBuildingEvidence(

@@ -49,77 +49,14 @@ fun ForecastCard(
             .padding(horizontal = 4.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Forecast",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                val indicatorIconRes = if (isLoading || !isLowConfidence) {
-                    R.drawable.ic_info
-                } else {
-                    R.drawable.ic_warning
-                }
-                val indicatorTint = when {
-                    isLoading -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
-                    isLowConfidence -> MaterialTheme.colorScheme.error
-                    else -> MaterialTheme.colorScheme.primary
-                }
-                Icon(
-                    painter = painterResource(indicatorIconRes),
-                    contentDescription = null,
-                    tint = indicatorTint
-                )
-                Text(
-                    text = "Details",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = indicatorTint,
-                    modifier = Modifier.padding(start = 6.dp)
-                )
-            }
-        }
-
-        Column(
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            Text(
-                text = if (spendingForecast.isProjectedOverBudget) {
-                    "PROJECTED DEFICIT"
-                } else {
-                    "PROJECTED LEFT"
-                },
-                style = MaterialTheme.typography.labelSmall,
-                color = if (spendingForecast.isProjectedOverBudget) {
-                    MaterialTheme.colorScheme.error.copy(alpha = 0.78f)
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-            )
-            AnimatedCounter(
-                amountCents = spendingForecast.estimatedEndCycleRemainingCents,
-                signed = true,
-                textStyle = MaterialTheme.typography.titleLarge.copy(
-                    fontSize = 18.sp,
-                    lineHeight = 24.sp,
-                    fontWeight = FontWeight.Black
-                ),
-                color = if (spendingForecast.isProjectedOverBudget) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                },
-                animate = true,
-                textAlign = TextAlign.Start,
-                placeholder = isLoading,
-                placeholderText = "$8,888"
-            )
-        }
+        ForecastCardHeader(
+            isLoading = isLoading,
+            isLowConfidence = isLowConfidence
+        )
+        ForecastCardSummary(
+            spendingForecast = spendingForecast,
+            isLoading = isLoading
+        )
 
         ForecastRangeIndicator(
             lowerBoundCents = spendingForecast.lowerBoundCents,
@@ -128,6 +65,92 @@ fun ForecastCard(
             budgetLimitCents = budgetState.monthlyBudgetCents,
             isLoading = isLoading,
             scale = 1f
+        )
+    }
+}
+
+@Composable
+private fun ForecastCardHeader(
+    isLoading: Boolean,
+    isLowConfidence: Boolean
+) {
+    val indicatorIconRes = if (isLoading || !isLowConfidence) {
+        R.drawable.ic_info
+    } else {
+        R.drawable.ic_warning
+    }
+    val indicatorTint = when {
+        isLoading -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+        isLowConfidence -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.primary
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "Forecast",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                painter = painterResource(indicatorIconRes),
+                contentDescription = null,
+                tint = indicatorTint
+            )
+            Text(
+                text = "Details",
+                style = MaterialTheme.typography.labelLarge,
+                color = indicatorTint,
+                modifier = Modifier.padding(start = 6.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ForecastCardSummary(
+    spendingForecast: SpendingForecast,
+    isLoading: Boolean
+) {
+    val isProjectedOverBudget = spendingForecast.isProjectedOverBudget
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Text(
+            text = if (isProjectedOverBudget) {
+                "PROJECTED DEFICIT"
+            } else {
+                "PROJECTED LEFT"
+            },
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isProjectedOverBudget) {
+                MaterialTheme.colorScheme.error.copy(alpha = 0.78f)
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
+        )
+        AnimatedCounter(
+            amountCents = spendingForecast.estimatedEndCycleRemainingCents,
+            signed = true,
+            textStyle = MaterialTheme.typography.titleLarge.copy(
+                fontSize = 18.sp,
+                lineHeight = 24.sp,
+                fontWeight = FontWeight.Black
+            ),
+            color = if (isProjectedOverBudget) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+            animate = true,
+            textAlign = TextAlign.Start,
+            placeholder = isLoading,
+            placeholderText = "$8,888"
         )
     }
 }
