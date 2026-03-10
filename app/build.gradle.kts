@@ -126,7 +126,7 @@ detekt {
     ignoreFailures = false
     config.setFrom(rootProject.file("config/detekt/detekt.yml"))
     baseline.set(rootProject.file("config/detekt/baseline.xml"))
-    basePath.set(rootProject.projectDir)
+    basePath.set(rootProject.layout.projectDirectory)
 }
 
 tasks.withType<Detekt>().configureEach {
