@@ -53,79 +53,64 @@ class SpendingForecastCalculator {
      * Uses linear interpolation for percentile calculation to handle small datasets gracefully.
      */
     fun prepareAndCleanData(allExpenses: List<Long>): DataPrep {
-        if (allExpenses.isEmpty()) {
-            return DataPrep.NoDetectionPerformed(
-                cleanedExpenses = emptyList(),
-                retainedIndexes = emptySet()
-            )
-        }
-        
-        // Outlier detection is generally not meaningful for very small datasets.
-        if (allExpenses.size < ForecastConfig.MIN_DATA_POINTS_FOR_OUTLIERS) {
-            return DataPrep.NoDetectionPerformed(
-                cleanedExpenses = allExpenses,
-                retainedIndexes = allExpenses.indices.toSet()
-            )
-        }
+        return when {
+            allExpenses.isEmpty() -> noDetectionPerformed(allExpenses)
 
-        val allIndexedExpenses = allExpenses.mapIndexed { index, value ->
-            IndexedExpense(index = index, value = value)
-        }
-        val primaryDetection = detectOutliers(allIndexedExpenses)
-        if (primaryDetection != null) {
-            return primaryDetection
-        }
+            // Outlier detection is generally not meaningful for very small datasets.
+            allExpenses.size < ForecastConfig.MIN_DATA_POINTS_FOR_OUTLIERS -> {
+                noDetectionPerformed(allExpenses)
+            }
 
-        val positiveExpenses = allIndexedExpenses.filter { it.value > 0L }
-        if (positiveExpenses.size < ForecastConfig.MIN_DATA_POINTS_FOR_OUTLIERS) {
-            return DataPrep.NoDetectionPerformed(
-                cleanedExpenses = allExpenses,
-                retainedIndexes = allExpenses.indices.toSet()
-            )
+            else -> {
+                val allIndexedExpenses = allExpenses.mapIndexed { index, value ->
+                    IndexedExpense(index = index, value = value)
+                }
+                val primaryDetection = detectOutliers(allIndexedExpenses)
+                val positiveExpenses = allIndexedExpenses.filter { it.value > 0L }
+
+                primaryDetection ?: if (positiveExpenses.size < ForecastConfig.MIN_DATA_POINTS_FOR_OUTLIERS) {
+                    noDetectionPerformed(allExpenses)
+                } else {
+                    detectOutliers(
+                        entries = positiveExpenses,
+                        alwaysRetained = allIndexedExpenses.filter { it.value == 0L }
+                    ) ?: noDetectionPerformed(allExpenses)
+                }
+            }
         }
-
-        val positiveDetection = detectOutliers(
-            entries = positiveExpenses,
-            alwaysRetained = allIndexedExpenses.filter { it.value == 0L }
-        )
-
-        return positiveDetection ?: DataPrep.NoDetectionPerformed(
-            cleanedExpenses = allExpenses,
-            retainedIndexes = allExpenses.indices.toSet()
-        )
     }
 
     private fun detectOutliers(
         entries: List<IndexedExpense>,
         alwaysRetained: List<IndexedExpense> = emptyList()
     ): DataPrep.OutliersDetected? {
-        if (entries.size < ForecastConfig.MIN_DATA_POINTS_FOR_OUTLIERS) {
-            return null
+        return if (entries.size < ForecastConfig.MIN_DATA_POINTS_FOR_OUTLIERS) {
+            null
+        } else {
+            val sorted = entries.map { it.value }.sorted()
+            val q1 = calculatePercentile(sorted, 0.25)
+            val q3 = calculatePercentile(sorted, 0.75)
+            val iqr = q3 - q1
+
+            if (iqr == 0.0) {
+                null
+            } else {
+                val lowerBound = q1 - (ForecastConfig.IQR_MULTIPLIER * iqr)
+                val upperBound = q3 + (ForecastConfig.IQR_MULTIPLIER * iqr)
+
+                val retainedEntries = (alwaysRetained + entries.filter { entry ->
+                    entry.value.toDouble() in lowerBound..upperBound
+                }).sortedBy { it.index }
+
+                DataPrep.OutliersDetected(
+                    cleanedExpenses = retainedEntries.map { it.value },
+                    outlierCount = entries.size - retainedEntries.count { retained ->
+                        entries.any { it.index == retained.index }
+                    },
+                    retainedIndexes = retainedEntries.mapTo(mutableSetOf()) { it.index }
+                )
+            }
         }
-
-        val sorted = entries.map { it.value }.sorted()
-        val q1 = calculatePercentile(sorted, 0.25)
-        val q3 = calculatePercentile(sorted, 0.75)
-        val iqr = q3 - q1
-
-        if (iqr == 0.0) {
-            return null
-        }
-
-        val lowerBound = q1 - (ForecastConfig.IQR_MULTIPLIER * iqr)
-        val upperBound = q3 + (ForecastConfig.IQR_MULTIPLIER * iqr)
-
-        val retainedEntries = (alwaysRetained + entries.filter { entry ->
-            entry.value.toDouble() in lowerBound..upperBound
-        }).sortedBy { it.index }
-
-        return DataPrep.OutliersDetected(
-            cleanedExpenses = retainedEntries.map { it.value },
-            outlierCount = entries.size - retainedEntries.count { retained ->
-                entries.any { it.index == retained.index }
-            },
-            retainedIndexes = retainedEntries.mapTo(mutableSetOf()) { it.index }
-        )
     }
 
     /**
@@ -133,18 +118,21 @@ class SpendingForecastCalculator {
      * This method is more robust for small datasets than simple index-based access.
      */
     private fun calculatePercentile(sortedData: List<Long>, percentile: Double): Double {
-        if (sortedData.isEmpty()) return 0.0
-        if (sortedData.size == 1) return sortedData[0].toDouble()
+        return when {
+            sortedData.isEmpty() -> 0.0
+            sortedData.size == 1 -> sortedData[0].toDouble()
+            else -> {
+                // Type 7: (n-1)p + 1 (adjusted for 0-indexing)
+                val rank = percentile * (sortedData.size - 1)
+                val index = rank.toInt()
+                val fraction = rank - index
 
-        // Type 7: (n-1)p + 1 (adjusted for 0-indexing)
-        val rank = percentile * (sortedData.size - 1)
-        val index = rank.toInt()
-        val fraction = rank - index
-
-        return if (index >= sortedData.size - 1) {
-            sortedData.last().toDouble()
-        } else {
-            sortedData[index] + fraction * (sortedData[index + 1] - sortedData[index])
+                if (index >= sortedData.size - 1) {
+                    sortedData.last().toDouble()
+                } else {
+                    sortedData[index] + fraction * (sortedData[index + 1] - sortedData[index])
+                }
+            }
         }
     }
 
@@ -165,31 +153,41 @@ class SpendingForecastCalculator {
     }
 
     fun calculateWeightedTrend(expenses: List<Long>, decayFactor: Double): TrendData {
-        if (expenses.size < 2) return TrendData(0.0, 0.0)
+        return if (expenses.size < 2) {
+            TrendData(0.0, 0.0)
+        } else {
+            var sumW = 0.0
+            var sumWX = 0.0
+            var sumWY = 0.0
+            var sumWXX = 0.0
+            var sumWXY = 0.0
 
-        var sumW = 0.0
-        var sumWX = 0.0
-        var sumWY = 0.0
-        var sumWXX = 0.0
-        var sumWXY = 0.0
+            expenses.forEachIndexed { i, y ->
+                val weight = decayFactor.pow((expenses.size - 1 - i).toDouble())
+                val x = i.toDouble()
+                sumW += weight
+                sumWX += weight * x
+                sumWY += weight * y
+                sumWXX += weight * x * x
+                sumWXY += weight * x * y
+            }
 
-        expenses.forEachIndexed { i, y ->
-            val weight = decayFactor.pow((expenses.size - 1 - i).toDouble())
-            val x = i.toDouble()
-            sumW += weight
-            sumWX += weight * x
-            sumWY += weight * y
-            sumWXX += weight * x * x
-            sumWXY += weight * x * y
+            val denominator = sumW * sumWXX - sumWX * sumWX
+            if (abs(denominator) < 1e-10) {
+                TrendData(0.0, 0.0)
+            } else {
+                val slope = (sumW * sumWXY - sumWX * sumWY) / denominator
+                val intercept = (sumWY - slope * sumWX) / sumW
+                TrendData(slope, intercept)
+            }
         }
+    }
 
-        val denominator = sumW * sumWXX - sumWX * sumWX
-        if (abs(denominator) < 1e-10) return TrendData(0.0, 0.0)
-
-        val slope = (sumW * sumWXY - sumWX * sumWY) / denominator
-        val intercept = (sumWY - slope * sumWX) / sumW
-
-        return TrendData(slope, intercept)
+    private fun noDetectionPerformed(allExpenses: List<Long>): DataPrep.NoDetectionPerformed {
+        return DataPrep.NoDetectionPerformed(
+            cleanedExpenses = allExpenses,
+            retainedIndexes = allExpenses.indices.toSet()
+        )
     }
 
     fun calculateForecastConfidence(cleanedExpenses: List<Long>, outlierCount: Int, daysElapsed: Int): Double {

@@ -142,42 +142,41 @@ internal fun rangeExplanation(
         append(CurrencyFormatter.format(spendingForecast.upperBoundCents))
         append(" total spend by cycle end.")
     }
-    if (spendingForecast.upperBoundCents <= budgetState.monthlyBudgetCents) {
-        return base
-    }
-
-    if (
+    return when {
+        spendingForecast.upperBoundCents <= budgetState.monthlyBudgetCents -> base
         behaviorProfile?.hasPersonalizedHistory == true &&
-        behaviorProfile.requiredExtraSpendToMissBudgetCents > 0L
-    ) {
-        val precedentText = when (behaviorProfile.largeOverspendCycles) {
-            0 -> "has not happened in ${behaviorProfile.cycleCount} recent completed cycles."
-            1 -> "has happened in 1 of ${behaviorProfile.cycleCount} recent completed cycles."
-            else -> {
-                "has happened in ${behaviorProfile.largeOverspendCycles} of " +
-                    "${behaviorProfile.cycleCount} recent completed cycles."
+            behaviorProfile.requiredExtraSpendToMissBudgetCents > 0L -> {
+            val precedentText = when (behaviorProfile.largeOverspendCycles) {
+                0 -> "has not happened in ${behaviorProfile.cycleCount} recent completed cycles."
+                1 -> "has happened in 1 of ${behaviorProfile.cycleCount} recent completed cycles."
+                else -> {
+                    "has happened in ${behaviorProfile.largeOverspendCycles} of " +
+                        "${behaviorProfile.cycleCount} recent completed cycles."
+                }
+            }
+            buildString {
+                append(base)
+                append(" Missing budget would require about ")
+                append(
+                    CurrencyFormatter.format(
+                        behaviorProfile.requiredExtraSpendToMissBudgetCents
+                    )
+                )
+                append(" more spending than the current projection, which ")
+                append(precedentText)
             }
         }
-        return buildString {
-            append(base)
-            append(" Missing budget would require about ")
-            append(
-                CurrencyFormatter.format(
-                    behaviorProfile.requiredExtraSpendToMissBudgetCents
-                )
-            )
-            append(" more spending than the current projection, which ")
-            append(precedentText)
+        else -> {
+            val projectedBufferCents =
+                spendingForecast.estimatedEndCycleRemainingCents.coerceAtLeast(0L)
+            buildString {
+                append(base)
+                append(" Best estimate still leaves ")
+                append(CurrencyFormatter.format(projectedBufferCents))
+                append(", and the budget is only crossed if spending finishes about ")
+                append("that much above the current path.")
+            }
         }
-    }
-
-    val projectedBufferCents = spendingForecast.estimatedEndCycleRemainingCents.coerceAtLeast(0L)
-    return buildString {
-        append(base)
-        append(" Best estimate still leaves ")
-        append(CurrencyFormatter.format(projectedBufferCents))
-        append(", and the budget is only crossed if spending finishes about ")
-        append("that much above the current path.")
     }
 }
 

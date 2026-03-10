@@ -539,21 +539,21 @@ private fun consumeHeaderScroll(
         setCollapseOffsetPx(normalizedCollapseOffsetPx)
     }
 
-    if (availableY < 0f && normalizedCollapseOffsetPx < maxCollapsePx) {
-        val newOffset = (normalizedCollapseOffsetPx - availableY).coerceAtMost(maxCollapsePx)
-        val consumed = newOffset - normalizedCollapseOffsetPx
-        setCollapseOffsetPx(newOffset)
-        return Offset(0f, -consumed)
+    return when {
+        availableY < 0f && normalizedCollapseOffsetPx < maxCollapsePx -> {
+            val newOffset = (normalizedCollapseOffsetPx - availableY).coerceAtMost(maxCollapsePx)
+            val consumed = newOffset - normalizedCollapseOffsetPx
+            setCollapseOffsetPx(newOffset)
+            Offset(0f, -consumed)
+        }
+        availableY > 0f && canExpand && normalizedCollapseOffsetPx > 0f -> {
+            val newOffset = (normalizedCollapseOffsetPx - availableY).coerceAtLeast(0f)
+            val consumed = normalizedCollapseOffsetPx - newOffset
+            setCollapseOffsetPx(newOffset)
+            Offset(0f, consumed)
+        }
+        else -> Offset.Zero
     }
-
-    if (availableY > 0f && canExpand && normalizedCollapseOffsetPx > 0f) {
-        val newOffset = (normalizedCollapseOffsetPx - availableY).coerceAtLeast(0f)
-        val consumed = normalizedCollapseOffsetPx - newOffset
-        setCollapseOffsetPx(newOffset)
-        return Offset(0f, consumed)
-    }
-
-    return Offset.Zero
 }
 
 private fun snapHeaderOffset(collapseOffsetPx: Float, maxCollapsePx: Float): Float {

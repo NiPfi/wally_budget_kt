@@ -206,16 +206,11 @@ internal object AnalysisSnapshotFactory {
         spendingForecast: SpendingForecast,
         behaviorProfile: HistoricalBehaviorProfile?
     ): Int {
-        if (behaviorProfile?.hasPersonalizedHistory != true) return 0
-        if (
-            spendingForecast.estimatedEndCycleRemainingCents <= 0L ||
-            spendingForecast.upperBoundCents <= budgetState.monthlyBudgetCents ||
-            behaviorProfile.requiredExtraSpendToMissBudgetCents <= 0L
-        ) {
-            return 0
-        }
-
-        return if (behaviorProfile.smoothedLargeOverspendRate >= 0.25) 1 else 0
+        val hasRiskSignal = behaviorProfile?.hasPersonalizedHistory == true &&
+            spendingForecast.estimatedEndCycleRemainingCents > 0L &&
+            spendingForecast.upperBoundCents > budgetState.monthlyBudgetCents &&
+            behaviorProfile.requiredExtraSpendToMissBudgetCents > 0L
+        return if (hasRiskSignal && behaviorProfile.smoothedLargeOverspendRate >= 0.25) 1 else 0
     }
 
     private fun buildEvidence(
@@ -364,84 +359,13 @@ internal object AnalysisSnapshotFactory {
 
     private fun behaviorEvidence(
         behaviorProfile: HistoricalBehaviorProfile?
-    ): AnalysisEvidenceItem? {
-        behaviorProfile ?: return null
-
-        if (!behaviorProfile.hasPersonalizedHistory) {
-            return AnalysisEvidenceItem(
-                title = "Overspend behavior",
-                value = "History still building",
-                detail = buildString {
-                    append("Only ${behaviorProfile.cycleCount} completed cycle")
-                    append(if (behaviorProfile.cycleCount == 1) "" else "s")
-                    append(" available. Guidance will personalize after 3 completed cycles.")
-                },
-                tone = AnalysisEvidenceTone.Neutral
-            )
-        }
-
-        if (behaviorProfile.requiredExtraSpendToMissBudgetCents > 0L) {
-            return when {
-                behaviorProfile.largeOverspendCycles == 0 -> AnalysisEvidenceItem(
-                    title = "Overspend behavior",
-                    value = "Miss of this size is rare",
-                    detail = buildString {
-                        append("0 of last ${behaviorProfile.cycleCount} cycles finished at least ")
-                        append(
-                            CurrencyFormatter.format(
-                                behaviorProfile.historicalOverspendThresholdCents
-                            )
-                        )
-                        append(" over budget. Worst miss was ")
-                        append(CurrencyFormatter.format(behaviorProfile.maxOverspendCents))
-                        append('.')
-                    },
-                    tone = AnalysisEvidenceTone.Positive
-                )
-                behaviorProfile.largeOverspendCycles == 1 -> AnalysisEvidenceItem(
-                    title = "Overspend behavior",
-                    value = "Some precedent",
-                    detail = "1 of last ${behaviorProfile.cycleCount} cycles finished at least this far over budget.",
-                    tone = AnalysisEvidenceTone.Neutral
-                )
-                else -> AnalysisEvidenceItem(
-                    title = "Overspend behavior",
-                    value = "History supports this risk",
-                    detail = buildString {
-                        append("${behaviorProfile.largeOverspendCycles} of last ")
-                        append("${behaviorProfile.cycleCount} cycles finished at least ")
-                        append("this far over budget.")
-                    },
-                    tone = AnalysisEvidenceTone.Warning
-                )
+    ): AnalysisEvidenceItem? = behaviorProfile?.let { profile ->
+        when {
+            !profile.hasPersonalizedHistory -> historyStillBuildingEvidence(profile)
+            profile.requiredExtraSpendToMissBudgetCents > 0L -> {
+                overspendPrecedentEvidence(profile)
             }
-        }
-
-        val averageText = if (behaviorProfile.averageSurplusCents >= 0L) {
-            "Average recent finish is ${CurrencyFormatter.format(behaviorProfile.averageSurplusCents)} under budget."
-        } else {
-            "Average recent finish is ${CurrencyFormatter.format(abs(behaviorProfile.averageSurplusCents))} over budget."
-        }
-
-        return when {
-            behaviorProfile.smoothedOverspendRate < 0.25 && behaviorProfile.averageSurplusCents >= 0L -> AnalysisEvidenceItem(
-                title = "Overspend behavior",
-                value = "Mostly under budget",
-                detail = averageText,
-                tone = AnalysisEvidenceTone.Positive
-            )
-            behaviorProfile.smoothedOverspendRate >= 0.45 -> AnalysisEvidenceItem(
-                title = "Overspend behavior",
-                value = "Frequently over budget",
-                detail = averageText,
-                tone = AnalysisEvidenceTone.Warning
-            )
-            else -> AnalysisEvidenceItem(
-                title = "Overspend behavior",
-                value = "Mixed",
-                detail = averageText,
-                tone = AnalysisEvidenceTone.Neutral
-            )
+            else -> averageOverspendEvidence(profile)
         }
     }
 
@@ -525,6 +449,92 @@ internal object AnalysisSnapshotFactory {
         }
     }
 
+}
+
+private fun historyStillBuildingEvidence(
+    behaviorProfile: HistoricalBehaviorProfile
+): AnalysisEvidenceItem {
+    return AnalysisEvidenceItem(
+        title = "Overspend behavior",
+        value = "History still building",
+        detail = buildString {
+            append("Only ${behaviorProfile.cycleCount} completed cycle")
+            append(if (behaviorProfile.cycleCount == 1) "" else "s")
+            append(" available. Guidance will personalize after 3 completed cycles.")
+        },
+        tone = AnalysisEvidenceTone.Neutral
+    )
+}
+
+private fun overspendPrecedentEvidence(
+    behaviorProfile: HistoricalBehaviorProfile
+): AnalysisEvidenceItem {
+    return when (behaviorProfile.largeOverspendCycles) {
+        0 -> AnalysisEvidenceItem(
+            title = "Overspend behavior",
+            value = "Miss of this size is rare",
+            detail = buildString {
+                append("0 of last ${behaviorProfile.cycleCount} cycles finished at least ")
+                append(
+                    CurrencyFormatter.format(
+                        behaviorProfile.historicalOverspendThresholdCents
+                    )
+                )
+                append(" over budget. Worst miss was ")
+                append(CurrencyFormatter.format(behaviorProfile.maxOverspendCents))
+                append('.')
+            },
+            tone = AnalysisEvidenceTone.Positive
+        )
+        1 -> AnalysisEvidenceItem(
+            title = "Overspend behavior",
+            value = "Some precedent",
+            detail = "1 of last ${behaviorProfile.cycleCount} cycles finished at least this far over budget.",
+            tone = AnalysisEvidenceTone.Neutral
+        )
+        else -> AnalysisEvidenceItem(
+            title = "Overspend behavior",
+            value = "History supports this risk",
+            detail = buildString {
+                append("${behaviorProfile.largeOverspendCycles} of last ")
+                append("${behaviorProfile.cycleCount} cycles finished at least ")
+                append("this far over budget.")
+            },
+            tone = AnalysisEvidenceTone.Warning
+        )
+    }
+}
+
+private fun averageOverspendEvidence(
+    behaviorProfile: HistoricalBehaviorProfile
+): AnalysisEvidenceItem {
+    val averageText = if (behaviorProfile.averageSurplusCents >= 0L) {
+        "Average recent finish is ${CurrencyFormatter.format(behaviorProfile.averageSurplusCents)} under budget."
+    } else {
+        "Average recent finish is ${CurrencyFormatter.format(abs(behaviorProfile.averageSurplusCents))} over budget."
+    }
+
+    return when {
+        behaviorProfile.smoothedOverspendRate < 0.25 &&
+            behaviorProfile.averageSurplusCents >= 0L -> AnalysisEvidenceItem(
+            title = "Overspend behavior",
+            value = "Mostly under budget",
+            detail = averageText,
+            tone = AnalysisEvidenceTone.Positive
+        )
+        behaviorProfile.smoothedOverspendRate >= 0.45 -> AnalysisEvidenceItem(
+            title = "Overspend behavior",
+            value = "Frequently over budget",
+            detail = averageText,
+            tone = AnalysisEvidenceTone.Warning
+        )
+        else -> AnalysisEvidenceItem(
+            title = "Overspend behavior",
+            value = "Mixed",
+            detail = averageText,
+            tone = AnalysisEvidenceTone.Neutral
+        )
+    }
 }
 
 internal data class HistoricalBehaviorProfile(

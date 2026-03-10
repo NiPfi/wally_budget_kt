@@ -47,7 +47,7 @@ style:
     active: true
   ReturnCount:
     active: true
-    max: 3
-    excludeGuardClauses: true
+    max: 2
+    excludeGuardClauses: false
   WildcardImport:
     active: true
