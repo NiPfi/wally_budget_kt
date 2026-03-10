@@ -1,3 +1,5 @@
+import dev.detekt.gradle.Detekt
+import dev.detekt.gradle.DetektCreateBaselineTask
 import java.io.File
 import java.util.Properties
 
@@ -5,6 +7,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.detekt)
 }
 
 fun resolveAdbExecutable(): String {
@@ -114,6 +117,28 @@ kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    allRules = false
+    parallel = true
+    ignoreFailures = false
+    config.setFrom(rootProject.file("config/detekt/detekt.yml"))
+    baseline.set(rootProject.file("config/detekt/baseline.xml"))
+    basePath.set(rootProject.projectDir)
+}
+
+tasks.withType<Detekt>().configureEach {
+    jvmTarget.set("17")
+    reports {
+        html.required.set(true)
+        sarif.required.set(true)
+    }
+}
+
+tasks.withType<DetektCreateBaselineTask>().configureEach {
+    jvmTarget.set("17")
 }
 
 dependencies {
