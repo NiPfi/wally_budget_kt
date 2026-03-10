@@ -1,12 +1,28 @@
 package net.loeu.wallybudget.ui.screens.onboarding
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -112,22 +128,22 @@ fun OnboardingScreen(
             onClick = {
                 val budgetCents = CurrencyFormatter.parseAmountToCents(budgetText)
                 val payday = paydayText.toIntOrNull()
-                
+
                 if (budgetCents != null && budgetCents > 0L && payday != null && payday in 1..31) {
                     val currentMonth = today.month
                     val currentYear = today.year
                     val maxDaysCurrent = today.lengthOfMonth()
                     val actualPaydayCurrent = minOf(payday, maxDaysCurrent)
-                    
+
                     var cycleStartDate = LocalDate.of(currentYear, currentMonth, actualPaydayCurrent)
-                    
+
                     if (cycleStartDate.isAfter(today)) {
                         val prevMonthDate = today.minusMonths(1)
                         val maxDaysPrev = prevMonthDate.lengthOfMonth()
                         val actualPaydayPrev = minOf(payday, maxDaysPrev)
                         cycleStartDate = LocalDate.of(prevMonthDate.year, prevMonthDate.month, actualPaydayPrev)
                     }
-                    
+
                     onComplete(budgetCents, payday, cycleStartDate, 0L)
                 } else {
                     showError = true

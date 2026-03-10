@@ -3,6 +3,7 @@ package net.loeu.wallybudget.domain.model
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeParseException
 
 /**
  * Represents a single expense entry in the app domain.
@@ -22,7 +23,7 @@ data class Expense(
 fun Expense.recordedDate(): LocalDate {
     return try {
         LocalDate.parse(expenseDate)
-    } catch (exception: Exception) {
+    } catch (exception: DateTimeParseException) {
         throw IllegalStateException("Invalid expenseDate: '$expenseDate'", exception)
     }
 }
