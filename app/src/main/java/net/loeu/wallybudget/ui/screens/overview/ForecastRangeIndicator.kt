@@ -127,7 +127,7 @@ fun ForecastRangeIndicator(
                         fontWeight = FontWeight.Bold
                     ),
                     color = lowerValueColor,
-                    animate = false,
+                    animate = true,
                     textAlign = TextAlign.Start
                 )
             }
@@ -145,7 +145,7 @@ fun ForecastRangeIndicator(
                         fontWeight = FontWeight.Black
                     ),
                     color = projectedColor,
-                    animate = false,
+                    animate = true,
                     textAlign = TextAlign.Center
                 )
             }
@@ -162,7 +162,7 @@ fun ForecastRangeIndicator(
                         fontWeight = FontWeight.Bold
                     ),
                     color = upperValueColor,
-                    animate = false,
+                    animate = true,
                     textAlign = TextAlign.End
                 )
             }

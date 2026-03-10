@@ -94,7 +94,7 @@ private fun TodayExpensesSection(
                 amountCents = totalSpentCents,
                 textStyle = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.primary,
-                animate = false,
+                animate = true,
                 textAlign = TextAlign.End,
                 placeholder = isLoading,
                 placeholderText = "$888"

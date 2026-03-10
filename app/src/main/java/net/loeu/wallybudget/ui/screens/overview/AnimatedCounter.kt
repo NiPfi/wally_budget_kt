@@ -44,7 +44,6 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 import net.loeu.wallybudget.util.CurrencyFormatter
 
-private const val INITIAL_ANIMATION_ARM_DELAY_MS = 450L
 private const val DIGIT_ROLL_DURATION_MS = 240
 private const val DIGIT_STAGGER_MS = 35
 private const val CHARACTER_REMOVAL_DELAY_MS = 180L
@@ -63,6 +62,7 @@ fun AnimatedCounter(
     textStyle: TextStyle = LocalTextStyle.current,
     color: Color = MaterialTheme.colorScheme.onBackground,
     animate: Boolean = true,
+    animateOnFirstResolvedValue: Boolean = false,
     textAlign: TextAlign = TextAlign.Start,
     minFontSize: TextUnit = 12.sp,
     signed: Boolean = false,
@@ -85,6 +85,7 @@ fun AnimatedCounter(
         textStyle = textStyle,
         color = color,
         animate = animate,
+        animateOnFirstResolvedValue = animateOnFirstResolvedValue,
         modifier = modifier,
         textAlign = textAlign,
         minFontSize = minFontSize,
@@ -101,6 +102,7 @@ fun AnimatedIntegerCounter(
     textStyle: TextStyle = LocalTextStyle.current,
     color: Color = MaterialTheme.colorScheme.onBackground,
     animate: Boolean = true,
+    animateOnFirstResolvedValue: Boolean = false,
     textAlign: TextAlign = TextAlign.Start,
     placeholder: Boolean = false,
     placeholderText: String = "88"
@@ -111,6 +113,7 @@ fun AnimatedIntegerCounter(
         textStyle = textStyle,
         color = color,
         animate = animate,
+        animateOnFirstResolvedValue = animateOnFirstResolvedValue,
         modifier = modifier,
         textAlign = textAlign,
         placeholder = placeholder,
@@ -125,6 +128,7 @@ private fun AnimatedValueText(
     textStyle: TextStyle,
     color: Color,
     animate: Boolean,
+    animateOnFirstResolvedValue: Boolean,
     modifier: Modifier = Modifier,
     textAlign: TextAlign = TextAlign.Start,
     minFontSize: TextUnit = 12.sp,
@@ -135,20 +139,38 @@ private fun AnimatedValueText(
     val resolvedTextStyle = textStyle.copy(fontFeatureSettings = "tnum")
     val displayText = formatter(value)
     var previousValue by remember { mutableLongStateOf(value) }
+    var hadPlaceholder by remember { mutableStateOf(placeholder) }
     var animationsArmed by remember { mutableStateOf(false) }
     var animationKey by remember { mutableIntStateOf(0) }
     var activeAnimation by remember { mutableStateOf<RollingAnimation?>(null) }
 
-    LaunchedEffect(Unit) {
-        delay(INITIAL_ANIMATION_ARM_DELAY_MS)
-        animationsArmed = true
-    }
-
-    LaunchedEffect(value, placeholder, animationsArmed, animate) {
-        if (placeholder || !animationsArmed || !animate) {
+    LaunchedEffect(value, placeholder, animationsArmed, animate, animateOnFirstResolvedValue) {
+        if (placeholder) {
             previousValue = value
             activeAnimation = null
+            hadPlaceholder = true
+            animationsArmed = false
             return@LaunchedEffect
+        }
+
+        if (!animate) {
+            previousValue = value
+            activeAnimation = null
+            hadPlaceholder = false
+            animationsArmed = true
+            return@LaunchedEffect
+        }
+
+        if (!animationsArmed) {
+            activeAnimation = null
+            val shouldAnimateResolvedValue = animateOnFirstResolvedValue && hadPlaceholder
+            hadPlaceholder = false
+            animationsArmed = true
+            if (!shouldAnimateResolvedValue) {
+                previousValue = value
+                return@LaunchedEffect
+            }
+            previousValue = 0L
         }
 
         val direction = when {
@@ -221,22 +243,26 @@ private fun AnimatedValueText(
         contentAlignment = textAlign.toPlaceholderAlignment()
     ) {
         val availableWidthPx = with(LocalDensity.current) { maxWidth.toPx() }.roundToInt().coerceAtLeast(1)
-        var candidateFontSize = if (resolvedTextStyle.fontSize.isSpecified) resolvedTextStyle.fontSize else 57.sp
         val measurementText = when {
             placeholder -> placeholderText
             activeAnimation != null -> widestAnimationText(activeAnimation!!)
             else -> displayText
         }
 
-        while (candidateFontSize > minFontSize) {
-            val measured = textMeasurer.measure(
+        val candidateFontSize = remember(
+            availableWidthPx,
+            measurementText,
+            resolvedTextStyle,
+            minFontSize,
+            textMeasurer
+        ) {
+            findFittedFontSize(
+                textMeasurer = textMeasurer,
                 text = measurementText,
-                style = resolvedTextStyle.copy(fontSize = candidateFontSize),
-                maxLines = 1,
-                constraints = Constraints(maxWidth = availableWidthPx)
+                textStyle = resolvedTextStyle,
+                availableWidthPx = availableWidthPx,
+                minFontSize = minFontSize
             )
-            if (!measured.hasVisualOverflow) break
-            candidateFontSize *= 0.92f
         }
 
         val fittedStyle = resolvedTextStyle.copy(fontSize = candidateFontSize)
@@ -265,6 +291,29 @@ private fun AnimatedValueText(
             )
         }
     }
+}
+
+private fun findFittedFontSize(
+    textMeasurer: TextMeasurer,
+    text: String,
+    textStyle: TextStyle,
+    availableWidthPx: Int,
+    minFontSize: TextUnit
+): TextUnit {
+    var candidateFontSize = if (textStyle.fontSize.isSpecified) textStyle.fontSize else 57.sp
+
+    while (candidateFontSize > minFontSize) {
+        val measured = textMeasurer.measure(
+            text = text,
+            style = textStyle.copy(fontSize = candidateFontSize),
+            maxLines = 1,
+            constraints = Constraints(maxWidth = availableWidthPx)
+        )
+        if (!measured.hasVisualOverflow) break
+        candidateFontSize *= 0.92f
+    }
+
+    return candidateFontSize
 }
 
 @Composable
