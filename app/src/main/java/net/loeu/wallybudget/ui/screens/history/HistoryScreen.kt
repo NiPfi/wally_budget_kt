@@ -366,7 +366,9 @@ private fun CycleLedgerPage(
     contentPadding: PaddingValues = PaddingValues(bottom = 24.dp)
 ) {
     LazyColumn(
-        modifier = modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .then(modifier),
         contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
