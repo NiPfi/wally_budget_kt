@@ -16,9 +16,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import net.loeu.wallybudget.data.model.ExpenseCategory
-import net.loeu.wallybudget.data.model.description
-import net.loeu.wallybudget.data.model.iconRes
+import net.loeu.wallybudget.domain.model.ExpenseCategory
+import net.loeu.wallybudget.domain.model.description
+import net.loeu.wallybudget.domain.model.iconRes
 import net.loeu.wallybudget.util.CurrencyFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)

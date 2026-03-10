@@ -1,8 +1,8 @@
 package net.loeu.wallybudget.ui.screens.analysis
 
-import net.loeu.wallybudget.data.model.BudgetState
-import net.loeu.wallybudget.data.model.MonthlyHistory
-import net.loeu.wallybudget.data.model.SpendingForecast
+import net.loeu.wallybudget.domain.model.BudgetState
+import net.loeu.wallybudget.data.local.entity.MonthlyHistory
+import net.loeu.wallybudget.domain.model.SpendingForecast
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

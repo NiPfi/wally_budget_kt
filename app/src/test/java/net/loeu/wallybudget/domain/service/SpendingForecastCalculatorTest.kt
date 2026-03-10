@@ -1,6 +1,6 @@
 package net.loeu.wallybudget.domain.service
 
-import net.loeu.wallybudget.data.model.BudgetState
+import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.config.ForecastConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

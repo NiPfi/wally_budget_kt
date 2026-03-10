@@ -16,9 +16,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import net.loeu.wallybudget.data.model.BudgetState
-import net.loeu.wallybudget.data.model.Expense
-import net.loeu.wallybudget.data.model.ExpenseDaySection
+import net.loeu.wallybudget.domain.model.BudgetState
+import net.loeu.wallybudget.data.local.entity.Expense
+import net.loeu.wallybudget.ui.model.ExpenseDaySection
 import net.loeu.wallybudget.ui.screens.expenses.ExpenseItem
 
 @Composable

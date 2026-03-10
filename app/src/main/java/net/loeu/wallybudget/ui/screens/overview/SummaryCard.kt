@@ -30,7 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
-import net.loeu.wallybudget.data.model.BudgetState
+import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.util.CurrencyFormatter
 import kotlin.math.roundToInt
 

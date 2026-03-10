@@ -1,7 +1,7 @@
 package net.loeu.wallybudget.domain.service
 
-import net.loeu.wallybudget.data.model.BudgetState
-import net.loeu.wallybudget.data.model.SpendingForecast
+import net.loeu.wallybudget.domain.model.BudgetState
+import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.config.ForecastConfig
 import kotlin.math.abs
 import kotlin.math.max

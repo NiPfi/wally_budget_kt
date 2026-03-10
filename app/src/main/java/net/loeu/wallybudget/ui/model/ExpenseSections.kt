@@ -1,5 +1,7 @@
-package net.loeu.wallybudget.data.model
+package net.loeu.wallybudget.ui.model
 
+import net.loeu.wallybudget.data.local.entity.Expense
+import net.loeu.wallybudget.domain.model.ExpenseCategory
 import java.time.LocalDate
 
 data class ExpenseDaySection(

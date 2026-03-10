@@ -1,4 +1,4 @@
-package net.loeu.wallybudget.data.local
+package net.loeu.wallybudget.data.local.db
 
 import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room

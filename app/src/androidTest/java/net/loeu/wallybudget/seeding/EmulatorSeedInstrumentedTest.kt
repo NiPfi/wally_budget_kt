@@ -4,11 +4,11 @@ import android.os.Build
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import net.loeu.wallybudget.data.local.BudgetDatabase
-import net.loeu.wallybudget.data.local.UserPreferencesManager
-import net.loeu.wallybudget.data.model.Expense
-import net.loeu.wallybudget.data.model.ExpenseCategory
-import net.loeu.wallybudget.data.model.MonthlyHistory
+import net.loeu.wallybudget.data.local.db.BudgetDatabase
+import net.loeu.wallybudget.data.local.preferences.UserPreferencesManager
+import net.loeu.wallybudget.data.local.entity.Expense
+import net.loeu.wallybudget.domain.model.ExpenseCategory
+import net.loeu.wallybudget.data.local.entity.MonthlyHistory
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import org.junit.Assert.assertTrue
 import org.junit.Test

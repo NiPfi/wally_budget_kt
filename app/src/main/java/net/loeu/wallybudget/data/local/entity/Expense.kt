@@ -1,8 +1,9 @@
-package net.loeu.wallybudget.data.model
+package net.loeu.wallybudget.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import net.loeu.wallybudget.domain.model.ExpenseCategory
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId

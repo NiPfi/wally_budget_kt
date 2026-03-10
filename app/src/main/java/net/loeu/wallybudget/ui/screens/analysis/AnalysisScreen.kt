@@ -33,9 +33,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass.Companion.WIDTH_DP_MEDIUM_LOWER_BOUND
-import net.loeu.wallybudget.data.model.BudgetState
-import net.loeu.wallybudget.data.model.MonthlyHistory
-import net.loeu.wallybudget.data.model.SpendingForecast
+import net.loeu.wallybudget.domain.model.BudgetState
+import net.loeu.wallybudget.data.local.entity.MonthlyHistory
+import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.ui.components.TimelineLockBanner
 import net.loeu.wallybudget.ui.screens.overview.LoadingValuePlaceholder
 

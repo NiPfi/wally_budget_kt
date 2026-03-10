@@ -1,4 +1,4 @@
-package net.loeu.wallybudget.data.repository
+package net.loeu.wallybudget.domain.policy
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

@@ -6,21 +6,21 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
-import net.loeu.wallybudget.data.local.ExpenseDao
-import net.loeu.wallybudget.data.local.MonthlyHistoryDao
-import net.loeu.wallybudget.data.local.UserPreferencesManager
-import net.loeu.wallybudget.data.model.BudgetState
-import net.loeu.wallybudget.data.model.Expense
-import net.loeu.wallybudget.data.model.ExpenseCycleSection
-import net.loeu.wallybudget.data.model.ExpenseDaySection
-import net.loeu.wallybudget.data.model.MonthlyHistory
-import net.loeu.wallybudget.data.model.PendingCycleCloseoutState
-import net.loeu.wallybudget.data.model.SpendingForecast
-import net.loeu.wallybudget.data.model.TimelineLockState
-import net.loeu.wallybudget.data.model.UserSettings
-import net.loeu.wallybudget.data.model.recordedDate
+import net.loeu.wallybudget.domain.model.BudgetState
+import net.loeu.wallybudget.data.local.entity.Expense
+import net.loeu.wallybudget.ui.model.ExpenseCycleSection
+import net.loeu.wallybudget.ui.model.ExpenseDaySection
+import net.loeu.wallybudget.data.local.entity.MonthlyHistory
+import net.loeu.wallybudget.ui.model.PendingCycleCloseoutState
+import net.loeu.wallybudget.domain.model.SpendingForecast
+import net.loeu.wallybudget.domain.model.TimelineLockState
+import net.loeu.wallybudget.domain.model.UserSettings
+import net.loeu.wallybudget.data.local.entity.recordedDate
+import net.loeu.wallybudget.data.local.source.BudgetLocalDataSource
 import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.domain.config.ForecastConfig
+import net.loeu.wallybudget.domain.policy.ObservedDatePolicy
+import net.loeu.wallybudget.domain.policy.TimelineLockPolicy
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import java.time.Instant
 import java.time.LocalDate
@@ -32,46 +32,13 @@ private data class CycleRange(
     val endExclusive: LocalDate
 )
 
-internal object ObservedDatePolicy {
-    // Keep small backward shifts monotonic, but recover quickly from clearly bad future jumps.
-    private const val MAX_BACKWARD_DATE_SKEW_DAYS = 1L
-
-    fun resolve(lastSeenDate: LocalDate?, observedDate: LocalDate): LocalDate {
-        if (lastSeenDate == null || !observedDate.isBefore(lastSeenDate)) {
-            return observedDate
-        }
-
-        val rollbackDays = ChronoUnit.DAYS.between(observedDate, lastSeenDate)
-        return if (rollbackDays <= MAX_BACKWARD_DATE_SKEW_DAYS) {
-            lastSeenDate
-        } else {
-            observedDate
-        }
-    }
-
-    fun shouldPersist(lastSeenDate: LocalDate?, observedDate: LocalDate): Boolean {
-        if (lastSeenDate == null || observedDate.isAfter(lastSeenDate)) {
-            return true
-        }
-
-        if (!observedDate.isBefore(lastSeenDate)) {
-            return false
-        }
-
-        val rollbackDays = ChronoUnit.DAYS.between(observedDate, lastSeenDate)
-        return rollbackDays > MAX_BACKWARD_DATE_SKEW_DAYS
-    }
-}
-
 class BudgetRepository(
-    private val expenseDao: ExpenseDao,
-    private val monthlyHistoryDao: MonthlyHistoryDao,
-    private val userPreferencesManager: UserPreferencesManager,
+    private val localDataSource: BudgetLocalDataSource,
     private val budgetCalculationService: BudgetCalculationService = BudgetCalculationService(),
     private val currentDateProvider: CurrentDateProvider
 ) {
 
-    val userSettings: Flow<UserSettings> = userPreferencesManager.userSettings
+    val userSettings: Flow<UserSettings> = localDataSource.userSettings
 
     fun getEffectiveCurrentDate(): Flow<LocalDate> {
         return combine(userSettings, currentDateProvider.observeCurrentDate()) { settings, observedDate ->
@@ -82,21 +49,21 @@ class BudgetRepository(
     fun getBudgetState(): Flow<BudgetState> {
         return combine(
             userSettings,
-            expenseDao.observeExpenseCount(),
+            localDataSource.observeExpenseCount(),
             getEffectiveCurrentDate(),
-            monthlyHistoryDao.getAllHistory()
+            localDataSource.getAllHistory()
         ) { settings, _, today, history ->
             val currentCycleRange = budgetCalculationService.getCurrentCycleProgressRange(
                 now = today,
                 paydayDate = settings.paydayDate
             )
 
-            val totalSpentCents = expenseDao.getTotalSpentInRange(
+            val totalSpentCents = localDataSource.getTotalSpentInRange(
                 currentCycleRange.start.toString(),
                 currentCycleRange.endExclusive.toString()
             ) ?: 0L
 
-            val spentTodayCents = expenseDao.getTotalSpentInRange(
+            val spentTodayCents = localDataSource.getTotalSpentInRange(
                 today.toString(),
                 today.plusDays(1).toString()
             ) ?: 0L
@@ -118,7 +85,7 @@ class BudgetRepository(
     fun getTimelineLockState(): Flow<TimelineLockState> {
         return combine(
             userSettings,
-            expenseDao.observeLatestExpenseDate(),
+            localDataSource.observeLatestExpenseDate(),
             getEffectiveCurrentDate()
         ) { settings, latestExpenseDate, effectiveCurrentDate ->
             buildTimelineLockState(
@@ -129,20 +96,20 @@ class BudgetRepository(
         }.distinctUntilChanged()
     }
 
-    suspend fun addExpense(expense: Expense): Long = expenseDao.insert(expense)
+    suspend fun addExpense(expense: Expense): Long = localDataSource.addExpense(expense)
 
     suspend fun updateExpense(expense: Expense) {
-        expenseDao.update(expense)
+        localDataSource.updateExpense(expense)
     }
 
     suspend fun deleteExpense(expense: Expense) {
-        expenseDao.delete(expense)
+        localDataSource.deleteExpense(expense)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     fun getTodayExpenses(): Flow<List<Expense>> {
         return getEffectiveCurrentDate().flatMapLatest { now ->
-            expenseDao.getExpensesByDateRange(
+            localDataSource.getExpensesByDateRange(
                 startDateInclusive = now.toString(),
                 endDateExclusive = now.plusDays(1).toString()
             )
@@ -153,7 +120,7 @@ class BudgetRepository(
         return combine(
             userSettings,
             getBudgetState(),
-            expenseDao.getAllExpensesOrderedByTimestampDesc(),
+            localDataSource.getAllExpensesOrderedByTimestampDesc(),
             getEffectiveCurrentDate()
         ) { settings, budgetState, allExpenses, today ->
             val cycleStart = budgetState.cycleStartDate
@@ -178,8 +145,8 @@ class BudgetRepository(
     fun getHistorySections(): Flow<List<ExpenseCycleSection>> {
         return combine(
             userSettings,
-            monthlyHistoryDao.getAllHistory(),
-            expenseDao.getAllExpensesOrderedByTimestampDesc(),
+            localDataSource.getAllHistory(),
+            localDataSource.getAllExpensesOrderedByTimestampDesc(),
             getBudgetState(),
             getEffectiveCurrentDate()
         ) { settings, history, allExpenses, budgetState, today ->
@@ -287,7 +254,7 @@ class BudgetRepository(
     fun getPendingCycleCloseoutState(): Flow<PendingCycleCloseoutState?> {
         return combine(
             userSettings,
-            expenseDao.getAllExpensesOrderedByTimestampDesc()
+            localDataSource.getAllExpensesOrderedByTimestampDesc()
         ) { settings, allExpenses ->
             val pendingCycle = settings.pendingCycleRangeOrNull() ?: return@combine null
             val cycleExpenses = allExpenses.filterByRange(pendingCycle.start, pendingCycle.endExclusive)
@@ -330,11 +297,11 @@ class BudgetRepository(
     }
 
     suspend fun updateMonthlyBudget(amountCents: Long) {
-        userPreferencesManager.updateMonthlyBudget(amountCents)
+        localDataSource.updateMonthlyBudget(amountCents)
     }
 
     suspend fun updatePaydayDate(day: Int) {
-        userPreferencesManager.updatePaydayDate(day)
+        localDataSource.updatePaydayDate(day)
     }
 
     suspend fun completeOnboarding(
@@ -343,17 +310,17 @@ class BudgetRepository(
         cycleStartDate: LocalDate,
         previousExpensesCents: Long
     ) {
-        userPreferencesManager.updateMonthlyBudget(monthlyBudgetCents)
-        userPreferencesManager.updatePaydayDate(paydayDate)
-        userPreferencesManager.updateLastResetTimestamp(cycleStartDate.toStartOfDayMillis())
-        userPreferencesManager.updateLastSeenDate(currentDateProvider.currentDate())
+        localDataSource.updateMonthlyBudget(monthlyBudgetCents)
+        localDataSource.updatePaydayDate(paydayDate)
+        localDataSource.updateLastResetTimestamp(cycleStartDate.toStartOfDayMillis())
+        localDataSource.updateLastSeenDate(currentDateProvider.currentDate())
 
         if (previousExpensesCents > 0L) {
             val previousCycleStart = budgetCalculationService.getCycleStartDate(
                 cycleStartDate.minusDays(1),
                 paydayDate
             )
-            monthlyHistoryDao.insert(
+            localDataSource.insertHistory(
                 MonthlyHistory(
                     cycleStartDate = previousCycleStart.toString(),
                     budgetAmountCents = monthlyBudgetCents,
@@ -368,7 +335,7 @@ class BudgetRepository(
             )
         }
 
-        userPreferencesManager.completeOnboarding()
+        localDataSource.completeOnboarding()
     }
 
     suspend fun checkAndPerformMonthlyReset(settings: UserSettings, now: LocalDate) {
@@ -386,7 +353,7 @@ class BudgetRepository(
 
         if (existingPending != null && existingPending.endExclusive.isBefore(currentCycleStart)) {
             archiveCycleIfNeeded(settings, existingPending.start, existingPending.endExclusive)
-            userPreferencesManager.clearPendingCycle()
+            localDataSource.clearPendingCycle()
         }
 
         val endedCycles = buildEndedCycles(
@@ -395,7 +362,7 @@ class BudgetRepository(
             paydayDate = settings.paydayDate
         )
         if (endedCycles.isEmpty()) {
-            userPreferencesManager.updateLastResetTimestamp(currentCycleStart.toStartOfDayMillis())
+            localDataSource.updateLastResetTimestamp(currentCycleStart.toStartOfDayMillis())
             return
         }
 
@@ -404,22 +371,22 @@ class BudgetRepository(
         }
 
         val latestEndedCycle = endedCycles.last()
-        userPreferencesManager.setPendingCycle(
+        localDataSource.setPendingCycle(
             cycleStartDate = latestEndedCycle.start,
             cycleEndDateExclusive = latestEndedCycle.endExclusive,
             detectedAtTimestamp = Instant.now().toEpochMilli()
         )
-        userPreferencesManager.updateLastResetTimestamp(currentCycleStart.toStartOfDayMillis())
+        localDataSource.updateLastResetTimestamp(currentCycleStart.toStartOfDayMillis())
     }
 
     suspend fun concludePendingCycle(settings: UserSettings) {
         val pendingCycle = settings.pendingCycleRangeOrNull() ?: return
         archiveCycleIfNeeded(settings, pendingCycle.start, pendingCycle.endExclusive)
-        userPreferencesManager.clearPendingCycle()
+        localDataSource.clearPendingCycle()
     }
 
     fun getMonthlyHistory(): Flow<List<MonthlyHistory>> {
-        return monthlyHistoryDao.getAllHistory().map { history ->
+        return localDataSource.getAllHistory().map { history ->
             history
                 .filter { it.totalSpentCents > 0L }
                 .sortedByDescending { it.endTimestamp }
@@ -436,12 +403,12 @@ class BudgetRepository(
             }
             .distinctUntilChanged()
             .flatMapLatest { lookbackDate ->
-                expenseDao.getExpensesSince(lookbackDate)
+                localDataSource.getExpensesSince(lookbackDate)
             }
 
         return combine(
             getBudgetState(),
-            monthlyHistoryDao.getAllHistory(),
+            localDataSource.getAllHistory(),
             nowFlow,
             recentExpensesFlow
         ) { budgetState, history, now, recentExpenses ->
@@ -461,11 +428,11 @@ class BudgetRepository(
         cycleEnd: LocalDate
     ) {
         val endTime = cycleEnd.toStartOfDayMillis()
-        val totalSpentCents = expenseDao.getTotalSpentInRange(
+        val totalSpentCents = localDataSource.getTotalSpentInRange(
             cycleStart.toString(),
             cycleEnd.toString()
         ) ?: 0L
-        val expenseCount = expenseDao.getExpenseCountInRange(
+        val expenseCount = localDataSource.getExpenseCountInRange(
             cycleStart.toString(),
             cycleEnd.toString()
         )
@@ -485,7 +452,7 @@ class BudgetRepository(
             cycleEndDate = cycleEnd.toString(),
             endTimestamp = endTime
         )
-        monthlyHistoryDao.insert(history)
+        localDataSource.insertHistory(history)
     }
 
     private fun buildEndedCycles(
@@ -515,16 +482,16 @@ class BudgetRepository(
         )
         if (!previousCycleStart.isBefore(currentCycleStart)) return
 
-        val archivedPreviousCycle = monthlyHistoryDao.getHistoryForCycle(previousCycleStart.toString())
+        val archivedPreviousCycle = localDataSource.getHistoryForCycle(previousCycleStart.toString())
         if (archivedPreviousCycle != null) return
 
-        val previousCycleExpenseCount = expenseDao.getExpenseCountInRange(
+        val previousCycleExpenseCount = localDataSource.getExpenseCountInRange(
             previousCycleStart.toString(),
             currentCycleStart.toString()
         )
         if (previousCycleExpenseCount == 0) return
 
-        userPreferencesManager.setPendingCycle(
+        localDataSource.setPendingCycle(
             cycleStartDate = previousCycleStart,
             cycleEndDateExclusive = currentCycleStart,
             detectedAtTimestamp = Instant.now().toEpochMilli()
@@ -617,7 +584,7 @@ class BudgetRepository(
     suspend fun syncObservedDate(settings: UserSettings, observedDate: LocalDate): LocalDate {
         val lastSeenDate = settings.lastSeenDateOrNull()
         if (ObservedDatePolicy.shouldPersist(lastSeenDate, observedDate)) {
-            userPreferencesManager.updateLastSeenDate(observedDate)
+            localDataSource.updateLastSeenDate(observedDate)
         }
         return effectiveCurrentDate(settings, observedDate)
     }

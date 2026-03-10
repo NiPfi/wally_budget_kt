@@ -4,8 +4,9 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.room.Room
-import net.loeu.wallybudget.data.local.BudgetDatabase
-import net.loeu.wallybudget.data.local.UserPreferencesManager
+import net.loeu.wallybudget.data.local.db.BudgetDatabase
+import net.loeu.wallybudget.data.local.preferences.UserPreferencesManager
+import net.loeu.wallybudget.data.local.source.BudgetLocalDataSource
 import net.loeu.wallybudget.data.repository.BudgetRepository
 import net.loeu.wallybudget.data.time.SystemCurrentDateProvider
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
@@ -50,9 +51,11 @@ class BudgetViewModelFactory(
 
     private val repository by lazy {
         BudgetRepository(
-            expenseDao = database.expenseDao(),
-            monthlyHistoryDao = database.monthlyHistoryDao(),
-            userPreferencesManager = userPreferencesManager,
+            localDataSource = BudgetLocalDataSource(
+                expenseDao = database.expenseDao(),
+                monthlyHistoryDao = database.monthlyHistoryDao(),
+                userPreferencesManager = userPreferencesManager
+            ),
             budgetCalculationService = budgetCalculationService,
             currentDateProvider = currentDateProvider
         )

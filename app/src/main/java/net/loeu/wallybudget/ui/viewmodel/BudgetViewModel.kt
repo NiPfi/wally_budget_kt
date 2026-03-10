@@ -10,31 +10,21 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import net.loeu.wallybudget.data.model.BudgetState
-import net.loeu.wallybudget.data.model.Expense
-import net.loeu.wallybudget.data.model.ExpenseCategory
-import net.loeu.wallybudget.data.model.ExpenseCycleSection
-import net.loeu.wallybudget.data.model.ExpenseDaySection
-import net.loeu.wallybudget.data.model.MonthlyHistory
-import net.loeu.wallybudget.data.model.PendingCycleCloseoutState
-import net.loeu.wallybudget.data.model.SpendingForecast
-import net.loeu.wallybudget.data.model.TimelineLockState
-import net.loeu.wallybudget.data.model.UserSettings
+import net.loeu.wallybudget.domain.model.BudgetState
+import net.loeu.wallybudget.data.local.entity.Expense
+import net.loeu.wallybudget.domain.model.ExpenseCategory
+import net.loeu.wallybudget.ui.model.ExpenseCycleSection
+import net.loeu.wallybudget.ui.model.ExpenseDaySection
+import net.loeu.wallybudget.data.local.entity.MonthlyHistory
+import net.loeu.wallybudget.ui.model.PendingCycleCloseoutState
+import net.loeu.wallybudget.domain.model.SpendingForecast
+import net.loeu.wallybudget.domain.model.TimelineLockState
+import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.data.repository.BudgetRepository
 import net.loeu.wallybudget.data.time.CurrentDateProvider
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-
-internal object ExpenseEntryDatePolicy {
-    fun resolveRequestedDate(requestedDate: LocalDate?, effectiveCurrentDate: LocalDate): LocalDate {
-        return when {
-            requestedDate == null -> effectiveCurrentDate
-            requestedDate.isAfter(effectiveCurrentDate) -> effectiveCurrentDate
-            else -> requestedDate
-        }
-    }
-}
 
 class BudgetViewModel(
     private val repository: BudgetRepository,
