@@ -13,10 +13,17 @@ import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.domain.config.ForecastConfig
 import net.loeu.wallybudget.domain.model.SpendingForecast
+import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.usecase.internal.buildBudgetState
 import net.loeu.wallybudget.domain.usecase.internal.effectiveCurrentDate
 import net.loeu.wallybudget.domain.usecase.internal.filterByRange
+import java.time.LocalDate
+
+private data class EffectiveForecastInputs(
+    val settings: UserSettings,
+    val today: LocalDate
+)
 
 class ObserveForecastUseCase(
     private val expenseDao: ExpenseDao,
@@ -28,12 +35,18 @@ class ObserveForecastUseCase(
     @OptIn(ExperimentalCoroutinesApi::class)
     operator fun invoke(): Flow<SpendingForecast> {
         val userSettings = userSettingsStore.userSettings
-        val effectiveDate = combine(
+        val effectiveInputs = combine(
             userSettings,
             currentDateProvider.observeCurrentDate()
         ) { settings, observedDate ->
-            effectiveCurrentDate(settings, observedDate)
+            EffectiveForecastInputs(
+                settings = settings,
+                today = effectiveCurrentDate(settings, observedDate)
+            )
         }.distinctUntilChanged()
+        val effectiveDate = effectiveInputs
+            .map { inputs -> inputs.today }
+            .distinctUntilChanged()
         val history = monthlyHistoryDao.observeAll().map { entries ->
             entries.map { it.toDomainModel() }
         }
@@ -50,28 +63,27 @@ class ObserveForecastUseCase(
             }
 
         return combine(
-            userSettings,
-            effectiveDate,
+            effectiveInputs,
             history,
             recentExpenses
-        ) { settings, today, historyEntries, recentExpenseEntries ->
+        ) { inputs, historyEntries, recentExpenseEntries ->
             val currentCycleRange = budgetCalculationService.getCurrentCycleProgressRange(
-                now = today,
-                paydayDate = settings.paydayDate
+                now = inputs.today,
+                paydayDate = inputs.settings.paydayDate
             )
             val currentCycleExpenses = recentExpenseEntries.filterByRange(
                 start = currentCycleRange.start,
                 endExclusive = currentCycleRange.endExclusive
             )
             val todayExpenses = currentCycleExpenses.filterByRange(
-                start = today,
-                endExclusive = today.plusDays(1)
+                start = inputs.today,
+                endExclusive = inputs.today.plusDays(1)
             )
             val totalSpentThisCycleCents = currentCycleExpenses.sumOf { it.amountCents }
             val spentTodayCents = todayExpenses.sumOf { it.amountCents }
             val budgetState = buildBudgetState(
-                settings = settings,
-                today = today,
+                settings = inputs.settings,
+                today = inputs.today,
                 history = historyEntries,
                 totalSpentThisCycleCents = totalSpentThisCycleCents,
                 spentTodayCents = spentTodayCents,
@@ -79,7 +91,7 @@ class ObserveForecastUseCase(
             )
             budgetCalculationService.calculateSpendingForecast(
                 budgetState = budgetState,
-                now = today,
+                now = inputs.today,
                 monthlyHistory = historyEntries,
                 recentExpenses = recentExpenseEntries
             )
