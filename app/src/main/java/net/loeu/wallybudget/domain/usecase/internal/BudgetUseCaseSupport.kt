@@ -71,21 +71,14 @@ internal fun List<ExpenseDayTotalRow>.toDayTotalsMap(): Map<LocalDate, Long> {
 internal fun buildBudgetState(
     settings: UserSettings,
     today: LocalDate,
-    allExpenses: List<Expense>,
     history: List<MonthlyHistory>,
+    totalSpentThisCycleCents: Long,
+    spentTodayCents: Long,
     budgetCalculationService: BudgetCalculationService
 ): BudgetState {
     val currentCycleRange = budgetCalculationService.getCurrentCycleProgressRange(
         now = today,
         paydayDate = settings.paydayDate
-    )
-    val cycleExpenses = allExpenses.filterByRange(
-        start = currentCycleRange.start,
-        endExclusive = currentCycleRange.endExclusive
-    )
-    val todayExpenses = allExpenses.filterByRange(
-        start = today,
-        endExclusive = today.plusDays(1)
     )
     val cumulativeSavingsCents = history
         .filter { !it.getCycleEnd().isAfter(currentCycleRange.start) }
@@ -94,8 +87,8 @@ internal fun buildBudgetState(
     return budgetCalculationService.calculateBudgetState(
         settings = settings,
         now = today,
-        totalSpentThisCycleCents = cycleExpenses.sumOf { it.amountCents },
-        spentTodayCents = todayExpenses.sumOf { it.amountCents },
+        totalSpentThisCycleCents = totalSpentThisCycleCents,
+        spentTodayCents = spentTodayCents,
         cumulativeSavingsCents = cumulativeSavingsCents
     )
 }

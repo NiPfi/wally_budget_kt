@@ -58,11 +58,24 @@ class ObserveForecastUseCase(
             history,
             recentExpenses
         ) { settings, today, expenses, historyEntries, recentExpenseEntries ->
+            val currentCycleRange = budgetCalculationService.getCurrentCycleProgressRange(
+                now = today,
+                paydayDate = settings.paydayDate
+            )
+            val totalSpentThisCycleCents = expenseDao.totalSpentInRange(
+                currentCycleRange.start.toString(),
+                currentCycleRange.endExclusive.toString()
+            ) ?: 0L
+            val spentTodayCents = expenseDao.totalSpentInRange(
+                today.toString(),
+                today.plusDays(1).toString()
+            ) ?: 0L
             val budgetState = buildBudgetState(
                 settings = settings,
                 today = today,
-                allExpenses = expenses,
                 history = historyEntries,
+                totalSpentThisCycleCents = totalSpentThisCycleCents,
+                spentTodayCents = spentTodayCents,
                 budgetCalculationService = budgetCalculationService
             )
             budgetCalculationService.calculateSpendingForecast(
