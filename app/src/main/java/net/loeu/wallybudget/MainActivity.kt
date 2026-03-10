@@ -129,9 +129,7 @@ fun BudgetApp(
     when {
         isOnboardingCompleted != true -> {
             OnboardingScreen(
-                onComplete = { budgetCents, payday, cycleStartDate, previousExpensesCents ->
-                    viewModel.completeOnboarding(budgetCents, payday, cycleStartDate, previousExpensesCents)
-                }
+                onComplete = viewModel::completeOnboarding
             )
         }
 
@@ -139,14 +137,12 @@ fun BudgetApp(
             PendingCycleFlow(
                 pendingCycle = pendingCycleCloseoutState!!,
                 showAddExpenseSheet = isAddExpenseSheetVisible,
-                onShowAddExpenseSheet = { viewModel.showAddExpenseSheet() },
-                onHideAddExpenseSheet = { viewModel.hideAddExpenseSheet() },
-                onConcludeCycle = { viewModel.concludePendingCycle() },
-                onAddExpense = { amountCents, description, icon, date ->
-                    viewModel.addExpense(amountCents, description, icon, date)
-                },
-                onUpdateExpense = { expense -> viewModel.updateExpense(expense) },
-                onDeleteExpense = { expense -> viewModel.deleteExpense(expense) },
+                onShowAddExpenseSheet = viewModel::showAddExpenseSheet,
+                onHideAddExpenseSheet = viewModel::hideAddExpenseSheet,
+                onConcludeCycle = viewModel::concludePendingCycle,
+                onAddExpense = viewModel::addExpense,
+                onUpdateExpense = viewModel::updateExpense,
+                onDeleteExpense = viewModel::deleteExpense,
                 modifier = modifier
             )
         }
@@ -164,25 +160,19 @@ fun BudgetApp(
                     historySections = historySections,
                     userSettings = userSettings,
                     showAddExpenseSheet = isAddExpenseSheetVisible,
-                    onShowAddExpenseSheet = { viewModel.showAddExpenseSheet() },
-                    onHideAddExpenseSheet = { viewModel.hideAddExpenseSheet() },
-                    onAddExpense = { amountCents, description, icon, date ->
-                        viewModel.addExpense(amountCents, description, icon, date)
-                    },
-                    onUpdateExpense = { expense -> viewModel.updateExpense(expense) },
-                    onDeleteExpense = { expense -> viewModel.deleteExpense(expense) },
-                    onRestoreExpense = { expense -> viewModel.restoreDeletedExpense(expense) },
-                    onUpdateBudget = { budgetCents -> viewModel.updateMonthlyBudget(budgetCents) },
-                    onUpdatePayday = { payday -> viewModel.updatePaydayDate(payday) },
+                    onShowAddExpenseSheet = viewModel::showAddExpenseSheet,
+                    onHideAddExpenseSheet = viewModel::hideAddExpenseSheet,
+                    onAddExpense = viewModel::addExpense,
+                    onUpdateExpense = viewModel::updateExpense,
+                    onDeleteExpense = viewModel::deleteExpense,
+                    onRestoreExpense = viewModel::restoreDeletedExpense,
+                    onUpdateBudget = viewModel::updateMonthlyBudget,
+                    onUpdatePayday = viewModel::updatePaydayDate,
                     timelineLockReason = timelineLockState.reason,
                     modifier = modifier
                 )
             }
-            if (isHomeDataLoading) {
-                PlaceholderShimmerProvider(content = shellContent)
-            } else {
-                shellContent()
-            }
+            if (isHomeDataLoading) PlaceholderShimmerProvider(content = shellContent) else shellContent()
         }
     }
 }

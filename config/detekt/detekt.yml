@@ -11,7 +11,7 @@ complexity:
     allowedComplexity: 14
   LongMethod:
     active: true
-    allowedLines: 90
+    allowedLines: 80
   LongParameterList:
     active: true
     ignoreDefaultParameters: false

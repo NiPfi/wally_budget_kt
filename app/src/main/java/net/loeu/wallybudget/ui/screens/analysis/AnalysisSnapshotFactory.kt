@@ -54,17 +54,13 @@ internal object AnalysisSnapshotFactory {
             spendingForecast = spendingForecast,
             behaviorProfile = behaviorProfile
         )
-        val paceRiskPoints = when {
-            paceGapCents >= max(500L, budgetState.dailyBudgetCents / 10) -> 2
-            paceGapCents > 0L -> 1
-            else -> 0
-        }
-        val safeTodayRiskPoints = when {
-            safeToSpendNowCents == 0L -> 2
-            safeToSpendNowCents < max(1_000L, budgetState.dailyBudgetCents / 2) -> 1
-            else -> 0
-        }
-        val totalRiskPoints = forecastRiskPoints + behaviorRiskPoints + paceRiskPoints + safeTodayRiskPoints
+        val totalRiskPoints = snapshotTotalRiskPoints(
+            budgetState = budgetState,
+            paceGapCents = paceGapCents,
+            safeToSpendNowCents = safeToSpendNowCents,
+            forecastRiskPoints = forecastRiskPoints,
+            behaviorRiskPoints = behaviorRiskPoints
+        )
         val monitorAfterDays = monitorAfterDays(
             daysRemainingInCycle = budgetState.daysRemainingInCycle,
             confidenceBand = confidenceBand
@@ -89,6 +85,14 @@ internal object AnalysisSnapshotFactory {
             showHistoryFallback = behaviorHistory.isEmpty(),
             timelineLockReason = timelineLockReason
         )
+        val evidence = buildEvidence(
+            budgetState = budgetState,
+            spendingForecast = spendingForecast,
+            paceGapCents = paceGapCents,
+            safeToSpendNowCents = safeToSpendNowCents,
+            availableRecoverableOverspendCents = availableRecoverableOverspendCents,
+            behaviorProfile = behaviorProfile
+        )
 
         return buildAnalysisSnapshot(
             verdict = verdict,
@@ -97,20 +101,11 @@ internal object AnalysisSnapshotFactory {
             spendingForecast = spendingForecast,
             behaviorProfile = behaviorProfile,
             safeToSpendNowCents = safeToSpendNowCents,
+            evidence = evidence,
             recommendations = recommendations,
             monitorAfterDays = monitorAfterDays,
             showHistoryFallback = behaviorHistory.isEmpty(),
-            historyFallbackText = historyFallbackText,
-            buildEvidence = { profile ->
-                buildEvidence(
-                    budgetState = budgetState,
-                    spendingForecast = spendingForecast,
-                    paceGapCents = paceGapCents,
-                    safeToSpendNowCents = safeToSpendNowCents,
-                    availableRecoverableOverspendCents = availableRecoverableOverspendCents,
-                    behaviorProfile = profile
-                )
-            }
+            historyFallbackText = historyFallbackText
         )
     }
 
@@ -467,11 +462,11 @@ private fun buildAnalysisSnapshot(
     spendingForecast: SpendingForecast,
     behaviorProfile: HistoricalBehaviorProfile?,
     safeToSpendNowCents: Long,
+    evidence: List<AnalysisEvidenceItem>,
     recommendations: List<AnalysisRecommendation>,
     monitorAfterDays: Int?,
     showHistoryFallback: Boolean,
-    historyFallbackText: String?,
-    buildEvidence: (HistoricalBehaviorProfile?) -> List<AnalysisEvidenceItem>
+    historyFallbackText: String?
 ): AnalysisSnapshot {
     return AnalysisSnapshot(
         verdictLevel = verdict,
@@ -485,7 +480,7 @@ private fun buildAnalysisSnapshot(
             safeToSpendNowCents = safeToSpendNowCents,
             monitorAfterDays = monitorAfterDays
         ),
-        evidence = buildEvidence(behaviorProfile),
+        evidence = evidence,
         recommendations = recommendations,
         confidenceLabel = confidenceBand.label,
         confidenceExplanation = confidenceExplanation(
@@ -501,6 +496,26 @@ private fun buildAnalysisSnapshot(
         showHistoryFallback = showHistoryFallback,
         historyFallbackText = historyFallbackText
     )
+}
+
+private fun snapshotTotalRiskPoints(
+    budgetState: BudgetState,
+    paceGapCents: Long,
+    safeToSpendNowCents: Long,
+    forecastRiskPoints: Int,
+    behaviorRiskPoints: Int
+): Int {
+    val paceRiskPoints = when {
+        paceGapCents >= max(500L, budgetState.dailyBudgetCents / 10) -> 2
+        paceGapCents > 0L -> 1
+        else -> 0
+    }
+    val safeTodayRiskPoints = when {
+        safeToSpendNowCents == 0L -> 2
+        safeToSpendNowCents < max(1_000L, budgetState.dailyBudgetCents / 2) -> 1
+        else -> 0
+    }
+    return forecastRiskPoints + behaviorRiskPoints + paceRiskPoints + safeTodayRiskPoints
 }
 
 private fun historyStillBuildingEvidence(

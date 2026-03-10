@@ -84,11 +84,7 @@ fun OverviewPage(
     val listState = rememberLazyListState()
     val density = LocalDensity.current
     val defaultCollapseOffsetPx = remember(defaultCollapsedHeader, density) {
-        if (defaultCollapsedHeader) {
-            with(density) { 64.dp.toPx() }
-        } else {
-            0f
-        }
+        if (defaultCollapsedHeader) with(density) { 64.dp.toPx() } else 0f
     }
     var collapseOffsetPx by remember(defaultCollapsedHeader, density) {
         mutableFloatStateOf(defaultCollapseOffsetPx)
@@ -105,9 +101,7 @@ fun OverviewPage(
 
     SideEffect {
         val normalizedCollapseOffsetPx = collapseOffsetPx.coerceIn(0f, maxCollapseRangePx.value)
-        if (normalizedCollapseOffsetPx != collapseOffsetPx) {
-            collapseOffsetPx = normalizedCollapseOffsetPx
-        }
+        if (normalizedCollapseOffsetPx != collapseOffsetPx) collapseOffsetPx = normalizedCollapseOffsetPx
     }
 
     OverviewInfoDialogs(

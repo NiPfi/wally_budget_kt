@@ -58,39 +58,23 @@ internal fun OverviewContentLayout(
             .nestedScroll(nestedScrollConnection)
             .clipToBounds()
     ) { constraints ->
-        val horizontalPaddingPx = with(density) { headerHorizontalPadding.roundToPx() }
-        val topPaddingPx = with(density) { headerTopPadding.roundToPx() }
-        val bottomSpacingPx = with(density) { headerBottomSpacing.roundToPx() }
-        val headerConstraints = constraints.copy(
-            minWidth = 0,
-            minHeight = 0,
-            maxWidth = (constraints.maxWidth - (horizontalPaddingPx * 2)).coerceAtLeast(0)
-        )
-        val expandedHeaderHeightPx = measureSummaryCardHeight(
-            slotId = "expandedHeaderMeasure",
-            collapseProgress = 0f,
+        val headerMetrics = measureHeaderMetrics(
+            constraints = constraints,
+            density = density,
+            headerHorizontalPadding = headerHorizontalPadding,
+            headerTopPadding = headerTopPadding,
+            headerBottomSpacing = headerBottomSpacing,
             budgetState = budgetState,
-            recoverableOverspendCents = availableRecoverableOverspendCents,
+            availableRecoverableOverspendCents = availableRecoverableOverspendCents,
             isLoading = isLoading,
             useWarningTint = useWarningTint,
-            onSafeTodayInfoClick = onShowSafeTodayDetails,
-            onNavigateToSettings = onNavigateToSettings,
-            constraints = headerConstraints
-        )
-        val collapsedHeaderHeightPx = measureSummaryCardHeight(
-            slotId = "collapsedHeaderMeasure",
-            collapseProgress = 1f,
-            budgetState = budgetState,
-            recoverableOverspendCents = availableRecoverableOverspendCents,
-            isLoading = isLoading,
-            useWarningTint = useWarningTint,
-            onSafeTodayInfoClick = onShowSafeTodayDetails,
-            onNavigateToSettings = onNavigateToSettings,
-            constraints = headerConstraints,
-            fallbackHeight = expandedHeaderHeightPx
+            onShowSafeTodayDetails = onShowSafeTodayDetails,
+            onNavigateToSettings = onNavigateToSettings
         )
         val maxCollapsePx = if (enableHeaderCollapse) {
-            (expandedHeaderHeightPx - collapsedHeaderHeightPx).coerceAtLeast(0).toFloat()
+            (headerMetrics.expandedHeaderHeightPx - headerMetrics.collapsedHeaderHeightPx)
+                .coerceAtLeast(0)
+                .toFloat()
         } else {
             0f
         }
@@ -114,7 +98,7 @@ internal fun OverviewContentLayout(
                 onEditTodayExpense = onEditTodayExpense,
                 listState = listState,
                 density = density,
-                topContentPaddingPx = expandedHeaderHeightPx + topPaddingPx + bottomSpacingPx,
+                topContentPaddingPx = headerMetrics.topContentPaddingPx,
                 bottomContentPadding = bottomContentPadding,
                 isLoading = isLoading,
                 onShowForecastDetails = onShowForecastDetails,
@@ -132,14 +116,79 @@ internal fun OverviewContentLayout(
                 onShowSafeTodayDetails = onShowSafeTodayDetails,
                 onNavigateToSettings = onNavigateToSettings
             )
-        }.map { it.measure(headerConstraints) }
+        }.map { it.measure(headerMetrics.headerConstraints) }
 
         layout(constraints.maxWidth, constraints.maxHeight) {
             val contentOffsetY = -clampedCollapseOffsetPx.roundToInt()
             contentPlaceables.forEach { it.placeRelative(0, contentOffsetY) }
-            headerPlaceables.forEach { it.placeRelative(horizontalPaddingPx, topPaddingPx) }
+            headerPlaceables.forEach {
+                it.placeRelative(headerMetrics.horizontalPaddingPx, headerMetrics.topPaddingPx)
+            }
         }
     }
+}
+
+private data class OverviewHeaderMetrics(
+    val horizontalPaddingPx: Int,
+    val topPaddingPx: Int,
+    val headerConstraints: Constraints,
+    val expandedHeaderHeightPx: Int,
+    val collapsedHeaderHeightPx: Int,
+    val topContentPaddingPx: Int
+)
+
+private fun SubcomposeMeasureScope.measureHeaderMetrics(
+    constraints: Constraints,
+    density: Density,
+    headerHorizontalPadding: Dp,
+    headerTopPadding: Dp,
+    headerBottomSpacing: Dp,
+    budgetState: BudgetState,
+    availableRecoverableOverspendCents: Long,
+    isLoading: Boolean,
+    useWarningTint: Boolean,
+    onShowSafeTodayDetails: () -> Unit,
+    onNavigateToSettings: (() -> Unit)?
+): OverviewHeaderMetrics {
+    val horizontalPaddingPx = with(density) { headerHorizontalPadding.roundToPx() }
+    val topPaddingPx = with(density) { headerTopPadding.roundToPx() }
+    val bottomSpacingPx = with(density) { headerBottomSpacing.roundToPx() }
+    val headerConstraints = constraints.copy(
+        minWidth = 0,
+        minHeight = 0,
+        maxWidth = (constraints.maxWidth - (horizontalPaddingPx * 2)).coerceAtLeast(0)
+    )
+    val expandedHeaderHeightPx = measureSummaryCardHeight(
+        slotId = "expandedHeaderMeasure",
+        collapseProgress = 0f,
+        budgetState = budgetState,
+        recoverableOverspendCents = availableRecoverableOverspendCents,
+        isLoading = isLoading,
+        useWarningTint = useWarningTint,
+        onSafeTodayInfoClick = onShowSafeTodayDetails,
+        onNavigateToSettings = onNavigateToSettings,
+        constraints = headerConstraints
+    )
+    val collapsedHeaderHeightPx = measureSummaryCardHeight(
+        slotId = "collapsedHeaderMeasure",
+        collapseProgress = 1f,
+        budgetState = budgetState,
+        recoverableOverspendCents = availableRecoverableOverspendCents,
+        isLoading = isLoading,
+        useWarningTint = useWarningTint,
+        onSafeTodayInfoClick = onShowSafeTodayDetails,
+        onNavigateToSettings = onNavigateToSettings,
+        constraints = headerConstraints,
+        fallbackHeight = expandedHeaderHeightPx
+    )
+    return OverviewHeaderMetrics(
+        horizontalPaddingPx = horizontalPaddingPx,
+        topPaddingPx = topPaddingPx,
+        headerConstraints = headerConstraints,
+        expandedHeaderHeightPx = expandedHeaderHeightPx,
+        collapsedHeaderHeightPx = collapsedHeaderHeightPx,
+        topContentPaddingPx = expandedHeaderHeightPx + topPaddingPx + bottomSpacingPx
+    )
 }
 
 @Composable

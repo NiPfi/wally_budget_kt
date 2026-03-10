@@ -187,47 +187,72 @@ private fun SummaryCardPrimaryRow(
             }
         }
 
-        Box(contentAlignment = Alignment.CenterEnd) {
-            if (onNavigateToSettings != null) {
-                IconButton(
-                    onClick = onNavigateToSettings,
-                    modifier = Modifier.graphicsLayer {
-                        alpha = iconAlpha
-                        translationY = iconOffsetPx
-                    }
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_settings),
-                        contentDescription = "Settings",
-                        tint = contentColor
-                    )
-                }
-            }
+        SummaryCardTrailingInfo(
+            daysRemainingInCycle = budgetState.daysRemainingInCycle,
+            contentColor = contentColor,
+            progress = progress,
+            iconAlpha = iconAlpha,
+            iconOffsetPx = iconOffsetPx,
+            rightTopOffsetPx = rightTopOffsetPx,
+            isLoading = isLoading,
+            animateCounters = animateCounters,
+            onNavigateToSettings = onNavigateToSettings
+        )
+    }
+}
 
-            Column(
-                horizontalAlignment = Alignment.End,
+@Composable
+private fun SummaryCardTrailingInfo(
+    daysRemainingInCycle: Int,
+    contentColor: Color,
+    progress: Float,
+    iconAlpha: Float,
+    iconOffsetPx: Float,
+    rightTopOffsetPx: Float,
+    isLoading: Boolean,
+    animateCounters: Boolean,
+    onNavigateToSettings: (() -> Unit)?
+) {
+    Box(contentAlignment = Alignment.CenterEnd) {
+        if (onNavigateToSettings != null) {
+            IconButton(
+                onClick = onNavigateToSettings,
                 modifier = Modifier.graphicsLayer {
-                    alpha = progress
-                    translationY = rightTopOffsetPx
+                    alpha = iconAlpha
+                    translationY = iconOffsetPx
                 }
             ) {
-                Text(
-                    text = "DAYS LEFT",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = contentColor.copy(alpha = 0.68f)
-                )
-                AnimatedIntegerCounter(
-                    value = budgetState.daysRemainingInCycle,
-                    textStyle = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = contentColor,
-                    animate = animateCounters,
-                    animateOnFirstResolvedValue = animateCounters,
-                    placeholder = isLoading,
-                    placeholderText = "88"
+                Icon(
+                    painter = painterResource(R.drawable.ic_settings),
+                    contentDescription = "Settings",
+                    tint = contentColor
                 )
             }
+        }
+
+        Column(
+            horizontalAlignment = Alignment.End,
+            modifier = Modifier.graphicsLayer {
+                alpha = progress
+                translationY = rightTopOffsetPx
+            }
+        ) {
+            Text(
+                text = "DAYS LEFT",
+                style = MaterialTheme.typography.labelSmall,
+                color = contentColor.copy(alpha = 0.68f)
+            )
+            AnimatedIntegerCounter(
+                value = daysRemainingInCycle,
+                textStyle = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = contentColor,
+                animate = animateCounters,
+                animateOnFirstResolvedValue = animateCounters,
+                placeholder = isLoading,
+                placeholderText = "88"
+            )
         }
     }
 }

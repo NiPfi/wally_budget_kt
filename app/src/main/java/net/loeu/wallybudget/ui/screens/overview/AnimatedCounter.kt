@@ -147,43 +147,79 @@ private fun AnimatedValueText(
         onActiveAnimationChange = { activeAnimation = it }
     )
 
-    if (placeholder) {
-        if (!fitToWidth) {
+    if (!fitToWidth) {
+        if (placeholder) {
             LoadingValuePlaceholder(
                 sampleText = placeholderText,
                 textStyle = resolvedTextStyle,
                 textAlign = textAlign,
                 modifier = modifier
             )
-            return
+        } else {
+            AnimatedValueTextWithoutWidthFitting(
+                displayText = displayText,
+                resolvedTextStyle = resolvedTextStyle,
+                color = color,
+                textAlign = textAlign,
+                modifier = modifier,
+                activeAnimation = activeAnimation
+            )
         }
-    }
-
-    if (!fitToWidth) {
-        AnimatedValueTextWithoutWidthFitting(
-            displayText = displayText,
-            resolvedTextStyle = resolvedTextStyle,
-            color = color,
-            textAlign = textAlign,
-            modifier = modifier,
-            activeAnimation = activeAnimation
-        )
         return
     }
 
+    AnimatedValueTextWithWidthFittingLayout(
+        modifier = modifier,
+        textAlign = textAlign,
+        placeholder = placeholder,
+        placeholderText = placeholderText,
+        displayText = displayText,
+        resolvedTextStyle = resolvedTextStyle,
+        minFontSize = minFontSize,
+        color = color,
+        activeAnimation = activeAnimation
+    )
+}
+
+private fun animatedMeasurementText(
+    placeholder: Boolean,
+    placeholderText: String,
+    displayText: String,
+    activeAnimation: RollingAnimation?
+): String {
+    return when {
+        placeholder -> placeholderText
+        activeAnimation != null -> widestAnimationText(activeAnimation)
+        else -> displayText
+    }
+}
+
+@Composable
+private fun AnimatedValueTextWithWidthFittingLayout(
+    modifier: Modifier,
+    textAlign: TextAlign,
+    placeholder: Boolean,
+    placeholderText: String,
+    displayText: String,
+    resolvedTextStyle: TextStyle,
+    minFontSize: TextUnit,
+    color: Color,
+    activeAnimation: RollingAnimation?
+) {
     val textMeasurer = rememberTextMeasurer()
 
     BoxWithConstraints(
         modifier = modifier,
         contentAlignment = textAlign.toPlaceholderAlignment()
     ) {
-        val availableWidthPx = with(LocalDensity.current) { maxWidth.toPx() }.roundToInt().coerceAtLeast(1)
-        val measurementText = when {
-            placeholder -> placeholderText
-            activeAnimation != null -> widestAnimationText(activeAnimation!!)
-            else -> displayText
-        }
-
+        val availableWidthPx =
+            with(LocalDensity.current) { maxWidth.toPx() }.roundToInt().coerceAtLeast(1)
+        val measurementText = animatedMeasurementText(
+            placeholder = placeholder,
+            placeholderText = placeholderText,
+            displayText = displayText,
+            activeAnimation = activeAnimation
+        )
         val candidateFontSize = remember(
             availableWidthPx,
             measurementText,
