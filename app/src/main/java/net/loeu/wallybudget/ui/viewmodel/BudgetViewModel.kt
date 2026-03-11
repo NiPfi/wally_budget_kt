@@ -1,4 +1,5 @@
 package net.loeu.wallybudget.ui.viewmodel
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.Flow
@@ -21,6 +22,7 @@ import net.loeu.wallybudget.domain.model.HistoryState
 import net.loeu.wallybudget.domain.model.HomeOverviewState
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
+import net.loeu.wallybudget.domain.model.SnapshotError
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.TimelineLockState
 import net.loeu.wallybudget.domain.model.UserSettings
@@ -30,6 +32,7 @@ import net.loeu.wallybudget.domain.usecase.CompleteOnboardingUseCase
 import net.loeu.wallybudget.domain.usecase.ConcludePendingCycleUseCase
 import net.loeu.wallybudget.domain.usecase.DeleteExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.EnsureBudgetPolicyHistoryUseCase
+import net.loeu.wallybudget.domain.usecase.ExportSnapshotUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveForecastUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveHomeOverviewUseCase
@@ -59,6 +62,7 @@ class BudgetViewModel(
     private val completeOnboardingUseCase: CompleteOnboardingUseCase,
     private val performMonthlyResetUseCase: PerformMonthlyResetUseCase,
     private val concludePendingCycleUseCase: ConcludePendingCycleUseCase,
+    private val exportSnapshotUseCase: ExportSnapshotUseCase,
     private val ensureBudgetPolicyHistoryUseCase: EnsureBudgetPolicyHistoryUseCase,
     private val rebuildMonthlyHistoryUseCase: RebuildMonthlyHistoryUseCase,
     private val resolveMutationEffectiveDateUseCase: ResolveMutationEffectiveDateUseCase,
@@ -166,6 +170,12 @@ class BudgetViewModel(
     // UI state
     private val _isAddExpenseSheetVisible = MutableStateFlow(false)
     val isAddExpenseSheetVisible = _isAddExpenseSheetVisible.asStateFlow()
+    private val _snapshotError = MutableStateFlow<SnapshotError?>(null)
+    val snapshotError = _snapshotError.asStateFlow()
+    private val _snapshotStatusMessage = MutableStateFlow<String?>(null)
+    val snapshotStatusMessage = _snapshotStatusMessage.asStateFlow()
+    private val _snapshotBusy = MutableStateFlow(false)
+    val snapshotBusy = _snapshotBusy.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -328,6 +338,29 @@ class BudgetViewModel(
         viewModelScope.launch {
             updatePaydayDateUseCase(day)
         }
+    }
+
+    fun exportSnapshot(uri: android.net.Uri) {
+        viewModelScope.launch {
+            _snapshotBusy.value = true
+            _snapshotError.value = null
+            _snapshotStatusMessage.value = null
+            try {
+                val bytesWritten = exportSnapshotUseCase(uri)
+                _snapshotStatusMessage.value = "Compressed snapshot exported (${bytesWritten} bytes)."
+            } catch (exception: Exception) {
+                _snapshotError.value = SnapshotError.IoFailure(
+                    exception.message ?: "Unable to export snapshot."
+                )
+            } finally {
+                _snapshotBusy.value = false
+            }
+        }
+    }
+
+    fun clearSnapshotFeedback() {
+        _snapshotError.value = null
+        _snapshotStatusMessage.value = null
     }
 }
 
