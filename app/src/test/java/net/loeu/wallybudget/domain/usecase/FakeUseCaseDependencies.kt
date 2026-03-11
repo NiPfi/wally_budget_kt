@@ -90,6 +90,10 @@ internal class FakeUserSettingsStore(
             pendingCycleDetectedAtTimestamp = 0L
         )
     }
+
+    override suspend fun restoreFromSnapshot(settings: UserSettings, onboardingCompleted: Boolean) {
+        mutableUserSettings.value = settings.copy(isOnboardingCompleted = onboardingCompleted)
+    }
 }
 
 internal class FakeTransactionRunner : TransactionRunner {
@@ -128,6 +132,10 @@ internal class FakeExpenseDao(
         expenses += inserted
         refresh()
         return inserted.id
+    }
+
+    override suspend fun insert(entities: List<ExpenseEntity>): List<Long> {
+        return entities.map { insert(it) }
     }
 
     override suspend fun update(expense: ExpenseEntity) {
@@ -227,6 +235,10 @@ internal class FakeMonthlyHistoryDao(
         return 1L
     }
 
+    override suspend fun insert(entities: List<MonthlyHistoryEntity>): List<Long> {
+        return entities.map { insert(it) }
+    }
+
     override fun observeAll(): Flow<List<MonthlyHistoryEntity>> = historyFlow
 
     override suspend fun findByCycleStart(cycleStartDate: String): MonthlyHistoryEntity? {
@@ -265,6 +277,10 @@ internal class FakeBudgetPolicyDao(
         policies += inserted
         refresh()
         return inserted.id
+    }
+
+    override suspend fun insert(entities: List<BudgetPolicyEntity>): List<Long> {
+        return entities.map { insert(it) }
     }
 
     override suspend fun update(policy: BudgetPolicyEntity) {
