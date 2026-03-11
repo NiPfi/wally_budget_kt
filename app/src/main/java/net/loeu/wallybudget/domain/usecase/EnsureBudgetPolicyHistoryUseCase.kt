@@ -1,6 +1,5 @@
 package net.loeu.wallybudget.domain.usecase
 
-import kotlinx.coroutines.flow.first
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
 import net.loeu.wallybudget.data.local.entity.toEntity

@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -170,7 +169,6 @@ class BudgetViewModel(
     init {
         viewModelScope.launch {
             ensureBudgetPolicyHistoryUseCase(currentDateProvider.currentDate())
-            rebuildMonthlyHistoryUseCase(userSettingsFlow.first())
         }
         // Check for monthly reset on initialization and local date changes
         viewModelScope.launch {
