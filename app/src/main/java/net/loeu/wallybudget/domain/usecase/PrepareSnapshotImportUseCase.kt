@@ -13,6 +13,8 @@ import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.SnapshotError
 import net.loeu.wallybudget.domain.model.SnapshotImportPreview
 import net.loeu.wallybudget.domain.model.UserSettings
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 
 @Suppress("ThrowsCount", "TooGenericExceptionCaught")
 class PrepareSnapshotImportUseCase(
@@ -23,44 +25,57 @@ class PrepareSnapshotImportUseCase(
 ) {
     suspend operator fun invoke(uri: Uri): PreparedSnapshotImport {
         val rawBytes = try {
-            documentUriGateway.openInputStream(uri)?.use { it.readBytes() }
-                ?: throw SnapshotImportException(
+            documentUriGateway.openInputStream(uri)?.use { input ->
+                readSnapshotBytes(input)
+            } ?: throw SnapshotOperationException(
                     SnapshotError.IoFailure("Unable to open the selected snapshot file.")
                 )
-        } catch (exception: SnapshotImportException) {
+        } catch (exception: SnapshotOperationException) {
             throw exception
         } catch (exception: Exception) {
-            throw SnapshotImportException(
+            throw SnapshotOperationException(
                 SnapshotError.IoFailure("Unable to read the selected snapshot file."),
                 exception
             )
         }
 
+        return prepareFromBytes(rawBytes)
+    }
+
+    internal fun prepareFromBytes(rawBytes: ByteArray): PreparedSnapshotImport {
         val payload = try {
             gzipSnapshotCodec.decodeFromBytes(rawBytes)
         } catch (exception: Exception) {
-            throw SnapshotImportException(SnapshotError.InvalidCompression, exception)
+            throw SnapshotOperationException(SnapshotError.InvalidCompression, exception)
         }
         val envelope = try {
             snapshotJsonCodec.decode(payload.text)
         } catch (exception: Exception) {
-            throw SnapshotImportException(SnapshotError.MalformedSnapshot, exception)
+            throw SnapshotOperationException(SnapshotError.MalformedSnapshot, exception)
         }
 
         snapshotCompatibilityService.validateSchemaVersion(envelope.schemaVersion)?.let {
-            throw SnapshotImportException(it)
+            throw SnapshotOperationException(it)
         }
         if (envelope.format != SnapshotCompatibilityService.SNAPSHOT_FORMAT) {
-            throw SnapshotImportException(SnapshotError.MalformedSnapshot)
+            throw SnapshotOperationException(SnapshotError.MalformedSnapshot)
         }
 
-        return PreparedSnapshotImport(
-            preview = envelope.toPreview(payload),
-            settings = envelope.toUserSettings(),
-            budgetPolicies = envelope.toBudgetPolicyEntities(),
-            expenses = envelope.toExpenseEntities()
-        )
+        return try {
+            PreparedSnapshotImport(
+                preview = envelope.toPreview(payload),
+                settings = envelope.toUserSettings(),
+                budgetPolicies = envelope.toBudgetPolicyEntities(),
+                expenses = envelope.toExpenseEntities()
+            )
+        } catch (exception: SnapshotOperationException) {
+            throw exception
+        } catch (exception: Exception) {
+            throw SnapshotOperationException(SnapshotError.MalformedSnapshot, exception)
+        }
     }
+
+    internal fun readSnapshotBytes(input: InputStream): ByteArray = input.readBoundedBytes(MAX_SNAPSHOT_BYTES)
 
     private fun SnapshotEnvelopeV1.toPreview(payload: DecodedSnapshotPayload): SnapshotImportPreview {
         return SnapshotImportPreview(
@@ -127,16 +142,28 @@ class PrepareSnapshotImportUseCase(
             )
         }
     }
+
+    private fun InputStream.readBoundedBytes(maxBytes: Int): ByteArray {
+        val output = ByteArrayOutputStream()
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        var totalBytes = 0
+
+        while (true) {
+            val readCount = read(buffer)
+            if (readCount == -1) {
+                return output.toByteArray()
+            }
+            totalBytes += readCount
+            if (totalBytes > maxBytes) {
+                throw SnapshotOperationException(
+                    SnapshotError.IoFailure("The selected snapshot file is too large to import safely.")
+                )
+            }
+            output.write(buffer, 0, readCount)
+        }
+    }
+
+    internal companion object {
+        const val MAX_SNAPSHOT_BYTES = 8 * 1024 * 1024
+    }
 }
-
-data class PreparedSnapshotImport(
-    val preview: SnapshotImportPreview,
-    val settings: UserSettings,
-    val budgetPolicies: List<BudgetPolicyEntity>,
-    val expenses: List<ExpenseEntity>
-)
-
-class SnapshotImportException(
-    val snapshotError: SnapshotError,
-    cause: Throwable? = null
-) : IllegalStateException(cause)
