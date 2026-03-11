@@ -18,15 +18,21 @@ class RebuildMonthlyHistoryUseCase(
     private val budgetCalculationService: BudgetCalculationService
 ) {
     suspend operator fun invoke(settings: UserSettings) {
-        monthlyHistoryDao.deleteAll()
         val completedUntil = settings.lastResetDateOrNull()
             ?: return
 
-        budgetPolicyDao.getAllForSnapshot()
+        val applicablePolicies = budgetPolicyDao.getAllForSnapshot()
             .filter { it.deletedAtEpochMs == null }
             .filter { it.cycleEndDateExclusive <= completedUntil.toString() }
             .sortedBy { it.cycleStartDate }
-            .forEach { policy ->
+
+        if (applicablePolicies.isEmpty()) {
+            return
+        }
+
+        monthlyHistoryDao.deleteAll()
+
+        applicablePolicies.forEach { policy ->
                 val totalSpentCents = expenseDao.totalSpentInRange(
                     startDateInclusive = policy.cycleStartDate,
                     endDateExclusive = policy.cycleEndDateExclusive
@@ -44,6 +50,6 @@ class RebuildMonthlyHistoryUseCase(
                         endTimestamp = LocalDate.parse(policy.cycleEndDateExclusive).toStartOfDayMillis()
                     ).toEntity()
                 )
-            }
+        }
     }
 }
