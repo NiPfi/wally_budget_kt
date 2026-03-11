@@ -155,6 +155,7 @@ dependencies {
     implementation(libs.androidx.compose.adaptive.navigation)
     implementation(libs.androidx.compose.adaptive.navigation.suite)
     implementation(libs.material)
+    implementation(libs.gson)
 
     // Room
     implementation(libs.androidx.room.runtime)

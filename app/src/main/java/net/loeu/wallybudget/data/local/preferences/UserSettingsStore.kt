@@ -26,4 +26,6 @@ interface UserSettingsStore {
     )
 
     suspend fun clearPendingCycle()
+
+    suspend fun restoreFromSnapshot(settings: UserSettings, onboardingCompleted: Boolean)
 }

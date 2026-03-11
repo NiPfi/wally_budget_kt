@@ -146,6 +146,42 @@ class UserPreferencesManager(
         }
     }
 
+    override suspend fun restoreFromSnapshot(settings: UserSettings, onboardingCompleted: Boolean) {
+        context.dataStore.edit { preferences ->
+            val installId = preferences[PreferenceKeys.INSTALL_DEVICE_ID]
+                ?: settings.installDeviceId.takeIf { it.isNotBlank() }
+                ?: UUID.randomUUID().toString().also {
+                    preferences[PreferenceKeys.INSTALL_DEVICE_ID] = it
+                }
+            preferences[PreferenceKeys.MONTHLY_BUDGET_CENTS] = settings.monthlyBudgetCents
+            preferences[PreferenceKeys.PAYDAY_DATE] = settings.paydayDate
+            preferences[PreferenceKeys.LAST_RESET_TIMESTAMP] = settings.lastResetTimestamp
+            settings.lastSeenDate?.let { preferences[PreferenceKeys.LAST_SEEN_DATE] = it }
+                ?: preferences.remove(PreferenceKeys.LAST_SEEN_DATE)
+            settings.pendingCycleStartDate?.let { preferences[PreferenceKeys.PENDING_CYCLE_START_DATE] = it }
+                ?: preferences.remove(PreferenceKeys.PENDING_CYCLE_START_DATE)
+            settings.pendingCycleEndDateExclusive?.let {
+                preferences[PreferenceKeys.PENDING_CYCLE_END_DATE_EXCLUSIVE] = it
+            } ?: preferences.remove(PreferenceKeys.PENDING_CYCLE_END_DATE_EXCLUSIVE)
+            preferences[PreferenceKeys.PENDING_CYCLE_DETECTED_AT_TIMESTAMP] =
+                settings.pendingCycleDetectedAtTimestamp
+            preferences[PreferenceKeys.ONBOARDING_COMPLETED] = onboardingCompleted
+            preferences[PreferenceKeys.SETTINGS_RECORD_UUID] = settings.settingsRecordUuid
+                .takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString()
+            preferences[PreferenceKeys.SETTINGS_UPDATED_AT_EPOCH_MS] = settings.settingsUpdatedAtEpochMs
+            preferences[PreferenceKeys.SETTINGS_MOD_CLOCK] = settings.settingsModClock.ifBlank {
+                hybridLogicalClockService.format(
+                    epochMs = settings.settingsUpdatedAtEpochMs.coerceAtLeast(System.currentTimeMillis()),
+                    counter = 0,
+                    installId = installId
+                )
+            }
+            preferences[PreferenceKeys.SETTINGS_LAST_MODIFIED_BY_INSTALL_ID] =
+                settings.settingsLastModifiedByInstallId.ifBlank { installId }
+            preferences[PreferenceKeys.INSTALL_DEVICE_ID] = installId
+        }
+    }
+
     private fun ensureSettingsIdentity(preferences: androidx.datastore.preferences.core.MutablePreferences) {
         val installId = preferences[PreferenceKeys.INSTALL_DEVICE_ID]
             ?: UUID.randomUUID().toString().also {

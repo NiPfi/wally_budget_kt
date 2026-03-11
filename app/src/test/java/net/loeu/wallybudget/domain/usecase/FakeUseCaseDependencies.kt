@@ -90,6 +90,10 @@ internal class FakeUserSettingsStore(
             pendingCycleDetectedAtTimestamp = 0L
         )
     }
+
+    override suspend fun restoreFromSnapshot(settings: UserSettings, onboardingCompleted: Boolean) {
+        mutableUserSettings.value = settings.copy(isOnboardingCompleted = onboardingCompleted)
+    }
 }
 
 internal class FakeTransactionRunner : TransactionRunner {
