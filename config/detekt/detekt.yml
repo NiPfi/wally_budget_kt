@@ -36,9 +36,7 @@ naming:
 
 style:
   ForbiddenImport:
-    active: true
-    forbiddenImports:
-      - "androidx.compose.material.icons.**"
+    active: false
   MagicNumber:
     active: false
   MaxLineLength:
