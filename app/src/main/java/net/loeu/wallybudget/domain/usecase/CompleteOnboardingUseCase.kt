@@ -15,6 +15,7 @@ import net.loeu.wallybudget.domain.usecase.internal.toStartOfDayMillis
 import java.time.LocalDate
 import java.time.ZoneId
 
+@Suppress("LongMethod")
 class CompleteOnboardingUseCase(
     private val transactionRunner: TransactionRunner,
     private val budgetPolicyDao: BudgetPolicyDao,
