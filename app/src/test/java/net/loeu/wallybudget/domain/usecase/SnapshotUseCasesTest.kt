@@ -3,6 +3,7 @@ package net.loeu.wallybudget.domain.usecase
 import kotlinx.coroutines.runBlocking
 import net.loeu.wallybudget.data.local.entity.BudgetPolicyEntity
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
+import net.loeu.wallybudget.data.snapshot.DocumentUriGateway
 import net.loeu.wallybudget.data.snapshot.GzipSnapshotCodec
 import net.loeu.wallybudget.data.snapshot.SnapshotCompatibilityService
 import net.loeu.wallybudget.data.snapshot.SnapshotJsonCodec
@@ -16,6 +17,10 @@ import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
+import java.io.OutputStream
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -45,6 +50,67 @@ class SnapshotUseCasesTest {
         assertEquals(1, preparedEnvelope.budgetPolicies.size)
         assertEquals("expense-1", preparedEnvelope.expenses.single().recordUuid)
         assertEquals(100_000L, preparedEnvelope.settings.defaultMonthlyBudgetCents)
+    }
+
+    @Test
+    fun snapshotJsonCodec_rejectsMissingRequiredEnvelopeFields() {
+        val missingSettingsJson = """
+            {"format":"wallybudget-snapshot","schemaVersion":1,"snapshotId":"id","exportedAtEpochMs":1,"writerInstallId":"install-a","snapshotModClock":"clock","appVersionName":"1.0","budgetPolicies":[],"expenses":[]}
+        """.trimIndent()
+        try {
+            SnapshotJsonCodec().decode(missingSettingsJson)
+            throw AssertionError("Expected malformed snapshot failure")
+        } catch (exception: IllegalArgumentException) {
+            assertTrue(exception.message?.contains("settings") == true)
+        }
+    }
+
+    @Test
+    fun prepareSnapshotImport_rejectsOversizedPayload() = runBlocking {
+        val useCase = PrepareSnapshotImportUseCase(
+            documentUriGateway = FakeDocumentUriGateway(
+                inputBytes = ByteArray(PrepareSnapshotImportUseCase.MAX_SNAPSHOT_BYTES + 1) {
+                    'a'.code.toByte()
+                }
+            ),
+            gzipSnapshotCodec = GzipSnapshotCodec(),
+            snapshotJsonCodec = SnapshotJsonCodec(),
+            snapshotCompatibilityService = SnapshotCompatibilityService()
+        )
+
+        try {
+            useCase.readSnapshotBytes(
+                ByteArrayInputStream(ByteArray(PrepareSnapshotImportUseCase.MAX_SNAPSHOT_BYTES + 1))
+            )
+            throw AssertionError("Expected oversized snapshot to be rejected")
+        } catch (exception: SnapshotOperationException) {
+            assertEquals(
+                SnapshotError.IoFailure("The selected snapshot file is too large to import safely."),
+                exception.snapshotError
+            )
+        }
+    }
+
+    @Test
+    fun prepareSnapshotImport_wrapsMappingFailuresAsMalformedSnapshot() = runBlocking {
+        val bytes = GzipSnapshotCodec().encodeToGzip(
+            """
+            {"format":"wallybudget-snapshot","schemaVersion":1,"snapshotId":"snapshot-1","baseSnapshotId":null,"exportedAtEpochMs":1234,"writerInstallId":"install-a","snapshotModClock":"0000000001234-0000-install-a","appVersionName":"1.0","settings":{"recordUuid":"settings-1","defaultMonthlyBudgetCents":100000,"paydayDate":25,"lastResetTimestamp":0,"pendingCycleStartDate":null,"pendingCycleEndDateExclusive":null,"pendingCycleDetectedAtTimestamp":0,"updatedAtEpochMs":1234,"modClock":"0000000001234-0000-install-a","lastModifiedByInstallId":"install-a"},"budgetPolicies":[{"policyUuid":"policy-1","cycleStartDate":"2026-03-25","cycleEndDateExclusive":"2026-04-25","budgetAmountCents":100000,"paydayDayOfMonth":25,"originInstallId":"install-a","lastModifiedByInstallId":"install-a","createdAtEpochMs":1234,"updatedAtEpochMs":1234,"deletedAtEpochMs":null,"modClock":"0000000001234-0000-install-a"}],"expenses":[{"recordUuid":"expense-1","amountCents":5000,"timestampEpochMs":1234,"expenseDate":"2026-03-26","icon":"FOOD","originInstallId":"install-a","lastModifiedByInstallId":"install-a","createdAtEpochMs":1234,"updatedAtEpochMs":1234,"deletedAtEpochMs":null,"modClock":"0000000001234-0000-install-a"}]}
+            """.trimIndent()
+        )
+        val useCase = PrepareSnapshotImportUseCase(
+            documentUriGateway = FakeDocumentUriGateway(inputBytes = bytes),
+            gzipSnapshotCodec = GzipSnapshotCodec(),
+            snapshotJsonCodec = SnapshotJsonCodec(),
+            snapshotCompatibilityService = SnapshotCompatibilityService()
+        )
+
+        try {
+            useCase.prepareFromBytes(bytes)
+            throw AssertionError("Expected malformed snapshot mapping failure")
+        } catch (exception: SnapshotOperationException) {
+            assertEquals(SnapshotError.MalformedSnapshot, exception.snapshotError)
+        }
     }
 
     @Test
@@ -115,7 +181,6 @@ class SnapshotUseCasesTest {
             transactionRunner = FakeTransactionRunner(),
             expenseDao = expenseDao,
             budgetPolicyDao = budgetPolicyDao,
-            monthlyHistoryDao = monthlyHistoryDao,
             userSettingsStore = settingsStore,
             rebuildMonthlyHistoryUseCase = RebuildMonthlyHistoryUseCase(
                 budgetPolicyDao = budgetPolicyDao,
@@ -141,7 +206,6 @@ class SnapshotUseCasesTest {
             transactionRunner = FakeTransactionRunner(),
             expenseDao = FakeExpenseDao(listOf(expenseEntityOn(1L, LocalDate.of(2026, 3, 25), 5_000L))),
             budgetPolicyDao = FakeBudgetPolicyDao(),
-            monthlyHistoryDao = FakeMonthlyHistoryDao(),
             userSettingsStore = FakeUserSettingsStore(),
             rebuildMonthlyHistoryUseCase = RebuildMonthlyHistoryUseCase(
                 budgetPolicyDao = FakeBudgetPolicyDao(),
@@ -170,10 +234,20 @@ class SnapshotUseCasesTest {
                 )
             )
             throw AssertionError("Expected restore to be blocked")
-        } catch (exception: SnapshotImportException) {
+        } catch (exception: SnapshotOperationException) {
             assertEquals(SnapshotError.NonEmptyProfileRestoreBlocked, exception.snapshotError)
         }
     }
+}
+
+private class FakeDocumentUriGateway(
+    private val inputBytes: ByteArray = ByteArray(0)
+) : DocumentUriGateway {
+    val writtenBytes = ByteArrayOutputStream()
+
+    override fun openInputStream(uri: android.net.Uri): InputStream = ByteArrayInputStream(inputBytes)
+
+    override fun openOutputStream(uri: android.net.Uri): OutputStream = writtenBytes
 }
 
 private fun sampleEnvelope(): SnapshotEnvelopeV1 {

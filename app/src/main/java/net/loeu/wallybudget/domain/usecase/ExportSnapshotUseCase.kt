@@ -100,13 +100,13 @@ class ExportSnapshotUseCase(
             documentUriGateway.openOutputStream(uri)?.use { output ->
                 output.write(gzipBytes)
                 output.flush()
-            } ?: throw SnapshotImportException(
+            } ?: throw SnapshotOperationException(
                 SnapshotError.IoFailure("Unable to write the snapshot file.")
             )
-        } catch (exception: SnapshotImportException) {
+        } catch (exception: SnapshotOperationException) {
             throw exception
         } catch (exception: Exception) {
-            throw SnapshotImportException(
+            throw SnapshotOperationException(
                 SnapshotError.IoFailure("Unable to write the snapshot file."),
                 exception
             )
