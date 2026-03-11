@@ -181,6 +181,7 @@ class SnapshotUseCasesTest {
             transactionRunner = FakeTransactionRunner(),
             expenseDao = expenseDao,
             budgetPolicyDao = budgetPolicyDao,
+            monthlyHistoryDao = monthlyHistoryDao,
             userSettingsStore = settingsStore,
             rebuildMonthlyHistoryUseCase = RebuildMonthlyHistoryUseCase(
                 budgetPolicyDao = budgetPolicyDao,
@@ -201,12 +202,81 @@ class SnapshotUseCasesTest {
     }
 
     @Test
-    fun applyOnboardingRestore_blocksWhenProfileNotEmpty() = runBlocking {
+    @Suppress("LongMethod")
+    fun applyOnboardingRestore_allowsOverwriteWhileOnboardingIsIncomplete() = runBlocking {
+        val existingHistoryDao = FakeMonthlyHistoryDao(
+            initialHistory = listOf(
+                historyEntity(
+                    cycleStart = LocalDate.of(2026, 1, 25),
+                    cycleEndExclusive = LocalDate.of(2026, 2, 25),
+                    totalSpentCents = 50_000L,
+                    budgetAmountCents = 90_000L
+                )
+            )
+        )
+        val useCase = ApplyOnboardingRestoreUseCase(
+            transactionRunner = FakeTransactionRunner(),
+            expenseDao = FakeExpenseDao(listOf(expenseEntityOn(1L, LocalDate.of(2026, 3, 25), 5_000L))),
+            budgetPolicyDao = FakeBudgetPolicyDao(
+                listOf(
+                    BudgetPolicyEntity(
+                        policyUuid = "existing-policy",
+                        cycleStartDate = "2026-03-25",
+                        cycleEndDateExclusive = "2026-04-25",
+                        budgetAmountCents = 80_000L,
+                        paydayDayOfMonth = 25,
+                        originInstallId = "install-a",
+                        lastModifiedByInstallId = "install-a",
+                        createdAtEpochMs = 1L,
+                        updatedAtEpochMs = 1L,
+                        deletedAtEpochMs = null,
+                        modClock = "0000000000001-0000-install-a"
+                    )
+                )
+            ),
+            monthlyHistoryDao = existingHistoryDao,
+            userSettingsStore = FakeUserSettingsStore(),
+            rebuildMonthlyHistoryUseCase = RebuildMonthlyHistoryUseCase(
+                budgetPolicyDao = FakeBudgetPolicyDao(),
+                expenseDao = FakeExpenseDao(),
+                monthlyHistoryDao = existingHistoryDao,
+                budgetCalculationService = BudgetCalculationService()
+            )
+        )
+
+        val result = useCase(
+            PreparedSnapshotImport(
+                preview = net.loeu.wallybudget.domain.model.SnapshotImportPreview(
+                    exportedAtEpochMs = 1L,
+                    writerInstallId = "install-a",
+                    expenseCount = 0,
+                    tombstoneCount = 0,
+                    budgetPolicyCount = 0,
+                    defaultMonthlyBudgetCents = 100_000L,
+                    paydayDate = 25,
+                    compressed = true
+                ),
+                settings = UserSettings(),
+                budgetPolicies = emptyList(),
+                expenses = emptyList()
+            )
+        )
+
+        assertEquals(0, result.importedExpenseCount)
+        assertEquals(0, result.importedBudgetPolicyCount)
+        assertTrue(existingHistoryDao.currentHistory.isEmpty())
+    }
+
+    @Test
+    fun applyOnboardingRestore_blocksWhenOnboardingAlreadyCompleted() = runBlocking {
         val useCase = ApplyOnboardingRestoreUseCase(
             transactionRunner = FakeTransactionRunner(),
             expenseDao = FakeExpenseDao(listOf(expenseEntityOn(1L, LocalDate.of(2026, 3, 25), 5_000L))),
             budgetPolicyDao = FakeBudgetPolicyDao(),
-            userSettingsStore = FakeUserSettingsStore(),
+            monthlyHistoryDao = FakeMonthlyHistoryDao(),
+            userSettingsStore = FakeUserSettingsStore(
+                UserSettings(isOnboardingCompleted = true)
+            ),
             rebuildMonthlyHistoryUseCase = RebuildMonthlyHistoryUseCase(
                 budgetPolicyDao = FakeBudgetPolicyDao(),
                 expenseDao = FakeExpenseDao(),

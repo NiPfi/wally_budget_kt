@@ -5,6 +5,7 @@ import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 import java.time.ZoneId
@@ -28,6 +29,7 @@ class EnsureBudgetPolicyHistoryUseCaseTest {
             UserSettings(
                 monthlyBudgetCents = 120_000L,
                 paydayDate = 25,
+                isOnboardingCompleted = true,
                 lastResetTimestamp = LocalDate.of(2026, 3, 25)
                     .atStartOfDay(ZoneId.systemDefault())
                     .toInstant()
@@ -66,6 +68,7 @@ class EnsureBudgetPolicyHistoryUseCaseTest {
                 UserSettings(
                     monthlyBudgetCents = 120_000L,
                     paydayDate = 25,
+                    isOnboardingCompleted = true,
                     lastResetTimestamp = LocalDate.of(2026, 3, 25)
                         .atStartOfDay(ZoneId.systemDefault())
                         .toInstant()
@@ -80,5 +83,27 @@ class EnsureBudgetPolicyHistoryUseCaseTest {
 
         assertEquals(1, budgetPolicyDao.currentPolicies.size)
         assertEquals(currentPolicy.policyUuid, budgetPolicyDao.currentPolicies.single().policyUuid)
+    }
+
+    @Test
+    fun invoke_doesNothingWhileOnboardingIsIncomplete() = runBlocking {
+        val budgetPolicyDao = FakeBudgetPolicyDao()
+        val useCase = EnsureBudgetPolicyHistoryUseCase(
+            budgetPolicyDao = budgetPolicyDao,
+            monthlyHistoryDao = FakeMonthlyHistoryDao(),
+            userSettingsStore = FakeUserSettingsStore(
+                UserSettings(
+                    monthlyBudgetCents = 120_000L,
+                    paydayDate = 25,
+                    isOnboardingCompleted = false
+                )
+            ),
+            budgetCalculationService = BudgetCalculationService(),
+            hybridLogicalClockService = HybridLogicalClockService()
+        )
+
+        useCase(LocalDate.of(2026, 4, 10))
+
+        assertTrue(budgetPolicyDao.currentPolicies.isEmpty())
     }
 }

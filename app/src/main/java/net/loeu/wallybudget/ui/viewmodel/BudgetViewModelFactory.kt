@@ -232,6 +232,7 @@ class BudgetViewModelFactory(
             transactionRunner = database,
             expenseDao = expenseDao,
             budgetPolicyDao = budgetPolicyDao,
+            monthlyHistoryDao = monthlyHistoryDao,
             userSettingsStore = userPreferencesManager,
             rebuildMonthlyHistoryUseCase = rebuildMonthlyHistoryUseCase
         )
