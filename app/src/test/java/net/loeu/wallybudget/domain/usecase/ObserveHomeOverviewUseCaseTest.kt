@@ -27,6 +27,7 @@ class ObserveHomeOverviewUseCaseTest {
                 historyEntity(LocalDate.of(2026, 2, 25), LocalDate.of(2026, 3, 25), 80_000L)
             )
         )
+        val budgetPolicyDao = FakeBudgetPolicyDao()
         val settingsStore = FakeUserSettingsStore(
             UserSettings(
                 monthlyBudgetCents = 100_000L,
@@ -41,6 +42,7 @@ class ObserveHomeOverviewUseCaseTest {
             expenseDao = expenseDao,
             monthlyHistoryDao = historyDao,
             cycleOverviewDao = FakeCycleOverviewDao(expenseDao),
+            budgetPolicyDao = budgetPolicyDao,
             userSettingsStore = settingsStore,
             currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
             budgetCalculationService = BudgetCalculationService()

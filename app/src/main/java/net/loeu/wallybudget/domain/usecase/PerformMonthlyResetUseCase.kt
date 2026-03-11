@@ -1,27 +1,35 @@
 package net.loeu.wallybudget.domain.usecase
 
+import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
 import net.loeu.wallybudget.data.local.db.TransactionRunner
+import net.loeu.wallybudget.data.local.entity.toEntity as budgetPolicyToEntity
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
+import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import net.loeu.wallybudget.domain.usecase.internal.CycleRange
 import net.loeu.wallybudget.domain.usecase.internal.archiveCycleIfNeeded
 import net.loeu.wallybudget.domain.usecase.internal.lastResetDateOrNull
+import net.loeu.wallybudget.domain.usecase.internal.newBudgetPolicy
 import net.loeu.wallybudget.domain.usecase.internal.pendingCycleRangeOrNull
 import net.loeu.wallybudget.domain.usecase.internal.toStartOfDayMillis
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 
 class PerformMonthlyResetUseCase(
     private val transactionRunner: TransactionRunner,
     private val expenseDao: ExpenseDao,
+    private val budgetPolicyDao: BudgetPolicyDao,
     private val monthlyHistoryDao: MonthlyHistoryDao,
     private val userSettingsStore: UserSettingsStore,
-    private val budgetCalculationService: BudgetCalculationService
+    private val budgetCalculationService: BudgetCalculationService,
+    private val hybridLogicalClockService: HybridLogicalClockService
 ) {
     suspend operator fun invoke(settings: UserSettings, now: LocalDate) {
+        val ensuredSettings = userSettingsStore.ensureIdentity()
         val lastResetDate = settings.lastResetDateOrNull() ?: return
         val currentCycleStart = budgetCalculationService.getCycleStartDate(now, settings.paydayDate)
         val existingPending = settings.pendingCycleRangeOrNull()
@@ -49,6 +57,7 @@ class PerformMonthlyResetUseCase(
             if (existingPending != null && existingPending.endExclusive.isBefore(currentCycleStart)) {
                 archiveCycleIfNeeded(
                     expenseDao = expenseDao,
+                    budgetPolicyDao = budgetPolicyDao,
                     monthlyHistoryDao = monthlyHistoryDao,
                     budgetCalculationService = budgetCalculationService,
                     settings = settings,
@@ -71,6 +80,7 @@ class PerformMonthlyResetUseCase(
             endedCycles.dropLast(1).forEach { cycle ->
                 archiveCycleIfNeeded(
                     expenseDao = expenseDao,
+                    budgetPolicyDao = budgetPolicyDao,
                     monthlyHistoryDao = monthlyHistoryDao,
                     budgetCalculationService = budgetCalculationService,
                     settings = settings,
@@ -79,11 +89,35 @@ class PerformMonthlyResetUseCase(
                 )
             }
             nextPendingCycle = endedCycles.last()
+            ensurePolicyForCycle(
+                settings = ensuredSettings,
+                cycleStart = currentCycleStart
+            )
         }
 
         if (clearPending) userSettingsStore.clearPendingCycle()
         (nextPendingCycle ?: recoveryPendingCycle)?.let { storePendingCycle(it) }
         userSettingsStore.updateLastResetTimestamp(currentCycleStart.toStartOfDayMillis())
+    }
+
+    private suspend fun ensurePolicyForCycle(
+        settings: UserSettings,
+        cycleStart: LocalDate
+    ) {
+        if (budgetPolicyDao.findActivePolicyForCycle(cycleStart.toString()) != null) return
+
+        val nowEpochMs = cycleStart.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        budgetPolicyDao.insert(
+            newBudgetPolicy(
+                cycleStart = cycleStart,
+                cycleEndExclusive = budgetCalculationService.getNextCycleStartDate(cycleStart, settings.paydayDate),
+                budgetAmountCents = settings.monthlyBudgetCents,
+                paydayDayOfMonth = settings.paydayDate,
+                installId = settings.installDeviceId,
+                nowEpochMs = nowEpochMs,
+                hybridLogicalClockService = hybridLogicalClockService
+            ).budgetPolicyToEntity()
+        )
     }
 
     private suspend fun storePendingCycle(cycleRange: CycleRange) {

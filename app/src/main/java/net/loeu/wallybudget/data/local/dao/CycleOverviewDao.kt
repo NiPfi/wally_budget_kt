@@ -10,7 +10,7 @@ interface CycleOverviewDao {
     @Query(
         "SELECT expenseDate, SUM(amountCents) AS totalSpentCents " +
             "FROM expenses " +
-            "WHERE expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive " +
+            "WHERE deletedAtEpochMs IS NULL AND expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive " +
             "GROUP BY expenseDate " +
             "ORDER BY expenseDate DESC"
     )

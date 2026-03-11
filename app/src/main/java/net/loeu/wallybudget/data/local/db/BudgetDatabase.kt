@@ -6,15 +6,17 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.room.withTransaction
 import androidx.sqlite.db.SupportSQLiteDatabase
+import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.CycleOverviewDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
+import net.loeu.wallybudget.data.local.entity.BudgetPolicyEntity
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
 import net.loeu.wallybudget.data.local.entity.MonthlyHistoryEntity
 
 @Database(
-    entities = [ExpenseEntity::class, MonthlyHistoryEntity::class],
-    version = 7,
+    entities = [ExpenseEntity::class, MonthlyHistoryEntity::class, BudgetPolicyEntity::class],
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -22,6 +24,7 @@ abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
     abstract fun expenseDao(): ExpenseDao
     abstract fun monthlyHistoryDao(): MonthlyHistoryDao
     abstract fun cycleOverviewDao(): CycleOverviewDao
+    abstract fun budgetPolicyDao(): BudgetPolicyDao
 
     override suspend fun <T> inTransaction(block: suspend () -> T): T = withTransaction { block() }
 
@@ -267,6 +270,110 @@ abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
                 db.execSQL("ALTER TABLE `expenses_new` RENAME TO `expenses`")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_expenses_timestamp` ON `expenses` (`timestamp`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_expenses_expenseDate` ON `expenses` (`expenseDate`)")
+            }
+        }
+
+        fun migration7To8(installId: String): Migration {
+            return object : Migration(7, 8) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS `expenses_new` (
+                            `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            `recordUuid` TEXT NOT NULL,
+                            `amountCents` INTEGER NOT NULL,
+                            `description` TEXT NOT NULL,
+                            `timestamp` INTEGER NOT NULL,
+                            `expenseDate` TEXT NOT NULL,
+                            `icon` TEXT,
+                            `originInstallId` TEXT NOT NULL,
+                            `lastModifiedByInstallId` TEXT NOT NULL,
+                            `createdAtEpochMs` INTEGER NOT NULL,
+                            `updatedAtEpochMs` INTEGER NOT NULL,
+                            `deletedAtEpochMs` INTEGER,
+                            `modClock` TEXT NOT NULL
+                        )
+                        """.trimIndent()
+                    )
+
+                    val escapedInstallId = installId.replace("'", "''")
+                    db.execSQL(
+                        """
+                        INSERT INTO `expenses_new` (
+                            `id`,
+                            `recordUuid`,
+                            `amountCents`,
+                            `description`,
+                            `timestamp`,
+                            `expenseDate`,
+                            `icon`,
+                            `originInstallId`,
+                            `lastModifiedByInstallId`,
+                            `createdAtEpochMs`,
+                            `updatedAtEpochMs`,
+                            `deletedAtEpochMs`,
+                            `modClock`
+                        )
+                        SELECT
+                            `id`,
+                            lower(hex(randomblob(4))) || '-' ||
+                                lower(hex(randomblob(2))) || '-' ||
+                                '4' || substr(lower(hex(randomblob(2))), 2) || '-' ||
+                                substr('89ab', abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))), 2) || '-' ||
+                                lower(hex(randomblob(6))),
+                            `amountCents`,
+                            `description`,
+                            `timestamp`,
+                            `expenseDate`,
+                            `icon`,
+                            '$escapedInstallId',
+                            '$escapedInstallId',
+                            `timestamp`,
+                            `timestamp`,
+                            NULL,
+                            printf('%013d-%04d-%s', `timestamp`, 0, '$escapedInstallId')
+                        FROM `expenses`
+                        """.trimIndent()
+                    )
+
+                    db.execSQL("DROP TABLE `expenses`")
+                    db.execSQL("ALTER TABLE `expenses_new` RENAME TO `expenses`")
+                    db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_expenses_recordUuid` ON `expenses` (`recordUuid`)")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_expenses_timestamp` ON `expenses` (`timestamp`)")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_expenses_expenseDate` ON `expenses` (`expenseDate`)")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_expenses_deletedAtEpochMs` ON `expenses` (`deletedAtEpochMs`)")
+
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS `budget_policies` (
+                            `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            `policyUuid` TEXT NOT NULL,
+                            `cycleStartDate` TEXT NOT NULL,
+                            `cycleEndDateExclusive` TEXT NOT NULL,
+                            `budgetAmountCents` INTEGER NOT NULL,
+                            `paydayDayOfMonth` INTEGER NOT NULL,
+                            `originInstallId` TEXT NOT NULL,
+                            `lastModifiedByInstallId` TEXT NOT NULL,
+                            `createdAtEpochMs` INTEGER NOT NULL,
+                            `updatedAtEpochMs` INTEGER NOT NULL,
+                            `deletedAtEpochMs` INTEGER,
+                            `modClock` TEXT NOT NULL
+                        )
+                        """.trimIndent()
+                    )
+                    db.execSQL(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `index_budget_policies_policyUuid` ON `budget_policies` (`policyUuid`)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_budget_policies_cycleStartDate` ON `budget_policies` (`cycleStartDate`)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_budget_policies_cycleEndDateExclusive` ON `budget_policies` (`cycleEndDateExclusive`)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_budget_policies_deletedAtEpochMs` ON `budget_policies` (`deletedAtEpochMs`)"
+                    )
+                }
             }
         }
     }

@@ -6,7 +6,7 @@ import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 
-class UpdateExpenseUseCase(
+class RestoreDeletedExpenseUseCase(
     private val expenseDao: ExpenseDao,
     private val userSettingsStore: UserSettingsStore,
     private val hybridLogicalClockService: HybridLogicalClockService
@@ -19,6 +19,7 @@ class UpdateExpenseUseCase(
             expense.copy(
                 lastModifiedByInstallId = installId,
                 updatedAtEpochMs = now,
+                deletedAtEpochMs = null,
                 modClock = hybridLogicalClockService.next(expense.modClock, now, installId)
             ).toEntity()
         )

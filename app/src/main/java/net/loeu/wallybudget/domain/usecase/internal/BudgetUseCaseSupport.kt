@@ -1,5 +1,6 @@
 package net.loeu.wallybudget.domain.usecase.internal
 
+import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
 import net.loeu.wallybudget.data.local.entity.toEntity
@@ -41,6 +42,7 @@ internal fun List<ExpenseDayTotalRow>.toDayTotalsMap(): Map<LocalDate, Long> =
 
 internal suspend fun archiveCycleIfNeeded(
     expenseDao: ExpenseDao,
+    budgetPolicyDao: BudgetPolicyDao,
     monthlyHistoryDao: MonthlyHistoryDao,
     budgetCalculationService: BudgetCalculationService,
     settings: UserSettings,
@@ -51,14 +53,17 @@ internal suspend fun archiveCycleIfNeeded(
         cycleStart.toString(),
         cycleEnd.toString()
     ) ?: 0L
+    val budgetAmountCents = budgetPolicyDao.findActivePolicyForCycle(cycleStart.toString())
+        ?.budgetAmountCents
+        ?: settings.monthlyBudgetCents
 
     monthlyHistoryDao.insert(
         MonthlyHistory(
             cycleStartDate = cycleStart.toString(),
-            budgetAmountCents = settings.monthlyBudgetCents,
+            budgetAmountCents = budgetAmountCents,
             totalSpentCents = totalSpentCents,
             surplusCents = budgetCalculationService.calculateSurplus(
-                settings.monthlyBudgetCents,
+                budgetAmountCents,
                 totalSpentCents
             ),
             cycleEndDate = cycleEnd.toString(),
@@ -73,6 +78,7 @@ internal fun buildBudgetState(
     history: List<MonthlyHistory>,
     totalSpentThisCycleCents: Long,
     spentTodayCents: Long,
+    currentCycleBudgetAmountCents: Long = settings.monthlyBudgetCents,
     budgetCalculationService: BudgetCalculationService
 ): BudgetState {
     val currentCycleRange = budgetCalculationService.getCurrentCycleProgressRange(
@@ -88,7 +94,8 @@ internal fun buildBudgetState(
         now = today,
         totalSpentThisCycleCents = totalSpentThisCycleCents,
         spentTodayCents = spentTodayCents,
-        cumulativeSavingsCents = cumulativeSavingsCents
+        cumulativeSavingsCents = cumulativeSavingsCents,
+        cycleBudgetAmountCents = currentCycleBudgetAmountCents
     )
 }
 

@@ -16,4 +16,10 @@ interface MonthlyHistoryDao : BaseInsertDao<MonthlyHistoryEntity> {
 
     @Query("SELECT * FROM monthly_history WHERE cycleStartDate = :cycleStartDate")
     suspend fun findByCycleStart(cycleStartDate: String): MonthlyHistoryEntity?
+
+    @Query("SELECT * FROM monthly_history ORDER BY endTimestamp DESC")
+    suspend fun getAll(): List<MonthlyHistoryEntity>
+
+    @Query("DELETE FROM monthly_history")
+    suspend fun deleteAll()
 }

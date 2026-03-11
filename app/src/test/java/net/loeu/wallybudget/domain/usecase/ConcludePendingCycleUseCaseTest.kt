@@ -19,11 +19,13 @@ class ConcludePendingCycleUseCaseTest {
                 expenseEntityOn(2L, LocalDate.of(2026, 4, 4), 4_000L)
             )
         )
+        val budgetPolicyDao = FakeBudgetPolicyDao()
         val historyDao = FakeMonthlyHistoryDao()
         val settingsStore = FakeUserSettingsStore()
         val useCase = ConcludePendingCycleUseCase(
             transactionRunner = transactionRunner,
             expenseDao = expenseDao,
+            budgetPolicyDao = budgetPolicyDao,
             monthlyHistoryDao = historyDao,
             userSettingsStore = settingsStore,
             budgetCalculationService = BudgetCalculationService()

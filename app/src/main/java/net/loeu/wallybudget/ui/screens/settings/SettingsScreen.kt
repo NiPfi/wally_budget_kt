@@ -93,7 +93,7 @@ fun SettingsScreen(
                 onUpdateBudget(requireNotNull(validation.budgetCents))
                 validation.payday?.let(onUpdatePayday)
                 showSaveSnackbar = true
-            }
+            },
         )
     }
     SettingsSaveEffect(showSaveSnackbar, snackbarHostState) { showSaveSnackbar = false }
