@@ -37,11 +37,26 @@ fun SpendingDetailsCard(
             fontWeight = FontWeight.Bold
         )
 
-        SpendingDetailAmountRow("Cycle spent", budgetState.totalSpentThisCycleCents, isLoading)
-        SpendingDetailAmountRow("Past days", previousExpensesTotal, isLoading)
+        SpendingDetailAmountRow(
+            label = "Cycle spent",
+            amountCents = budgetState.totalSpentThisCycleCents,
+            isLoading = isLoading,
+            placeholderText = "$8,888"
+        )
+        SpendingDetailAmountRow(
+            label = "Past days",
+            amountCents = previousExpensesTotal,
+            isLoading = isLoading,
+            placeholderText = "$8,888"
+        )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-        SpendingDetailAmountRow("Base daily allowance", budgetState.dailyBudgetCents, isLoading)
+        SpendingDetailAmountRow(
+            label = "Base daily allowance",
+            amountCents = budgetState.dailyBudgetCents,
+            isLoading = isLoading,
+            placeholderText = "$888"
+        )
         DetailRowSmall(
             label = "Budget adjustment"
         ) {
@@ -84,7 +99,8 @@ fun SpendingDetailsCard(
 private fun SpendingDetailAmountRow(
     label: String,
     amountCents: Long,
-    isLoading: Boolean
+    isLoading: Boolean,
+    placeholderText: String
 ) {
     DetailRowSmall(label) {
         AnimatedCounter(
@@ -93,7 +109,7 @@ private fun SpendingDetailAmountRow(
             animate = true,
             textAlign = TextAlign.End,
             placeholder = isLoading,
-            placeholderText = if (amountCents >= 1000L) "$8,888" else "$888"
+            placeholderText = placeholderText
         )
     }
 }

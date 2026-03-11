@@ -37,7 +37,8 @@ class ObserveHistoryUseCaseTest {
                     .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
             )
         )
-        val budgetCalculationService = BudgetCalculationService(); val useCase = ObserveHistoryUseCase(
+        val budgetCalculationService = BudgetCalculationService()
+        val useCase = ObserveHistoryUseCase(
             expenseDao = expenseDao,
             monthlyHistoryDao = historyDao,
             budgetCalculationService = budgetCalculationService

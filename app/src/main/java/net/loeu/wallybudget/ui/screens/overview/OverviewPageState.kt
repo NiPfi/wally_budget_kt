@@ -42,12 +42,11 @@ internal fun rememberOverviewPageLayoutState(
     }
     val maxCollapseRangePx = remember { CollapseRangeHolder() }
     val nestedScrollConnection = rememberOverviewNestedScrollConnection(
-        listStateFirstVisibleItemIndex = listState.firstVisibleItemIndex,
-        listStateFirstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset,
+        listState = listState,
         enableHeaderCollapse = enableHeaderCollapse,
-        collapseOffsetPx = collapseOffsetPx.floatValue,
+        collapseOffsetPx = { collapseOffsetPx.floatValue },
         setCollapseOffsetPx = { collapseOffsetPx.floatValue = it },
-        maxCollapsePx = maxCollapseRangePx.value
+        maxCollapsePx = { maxCollapseRangePx.value }
     )
 
     SideEffect {

@@ -3,21 +3,18 @@ package net.loeu.wallybudget.ui.screens.overview
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -263,62 +260,73 @@ private fun SafeTodayDetailsDialog(
 
 @Composable
 internal fun rememberOverviewNestedScrollConnection(
-    listStateFirstVisibleItemIndex: Int,
-    listStateFirstVisibleItemScrollOffset: Int,
+    listState: LazyListState,
     enableHeaderCollapse: Boolean,
-    collapseOffsetPx: Float,
+    collapseOffsetPx: () -> Float,
     setCollapseOffsetPx: (Float) -> Unit,
-    maxCollapsePx: Float
+    maxCollapsePx: () -> Float
 ): NestedScrollConnection {
-    val canExpand = listStateFirstVisibleItemIndex == 0 &&
-        listStateFirstVisibleItemScrollOffset == 0
-    return remember(
-        listStateFirstVisibleItemIndex,
-        listStateFirstVisibleItemScrollOffset,
-        enableHeaderCollapse,
-        collapseOffsetPx,
-        maxCollapsePx
-    ) {
-        object : NestedScrollConnection {
-            @Suppress("UNUSED_PARAMETER")
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (!enableHeaderCollapse) return Offset.Zero
-                return consumeHeaderScroll(
-                    availableY = available.y,
-                    collapseOffsetPx = collapseOffsetPx,
-                    setCollapseOffsetPx = setCollapseOffsetPx,
-                    maxCollapsePx = maxCollapsePx,
-                    canExpand = canExpand
-                )
-            }
+    return remember(listState, enableHeaderCollapse) {
+        overviewNestedScrollConnection(
+            enableHeaderCollapse = enableHeaderCollapse,
+            canExpand = {
+                listState.firstVisibleItemIndex == 0 &&
+                    listState.firstVisibleItemScrollOffset == 0
+            },
+            collapseOffsetPx = collapseOffsetPx,
+            setCollapseOffsetPx = setCollapseOffsetPx,
+            maxCollapsePx = maxCollapsePx
+        )
+    }
+}
 
-            @Suppress("UNUSED_PARAMETER")
-            override fun onPostScroll(
-                consumed: Offset,
-                available: Offset,
-                source: NestedScrollSource
-            ): Offset {
-                if (!enableHeaderCollapse) return Offset.Zero
-                return consumeHeaderScroll(
-                    availableY = available.y,
-                    collapseOffsetPx = collapseOffsetPx,
-                    setCollapseOffsetPx = setCollapseOffsetPx,
-                    maxCollapsePx = maxCollapsePx,
-                    canExpand = canExpand
-                )
-            }
+internal fun overviewNestedScrollConnection(
+    enableHeaderCollapse: Boolean,
+    canExpand: () -> Boolean,
+    collapseOffsetPx: () -> Float,
+    setCollapseOffsetPx: (Float) -> Unit,
+    maxCollapsePx: () -> Float
+): NestedScrollConnection {
+    return object : NestedScrollConnection {
+        @Suppress("UNUSED_PARAMETER")
+        override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+            if (!enableHeaderCollapse) return Offset.Zero
+            return consumeHeaderScroll(
+                availableY = available.y,
+                collapseOffsetPx = collapseOffsetPx(),
+                setCollapseOffsetPx = setCollapseOffsetPx,
+                maxCollapsePx = maxCollapsePx(),
+                canExpand = canExpand()
+            )
+        }
 
-            @Suppress("UNUSED_PARAMETER", "SameReturnValue")
-            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                if (!enableHeaderCollapse) return Velocity.Zero
-                setCollapseOffsetPx(
-                    snapHeaderOffset(
-                        collapseOffsetPx.coerceIn(0f, maxCollapsePx),
-                        maxCollapsePx
-                    )
+        @Suppress("UNUSED_PARAMETER")
+        override fun onPostScroll(
+            consumed: Offset,
+            available: Offset,
+            source: NestedScrollSource
+        ): Offset {
+            if (!enableHeaderCollapse) return Offset.Zero
+            return consumeHeaderScroll(
+                availableY = available.y,
+                collapseOffsetPx = collapseOffsetPx(),
+                setCollapseOffsetPx = setCollapseOffsetPx,
+                maxCollapsePx = maxCollapsePx(),
+                canExpand = canExpand()
+            )
+        }
+
+        @Suppress("UNUSED_PARAMETER", "SameReturnValue")
+        override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+            if (!enableHeaderCollapse) return Velocity.Zero
+            val latestMaxCollapsePx = maxCollapsePx()
+            setCollapseOffsetPx(
+                snapHeaderOffset(
+                    collapseOffsetPx().coerceIn(0f, latestMaxCollapsePx),
+                    latestMaxCollapsePx
                 )
-                return Velocity.Zero
-            }
+            )
+            return Velocity.Zero
         }
     }
 }

@@ -94,7 +94,8 @@ fun HistoryScreen(
     ) {
         compactPagerSections.size.coerceAtLeast(1)
     }
-    val snackbarHostState = remember { SnackbarHostState() }; val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     val selectedDateEpochDay = rememberSaveable { mutableLongStateOf(LocalDate.now().toEpochDay()) }
     var showInitialSwipeHint by rememberSaveable { mutableStateOf(true) }
     var isAddSheetVisible by remember { mutableStateOf(false) }

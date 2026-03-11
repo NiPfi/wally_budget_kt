@@ -45,8 +45,10 @@ fun SettingsScreen(
 ) {
     var budgetText by remember { mutableStateOf(initialBudgetText(userSettings)) }
     var paydayText by remember { mutableStateOf(userSettings.paydayDate.toString()) }
-    var showBudgetError by remember { mutableStateOf(false) }; var showPaydayError by remember { mutableStateOf(false) }
-    var showSaveSnackbar by remember { mutableStateOf(false) }; val snackbarHostState = remember { SnackbarHostState() }
+    var showBudgetError by remember { mutableStateOf(false) }
+    var showPaydayError by remember { mutableStateOf(false) }
+    var showSaveSnackbar by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
     val paydayEditingEnabled = !userSettings.isOnboardingCompleted
 
     LaunchedEffect(userSettings) {

@@ -215,7 +215,7 @@ private fun ForecastRangeLabels(
             labelColor = colors.lowerLabel,
             valueColor = colors.lowerValue,
             textAlign = TextAlign.Start,
-            fontSize = (12 * scale).sp,
+            labelFontSize = (11 * scale).sp,
             amountStyle = MaterialTheme.typography.bodySmall.copy(
                 fontSize = (12 * scale).sp,
                 fontWeight = FontWeight.Bold
@@ -228,7 +228,7 @@ private fun ForecastRangeLabels(
             labelColor = colors.projected,
             valueColor = colors.projected,
             textAlign = TextAlign.Center,
-            fontSize = (18 * scale).sp,
+            labelFontSize = (11 * scale).sp,
             amountStyle = MaterialTheme.typography.titleMedium.copy(
                 fontSize = (18 * scale).sp,
                 fontWeight = FontWeight.Black
@@ -242,7 +242,7 @@ private fun ForecastRangeLabels(
             labelColor = colors.upperLabel,
             valueColor = colors.upperValue,
             textAlign = TextAlign.End,
-            fontSize = (12 * scale).sp,
+            labelFontSize = (11 * scale).sp,
             amountStyle = MaterialTheme.typography.bodySmall.copy(
                 fontSize = (12 * scale).sp,
                 fontWeight = FontWeight.Bold
@@ -259,7 +259,7 @@ private fun ForecastRangeLabel(
     labelColor: androidx.compose.ui.graphics.Color,
     valueColor: androidx.compose.ui.graphics.Color,
     textAlign: TextAlign,
-    fontSize: androidx.compose.ui.unit.TextUnit,
+    labelFontSize: androidx.compose.ui.unit.TextUnit,
     amountStyle: androidx.compose.ui.text.TextStyle,
     horizontalAlignment: Alignment.Horizontal,
     emphasizeLabel: Boolean = false
@@ -267,7 +267,7 @@ private fun ForecastRangeLabel(
     Column(horizontalAlignment = horizontalAlignment) {
         Text(
             text = title,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = (11 * (fontSize.value / 12f)).sp),
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = labelFontSize),
             color = labelColor,
             fontWeight = if (emphasizeLabel) FontWeight.Bold else null
         )
