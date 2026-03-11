@@ -49,10 +49,8 @@ fun SettingsScreen(
         )
     }
     var paydayText by remember { mutableStateOf(userSettings.paydayDate.toString()) }
-    var showBudgetError by remember { mutableStateOf(false) }
-    var showPaydayError by remember { mutableStateOf(false) }
-    var showSaveSnackbar by remember { mutableStateOf(false) }
-    val snackbarHostState = remember { SnackbarHostState() }
+    var showBudgetError by remember { mutableStateOf(false) }; var showPaydayError by remember { mutableStateOf(false) }
+    var showSaveSnackbar by remember { mutableStateOf(false) }; val snackbarHostState = remember { SnackbarHostState() }
     val paydayEditingEnabled = !userSettings.isOnboardingCompleted
 
     LaunchedEffect(userSettings) {
@@ -63,19 +61,7 @@ fun SettingsScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Settings") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_arrow_back),
-                            contentDescription = "Back"
-                        )
-                    }
-                }
-            )
-        },
+        topBar = { SettingsTopBar(onNavigateBack) },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier
     ) { paddingValues ->
@@ -117,8 +103,27 @@ fun SettingsScreen(
     }
 
     LaunchedEffect(showSaveSnackbar) {
-        if (showSaveSnackbar) { snackbarHostState.showSnackbar("Settings saved!"); showSaveSnackbar = false }
+        if (showSaveSnackbar) {
+            snackbarHostState.showSnackbar("Settings saved!")
+            showSaveSnackbar = false
+        }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsTopBar(onNavigateBack: () -> Unit) {
+    TopAppBar(
+        title = { Text("Settings") },
+        navigationIcon = {
+            IconButton(onClick = onNavigateBack) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_arrow_back),
+                    contentDescription = "Back"
+                )
+            }
+        }
+    )
 }
 
 @Composable

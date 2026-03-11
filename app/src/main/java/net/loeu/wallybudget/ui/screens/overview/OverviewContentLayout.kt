@@ -72,22 +72,13 @@ internal fun OverviewContentLayout(
             onNavigateToSettings = onNavigateToSettings
         )
         val maxCollapsePx = if (enableHeaderCollapse) {
-            (headerMetrics.expandedHeaderHeightPx - headerMetrics.collapsedHeaderHeightPx)
-                .coerceAtLeast(0)
-                .toFloat()
-        } else {
-            0f
-        }
+            (headerMetrics.expandedHeaderHeightPx - headerMetrics.collapsedHeaderHeightPx).coerceAtLeast(0).toFloat()
+        } else 0f
         maxCollapseRangePx.value = maxCollapsePx
         val clampedCollapseOffsetPx = collapseOffsetPx.coerceIn(0f, maxCollapsePx)
-        if (clampedCollapseOffsetPx != collapseOffsetPx) {
-            setCollapseOffsetPx(clampedCollapseOffsetPx)
-        }
-        val collapseProgress = if (maxCollapsePx == 0f) {
-            0f
-        } else {
-            (clampedCollapseOffsetPx / maxCollapsePx).coerceIn(0f, 1f)
-        }
+        if (clampedCollapseOffsetPx != collapseOffsetPx) setCollapseOffsetPx(clampedCollapseOffsetPx)
+        val collapseProgress =
+            if (maxCollapsePx == 0f) 0f else (clampedCollapseOffsetPx / maxCollapsePx).coerceIn(0f, 1f)
 
         val contentPlaceables = subcompose("content") {
             OverviewBodyContent(

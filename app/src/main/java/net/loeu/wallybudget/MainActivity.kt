@@ -31,7 +31,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import kotlinx.coroutines.flow.map
 import net.loeu.wallybudget.ui.navigation.Screen
 import net.loeu.wallybudget.ui.screens.analysis.AnalysisScreen
 import net.loeu.wallybudget.ui.screens.closeout.CycleCloseoutReviewScreen
@@ -97,41 +96,29 @@ fun BudgetApp(
         onPauseOrDispose { }
     }
 
-    val onboardingCompletedFlow = remember(viewModel) { viewModel.userSettingsFlow.map { it.isOnboardingCompleted } }
-    val isOnboardingCompleted by onboardingCompletedFlow.collectAsState(initial = null)
+    val appState = rememberBudgetAppUiState(viewModel)
 
-    if (isOnboardingCompleted == null) {
+    if (appState.isOnboardingCompleted == null) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
         return
     }
 
-    val userSettings by viewModel.userSettings.collectAsState()
-    val budgetState by viewModel.budgetState.collectAsState()
-    val effectiveCurrentDate by viewModel.effectiveCurrentDate.collectAsState()
-    val todayExpenses by viewModel.todayExpenses.collectAsState()
-    val activeCycleExpenseSections by viewModel.activeCycleExpenseSections.collectAsState()
-    val spendingForecast by viewModel.spendingForecast.collectAsState()
-    val historySections by viewModel.historySections.collectAsState()
-    val pendingCycleCloseoutState by viewModel.pendingCycleCloseoutState.collectAsState()
-    val timelineLockState by viewModel.timelineLockState.collectAsState()
-    val isAddExpenseSheetVisible by viewModel.isAddExpenseSheetVisible.collectAsState()
-    val isHomeDataLoading = budgetState == null || spendingForecast == null
-    val displayBudgetState = budgetState ?: loadingBudgetState(effectiveCurrentDate)
-    val displaySpendingForecast = spendingForecast ?: SpendingForecast()
+    val displayBudgetState = appState.budgetState ?: loadingBudgetState(appState.effectiveCurrentDate)
+    val displaySpendingForecast = appState.spendingForecast ?: SpendingForecast()
 
     when {
-        isOnboardingCompleted != true -> {
+        appState.isOnboardingCompleted != true -> {
             OnboardingScreen(
                 onComplete = viewModel::completeOnboarding
             )
         }
 
-        pendingCycleCloseoutState != null -> {
+        appState.pendingCycleCloseoutState != null -> {
             PendingCycleFlow(
-                pendingCycle = pendingCycleCloseoutState!!,
-                showAddExpenseSheet = isAddExpenseSheetVisible,
+                pendingCycle = appState.pendingCycleCloseoutState,
+                showAddExpenseSheet = appState.isAddExpenseSheetVisible,
                 onShowAddExpenseSheet = viewModel::showAddExpenseSheet,
                 onHideAddExpenseSheet = viewModel::hideAddExpenseSheet,
                 onConcludeCycle = viewModel::concludePendingCycle,
@@ -146,15 +133,15 @@ fun BudgetApp(
             val shellContent: @Composable () -> Unit = {
                 MainNavigationShell(
                     budgetState = displayBudgetState,
-                    todayExpenses = todayExpenses,
-                    effectiveCurrentDate = effectiveCurrentDate,
-                    activeCycleExpenseSections = activeCycleExpenseSections,
+                    todayExpenses = appState.todayExpenses,
+                    effectiveCurrentDate = appState.effectiveCurrentDate,
+                    activeCycleExpenseSections = appState.activeCycleExpenseSections,
                     spendingForecast = displaySpendingForecast,
                     monthlyHistoryState = viewModel.monthlyHistory,
-                    isHomeDataLoading = isHomeDataLoading,
-                    historySections = historySections,
-                    userSettings = userSettings,
-                    showAddExpenseSheet = isAddExpenseSheetVisible,
+                    isHomeDataLoading = appState.isHomeDataLoading,
+                    historySections = appState.historySections,
+                    userSettings = appState.userSettings,
+                    showAddExpenseSheet = appState.isAddExpenseSheetVisible,
                     onShowAddExpenseSheet = viewModel::showAddExpenseSheet,
                     onHideAddExpenseSheet = viewModel::hideAddExpenseSheet,
                     onAddExpense = viewModel::addExpense,
@@ -163,11 +150,11 @@ fun BudgetApp(
                     onRestoreExpense = viewModel::restoreDeletedExpense,
                     onUpdateBudget = viewModel::updateMonthlyBudget,
                     onUpdatePayday = viewModel::updatePaydayDate,
-                    timelineLockReason = timelineLockState.reason,
+                    timelineLockReason = appState.timelineLockReason,
                     modifier = modifier
                 )
             }
-            if (isHomeDataLoading) PlaceholderShimmerProvider(content = shellContent) else shellContent()
+            if (appState.isHomeDataLoading) PlaceholderShimmerProvider(content = shellContent) else shellContent()
         }
     }
 }
@@ -463,7 +450,6 @@ private fun PendingCycleFlow(
     val navController = rememberNavController()
     var selectedDate by rememberSaveable { mutableStateOf(pendingCycle.cycleEndDateExclusive.minusDays(1)) }
     var expenseBeingEdited by remember { mutableStateOf<Expense?>(null) }
-
     NavHost(
         navController = navController,
         startDestination = Screen.CycleCloseout.route,
@@ -488,48 +474,14 @@ private fun PendingCycleFlow(
             )
         }
     }
-
-    if (showAddExpenseSheet) {
-        AddExpenseSheet(
-            onDismiss = onHideAddExpenseSheet,
-            onSubmitExpense = { amountCents, description, icon ->
-                onAddExpense(amountCents, description, icon, selectedDate)
-            },
-            title = "Add expense for ${selectedDate.format(DateTimeFormatter.ofPattern("MMM d"))}",
-            confirmButtonText = "Add to ${selectedDate.format(DateTimeFormatter.ofPattern("MMM d"))}",
-            dateLabel = "Recorded for ${selectedDate.format(DateTimeFormatter.ofPattern("EEEE, MMM d"))}"
-        )
-    }
-
-    expenseBeingEdited?.let { editingExpense ->
-        AddExpenseSheet(
-            onDismiss = { expenseBeingEdited = null },
-            onSubmitExpense = { amountCents, description, icon ->
-                onUpdateExpense(
-                    editingExpense.copy(
-                        amountCents = amountCents,
-                        description = description,
-                        icon = icon
-                    )
-                )
-                expenseBeingEdited = null
-            },
-            onDeleteExpense = {
-                onDeleteExpense(editingExpense)
-                expenseBeingEdited = null
-            },
-            title = "Edit cycle expense",
-            confirmButtonText = "Save changes",
-            dateLabel = buildString {
-                append("Recorded for ")
-                append(
-                    editingExpense.recordedDate()
-                        .format(DateTimeFormatter.ofPattern("EEEE, MMM d"))
-                )
-            },
-            initialAmountCents = editingExpense.amountCents,
-            initialDescription = editingExpense.description,
-            initialIcon = editingExpense.icon
-        )
-    }
+    PendingCycleExpenseSheets(
+        showAddExpenseSheet = showAddExpenseSheet,
+        selectedDate = selectedDate,
+        onHideAddExpenseSheet = onHideAddExpenseSheet,
+        onAddExpense = onAddExpense,
+        expenseBeingEdited = expenseBeingEdited,
+        onDismissExpenseEditor = { expenseBeingEdited = null },
+        onUpdateExpense = onUpdateExpense,
+        onDeleteExpense = onDeleteExpense
+    )
 }

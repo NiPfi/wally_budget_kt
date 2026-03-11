@@ -320,13 +320,7 @@ private fun SummaryCardSecondaryMetrics(
                 alpha = secondaryMetricsProgress
                 translationY = bottomOffsetPx
             }
-            .then(
-                if (tagSecondaryMetrics) {
-                    Modifier.testTag("home_summary_secondary_metrics")
-                } else {
-                    Modifier
-                }
-            )
+            .then(if (tagSecondaryMetrics) Modifier.testTag("home_summary_secondary_metrics") else Modifier)
             .collapseHeight(secondaryMetricsProgress),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {

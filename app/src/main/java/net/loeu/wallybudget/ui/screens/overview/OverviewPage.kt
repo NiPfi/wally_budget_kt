@@ -75,19 +75,17 @@ fun OverviewPage(
         remainingTodayCents = budgetState.remainingTodayCents,
         availableRecoverableOverspendCents = availableRecoverableOverspendCents
     )
-    val useWarningTint = budgetState.remainingTodayCents < 0L ||
-        budgetState.remainingCycleCents < 0L ||
-        spendingForecast.isProjectedOverBudget
+    val useWarningTint =
+        budgetState.remainingTodayCents < 0L ||
+            budgetState.remainingCycleCents < 0L ||
+            spendingForecast.isProjectedOverBudget
     val showForecastDetails = remember { mutableStateOf(false) }
     val showSafeTodayDetails = remember { mutableStateOf(false) }
-    val listState = rememberLazyListState()
-    val density = LocalDensity.current
+    val listState = rememberLazyListState(); val density = LocalDensity.current
     val defaultCollapseOffsetPx = remember(defaultCollapsedHeader, density) {
         if (defaultCollapsedHeader) with(density) { 64.dp.toPx() } else 0f
     }
-    var collapseOffsetPx by remember(defaultCollapsedHeader, density) {
-        mutableFloatStateOf(defaultCollapseOffsetPx)
-    }
+    var collapseOffsetPx by remember(defaultCollapsedHeader, density) { mutableFloatStateOf(defaultCollapseOffsetPx) }
     val maxCollapseRangePx = remember { CollapseRangeHolder() }
     val nestedScrollConnection = rememberOverviewNestedScrollConnection(
         listStateFirstVisibleItemIndex = listState.firstVisibleItemIndex,
@@ -98,10 +96,7 @@ fun OverviewPage(
         maxCollapsePx = maxCollapseRangePx.value
     )
 
-    SideEffect {
-        val normalizedCollapseOffsetPx = collapseOffsetPx.coerceIn(0f, maxCollapseRangePx.value)
-        if (normalizedCollapseOffsetPx != collapseOffsetPx) collapseOffsetPx = normalizedCollapseOffsetPx
-    }
+    SideEffect { collapseOffsetPx = collapseOffsetPx.coerceIn(0f, maxCollapseRangePx.value) }
 
     OverviewInfoDialogs(
         showForecastDetails = showForecastDetails.value && !isLoading,
