@@ -48,6 +48,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
+@Suppress("TooManyFunctions")
 class BudgetViewModel(
     upstreamUserSettingsFlow: Flow<UserSettings>,
     observeHomeOverviewUseCase: ObserveHomeOverviewUseCase,
@@ -340,6 +341,7 @@ class BudgetViewModel(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     fun exportSnapshot(uri: android.net.Uri) {
         viewModelScope.launch {
             _snapshotBusy.value = true

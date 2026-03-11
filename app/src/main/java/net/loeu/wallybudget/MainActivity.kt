@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package net.loeu.wallybudget
 
 import android.os.Bundle
@@ -91,6 +93,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
+@Suppress("LongMethod")
 fun BudgetApp(
     viewModel: BudgetViewModel,
     modifier: Modifier = Modifier
