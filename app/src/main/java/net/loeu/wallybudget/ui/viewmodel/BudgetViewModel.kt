@@ -1,5 +1,6 @@
 package net.loeu.wallybudget.ui.viewmodel
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -24,10 +25,12 @@ import net.loeu.wallybudget.domain.model.HomeOverviewState
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
 import net.loeu.wallybudget.domain.model.SnapshotError
+import net.loeu.wallybudget.domain.model.SnapshotImportPreview
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.TimelineLockState
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.data.time.CurrentDateProvider
+import net.loeu.wallybudget.domain.usecase.ApplyOnboardingRestoreUseCase
 import net.loeu.wallybudget.domain.usecase.AddExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.CompleteOnboardingUseCase
 import net.loeu.wallybudget.domain.usecase.ConcludePendingCycleUseCase
@@ -38,6 +41,8 @@ import net.loeu.wallybudget.domain.usecase.ObserveForecastUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveHomeOverviewUseCase
 import net.loeu.wallybudget.domain.usecase.PerformMonthlyResetUseCase
+import net.loeu.wallybudget.domain.usecase.PrepareSnapshotImportUseCase
+import net.loeu.wallybudget.domain.usecase.PreparedSnapshotImport
 import net.loeu.wallybudget.domain.usecase.RebuildMonthlyHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ResolveMutationEffectiveDateUseCase
 import net.loeu.wallybudget.domain.usecase.RestoreDeletedExpenseUseCase
@@ -50,7 +55,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "TooGenericExceptionCaught")
 class BudgetViewModel(
     upstreamUserSettingsFlow: Flow<UserSettings>,
     observeHomeOverviewUseCase: ObserveHomeOverviewUseCase,
@@ -66,6 +71,8 @@ class BudgetViewModel(
     private val performMonthlyResetUseCase: PerformMonthlyResetUseCase,
     private val concludePendingCycleUseCase: ConcludePendingCycleUseCase,
     private val exportSnapshotUseCase: ExportSnapshotUseCase,
+    private val prepareSnapshotImportUseCase: PrepareSnapshotImportUseCase,
+    private val applyOnboardingRestoreUseCase: ApplyOnboardingRestoreUseCase,
     private val ensureBudgetPolicyHistoryUseCase: EnsureBudgetPolicyHistoryUseCase,
     private val rebuildMonthlyHistoryUseCase: RebuildMonthlyHistoryUseCase,
     private val resolveMutationEffectiveDateUseCase: ResolveMutationEffectiveDateUseCase,
@@ -173,12 +180,15 @@ class BudgetViewModel(
     // UI state
     private val _isAddExpenseSheetVisible = MutableStateFlow(false)
     val isAddExpenseSheetVisible = _isAddExpenseSheetVisible.asStateFlow()
+    private val _snapshotImportPreview = MutableStateFlow<SnapshotImportPreview?>(null)
+    val snapshotImportPreview = _snapshotImportPreview.asStateFlow()
     private val _snapshotError = MutableStateFlow<SnapshotError?>(null)
     val snapshotError = _snapshotError.asStateFlow()
     private val _snapshotStatusMessage = MutableStateFlow<String?>(null)
     val snapshotStatusMessage = _snapshotStatusMessage.asStateFlow()
     private val _snapshotBusy = MutableStateFlow(false)
     val snapshotBusy = _snapshotBusy.asStateFlow()
+    private var preparedSnapshotImport: PreparedSnapshotImport? = null
 
     init {
         viewModelScope.launch {
@@ -342,7 +352,63 @@ class BudgetViewModel(
         }
     }
 
-    fun exportSnapshot(uri: android.net.Uri) {
+    fun prepareSnapshotImport(uri: Uri) {
+        viewModelScope.launch {
+            _snapshotBusy.value = true
+            _snapshotError.value = null
+            _snapshotStatusMessage.value = null
+            preparedSnapshotImport = null
+            _snapshotImportPreview.value = null
+            try {
+                val prepared = prepareSnapshotImportUseCase(uri)
+                preparedSnapshotImport = prepared
+                _snapshotImportPreview.value = prepared.preview
+            } catch (exception: SnapshotOperationException) {
+                preparedSnapshotImport = null
+                _snapshotImportPreview.value = null
+                _snapshotError.value = exception.snapshotError
+            } catch (exception: Exception) {
+                preparedSnapshotImport = null
+                _snapshotImportPreview.value = null
+                _snapshotError.value = SnapshotError.IoFailure(
+                    exception.message ?: "Unable to read snapshot."
+                )
+            } finally {
+                _snapshotBusy.value = false
+            }
+        }
+    }
+
+    fun applyPreparedSnapshotImport() {
+        val prepared = preparedSnapshotImport ?: return
+        viewModelScope.launch {
+            _snapshotBusy.value = true
+            _snapshotError.value = null
+            try {
+                val result = applyOnboardingRestoreUseCase(prepared)
+                preparedSnapshotImport = null
+                _snapshotImportPreview.value = null
+                _snapshotStatusMessage.value =
+                    "Restored ${result.importedExpenseCount} expenses across ${result.importedBudgetPolicyCount} budget cycles."
+            } catch (exception: SnapshotOperationException) {
+                _snapshotError.value = exception.snapshotError
+            } catch (exception: Exception) {
+                _snapshotError.value = SnapshotError.IoFailure(
+                    exception.message ?: "Unable to apply snapshot."
+                )
+            } finally {
+                _snapshotBusy.value = false
+            }
+        }
+    }
+
+    fun clearPreparedSnapshotImport() {
+        preparedSnapshotImport = null
+        _snapshotImportPreview.value = null
+        _snapshotError.value = null
+    }
+
+    fun exportSnapshot(uri: Uri) {
         viewModelScope.launch {
             _snapshotBusy.value = true
             _snapshotError.value = null

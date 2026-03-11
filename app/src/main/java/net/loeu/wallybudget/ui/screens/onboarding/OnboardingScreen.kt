@@ -1,3 +1,5 @@
+@file:Suppress("MaxLineLength")
+
 package net.loeu.wallybudget.ui.screens.onboarding
 
 import androidx.compose.foundation.background
@@ -13,6 +15,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -28,8 +33,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import net.loeu.wallybudget.domain.model.SnapshotImportPreview
 import net.loeu.wallybudget.util.CurrencyFormatter
 import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 private data class OnboardingSubmission(
     val budgetCents: Long,
@@ -38,6 +46,7 @@ private data class OnboardingSubmission(
 )
 
 @Composable
+@Suppress("LongMethod")
 fun OnboardingScreen(
     onComplete: (
         monthlyBudgetCents: Long,
@@ -45,6 +54,13 @@ fun OnboardingScreen(
         cycleStartDate: LocalDate,
         previousExpensesCents: Long
     ) -> Unit,
+    onRequestRestoreSnapshot: () -> Unit,
+    onApplySnapshotRestore: () -> Unit,
+    onDismissSnapshotPreview: () -> Unit,
+    snapshotPreview: SnapshotImportPreview?,
+    snapshotErrorMessage: String?,
+    snapshotStatusMessage: String?,
+    isSnapshotBusy: Boolean,
     modifier: Modifier = Modifier
 ) {
     var budgetText by remember { mutableStateOf("") }
@@ -105,6 +121,47 @@ fun OnboardingScreen(
                 .height(54.dp)
         ) {
             Text("Get Started")
+        }
+
+        Button(
+            onClick = onRequestRestoreSnapshot,
+            enabled = !isSnapshotBusy,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp)
+        ) {
+            if (isSnapshotBusy) {
+                CircularProgressIndicator(
+                    modifier = Modifier.height(20.dp),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text("Restore Snapshot")
+            }
+        }
+
+        snapshotStatusMessage?.let { message ->
+            StatusCard(
+                title = "Snapshot status",
+                body = message
+            )
+        }
+
+        snapshotErrorMessage?.let { message ->
+            StatusCard(
+                title = "Snapshot restore failed",
+                body = message,
+                error = true
+            )
+        }
+
+        snapshotPreview?.let { preview ->
+            SnapshotPreviewCard(
+                preview = preview,
+                isSnapshotBusy = isSnapshotBusy,
+                onApplySnapshotRestore = onApplySnapshotRestore,
+                onDismissSnapshotPreview = onDismissSnapshotPreview
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -199,6 +256,93 @@ private fun OnboardingHelpText() {
         textAlign = TextAlign.Start,
         modifier = Modifier.fillMaxWidth()
     )
+}
+
+@Composable
+private fun SnapshotPreviewCard(
+    preview: SnapshotImportPreview,
+    isSnapshotBusy: Boolean,
+    onApplySnapshotRestore: () -> Unit,
+    onDismissSnapshotPreview: () -> Unit
+) {
+    val exportedAt = remember(preview.exportedAtEpochMs) {
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").format(
+            preview.exportedAtEpochMs
+                .let { java.time.Instant.ofEpochMilli(it) }
+                .atZone(ZoneId.systemDefault())
+                .toLocalDateTime()
+        )
+    }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = "Snapshot preview",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text("Exported: $exportedAt")
+            Text("Expenses: ${preview.expenseCount}")
+            Text("Deleted records: ${preview.tombstoneCount}")
+            Text("Budget cycles: ${preview.budgetPolicyCount}")
+            Text("Payday: ${preview.paydayDate}")
+            Text(
+                "Default budget: ${CurrencyFormatter.format(preview.defaultMonthlyBudgetCents)}"
+            )
+            Text(if (preview.compressed) "File type: compressed snapshot" else "File type: plain JSON snapshot")
+            Text(
+                "Backup files are compressed, not encrypted.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Button(
+                onClick = onApplySnapshotRestore,
+                enabled = !isSnapshotBusy,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Apply restore")
+            }
+            Button(
+                onClick = onDismissSnapshotPreview,
+                enabled = !isSnapshotBusy,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Choose another file")
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatusCard(
+    title: String,
+    body: String,
+    error: Boolean = false
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (error) {
+                MaterialTheme.colorScheme.errorContainer
+            } else {
+                MaterialTheme.colorScheme.secondaryContainer
+            }
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = if (error) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Text(
+                text = body,
+                color = if (error) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        }
+    }
 }
 
 private fun resolveOnboardingSubmission(
