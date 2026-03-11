@@ -68,7 +68,6 @@ import net.loeu.wallybudget.domain.model.SnapshotError
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.model.recordedDate
-import net.loeu.wallybudget.util.CurrencyFormatter
 
 private const val OVERVIEW_NAVIGATION_LABEL = "Overview"
 
