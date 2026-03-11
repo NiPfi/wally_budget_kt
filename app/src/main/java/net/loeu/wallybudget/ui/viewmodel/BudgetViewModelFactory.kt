@@ -34,7 +34,6 @@ import net.loeu.wallybudget.domain.usecase.SyncObservedDateUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateMonthlyBudgetUseCase
 import net.loeu.wallybudget.domain.usecase.UpdatePaydayDateUseCase
-import kotlinx.coroutines.runBlocking
 
 class BudgetViewModelFactory(
     private val context: Context
@@ -50,7 +49,7 @@ class BudgetViewModelFactory(
     }
 
     private val installId by lazy {
-        runBlocking { userPreferencesManager.ensureIdentity().installDeviceId }
+        UserPreferencesManager.getOrCreateInstallId(context.applicationContext)
     }
 
     private val database by lazy {

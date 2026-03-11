@@ -60,9 +60,10 @@ class UserPreferencesManager(
     }
 
     override suspend fun ensureIdentity(): UserSettings {
+        val sharedInstallId = getOrCreateInstallId(context)
         context.dataStore.edit { preferences ->
             val installId = preferences[PreferenceKeys.INSTALL_DEVICE_ID]
-                ?: UUID.randomUUID().toString().also {
+                ?: sharedInstallId.also {
                     preferences[PreferenceKeys.INSTALL_DEVICE_ID] = it
                 }
             if (preferences[PreferenceKeys.SETTINGS_RECORD_UUID] == null) {
@@ -119,6 +120,7 @@ class UserPreferencesManager(
         context.dataStore.edit { preferences ->
             ensureSettingsIdentity(preferences)
             preferences[PreferenceKeys.ONBOARDING_COMPLETED] = true
+            touchSettingsMetadata(preferences)
         }
     }
 
@@ -184,7 +186,7 @@ class UserPreferencesManager(
 
     private fun ensureSettingsIdentity(preferences: androidx.datastore.preferences.core.MutablePreferences) {
         val installId = preferences[PreferenceKeys.INSTALL_DEVICE_ID]
-            ?: UUID.randomUUID().toString().also {
+            ?: getOrCreateInstallId(context).also {
                 preferences[PreferenceKeys.INSTALL_DEVICE_ID] = it
             }
         if (preferences[PreferenceKeys.SETTINGS_RECORD_UUID] == null) {
@@ -215,5 +217,18 @@ class UserPreferencesManager(
             nowEpochMs = now,
             installId = installId
         )
+    }
+
+    companion object {
+        private const val INSTALL_ID_PREFS = "install_identity"
+        private const val INSTALL_ID_KEY = "install_device_id"
+
+        fun getOrCreateInstallId(context: Context): String {
+            val preferences = context.getSharedPreferences(INSTALL_ID_PREFS, Context.MODE_PRIVATE)
+            return preferences.getString(INSTALL_ID_KEY, null)
+                ?: UUID.randomUUID().toString().also { installId ->
+                    preferences.edit().putString(INSTALL_ID_KEY, installId).apply()
+                }
+        }
     }
 }
