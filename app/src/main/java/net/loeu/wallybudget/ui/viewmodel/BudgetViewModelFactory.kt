@@ -8,7 +8,6 @@ import net.loeu.wallybudget.data.local.db.BudgetDatabase
 import net.loeu.wallybudget.data.local.preferences.UserPreferencesManager
 import net.loeu.wallybudget.data.snapshot.AndroidDocumentUriGateway
 import net.loeu.wallybudget.data.snapshot.GzipSnapshotCodec
-import net.loeu.wallybudget.data.snapshot.SnapshotCompatibilityService
 import net.loeu.wallybudget.data.snapshot.SnapshotHasher
 import net.loeu.wallybudget.data.snapshot.SnapshotJsonCodec
 import net.loeu.wallybudget.data.time.SystemCurrentDateProvider
@@ -79,7 +78,6 @@ class BudgetViewModelFactory(
     private val snapshotJsonCodec by lazy { SnapshotJsonCodec() }
     private val gzipSnapshotCodec by lazy { GzipSnapshotCodec() }
     private val snapshotHasher by lazy { SnapshotHasher() }
-    private val snapshotCompatibilityService by lazy { SnapshotCompatibilityService() }
     private val appVersionName by lazy {
         try {
             @Suppress("DEPRECATION")
