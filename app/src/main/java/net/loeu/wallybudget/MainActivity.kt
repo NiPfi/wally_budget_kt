@@ -95,26 +95,15 @@ fun BudgetApp(
         viewModel.refreshCycleState()
         onPauseOrDispose { }
     }
-
     val appState = rememberBudgetAppUiState(viewModel)
-
     if (appState.isOnboardingCompleted == null) {
-        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         return
     }
-
     val displayBudgetState = appState.budgetState ?: loadingBudgetState(appState.effectiveCurrentDate)
     val displaySpendingForecast = appState.spendingForecast ?: SpendingForecast()
-
     when {
-        appState.isOnboardingCompleted != true -> {
-            OnboardingScreen(
-                onComplete = viewModel::completeOnboarding
-            )
-        }
-
+        appState.isOnboardingCompleted != true -> OnboardingScreen(onComplete = viewModel::completeOnboarding)
         appState.pendingCycleCloseoutState != null -> {
             PendingCycleFlow(
                 pendingCycle = appState.pendingCycleCloseoutState,
@@ -345,64 +334,49 @@ private fun MainNavigationHost(
         navController = navController,
         startDestination = Screen.Home.route
     ) {
-        composable(Screen.Home.route) {
-            HomeScreen(
-                budgetState = budgetState,
-                todayExpenses = todayExpenses,
-                currentDate = effectiveCurrentDate,
-                activeCycleExpenseSections = activeCycleExpenseSections,
-                spendingForecast = spendingForecast,
-                isLoadingData = isHomeDataLoading,
-                onAddExpense = onAddExpense,
-                onRestoreExpense = onRestoreExpense,
-                onUpdateExpense = onUpdateExpense,
-                onDeleteExpense = onDeleteExpense,
-                onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                showTopRightSettingsAction = !usesVerticalNavigation,
-                showAddExpenseSheet = showAddExpenseSheet,
-                onShowAddExpenseSheet = onShowAddExpenseSheet,
-                onHideAddExpenseSheet = onHideAddExpenseSheet,
-                timelineLockReason = timelineLockReason
-            )
-        }
-        composable(Screen.History.route) {
-            HistoryScreen(
-                historySections = historySections,
-                onAddExpense = onAddExpense,
-                onRestoreExpense = onRestoreExpense,
-                onUpdateExpense = onUpdateExpense,
-                onDeleteExpense = onDeleteExpense,
-                onNavigateToSettings = if (usesVerticalNavigation) null else {
-                    { navController.navigate(Screen.Settings.route) }
-                },
-                interactionsEnabled = timelineLockReason == null,
-                timelineLockReason = timelineLockReason
-            )
-        }
-        composable(Screen.Analysis.route) {
-            val monthlyHistory by monthlyHistoryState.collectAsState()
-            val isAnalysisLoading = isHomeDataLoading || monthlyHistory == null
-            AnalysisScreen(
-                budgetState = budgetState,
-                spendingForecast = spendingForecast,
-                monthlyHistory = monthlyHistory.orEmpty(),
-                timelineLockReason = timelineLockReason,
-                isLoading = isAnalysisLoading,
-                onNavigateToSettings = if (usesVerticalNavigation) {
-                    null
-                } else {
-                    { navController.navigate(Screen.Settings.route) }
-                }
-            )
-        }
-        composable(Screen.Settings.route) {
-            SettingsScreen(
-                userSettings = userSettings,
-                onUpdateBudget = onUpdateBudget,
-                onUpdatePayday = onUpdatePayday,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
+        addHomeDestination(
+            navController = navController,
+            budgetState = budgetState,
+            todayExpenses = todayExpenses,
+            effectiveCurrentDate = effectiveCurrentDate,
+            activeCycleExpenseSections = activeCycleExpenseSections,
+            spendingForecast = spendingForecast,
+            isHomeDataLoading = isHomeDataLoading,
+            onAddExpense = onAddExpense,
+            onRestoreExpense = onRestoreExpense,
+            onUpdateExpense = onUpdateExpense,
+            onDeleteExpense = onDeleteExpense,
+            showAddExpenseSheet = showAddExpenseSheet,
+            onShowAddExpenseSheet = onShowAddExpenseSheet,
+            onHideAddExpenseSheet = onHideAddExpenseSheet,
+            timelineLockReason = timelineLockReason,
+            usesVerticalNavigation = usesVerticalNavigation
+        )
+        addHistoryDestination(
+            navController = navController,
+            historySections = historySections,
+            onAddExpense = onAddExpense,
+            onRestoreExpense = onRestoreExpense,
+            onUpdateExpense = onUpdateExpense,
+            onDeleteExpense = onDeleteExpense,
+            timelineLockReason = timelineLockReason,
+            usesVerticalNavigation = usesVerticalNavigation
+        )
+        addAnalysisDestination(
+            navController = navController,
+            budgetState = budgetState,
+            spendingForecast = spendingForecast,
+            monthlyHistoryState = monthlyHistoryState,
+            isHomeDataLoading = isHomeDataLoading,
+            timelineLockReason = timelineLockReason,
+            usesVerticalNavigation = usesVerticalNavigation
+        )
+        addSettingsDestination(
+            navController = navController,
+            userSettings = userSettings,
+            onUpdateBudget = onUpdateBudget,
+            onUpdatePayday = onUpdatePayday
+        )
     }
 }
 

@@ -13,6 +13,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.layout.SubcomposeMeasureScope
+import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
@@ -79,45 +80,104 @@ internal fun OverviewContentLayout(
         if (clampedCollapseOffsetPx != collapseOffsetPx) setCollapseOffsetPx(clampedCollapseOffsetPx)
         val collapseProgress =
             if (maxCollapsePx == 0f) 0f else (clampedCollapseOffsetPx / maxCollapsePx).coerceIn(0f, 1f)
-
-        val contentPlaceables = subcompose("content") {
-            OverviewBodyContent(
-                budgetState = budgetState,
-                todayExpenses = todayExpenses,
-                activeCycleExpenseSections = activeCycleExpenseSections,
-                spendingForecast = spendingForecast,
-                onEditTodayExpense = onEditTodayExpense,
-                listState = listState,
-                density = density,
-                topContentPaddingPx = headerMetrics.topContentPaddingPx,
-                bottomContentPadding = bottomContentPadding,
-                isLoading = isLoading,
-                onShowForecastDetails = onShowForecastDetails,
-                showSpendingDetailsSection = showSpendingDetailsSection,
-                showTodayExpensesSection = showTodayExpensesSection
-            )
-        }.map { it.measure(constraints) }
-        val headerPlaceables = subcompose("currentHeader") {
-            CurrentSummaryHeader(
-                budgetState = budgetState,
-                availableRecoverableOverspendCents = availableRecoverableOverspendCents,
-                collapseProgress = collapseProgress,
-                isLoading = isLoading,
-                useWarningTint = useWarningTint,
-                onShowSafeTodayDetails = onShowSafeTodayDetails,
-                onNavigateToSettings = onNavigateToSettings
-            )
-        }.map { it.measure(headerMetrics.headerConstraints) }
-
+        val contentPlaceables = measureOverviewBodyPlaceables(
+            constraints = constraints,
+            budgetState = budgetState,
+            todayExpenses = todayExpenses,
+            activeCycleExpenseSections = activeCycleExpenseSections,
+            spendingForecast = spendingForecast,
+            onEditTodayExpense = onEditTodayExpense,
+            listState = listState,
+            density = density,
+            topContentPaddingPx = headerMetrics.topContentPaddingPx,
+            bottomContentPadding = bottomContentPadding,
+            isLoading = isLoading,
+            onShowForecastDetails = onShowForecastDetails,
+            showSpendingDetailsSection = showSpendingDetailsSection,
+            showTodayExpensesSection = showTodayExpensesSection
+        )
+        val headerPlaceables = measureOverviewHeaderPlaceables(
+            headerConstraints = headerMetrics.headerConstraints,
+            budgetState = budgetState,
+            availableRecoverableOverspendCents = availableRecoverableOverspendCents,
+            collapseProgress = collapseProgress,
+            isLoading = isLoading,
+            useWarningTint = useWarningTint,
+            onShowSafeTodayDetails = onShowSafeTodayDetails,
+            onNavigateToSettings = onNavigateToSettings
+        )
         layout(constraints.maxWidth, constraints.maxHeight) {
-            val contentOffsetY = -clampedCollapseOffsetPx.roundToInt()
-            contentPlaceables.forEach { it.placeRelative(0, contentOffsetY) }
-            headerPlaceables.forEach {
-                it.placeRelative(headerMetrics.horizontalPaddingPx, headerMetrics.topPaddingPx)
-            }
+            placeOverviewContent(contentPlaceables, headerPlaceables, clampedCollapseOffsetPx, headerMetrics)
         }
     }
 }
+
+private fun Placeable.PlacementScope.placeOverviewContent(
+    contentPlaceables: List<Placeable>,
+    headerPlaceables: List<Placeable>,
+    clampedCollapseOffsetPx: Float,
+    headerMetrics: OverviewHeaderMetrics
+) {
+    val contentOffsetY = -clampedCollapseOffsetPx.roundToInt()
+    contentPlaceables.forEach { it.placeRelative(0, contentOffsetY) }
+    headerPlaceables.forEach {
+        it.placeRelative(headerMetrics.horizontalPaddingPx, headerMetrics.topPaddingPx)
+    }
+}
+
+private fun SubcomposeMeasureScope.measureOverviewBodyPlaceables(
+    constraints: Constraints,
+    budgetState: BudgetState,
+    todayExpenses: List<Expense>,
+    activeCycleExpenseSections: List<ExpenseDaySection>,
+    spendingForecast: SpendingForecast,
+    onEditTodayExpense: ((Expense) -> Unit)?,
+    listState: LazyListState,
+    density: Density,
+    topContentPaddingPx: Int,
+    bottomContentPadding: Dp,
+    isLoading: Boolean,
+    onShowForecastDetails: () -> Unit,
+    showSpendingDetailsSection: Boolean,
+    showTodayExpensesSection: Boolean
+) = subcompose("content") {
+    OverviewBodyContent(
+        budgetState = budgetState,
+        todayExpenses = todayExpenses,
+        activeCycleExpenseSections = activeCycleExpenseSections,
+        spendingForecast = spendingForecast,
+        onEditTodayExpense = onEditTodayExpense,
+        listState = listState,
+        density = density,
+        topContentPaddingPx = topContentPaddingPx,
+        bottomContentPadding = bottomContentPadding,
+        isLoading = isLoading,
+        onShowForecastDetails = onShowForecastDetails,
+        showSpendingDetailsSection = showSpendingDetailsSection,
+        showTodayExpensesSection = showTodayExpensesSection
+    )
+}.map { it.measure(constraints) }
+
+private fun SubcomposeMeasureScope.measureOverviewHeaderPlaceables(
+    headerConstraints: Constraints,
+    budgetState: BudgetState,
+    availableRecoverableOverspendCents: Long,
+    collapseProgress: Float,
+    isLoading: Boolean,
+    useWarningTint: Boolean,
+    onShowSafeTodayDetails: () -> Unit,
+    onNavigateToSettings: (() -> Unit)?
+) = subcompose("currentHeader") {
+    CurrentSummaryHeader(
+        budgetState = budgetState,
+        availableRecoverableOverspendCents = availableRecoverableOverspendCents,
+        collapseProgress = collapseProgress,
+        isLoading = isLoading,
+        useWarningTint = useWarningTint,
+        onShowSafeTodayDetails = onShowSafeTodayDetails,
+        onNavigateToSettings = onNavigateToSettings
+    )
+}.map { it.measure(headerConstraints) }
 
 private data class OverviewHeaderMetrics(
     val horizontalPaddingPx: Int,

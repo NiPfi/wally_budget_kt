@@ -43,11 +43,7 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var budgetText by remember {
-        mutableStateOf(
-            CurrencyFormatter.centsToDecimalString(userSettings.monthlyBudgetCents)
-        )
-    }
+    var budgetText by remember { mutableStateOf(initialBudgetText(userSettings)) }
     var paydayText by remember { mutableStateOf(userSettings.paydayDate.toString()) }
     var showBudgetError by remember { mutableStateOf(false) }; var showPaydayError by remember { mutableStateOf(false) }
     var showSaveSnackbar by remember { mutableStateOf(false) }; val snackbarHostState = remember { SnackbarHostState() }
@@ -91,23 +87,14 @@ fun SettingsScreen(
                 showBudgetError = !validation.isBudgetValid
                 showPaydayError = !validation.isPaydayValid
 
-                if (!validation.isValid) {
-                    return@SettingsScreenContent
-                }
-
+                if (!validation.isValid) return@SettingsScreenContent
                 onUpdateBudget(requireNotNull(validation.budgetCents))
                 validation.payday?.let(onUpdatePayday)
                 showSaveSnackbar = true
             }
         )
     }
-
-    LaunchedEffect(showSaveSnackbar) {
-        if (showSaveSnackbar) {
-            snackbarHostState.showSnackbar("Settings saved!")
-            showSaveSnackbar = false
-        }
-    }
+    SettingsSaveEffect(showSaveSnackbar, snackbarHostState) { showSaveSnackbar = false }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -125,6 +112,23 @@ private fun SettingsTopBar(onNavigateBack: () -> Unit) {
         }
     )
 }
+
+@Composable
+private fun SettingsSaveEffect(
+    showSaveSnackbar: Boolean,
+    snackbarHostState: SnackbarHostState,
+    onSnackbarShown: () -> Unit
+) {
+    LaunchedEffect(showSaveSnackbar) {
+        if (showSaveSnackbar) {
+            snackbarHostState.showSnackbar("Settings saved!")
+            onSnackbarShown()
+        }
+    }
+}
+
+private fun initialBudgetText(userSettings: UserSettings): String =
+    CurrencyFormatter.centsToDecimalString(userSettings.monthlyBudgetCents)
 
 @Composable
 private fun SettingsScreenContent(

@@ -195,17 +195,8 @@ private fun ForecastDetailsDialog(
                 }
             }
         },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
-            }
-        },
-        icon = {
-            androidx.compose.material3.Icon(
-                painter = painterResource(R.drawable.ic_info),
-                contentDescription = null
-            )
-        }
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        icon = { InfoDialogIcon() }
     )
 }
 
@@ -412,4 +403,12 @@ private fun DetailRow(label: String, value: String) {
             textAlign = TextAlign.End
         )
     }
+}
+
+@Composable
+private fun InfoDialogIcon() {
+    androidx.compose.material3.Icon(
+        painter = painterResource(R.drawable.ic_info),
+        contentDescription = null
+    )
 }

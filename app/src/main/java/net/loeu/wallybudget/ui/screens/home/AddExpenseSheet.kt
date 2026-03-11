@@ -137,55 +137,15 @@ private fun AddExpenseSheetContent(
             onDeleteExpense = onDeleteExpense,
             onDismiss = onDismiss
         )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        OutlinedTextField(
-            value = amountText,
-            onValueChange = onAmountChange,
-            label = { Text("Amount") },
-            placeholder = { Text("0.00") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            singleLine = true,
-            isError = showError && amountText.toDoubleOrNull() == null,
-            modifier = Modifier.fillMaxWidth()
+        AddExpenseSheetFormFields(
+            amountText = amountText,
+            showError = showError,
+            description = description,
+            selectedIcon = selectedIcon,
+            onAmountChange = onAmountChange,
+            onDescriptionChange = onDescriptionChange,
+            onShowIconPicker = onShowIconPicker
         )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            FilledTonalIconButton(
-                onClick = onShowIconPicker,
-                modifier = Modifier.size(56.dp)
-            ) {
-                Icon(
-                    painter = painterResource(id = selectedIcon.iconRes),
-                    contentDescription = "Select category icon"
-                )
-            }
-
-            OutlinedTextField(
-                value = description,
-                onValueChange = onDescriptionChange,
-                label = { Text("Description") },
-                placeholder = { Text("What did you buy?") },
-                singleLine = true,
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Text(
-            text = "Tap the icon to choose a category",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
@@ -199,6 +159,59 @@ private fun AddExpenseSheetContent(
 
         Spacer(modifier = Modifier.height(16.dp))
     }
+}
+
+@Composable
+private fun AddExpenseSheetFormFields(
+    amountText: String,
+    showError: Boolean,
+    description: String,
+    selectedIcon: ExpenseCategory?,
+    onAmountChange: (String) -> Unit,
+    onDescriptionChange: (String) -> Unit,
+    onShowIconPicker: () -> Unit
+) {
+    Spacer(modifier = Modifier.height(24.dp))
+    OutlinedTextField(
+        value = amountText,
+        onValueChange = onAmountChange,
+        label = { Text("Amount") },
+        placeholder = { Text("0.00") },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        singleLine = true,
+        isError = showError && amountText.toDoubleOrNull() == null,
+        modifier = Modifier.fillMaxWidth()
+    )
+    Spacer(modifier = Modifier.height(16.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        FilledTonalIconButton(
+            onClick = onShowIconPicker,
+            modifier = Modifier.size(56.dp)
+        ) {
+            Icon(
+                painter = painterResource(id = selectedIcon.iconRes),
+                contentDescription = "Select category icon"
+            )
+        }
+        OutlinedTextField(
+            value = description,
+            onValueChange = onDescriptionChange,
+            label = { Text("Description") },
+            placeholder = { Text("What did you buy?") },
+            singleLine = true,
+            modifier = Modifier.weight(1f)
+        )
+    }
+    Spacer(modifier = Modifier.height(10.dp))
+    Text(
+        text = "Tap the icon to choose a category",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }
 
 @Composable

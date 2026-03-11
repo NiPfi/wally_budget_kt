@@ -12,7 +12,6 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 class ObserveHistoryUseCaseTest {
-
     @Test
     fun invoke_buildsCurrentFutureAndCompletedSections_inDisplayOrder() = runBlocking {
         val expenseDao = FakeExpenseDao(
@@ -38,8 +37,7 @@ class ObserveHistoryUseCaseTest {
                     .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
             )
         )
-        val budgetCalculationService = BudgetCalculationService()
-        val useCase = ObserveHistoryUseCase(
+        val budgetCalculationService = BudgetCalculationService(); val useCase = ObserveHistoryUseCase(
             expenseDao = expenseDao,
             monthlyHistoryDao = historyDao,
             budgetCalculationService = budgetCalculationService
@@ -59,9 +57,7 @@ class ObserveHistoryUseCaseTest {
             pendingCycleCloseoutState = null,
             timelineLockState = TimelineLockState()
         )
-
         val state = useCase(kotlinx.coroutines.flow.flowOf(homeOverviewState)).first()
-
         assertEquals(2, state.monthlyHistory.size)
         assertEquals(
             listOf(

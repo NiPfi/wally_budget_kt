@@ -341,7 +341,7 @@ private fun SummaryCardSecondaryMetrics(
         SummaryMetric(
             "Days left",
             alignment = Alignment.End,
-            alpha = (1f - progress * 1.6f).coerceIn(0f, 1f),
+            alpha = summaryMetricAlpha(progress),
             contentColor = contentColor
         ) {
             AnimatedIntegerCounter(
@@ -356,11 +356,7 @@ private fun SummaryCardSecondaryMetrics(
                 placeholderText = "88"
             )
         }
-        SummaryMetric(
-            "Spent today",
-            alignment = Alignment.End,
-            contentColor = contentColor
-        ) {
+        SummaryMetric("Spent today", alignment = Alignment.End, contentColor = contentColor) {
             AnimatedCounter(
                 amountCents = budgetState.spentTodayCents,
                 textStyle = MaterialTheme.typography.titleMedium.copy(
@@ -396,6 +392,8 @@ private fun SummaryMetric(
         valueContent()
     }
 }
+
+private fun summaryMetricAlpha(progress: Float): Float = (1f - progress * 1.6f).coerceIn(0f, 1f)
 
 private fun Modifier.collapseHeight(progress: Float): Modifier = this
     .graphicsLayer { clip = true }

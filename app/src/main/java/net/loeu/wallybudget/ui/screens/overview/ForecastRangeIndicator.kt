@@ -287,12 +287,7 @@ private fun ForecastRangeIndicatorPlaceholder(
     scale: Float = 1f
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height((24 * scale).dp),
-            contentAlignment = Alignment.Center
-        ) {
+        Box(modifier = Modifier.fillMaxWidth().height((24 * scale).dp), contentAlignment = Alignment.Center) {
             LoadingValuePlaceholder(
                 sampleText = "MMMMMMMMMMMM",
                 textStyle = MaterialTheme.typography.bodySmall.copy(fontSize = (12 * scale).sp),
@@ -301,7 +296,6 @@ private fun ForecastRangeIndicatorPlaceholder(
                 fillWidth = true
             )
         }
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()

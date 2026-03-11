@@ -80,26 +80,7 @@ private fun TodayExpensesSection(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         val displayedExpenses = todayExpenses.take(4)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom
-        ) {
-            Text(
-                text = "Today's expenses",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            AnimatedCounter(
-                amountCents = totalSpentCents,
-                textStyle = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.primary,
-                animate = true,
-                textAlign = TextAlign.End,
-                placeholder = isLoading,
-                placeholderText = "$888"
-            )
-        }
+        TodayExpensesHeader(totalSpentCents = totalSpentCents, isLoading = isLoading)
 
         if (isLoading) {
             repeat(3) {
@@ -137,6 +118,33 @@ private fun TodayExpensesSection(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun TodayExpensesHeader(
+    totalSpentCents: Long,
+    isLoading: Boolean
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Bottom
+    ) {
+        Text(
+            text = "Today's expenses",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+        AnimatedCounter(
+            amountCents = totalSpentCents,
+            textStyle = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.primary,
+            animate = true,
+            textAlign = TextAlign.End,
+            placeholder = isLoading,
+            placeholderText = "$888"
+        )
     }
 }
 

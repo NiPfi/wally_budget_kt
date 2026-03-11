@@ -84,19 +84,11 @@ fun HomeScreen(
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val canEditExpenses = !isLoadingData && timelineLockReason == null
     val overviewBottomContentPadding = if (showLedgerPane) 24.dp else HomeFabSize + HomeFabListClearance
-    val onEditTodayExpense = if (canEditExpenses) {
-        { expense: Expense -> expenseBeingEdited = expense }
-    } else {
-        null
-    }
-
-    LaunchedEffect(canEditExpenses) {
-        if (!canEditExpenses) {
-            expenseBeingEdited = null
-            onHideAddExpenseSheet()
-        }
-    }
-
+    val onEditTodayExpense = if (canEditExpenses) { { expense: Expense -> expenseBeingEdited = expense } } else null
+    HomeScreenEffects(canEditExpenses = canEditExpenses, onDisableEditing = {
+        expenseBeingEdited = null
+        onHideAddExpenseSheet()
+    })
     HomeScreenScaffold(
         budgetState = budgetState,
         todayExpenses = todayExpenses,
@@ -119,7 +111,6 @@ fun HomeScreen(
             onShowAddExpenseSheet()
         }
     )
-
     AddExpenseSheetDialog(
         showAddExpenseSheet = showAddExpenseSheet,
         canEditExpenses = canEditExpenses,
@@ -128,7 +119,6 @@ fun HomeScreen(
         onDismiss = onHideAddExpenseSheet,
         onAddExpense = onAddExpense
     )
-
     EditExpenseSheetDialog(
         editingExpense = expenseBeingEdited,
         canEditExpenses = canEditExpenses,
@@ -139,6 +129,16 @@ fun HomeScreen(
         onRestoreExpense = onRestoreExpense,
         scope = scope
     )
+}
+
+@Composable
+private fun HomeScreenEffects(
+    canEditExpenses: Boolean,
+    onDisableEditing: () -> Unit
+) {
+    LaunchedEffect(canEditExpenses) {
+        if (!canEditExpenses) onDisableEditing()
+    }
 }
 
 @Composable

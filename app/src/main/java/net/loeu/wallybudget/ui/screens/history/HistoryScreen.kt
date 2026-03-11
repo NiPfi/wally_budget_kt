@@ -99,19 +99,16 @@ fun HistoryScreen(
     var showInitialSwipeHint by rememberSaveable { mutableStateOf(true) }
     var isAddSheetVisible by remember { mutableStateOf(false) }
     var expenseBeingEdited by remember { mutableStateOf<Expense?>(null) }
-    LaunchedEffect(interactionsEnabled) {
-        if (!interactionsEnabled) {
+    HistoryScreenEffects(
+        interactionsEnabled = interactionsEnabled,
+        currentPage = pagerState.currentPage,
+        pageCount = compactPagerSections.size,
+        onResetEditing = {
             expenseBeingEdited = null
             isAddSheetVisible = false
-        }
-    }
-
-    LaunchedEffect(pagerState.currentPage, compactPagerSections.size) {
-        val currentCyclePage = compactPagerSections.lastIndex
-        if (compactPagerSections.size > 1 && pagerState.currentPage != currentCyclePage) {
-            showInitialSwipeHint = false
-        }
-    }
+        },
+        onDismissInitialSwipeHint = { showInitialSwipeHint = false }
+    )
 
     HistoryScreenScaffold(
         historySections = historySections,
@@ -150,6 +147,23 @@ fun HistoryScreen(
         onDeleteExpense = onDeleteExpense,
         onRestoreExpense = onRestoreExpense
     )
+}
+
+@Composable
+private fun HistoryScreenEffects(
+    interactionsEnabled: Boolean,
+    currentPage: Int,
+    pageCount: Int,
+    onResetEditing: () -> Unit,
+    onDismissInitialSwipeHint: () -> Unit
+) {
+    LaunchedEffect(interactionsEnabled) {
+        if (!interactionsEnabled) onResetEditing()
+    }
+    LaunchedEffect(currentPage, pageCount) {
+        val currentCyclePage = pageCount - 1
+        if (pageCount > 1 && currentPage != currentCyclePage) onDismissInitialSwipeHint()
+    }
 }
 
 
