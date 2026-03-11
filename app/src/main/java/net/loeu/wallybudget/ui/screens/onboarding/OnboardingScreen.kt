@@ -1,3 +1,5 @@
+@file:Suppress("MaxLineLength")
+
 package net.loeu.wallybudget.ui.screens.onboarding
 
 import androidx.compose.foundation.background
@@ -45,6 +47,7 @@ private data class OnboardingSubmission(
 )
 
 @Composable
+@Suppress("LongMethod")
 fun OnboardingScreen(
     onComplete: (
         monthlyBudgetCents: Long,
