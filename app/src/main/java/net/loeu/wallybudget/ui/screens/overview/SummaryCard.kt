@@ -324,10 +324,7 @@ private fun SummaryCardSecondaryMetrics(
             .collapseHeight(secondaryMetricsProgress),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        SummaryMetric(
-            "Cycle left",
-            contentColor = contentColor
-        ) {
+        SummaryMetric("Cycle left", contentColor = contentColor) {
             AnimatedCounter(
                 amountCents = budgetState.remainingCycleCents,
                 signed = true,

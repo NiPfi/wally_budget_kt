@@ -88,23 +88,17 @@ fun HistoryScreen(
 ) {
     val isCompact = !currentWindowAdaptiveInfo().windowSizeClass
         .isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND)
-    val compactPagerSections = if (embedded) {
-        historySections.take(1)
-    } else {
-        historySections.reversed()
-    }
+    val compactPagerSections = if (embedded) historySections.take(1) else historySections.reversed()
     val pagerState = rememberPagerState(
         initialPage = compactPagerSections.lastIndex.coerceAtLeast(0)
     ) {
         compactPagerSections.size.coerceAtLeast(1)
     }
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }; val scope = rememberCoroutineScope()
     val selectedDateEpochDay = rememberSaveable { mutableLongStateOf(LocalDate.now().toEpochDay()) }
     var showInitialSwipeHint by rememberSaveable { mutableStateOf(true) }
-    var expenseBeingEdited by remember { mutableStateOf<Expense?>(null) }
     var isAddSheetVisible by remember { mutableStateOf(false) }
-
+    var expenseBeingEdited by remember { mutableStateOf<Expense?>(null) }
     LaunchedEffect(interactionsEnabled) {
         if (!interactionsEnabled) {
             expenseBeingEdited = null

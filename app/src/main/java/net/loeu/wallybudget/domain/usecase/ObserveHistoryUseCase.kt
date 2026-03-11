@@ -82,18 +82,12 @@ class ObserveHistoryUseCase(
             isEditable = isEditable,
             today = today
         )
-
-        sections += ExpenseCycleSection(
-            cycleStartDate = currentCycleStart,
-            cycleEndDateExclusive = today.plusDays(1),
-            title = "Current cycle",
-            budgetAmountCents = budgetState.monthlyBudgetCents,
-            totalSpentCents = budgetState.totalSpentThisCycleCents,
-            surplusCents = budgetState.remainingCycleCents,
-            daySections = activeCycleDaySections,
-            isActiveCycle = true,
-            isReadOnly = !isEditable,
-            isCompletedCycle = false
+        sections += buildCurrentCycleSection(
+            budgetState = budgetState,
+            currentCycleStart = currentCycleStart,
+            today = today,
+            activeCycleDaySections = activeCycleDaySections,
+            isEditable = isEditable
         )
 
         if (futureExpenses.isNotEmpty()) {
@@ -137,6 +131,27 @@ class ObserveHistoryUseCase(
             }
 
         return sections
+    }
+
+    private fun buildCurrentCycleSection(
+        budgetState: BudgetState,
+        currentCycleStart: LocalDate,
+        today: LocalDate,
+        activeCycleDaySections: List<ExpenseDaySection>,
+        isEditable: Boolean
+    ): ExpenseCycleSection {
+        return ExpenseCycleSection(
+            cycleStartDate = currentCycleStart,
+            cycleEndDateExclusive = today.plusDays(1),
+            title = "Current cycle",
+            budgetAmountCents = budgetState.monthlyBudgetCents,
+            totalSpentCents = budgetState.totalSpentThisCycleCents,
+            surplusCents = budgetState.remainingCycleCents,
+            daySections = activeCycleDaySections,
+            isActiveCycle = true,
+            isReadOnly = !isEditable,
+            isCompletedCycle = false
+        )
     }
 
     private fun buildReadOnlyDaySections(

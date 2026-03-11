@@ -7,19 +7,14 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.layout.SubcomposeLayout
@@ -29,7 +24,6 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Velocity
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -79,30 +73,13 @@ fun OverviewPage(
         budgetState.remainingTodayCents < 0L ||
             budgetState.remainingCycleCents < 0L ||
             spendingForecast.isProjectedOverBudget
-    val showForecastDetails = remember { mutableStateOf(false) }
-    val showSafeTodayDetails = remember { mutableStateOf(false) }
-    val listState = rememberLazyListState(); val density = LocalDensity.current
-    val defaultCollapseOffsetPx = remember(defaultCollapsedHeader, density) {
-        if (defaultCollapsedHeader) with(density) { 64.dp.toPx() } else 0f
-    }
-    var collapseOffsetPx by remember(defaultCollapsedHeader, density) { mutableFloatStateOf(defaultCollapseOffsetPx) }
-    val maxCollapseRangePx = remember { CollapseRangeHolder() }
-    val nestedScrollConnection = rememberOverviewNestedScrollConnection(
-        listStateFirstVisibleItemIndex = listState.firstVisibleItemIndex,
-        listStateFirstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset,
-        enableHeaderCollapse = enableHeaderCollapse,
-        collapseOffsetPx = collapseOffsetPx,
-        setCollapseOffsetPx = { collapseOffsetPx = it },
-        maxCollapsePx = maxCollapseRangePx.value
-    )
-
-    SideEffect { collapseOffsetPx = collapseOffsetPx.coerceIn(0f, maxCollapseRangePx.value) }
+    val layoutState = rememberOverviewPageLayoutState(defaultCollapsedHeader, enableHeaderCollapse)
 
     OverviewInfoDialogs(
-        showForecastDetails = showForecastDetails.value && !isLoading,
-        onDismissForecastDetails = { showForecastDetails.value = false },
-        showSafeTodayDetails = showSafeTodayDetails.value && !isLoading,
-        onDismissSafeTodayDetails = { showSafeTodayDetails.value = false },
+        showForecastDetails = layoutState.showForecastDetails.value && !isLoading,
+        onDismissForecastDetails = { layoutState.showForecastDetails.value = false },
+        showSafeTodayDetails = layoutState.showSafeTodayDetails.value && !isLoading,
+        onDismissSafeTodayDetails = { layoutState.showSafeTodayDetails.value = false },
         spendingForecast = spendingForecast,
         budgetState = budgetState,
         availableRecoverableOverspendCents = availableRecoverableOverspendCents,
@@ -124,17 +101,17 @@ fun OverviewPage(
         bottomContentPadding = bottomContentPadding,
         availableRecoverableOverspendCents = availableRecoverableOverspendCents,
         useWarningTint = useWarningTint,
-        density = density,
+        density = layoutState.density,
         headerHorizontalPadding = headerHorizontalPadding,
         headerTopPadding = headerTopPadding,
         headerBottomSpacing = headerBottomSpacing,
-        listState = listState,
-        collapseOffsetPx = collapseOffsetPx,
-        setCollapseOffsetPx = { collapseOffsetPx = it },
-        maxCollapseRangePx = maxCollapseRangePx,
-        nestedScrollConnection = nestedScrollConnection,
-        onShowForecastDetails = { showForecastDetails.value = true },
-        onShowSafeTodayDetails = { showSafeTodayDetails.value = true }
+        listState = layoutState.listState,
+        collapseOffsetPx = layoutState.collapseOffsetPx.value,
+        setCollapseOffsetPx = { layoutState.collapseOffsetPx.value = it },
+        maxCollapseRangePx = layoutState.maxCollapseRangePx,
+        nestedScrollConnection = layoutState.nestedScrollConnection,
+        onShowForecastDetails = { layoutState.showForecastDetails.value = true },
+        onShowSafeTodayDetails = { layoutState.showSafeTodayDetails.value = true }
     )
 }
 
@@ -296,7 +273,7 @@ private fun SafeTodayDetailsDialog(
 }
 
 @Composable
-private fun rememberOverviewNestedScrollConnection(
+internal fun rememberOverviewNestedScrollConnection(
     listStateFirstVisibleItemIndex: Int,
     listStateFirstVisibleItemScrollOffset: Int,
     enableHeaderCollapse: Boolean,

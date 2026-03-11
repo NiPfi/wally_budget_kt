@@ -81,23 +81,17 @@ class PerformMonthlyResetUseCase(
             nextPendingCycle = endedCycles.last()
         }
 
-        if (clearPending) {
-            userSettingsStore.clearPendingCycle()
-        }
-        when {
-            nextPendingCycle != null -> userSettingsStore.setPendingCycle(
-                cycleStartDate = nextPendingCycle.start,
-                cycleEndDateExclusive = nextPendingCycle.endExclusive,
-                detectedAtTimestamp = Instant.now().toEpochMilli()
-            )
-
-            recoveryPendingCycle != null -> userSettingsStore.setPendingCycle(
-                cycleStartDate = recoveryPendingCycle.start,
-                cycleEndDateExclusive = recoveryPendingCycle.endExclusive,
-                detectedAtTimestamp = Instant.now().toEpochMilli()
-            )
-        }
+        if (clearPending) userSettingsStore.clearPendingCycle()
+        (nextPendingCycle ?: recoveryPendingCycle)?.let { storePendingCycle(it) }
         userSettingsStore.updateLastResetTimestamp(currentCycleStart.toStartOfDayMillis())
+    }
+
+    private suspend fun storePendingCycle(cycleRange: CycleRange) {
+        userSettingsStore.setPendingCycle(
+            cycleStartDate = cycleRange.start,
+            cycleEndDateExclusive = cycleRange.endExclusive,
+            detectedAtTimestamp = Instant.now().toEpochMilli()
+        )
     }
 
     private suspend fun recoverMissingPendingCycle(
