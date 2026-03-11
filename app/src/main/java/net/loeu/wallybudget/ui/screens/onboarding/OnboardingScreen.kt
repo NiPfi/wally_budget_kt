@@ -4,7 +4,6 @@ package net.loeu.wallybudget.ui.screens.onboarding
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -150,7 +149,7 @@ fun OnboardingScreen(
 
         snapshotErrorMessage?.let { message ->
             StatusCard(
-                title = "Restore blocked",
+                title = "Snapshot restore failed",
                 body = message,
                 error = true
             )
