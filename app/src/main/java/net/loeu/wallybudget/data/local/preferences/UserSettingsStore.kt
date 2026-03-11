@@ -7,6 +7,8 @@ import java.time.LocalDate
 interface UserSettingsStore {
     val userSettings: Flow<UserSettings>
 
+    suspend fun ensureIdentity(): UserSettings
+
     suspend fun updateMonthlyBudget(amountCents: Long)
 
     suspend fun updatePaydayDate(day: Int)

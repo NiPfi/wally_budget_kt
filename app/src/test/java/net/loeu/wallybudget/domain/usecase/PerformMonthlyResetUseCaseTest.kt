@@ -3,6 +3,7 @@ package net.loeu.wallybudget.domain.usecase
 import kotlinx.coroutines.runBlocking
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
+import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Test
@@ -21,14 +22,17 @@ class PerformMonthlyResetUseCaseTest {
                 expenseEntityOn(1L, LocalDate.of(2026, 3, 20), 4_000L)
             )
         )
+        val budgetPolicyDao = FakeBudgetPolicyDao()
         val historyDao = FakeMonthlyHistoryDao()
         val userSettingsStore = FakeUserSettingsStore()
         val useCase = PerformMonthlyResetUseCase(
             transactionRunner = transactionRunner,
             expenseDao = expenseDao,
+            budgetPolicyDao = budgetPolicyDao,
             monthlyHistoryDao = historyDao,
             userSettingsStore = userSettingsStore,
-            budgetCalculationService = budgetCalculationService
+            budgetCalculationService = budgetCalculationService,
+            hybridLogicalClockService = HybridLogicalClockService()
         )
         val settings = UserSettings(
             monthlyBudgetCents = 100_000L,
@@ -55,14 +59,17 @@ class PerformMonthlyResetUseCaseTest {
                 expenseEntityOn(4L, LocalDate.of(2026, 4, 8), 8_000L)
             )
         )
+        val budgetPolicyDao = FakeBudgetPolicyDao()
         val historyDao = FakeMonthlyHistoryDao()
         val userSettingsStore = FakeUserSettingsStore()
         val useCase = PerformMonthlyResetUseCase(
             transactionRunner = transactionRunner,
             expenseDao = expenseDao,
+            budgetPolicyDao = budgetPolicyDao,
             monthlyHistoryDao = historyDao,
             userSettingsStore = userSettingsStore,
-            budgetCalculationService = budgetCalculationService
+            budgetCalculationService = budgetCalculationService,
+            hybridLogicalClockService = HybridLogicalClockService()
         )
         val settings = UserSettings(
             monthlyBudgetCents = 100_000L,
@@ -90,14 +97,17 @@ class PerformMonthlyResetUseCaseTest {
                 expenseEntityOn(3L, LocalDate.of(2026, 3, 30), 7_000L)
             )
         )
+        val budgetPolicyDao = FakeBudgetPolicyDao()
         val historyDao = FakeMonthlyHistoryDao()
         val userSettingsStore = FakeUserSettingsStore()
         val useCase = PerformMonthlyResetUseCase(
             transactionRunner = transactionRunner,
             expenseDao = expenseDao,
+            budgetPolicyDao = budgetPolicyDao,
             monthlyHistoryDao = historyDao,
             userSettingsStore = userSettingsStore,
-            budgetCalculationService = budgetCalculationService
+            budgetCalculationService = budgetCalculationService,
+            hybridLogicalClockService = HybridLogicalClockService()
         )
         val settings = UserSettings(
             monthlyBudgetCents = 100_000L,

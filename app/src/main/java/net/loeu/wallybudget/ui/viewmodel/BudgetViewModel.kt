@@ -1,5 +1,4 @@
 package net.loeu.wallybudget.ui.viewmodel
-
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.Flow
@@ -29,11 +28,14 @@ import net.loeu.wallybudget.domain.usecase.AddExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.CompleteOnboardingUseCase
 import net.loeu.wallybudget.domain.usecase.ConcludePendingCycleUseCase
 import net.loeu.wallybudget.domain.usecase.DeleteExpenseUseCase
+import net.loeu.wallybudget.domain.usecase.EnsureBudgetPolicyHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveForecastUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveHomeOverviewUseCase
 import net.loeu.wallybudget.domain.usecase.PerformMonthlyResetUseCase
+import net.loeu.wallybudget.domain.usecase.RebuildMonthlyHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ResolveMutationEffectiveDateUseCase
+import net.loeu.wallybudget.domain.usecase.RestoreDeletedExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.SyncObservedDateUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateMonthlyBudgetUseCase
@@ -50,11 +52,14 @@ class BudgetViewModel(
     private val addExpenseUseCase: AddExpenseUseCase,
     private val updateExpenseUseCase: UpdateExpenseUseCase,
     private val deleteExpenseUseCase: DeleteExpenseUseCase,
+    private val restoreDeletedExpenseUseCase: RestoreDeletedExpenseUseCase,
     private val updateMonthlyBudgetUseCase: UpdateMonthlyBudgetUseCase,
     private val updatePaydayDateUseCase: UpdatePaydayDateUseCase,
     private val completeOnboardingUseCase: CompleteOnboardingUseCase,
     private val performMonthlyResetUseCase: PerformMonthlyResetUseCase,
     private val concludePendingCycleUseCase: ConcludePendingCycleUseCase,
+    private val ensureBudgetPolicyHistoryUseCase: EnsureBudgetPolicyHistoryUseCase,
+    private val rebuildMonthlyHistoryUseCase: RebuildMonthlyHistoryUseCase,
     private val resolveMutationEffectiveDateUseCase: ResolveMutationEffectiveDateUseCase,
     private val syncObservedDateUseCase: SyncObservedDateUseCase,
     private val currentDateProvider: CurrentDateProvider
@@ -162,6 +167,9 @@ class BudgetViewModel(
     val isAddExpenseSheetVisible = _isAddExpenseSheetVisible.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            ensureBudgetPolicyHistoryUseCase(currentDateProvider.currentDate())
+        }
         // Check for monthly reset on initialization and local date changes
         viewModelScope.launch {
             combine(userSettingsFlow, currentDateProvider.observeCurrentDate()) { settings, observedDate ->
@@ -259,7 +267,7 @@ class BudgetViewModel(
             ) {
                 return@launch
             }
-            addExpenseUseCase(expense.copy(id = 0L))
+            restoreDeletedExpenseUseCase(expense)
         }
     }
 

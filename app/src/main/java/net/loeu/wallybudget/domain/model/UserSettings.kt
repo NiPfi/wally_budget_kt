@@ -11,5 +11,13 @@ data class UserSettings(
     val isOnboardingCompleted: Boolean = false,
     val pendingCycleStartDate: String? = null,
     val pendingCycleEndDateExclusive: String? = null,
-    val pendingCycleDetectedAtTimestamp: Long = 0L
-)
+    val pendingCycleDetectedAtTimestamp: Long = 0L,
+    val installDeviceId: String = "",
+    val settingsRecordUuid: String = "",
+    val settingsUpdatedAtEpochMs: Long = 0L,
+    val settingsModClock: String = "",
+    val settingsLastModifiedByInstallId: String = ""
+) {
+    val defaultMonthlyBudgetCents: Long
+        get() = monthlyBudgetCents
+}

@@ -10,6 +10,7 @@ import java.time.format.DateTimeParseException
  */
 data class Expense(
     val id: Long = 0,
+    val recordUuid: String = "",
     val amountCents: Long,
     val description: String,
     val timestamp: Long = Instant.now().toEpochMilli(),
@@ -17,7 +18,13 @@ data class Expense(
         .atZone(ZoneId.systemDefault())
         .toLocalDate()
         .toString(),
-    val icon: ExpenseCategory? = null
+    val icon: ExpenseCategory? = null,
+    val originInstallId: String = "",
+    val lastModifiedByInstallId: String = "",
+    val createdAtEpochMs: Long = timestamp,
+    val updatedAtEpochMs: Long = timestamp,
+    val deletedAtEpochMs: Long? = null,
+    val modClock: String = ""
 )
 
 fun Expense.recordedDate(): LocalDate {

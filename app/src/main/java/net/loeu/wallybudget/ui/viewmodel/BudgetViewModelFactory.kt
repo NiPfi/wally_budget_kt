@@ -8,16 +8,20 @@ import net.loeu.wallybudget.data.local.db.BudgetDatabase
 import net.loeu.wallybudget.data.local.preferences.UserPreferencesManager
 import net.loeu.wallybudget.data.time.SystemCurrentDateProvider
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
+import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import net.loeu.wallybudget.domain.service.SpendingForecastCalculator
 import net.loeu.wallybudget.domain.usecase.AddExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.CompleteOnboardingUseCase
 import net.loeu.wallybudget.domain.usecase.ConcludePendingCycleUseCase
 import net.loeu.wallybudget.domain.usecase.DeleteExpenseUseCase
+import net.loeu.wallybudget.domain.usecase.EnsureBudgetPolicyHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveForecastUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveHomeOverviewUseCase
 import net.loeu.wallybudget.domain.usecase.PerformMonthlyResetUseCase
 import net.loeu.wallybudget.domain.usecase.ResolveMutationEffectiveDateUseCase
+import net.loeu.wallybudget.domain.usecase.RestoreDeletedExpenseUseCase
+import net.loeu.wallybudget.domain.usecase.RebuildMonthlyHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.SyncObservedDateUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateMonthlyBudgetUseCase
@@ -26,6 +30,19 @@ import net.loeu.wallybudget.domain.usecase.UpdatePaydayDateUseCase
 class BudgetViewModelFactory(
     private val context: Context
 ) : ViewModelProvider.Factory {
+
+    private val hybridLogicalClockService by lazy { HybridLogicalClockService() }
+
+    private val userPreferencesManager by lazy {
+        UserPreferencesManager(
+            context.applicationContext,
+            hybridLogicalClockService = hybridLogicalClockService
+        )
+    }
+
+    private val installId by lazy {
+        UserPreferencesManager.getOrCreateInstallId(context.applicationContext)
+    }
 
     private val database by lazy {
         Room.databaseBuilder(
@@ -39,13 +56,10 @@ class BudgetViewModelFactory(
                 BudgetDatabase.MIGRATION_3_4,
                 BudgetDatabase.MIGRATION_4_5,
                 BudgetDatabase.MIGRATION_5_6,
-                BudgetDatabase.MIGRATION_6_7
+                BudgetDatabase.MIGRATION_6_7,
+                BudgetDatabase.migration7To8(installId)
             )
             .build()
-    }
-
-    private val userPreferencesManager by lazy {
-        UserPreferencesManager(context.applicationContext)
     }
 
     private val currentDateProvider by lazy {
@@ -63,12 +77,14 @@ class BudgetViewModelFactory(
     private val expenseDao by lazy { database.expenseDao() }
     private val monthlyHistoryDao by lazy { database.monthlyHistoryDao() }
     private val cycleOverviewDao by lazy { database.cycleOverviewDao() }
+    private val budgetPolicyDao by lazy { database.budgetPolicyDao() }
 
     private val observeHomeOverviewUseCase by lazy {
         ObserveHomeOverviewUseCase(
             expenseDao = expenseDao,
             monthlyHistoryDao = monthlyHistoryDao,
             cycleOverviewDao = cycleOverviewDao,
+            budgetPolicyDao = budgetPolicyDao,
             userSettingsStore = userPreferencesManager,
             currentDateProvider = currentDateProvider,
             budgetCalculationService = budgetCalculationService
@@ -93,33 +109,73 @@ class BudgetViewModelFactory(
         )
     }
 
-    private val addExpenseUseCase by lazy { AddExpenseUseCase(expenseDao) }
-    private val updateExpenseUseCase by lazy { UpdateExpenseUseCase(expenseDao) }
-    private val deleteExpenseUseCase by lazy { DeleteExpenseUseCase(expenseDao) }
-    private val updateMonthlyBudgetUseCase by lazy { UpdateMonthlyBudgetUseCase(userPreferencesManager) }
+    private val addExpenseUseCase by lazy {
+        AddExpenseUseCase(expenseDao, userPreferencesManager, hybridLogicalClockService)
+    }
+    private val updateExpenseUseCase by lazy {
+        UpdateExpenseUseCase(expenseDao, userPreferencesManager, hybridLogicalClockService)
+    }
+    private val deleteExpenseUseCase by lazy {
+        DeleteExpenseUseCase(expenseDao, userPreferencesManager, hybridLogicalClockService)
+    }
+    private val restoreDeletedExpenseUseCase by lazy {
+        RestoreDeletedExpenseUseCase(expenseDao, userPreferencesManager, hybridLogicalClockService)
+    }
+    private val ensureBudgetPolicyHistoryUseCase by lazy {
+        EnsureBudgetPolicyHistoryUseCase(
+            budgetPolicyDao = budgetPolicyDao,
+            monthlyHistoryDao = monthlyHistoryDao,
+            userSettingsStore = userPreferencesManager,
+            budgetCalculationService = budgetCalculationService,
+            hybridLogicalClockService = hybridLogicalClockService
+        )
+    }
+    private val rebuildMonthlyHistoryUseCase by lazy {
+        RebuildMonthlyHistoryUseCase(
+            budgetPolicyDao = budgetPolicyDao,
+            expenseDao = expenseDao,
+            monthlyHistoryDao = monthlyHistoryDao,
+            budgetCalculationService = budgetCalculationService
+        )
+    }
     private val updatePaydayDateUseCase by lazy { UpdatePaydayDateUseCase(userPreferencesManager) }
+    private val updateMonthlyBudgetUseCase by lazy {
+        UpdateMonthlyBudgetUseCase(
+            userSettingsStore = userPreferencesManager,
+            expenseDao = expenseDao,
+            budgetPolicyDao = budgetPolicyDao,
+            currentDateProvider = currentDateProvider,
+            budgetCalculationService = budgetCalculationService,
+            hybridLogicalClockService = hybridLogicalClockService
+        )
+    }
     private val completeOnboardingUseCase by lazy {
         CompleteOnboardingUseCase(
             transactionRunner = database,
+            budgetPolicyDao = budgetPolicyDao,
             monthlyHistoryDao = monthlyHistoryDao,
             userSettingsStore = userPreferencesManager,
             currentDateProvider = currentDateProvider,
-            budgetCalculationService = budgetCalculationService
+            budgetCalculationService = budgetCalculationService,
+            hybridLogicalClockService = hybridLogicalClockService
         )
     }
     private val performMonthlyResetUseCase by lazy {
         PerformMonthlyResetUseCase(
             transactionRunner = database,
             expenseDao = expenseDao,
+            budgetPolicyDao = budgetPolicyDao,
             monthlyHistoryDao = monthlyHistoryDao,
             userSettingsStore = userPreferencesManager,
-            budgetCalculationService = budgetCalculationService
+            budgetCalculationService = budgetCalculationService,
+            hybridLogicalClockService = hybridLogicalClockService
         )
     }
     private val concludePendingCycleUseCase by lazy {
         ConcludePendingCycleUseCase(
             transactionRunner = database,
             expenseDao = expenseDao,
+            budgetPolicyDao = budgetPolicyDao,
             monthlyHistoryDao = monthlyHistoryDao,
             userSettingsStore = userPreferencesManager,
             budgetCalculationService = budgetCalculationService
@@ -143,13 +199,16 @@ class BudgetViewModelFactory(
                 observeHistoryUseCase = observeHistoryUseCase,
                 observeForecastUseCase = observeForecastUseCase,
                 addExpenseUseCase = addExpenseUseCase,
-                updateExpenseUseCase = updateExpenseUseCase,
-                deleteExpenseUseCase = deleteExpenseUseCase,
+            updateExpenseUseCase = updateExpenseUseCase,
+            deleteExpenseUseCase = deleteExpenseUseCase,
+                restoreDeletedExpenseUseCase = restoreDeletedExpenseUseCase,
                 updateMonthlyBudgetUseCase = updateMonthlyBudgetUseCase,
                 updatePaydayDateUseCase = updatePaydayDateUseCase,
                 completeOnboardingUseCase = completeOnboardingUseCase,
                 performMonthlyResetUseCase = performMonthlyResetUseCase,
                 concludePendingCycleUseCase = concludePendingCycleUseCase,
+                ensureBudgetPolicyHistoryUseCase = ensureBudgetPolicyHistoryUseCase,
+                rebuildMonthlyHistoryUseCase = rebuildMonthlyHistoryUseCase,
                 resolveMutationEffectiveDateUseCase = resolveMutationEffectiveDateUseCase,
                 syncObservedDateUseCase = syncObservedDateUseCase,
                 currentDateProvider = currentDateProvider

@@ -15,12 +15,15 @@ import java.time.ZoneId
     tableName = "expenses",
     indices = [
         Index(value = ["timestamp"]),
-        Index(value = ["expenseDate"])
+        Index(value = ["expenseDate"]),
+        Index(value = ["recordUuid"], unique = true),
+        Index(value = ["deletedAtEpochMs"])
     ]
 )
 data class ExpenseEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    val recordUuid: String,
     val amountCents: Long,
     val description: String,
     val timestamp: Long = Instant.now().toEpochMilli(),
@@ -28,27 +31,47 @@ data class ExpenseEntity(
         .atZone(ZoneId.systemDefault())
         .toLocalDate()
         .toString(),
-    val icon: ExpenseCategory? = null
+    val icon: ExpenseCategory? = null,
+    val originInstallId: String,
+    val lastModifiedByInstallId: String,
+    val createdAtEpochMs: Long = timestamp,
+    val updatedAtEpochMs: Long = timestamp,
+    val deletedAtEpochMs: Long? = null,
+    val modClock: String
 )
 
 fun ExpenseEntity.toDomainModel(): Expense {
     return Expense(
         id = id,
+        recordUuid = recordUuid,
         amountCents = amountCents,
         description = description,
         timestamp = timestamp,
         expenseDate = expenseDate,
-        icon = icon
+        icon = icon,
+        originInstallId = originInstallId,
+        lastModifiedByInstallId = lastModifiedByInstallId,
+        createdAtEpochMs = createdAtEpochMs,
+        updatedAtEpochMs = updatedAtEpochMs,
+        deletedAtEpochMs = deletedAtEpochMs,
+        modClock = modClock
     )
 }
 
 fun Expense.toEntity(): ExpenseEntity {
     return ExpenseEntity(
         id = id,
+        recordUuid = recordUuid,
         amountCents = amountCents,
         description = description,
         timestamp = timestamp,
         expenseDate = expenseDate,
-        icon = icon
+        icon = icon,
+        originInstallId = originInstallId,
+        lastModifiedByInstallId = lastModifiedByInstallId,
+        createdAtEpochMs = createdAtEpochMs,
+        updatedAtEpochMs = updatedAtEpochMs,
+        deletedAtEpochMs = deletedAtEpochMs,
+        modClock = modClock
     )
 }

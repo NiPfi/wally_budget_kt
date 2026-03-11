@@ -1,5 +1,6 @@
 package net.loeu.wallybudget.domain.usecase
 
+import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
 import net.loeu.wallybudget.data.local.db.TransactionRunner
@@ -12,6 +13,7 @@ import net.loeu.wallybudget.domain.usecase.internal.pendingCycleRangeOrNull
 class ConcludePendingCycleUseCase(
     private val transactionRunner: TransactionRunner,
     private val expenseDao: ExpenseDao,
+    private val budgetPolicyDao: BudgetPolicyDao,
     private val monthlyHistoryDao: MonthlyHistoryDao,
     private val userSettingsStore: UserSettingsStore,
     private val budgetCalculationService: BudgetCalculationService
@@ -21,6 +23,7 @@ class ConcludePendingCycleUseCase(
         transactionRunner.inTransaction {
             archiveCycleIfNeeded(
                 expenseDao = expenseDao,
+                budgetPolicyDao = budgetPolicyDao,
                 monthlyHistoryDao = monthlyHistoryDao,
                 budgetCalculationService = budgetCalculationService,
                 settings = settings,
