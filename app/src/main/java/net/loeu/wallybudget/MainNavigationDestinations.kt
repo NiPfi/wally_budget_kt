@@ -116,13 +116,21 @@ internal fun NavGraphBuilder.addSettingsDestination(
     navController: NavHostController,
     userSettings: UserSettings,
     onUpdateBudget: (Long) -> Unit,
-    onUpdatePayday: (Int) -> Unit
+    onUpdatePayday: (Int) -> Unit,
+    onRequestExportSnapshot: () -> Unit,
+    snapshotMessage: String?,
+    snapshotErrorMessage: String?,
+    isSnapshotBusy: Boolean
 ) {
     composable(Screen.Settings.route) {
         SettingsScreen(
             userSettings = userSettings,
             onUpdateBudget = onUpdateBudget,
             onUpdatePayday = onUpdatePayday,
+            onRequestExportSnapshot = onRequestExportSnapshot,
+            snapshotMessage = snapshotMessage,
+            snapshotErrorMessage = snapshotErrorMessage,
+            isSnapshotBusy = isSnapshotBusy,
             onNavigateBack = { navController.popBackStack() }
         )
     }

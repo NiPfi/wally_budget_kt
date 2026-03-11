@@ -6,6 +6,10 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.room.Room
 import net.loeu.wallybudget.data.local.db.BudgetDatabase
 import net.loeu.wallybudget.data.local.preferences.UserPreferencesManager
+import net.loeu.wallybudget.data.snapshot.AndroidDocumentUriGateway
+import net.loeu.wallybudget.data.snapshot.GzipSnapshotCodec
+import net.loeu.wallybudget.data.snapshot.SnapshotHasher
+import net.loeu.wallybudget.data.snapshot.SnapshotJsonCodec
 import net.loeu.wallybudget.data.time.SystemCurrentDateProvider
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
@@ -15,6 +19,7 @@ import net.loeu.wallybudget.domain.usecase.CompleteOnboardingUseCase
 import net.loeu.wallybudget.domain.usecase.ConcludePendingCycleUseCase
 import net.loeu.wallybudget.domain.usecase.DeleteExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.EnsureBudgetPolicyHistoryUseCase
+import net.loeu.wallybudget.domain.usecase.ExportSnapshotUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveForecastUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveHomeOverviewUseCase
@@ -64,6 +69,22 @@ class BudgetViewModelFactory(
 
     private val currentDateProvider by lazy {
         SystemCurrentDateProvider(context.applicationContext)
+    }
+    private val documentUriGateway by lazy {
+        AndroidDocumentUriGateway(context.applicationContext)
+    }
+    private val snapshotJsonCodec by lazy { SnapshotJsonCodec() }
+    private val gzipSnapshotCodec by lazy { GzipSnapshotCodec() }
+    private val snapshotHasher by lazy { SnapshotHasher() }
+    private val appVersionName by lazy {
+        try {
+            @Suppress("DEPRECATION")
+            context.packageManager.getPackageInfo(context.packageName, 0)
+                .versionName
+                ?: "unknown"
+        } catch (_: Exception) {
+            "unknown"
+        }
     }
 
     private val forecastCalculator by lazy {
@@ -181,6 +202,19 @@ class BudgetViewModelFactory(
             budgetCalculationService = budgetCalculationService
         )
     }
+    private val exportSnapshotUseCase by lazy {
+        ExportSnapshotUseCase(
+            documentUriGateway = documentUriGateway,
+            gzipSnapshotCodec = gzipSnapshotCodec,
+            snapshotJsonCodec = snapshotJsonCodec,
+            snapshotHasher = snapshotHasher,
+            expenseDao = expenseDao,
+            budgetPolicyDao = budgetPolicyDao,
+            userSettingsStore = userPreferencesManager,
+            hybridLogicalClockService = hybridLogicalClockService,
+            appVersionName = appVersionName
+        )
+    }
     private val resolveMutationEffectiveDateUseCase by lazy {
         ResolveMutationEffectiveDateUseCase(
             userSettingsStore = userPreferencesManager,
@@ -207,6 +241,7 @@ class BudgetViewModelFactory(
                 completeOnboardingUseCase = completeOnboardingUseCase,
                 performMonthlyResetUseCase = performMonthlyResetUseCase,
                 concludePendingCycleUseCase = concludePendingCycleUseCase,
+                exportSnapshotUseCase = exportSnapshotUseCase,
                 ensureBudgetPolicyHistoryUseCase = ensureBudgetPolicyHistoryUseCase,
                 rebuildMonthlyHistoryUseCase = rebuildMonthlyHistoryUseCase,
                 resolveMutationEffectiveDateUseCase = resolveMutationEffectiveDateUseCase,

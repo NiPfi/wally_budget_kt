@@ -1,6 +1,10 @@
+@file:Suppress("TooManyFunctions")
+
 package net.loeu.wallybudget
 
 import android.os.Bundle
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -60,6 +64,7 @@ import net.loeu.wallybudget.domain.model.ExpenseCycleSection
 import net.loeu.wallybudget.domain.model.ExpenseDaySection
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
+import net.loeu.wallybudget.domain.model.SnapshotError
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.model.recordedDate
@@ -87,6 +92,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
+@Suppress("LongMethod")
 fun BudgetApp(
     viewModel: BudgetViewModel,
     modifier: Modifier = Modifier
@@ -96,6 +102,12 @@ fun BudgetApp(
         onPauseOrDispose { }
     }
     val appState = rememberBudgetAppUiState(viewModel)
+    val createSnapshotDocument = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/gzip")
+    ) { uri ->
+        uri?.let(viewModel::exportSnapshot)
+    }
+    val snapshotErrorMessage = appState.snapshotError?.toDisplayMessage()
     if (appState.isOnboardingCompleted == null) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         return
@@ -139,6 +151,12 @@ fun BudgetApp(
                     onRestoreExpense = viewModel::restoreDeletedExpense,
                     onUpdateBudget = viewModel::updateMonthlyBudget,
                     onUpdatePayday = viewModel::updatePaydayDate,
+                    onRequestExportSnapshot = {
+                        createSnapshotDocument.launch(defaultSnapshotFilename(appState.effectiveCurrentDate))
+                    },
+                    snapshotMessage = appState.snapshotStatusMessage,
+                    snapshotErrorMessage = snapshotErrorMessage,
+                    isSnapshotBusy = appState.snapshotBusy,
                     timelineLockReason = appState.timelineLockReason,
                     modifier = modifier
                 )
@@ -169,6 +187,10 @@ private fun MainNavigationShell(
     onRestoreExpense: (Expense) -> Unit,
     onUpdateBudget: (Long) -> Unit,
     onUpdatePayday: (Int) -> Unit,
+    onRequestExportSnapshot: () -> Unit,
+    snapshotMessage: String?,
+    snapshotErrorMessage: String?,
+    isSnapshotBusy: Boolean,
     timelineLockReason: String?,
     modifier: Modifier = Modifier
 ) {
@@ -220,6 +242,10 @@ private fun MainNavigationShell(
             onRestoreExpense = onRestoreExpense,
             onUpdateBudget = onUpdateBudget,
             onUpdatePayday = onUpdatePayday,
+            onRequestExportSnapshot = onRequestExportSnapshot,
+            snapshotMessage = snapshotMessage,
+            snapshotErrorMessage = snapshotErrorMessage,
+            isSnapshotBusy = isSnapshotBusy,
             timelineLockReason = timelineLockReason,
             usesVerticalNavigation = usesVerticalNavigation
         )
@@ -327,6 +353,10 @@ private fun MainNavigationHost(
     onRestoreExpense: (Expense) -> Unit,
     onUpdateBudget: (Long) -> Unit,
     onUpdatePayday: (Int) -> Unit,
+    onRequestExportSnapshot: () -> Unit,
+    snapshotMessage: String?,
+    snapshotErrorMessage: String?,
+    isSnapshotBusy: Boolean,
     timelineLockReason: String?,
     usesVerticalNavigation: Boolean
 ) {
@@ -375,7 +405,11 @@ private fun MainNavigationHost(
             navController = navController,
             userSettings = userSettings,
             onUpdateBudget = onUpdateBudget,
-            onUpdatePayday = onUpdatePayday
+            onUpdatePayday = onUpdatePayday,
+            onRequestExportSnapshot = onRequestExportSnapshot,
+            snapshotMessage = snapshotMessage,
+            snapshotErrorMessage = snapshotErrorMessage,
+            isSnapshotBusy = isSnapshotBusy
         )
     }
 }
@@ -458,4 +492,15 @@ private fun PendingCycleFlow(
         onUpdateExpense = onUpdateExpense,
         onDeleteExpense = onDeleteExpense
     )
+}
+
+private fun SnapshotError.toDisplayMessage(): String {
+    return when (this) {
+        is SnapshotError.IoFailure -> message
+        else -> "Snapshot export failed."
+    }
+}
+
+private fun defaultSnapshotFilename(currentDate: LocalDate): String {
+    return "wallybudget-snapshot-${currentDate.format(DateTimeFormatter.ofPattern("yyyyMMdd"))}.json.gz"
 }

@@ -1,6 +1,8 @@
 package net.loeu.wallybudget.ui.viewmodel
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -11,6 +13,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
@@ -20,6 +23,7 @@ import net.loeu.wallybudget.domain.model.HistoryState
 import net.loeu.wallybudget.domain.model.HomeOverviewState
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
+import net.loeu.wallybudget.domain.model.SnapshotError
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.TimelineLockState
 import net.loeu.wallybudget.domain.model.UserSettings
@@ -29,6 +33,7 @@ import net.loeu.wallybudget.domain.usecase.CompleteOnboardingUseCase
 import net.loeu.wallybudget.domain.usecase.ConcludePendingCycleUseCase
 import net.loeu.wallybudget.domain.usecase.DeleteExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.EnsureBudgetPolicyHistoryUseCase
+import net.loeu.wallybudget.domain.usecase.ExportSnapshotUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveForecastUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveHomeOverviewUseCase
@@ -36,6 +41,7 @@ import net.loeu.wallybudget.domain.usecase.PerformMonthlyResetUseCase
 import net.loeu.wallybudget.domain.usecase.RebuildMonthlyHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ResolveMutationEffectiveDateUseCase
 import net.loeu.wallybudget.domain.usecase.RestoreDeletedExpenseUseCase
+import net.loeu.wallybudget.domain.usecase.SnapshotOperationException
 import net.loeu.wallybudget.domain.usecase.SyncObservedDateUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateMonthlyBudgetUseCase
@@ -44,6 +50,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
+@Suppress("TooManyFunctions")
 class BudgetViewModel(
     upstreamUserSettingsFlow: Flow<UserSettings>,
     observeHomeOverviewUseCase: ObserveHomeOverviewUseCase,
@@ -58,6 +65,7 @@ class BudgetViewModel(
     private val completeOnboardingUseCase: CompleteOnboardingUseCase,
     private val performMonthlyResetUseCase: PerformMonthlyResetUseCase,
     private val concludePendingCycleUseCase: ConcludePendingCycleUseCase,
+    private val exportSnapshotUseCase: ExportSnapshotUseCase,
     private val ensureBudgetPolicyHistoryUseCase: EnsureBudgetPolicyHistoryUseCase,
     private val rebuildMonthlyHistoryUseCase: RebuildMonthlyHistoryUseCase,
     private val resolveMutationEffectiveDateUseCase: ResolveMutationEffectiveDateUseCase,
@@ -165,6 +173,12 @@ class BudgetViewModel(
     // UI state
     private val _isAddExpenseSheetVisible = MutableStateFlow(false)
     val isAddExpenseSheetVisible = _isAddExpenseSheetVisible.asStateFlow()
+    private val _snapshotError = MutableStateFlow<SnapshotError?>(null)
+    val snapshotError = _snapshotError.asStateFlow()
+    private val _snapshotStatusMessage = MutableStateFlow<String?>(null)
+    val snapshotStatusMessage = _snapshotStatusMessage.asStateFlow()
+    private val _snapshotBusy = MutableStateFlow(false)
+    val snapshotBusy = _snapshotBusy.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -326,6 +340,29 @@ class BudgetViewModel(
         viewModelScope.launch {
             updatePaydayDateUseCase(day)
         }
+    }
+
+    fun exportSnapshot(uri: android.net.Uri) {
+        viewModelScope.launch {
+            _snapshotBusy.value = true
+            _snapshotError.value = null
+            _snapshotStatusMessage.value = null
+            try {
+                val bytesWritten = withContext(Dispatchers.IO) {
+                    exportSnapshotUseCase(uri)
+                }
+                _snapshotStatusMessage.value = "Compressed snapshot exported (${bytesWritten} bytes)."
+            } catch (exception: SnapshotOperationException) {
+                _snapshotError.value = exception.snapshotError
+            } finally {
+                _snapshotBusy.value = false
+            }
+        }
+    }
+
+    fun clearSnapshotFeedback() {
+        _snapshotError.value = null
+        _snapshotStatusMessage.value = null
     }
 }
 

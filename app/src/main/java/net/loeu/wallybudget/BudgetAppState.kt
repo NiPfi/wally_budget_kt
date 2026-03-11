@@ -10,6 +10,7 @@ import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCycleSection
 import net.loeu.wallybudget.domain.model.ExpenseDaySection
 import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
+import net.loeu.wallybudget.domain.model.SnapshotError
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.ui.viewmodel.BudgetViewModel
@@ -27,7 +28,10 @@ internal data class BudgetAppState(
     val pendingCycleCloseoutState: PendingCycleCloseoutState?,
     val timelineLockReason: String?,
     val isAddExpenseSheetVisible: Boolean,
-    val isHomeDataLoading: Boolean
+    val isHomeDataLoading: Boolean,
+    val snapshotError: SnapshotError?,
+    val snapshotStatusMessage: String?,
+    val snapshotBusy: Boolean
 )
 
 @Composable
@@ -46,6 +50,9 @@ internal fun rememberBudgetAppUiState(viewModel: BudgetViewModel): BudgetAppStat
     val timelineLockReason by remember(viewModel) { viewModel.timelineLockState.map { it.reason } }
         .collectAsState(initial = null)
     val isAddExpenseSheetVisible by viewModel.isAddExpenseSheetVisible.collectAsState()
+    val snapshotError by viewModel.snapshotError.collectAsState()
+    val snapshotStatusMessage by viewModel.snapshotStatusMessage.collectAsState()
+    val snapshotBusy by viewModel.snapshotBusy.collectAsState()
 
     return BudgetAppState(
         isOnboardingCompleted = isOnboardingCompleted,
@@ -59,6 +66,9 @@ internal fun rememberBudgetAppUiState(viewModel: BudgetViewModel): BudgetAppStat
         pendingCycleCloseoutState = pendingCycleCloseoutState,
         timelineLockReason = timelineLockReason,
         isAddExpenseSheetVisible = isAddExpenseSheetVisible,
-        isHomeDataLoading = budgetState == null || spendingForecast == null
+        isHomeDataLoading = budgetState == null || spendingForecast == null,
+        snapshotError = snapshotError,
+        snapshotStatusMessage = snapshotStatusMessage,
+        snapshotBusy = snapshotBusy
     )
 }

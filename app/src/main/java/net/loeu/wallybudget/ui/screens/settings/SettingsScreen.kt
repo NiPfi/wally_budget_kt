@@ -1,3 +1,5 @@
+@file:Suppress("MaxLineLength")
+
 package net.loeu.wallybudget.ui.screens.settings
 
 import androidx.compose.foundation.layout.Column
@@ -40,6 +42,10 @@ fun SettingsScreen(
     userSettings: UserSettings,
     onUpdateBudget: (Long) -> Unit,
     onUpdatePayday: (Int) -> Unit,
+    onRequestExportSnapshot: () -> Unit,
+    snapshotMessage: String?,
+    snapshotErrorMessage: String?,
+    isSnapshotBusy: Boolean,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -94,6 +100,10 @@ fun SettingsScreen(
                 validation.payday?.let(onUpdatePayday)
                 showSaveSnackbar = true
             },
+            onRequestExportSnapshot = onRequestExportSnapshot,
+            snapshotMessage = snapshotMessage,
+            snapshotErrorMessage = snapshotErrorMessage,
+            isSnapshotBusy = isSnapshotBusy
         )
     }
     SettingsSaveEffect(showSaveSnackbar, snackbarHostState) { showSaveSnackbar = false }
@@ -133,6 +143,7 @@ private fun initialBudgetText(userSettings: UserSettings): String =
     CurrencyFormatter.centsToDecimalString(userSettings.monthlyBudgetCents)
 
 @Composable
+@Suppress("LongMethod")
 private fun SettingsScreenContent(
     budgetText: String,
     paydayText: String,
@@ -142,7 +153,11 @@ private fun SettingsScreenContent(
     paddingValues: androidx.compose.foundation.layout.PaddingValues,
     onBudgetChange: (String) -> Unit,
     onPaydayChange: (String) -> Unit,
-    onSave: () -> Unit
+    onSave: () -> Unit,
+    onRequestExportSnapshot: () -> Unit,
+    snapshotMessage: String?,
+    snapshotErrorMessage: String?,
+    isSnapshotBusy: Boolean
 ) {
     Column(
         modifier = Modifier
@@ -203,6 +218,15 @@ private fun SettingsScreenContent(
         Spacer(modifier = Modifier.height(24.dp))
 
         SettingsInfoCard()
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        SnapshotExportCard(
+            onRequestExportSnapshot = onRequestExportSnapshot,
+            snapshotMessage = snapshotMessage,
+            snapshotErrorMessage = snapshotErrorMessage,
+            isSnapshotBusy = isSnapshotBusy
+        )
     }
 }
 
@@ -240,5 +264,55 @@ private fun paydaySupportingText(
         showPaydayError -> "Enter a day between 1 and 31"
         paydayEditingEnabled -> "Enter a day between 1 and 31"
         else -> "Locked after setup to keep your existing cycle history accurate."
+    }
+}
+
+@Composable
+private fun SnapshotExportCard(
+    onRequestExportSnapshot: () -> Unit,
+    snapshotMessage: String?,
+    snapshotErrorMessage: String?,
+    isSnapshotBusy: Boolean
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Data Snapshot",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Export a compressed snapshot of your settings, budget cycles, and expenses. Snapshot files are compressed, not encrypted.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = onRequestExportSnapshot,
+                enabled = !isSnapshotBusy,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (isSnapshotBusy) "Exporting..." else "Export compressed snapshot")
+            }
+            snapshotMessage?.let {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            snapshotErrorMessage?.let {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
     }
 }
