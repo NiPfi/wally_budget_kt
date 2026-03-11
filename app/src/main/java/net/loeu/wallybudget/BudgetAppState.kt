@@ -11,6 +11,7 @@ import net.loeu.wallybudget.domain.model.ExpenseCycleSection
 import net.loeu.wallybudget.domain.model.ExpenseDaySection
 import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
 import net.loeu.wallybudget.domain.model.SnapshotError
+import net.loeu.wallybudget.domain.model.SnapshotImportPreview
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.ui.viewmodel.BudgetViewModel
@@ -29,6 +30,7 @@ internal data class BudgetAppState(
     val timelineLockReason: String?,
     val isAddExpenseSheetVisible: Boolean,
     val isHomeDataLoading: Boolean,
+    val snapshotImportPreview: SnapshotImportPreview?,
     val snapshotError: SnapshotError?,
     val snapshotStatusMessage: String?,
     val snapshotBusy: Boolean
@@ -50,6 +52,7 @@ internal fun rememberBudgetAppUiState(viewModel: BudgetViewModel): BudgetAppStat
     val timelineLockReason by remember(viewModel) { viewModel.timelineLockState.map { it.reason } }
         .collectAsState(initial = null)
     val isAddExpenseSheetVisible by viewModel.isAddExpenseSheetVisible.collectAsState()
+    val snapshotImportPreview by viewModel.snapshotImportPreview.collectAsState()
     val snapshotError by viewModel.snapshotError.collectAsState()
     val snapshotStatusMessage by viewModel.snapshotStatusMessage.collectAsState()
     val snapshotBusy by viewModel.snapshotBusy.collectAsState()
@@ -67,6 +70,7 @@ internal fun rememberBudgetAppUiState(viewModel: BudgetViewModel): BudgetAppStat
         timelineLockReason = timelineLockReason,
         isAddExpenseSheetVisible = isAddExpenseSheetVisible,
         isHomeDataLoading = budgetState == null || spendingForecast == null,
+        snapshotImportPreview = snapshotImportPreview,
         snapshotError = snapshotError,
         snapshotStatusMessage = snapshotStatusMessage,
         snapshotBusy = snapshotBusy

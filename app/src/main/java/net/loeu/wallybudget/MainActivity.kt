@@ -100,6 +100,11 @@ fun BudgetApp(
         onPauseOrDispose { }
     }
     val appState = rememberBudgetAppUiState(viewModel)
+    val openSnapshotDocument = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let(viewModel::prepareSnapshotImport)
+    }
     val createSnapshotDocument = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/gzip")
     ) { uri ->
@@ -113,7 +118,16 @@ fun BudgetApp(
     val displayBudgetState = appState.budgetState ?: loadingBudgetState(appState.effectiveCurrentDate)
     val displaySpendingForecast = appState.spendingForecast ?: SpendingForecast()
     when {
-        appState.isOnboardingCompleted != true -> OnboardingScreen(onComplete = viewModel::completeOnboarding)
+        appState.isOnboardingCompleted != true -> OnboardingScreen(
+            onComplete = viewModel::completeOnboarding,
+            onRequestRestoreSnapshot = { openSnapshotDocument.launch(arrayOf("*/*")) },
+            onApplySnapshotRestore = viewModel::applyPreparedSnapshotImport,
+            onDismissSnapshotPreview = viewModel::clearPreparedSnapshotImport,
+            snapshotPreview = appState.snapshotImportPreview,
+            snapshotErrorMessage = snapshotErrorMessage,
+            snapshotStatusMessage = appState.snapshotStatusMessage,
+            isSnapshotBusy = appState.snapshotBusy
+        )
         appState.pendingCycleCloseoutState != null -> {
             PendingCycleFlow(
                 pendingCycle = appState.pendingCycleCloseoutState,
@@ -494,8 +508,15 @@ private fun PendingCycleFlow(
 
 private fun SnapshotError.toDisplayMessage(): String {
     return when (this) {
+        SnapshotError.UnsupportedSchemaVersion ->
+            "This snapshot was created by a newer app version and cannot be restored here."
+        SnapshotError.MalformedSnapshot ->
+            "The selected file is not a valid WallyBudget snapshot."
+        SnapshotError.InvalidCompression ->
+            "The selected file could not be decompressed."
+        SnapshotError.NonEmptyProfileRestoreBlocked ->
+            "Restore only works before setup is complete and before any local data exists."
         is SnapshotError.IoFailure -> message
-        else -> "Snapshot export failed."
     }
 }
 

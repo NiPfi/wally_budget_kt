@@ -15,6 +15,7 @@ import net.loeu.wallybudget.data.time.SystemCurrentDateProvider
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import net.loeu.wallybudget.domain.service.SpendingForecastCalculator
+import net.loeu.wallybudget.domain.usecase.ApplyOnboardingRestoreUseCase
 import net.loeu.wallybudget.domain.usecase.AddExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.CompleteOnboardingUseCase
 import net.loeu.wallybudget.domain.usecase.ConcludePendingCycleUseCase
@@ -25,6 +26,7 @@ import net.loeu.wallybudget.domain.usecase.ObserveForecastUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveHomeOverviewUseCase
 import net.loeu.wallybudget.domain.usecase.PerformMonthlyResetUseCase
+import net.loeu.wallybudget.domain.usecase.PrepareSnapshotImportUseCase
 import net.loeu.wallybudget.domain.usecase.ResolveMutationEffectiveDateUseCase
 import net.loeu.wallybudget.domain.usecase.RestoreDeletedExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.RebuildMonthlyHistoryUseCase
@@ -218,6 +220,24 @@ class BudgetViewModelFactory(
             appVersionName = appVersionName
         )
     }
+    private val prepareSnapshotImportUseCase by lazy {
+        PrepareSnapshotImportUseCase(
+            documentUriGateway = documentUriGateway,
+            gzipSnapshotCodec = gzipSnapshotCodec,
+            snapshotJsonCodec = snapshotJsonCodec,
+            snapshotCompatibilityService = snapshotCompatibilityService
+        )
+    }
+    private val applyOnboardingRestoreUseCase by lazy {
+        ApplyOnboardingRestoreUseCase(
+            transactionRunner = database,
+            expenseDao = expenseDao,
+            budgetPolicyDao = budgetPolicyDao,
+            monthlyHistoryDao = monthlyHistoryDao,
+            userSettingsStore = userPreferencesManager,
+            rebuildMonthlyHistoryUseCase = rebuildMonthlyHistoryUseCase
+        )
+    }
     private val resolveMutationEffectiveDateUseCase by lazy {
         ResolveMutationEffectiveDateUseCase(
             userSettingsStore = userPreferencesManager,
@@ -245,6 +265,8 @@ class BudgetViewModelFactory(
                 performMonthlyResetUseCase = performMonthlyResetUseCase,
                 concludePendingCycleUseCase = concludePendingCycleUseCase,
                 exportSnapshotUseCase = exportSnapshotUseCase,
+                prepareSnapshotImportUseCase = prepareSnapshotImportUseCase,
+                applyOnboardingRestoreUseCase = applyOnboardingRestoreUseCase,
                 ensureBudgetPolicyHistoryUseCase = ensureBudgetPolicyHistoryUseCase,
                 rebuildMonthlyHistoryUseCase = rebuildMonthlyHistoryUseCase,
                 resolveMutationEffectiveDateUseCase = resolveMutationEffectiveDateUseCase,
