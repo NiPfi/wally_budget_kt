@@ -30,7 +30,7 @@ naming:
   FunctionNaming:
     active: false
   MatchingDeclarationName:
-    active: false
+    active: true
   TopLevelPropertyNaming:
     active: true
 

@@ -41,8 +41,6 @@ import net.loeu.wallybudget.ui.calculateSafeToSpendNowCents
 import net.loeu.wallybudget.util.CurrencyFormatter
 import kotlin.math.roundToInt
 
-internal class CollapseRangeHolder(var value: Float = 0f)
-
 @Composable
 fun OverviewPage(
     budgetState: BudgetState,

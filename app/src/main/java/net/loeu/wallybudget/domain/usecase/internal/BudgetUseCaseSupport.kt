@@ -15,11 +15,6 @@ import net.loeu.wallybudget.domain.policy.TimelineLockPolicy
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import java.time.LocalDate
 
-internal data class CycleRange(
-    val start: LocalDate,
-    val endExclusive: LocalDate
-)
-
 internal fun effectiveCurrentDate(
     settings: UserSettings,
     observedDate: LocalDate

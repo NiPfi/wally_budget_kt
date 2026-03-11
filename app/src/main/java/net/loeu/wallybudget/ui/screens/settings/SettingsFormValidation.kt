@@ -2,7 +2,7 @@ package net.loeu.wallybudget.ui.screens.settings
 
 import net.loeu.wallybudget.util.CurrencyFormatter
 
-internal data class SettingsFormValidationResult(
+internal data class SettingsFormValidation(
     val budgetCents: Long?,
     val payday: Int?,
     val isBudgetValid: Boolean,
@@ -16,13 +16,13 @@ internal fun validateSettingsForm(
     budgetText: String,
     paydayText: String,
     paydayEditingEnabled: Boolean
-): SettingsFormValidationResult {
+): SettingsFormValidation {
     val budgetCents = CurrencyFormatter.parseAmountToCents(budgetText)
     val payday = paydayText.toIntOrNull()?.takeIf { paydayEditingEnabled }
     val isBudgetValid = budgetCents != null && budgetCents > 0L
     val isPaydayValid = !paydayEditingEnabled || (payday != null && payday in 1..31)
 
-    return SettingsFormValidationResult(
+    return SettingsFormValidation(
         budgetCents = budgetCents,
         payday = payday,
         isBudgetValid = isBudgetValid,

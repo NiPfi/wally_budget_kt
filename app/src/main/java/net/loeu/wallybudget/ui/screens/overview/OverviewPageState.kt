@@ -13,7 +13,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 
-internal data class OverviewPageLayoutState(
+internal class CollapseRangeHolder(var value: Float = 0f)
+
+internal data class OverviewPageState(
     val showForecastDetails: MutableState<Boolean>,
     val showSafeTodayDetails: MutableState<Boolean>,
     val listState: LazyListState,
@@ -27,7 +29,7 @@ internal data class OverviewPageLayoutState(
 internal fun rememberOverviewPageLayoutState(
     defaultCollapsedHeader: Boolean,
     enableHeaderCollapse: Boolean
-): OverviewPageLayoutState {
+): OverviewPageState {
     val showForecastDetails = remember { mutableStateOf(false) }
     val showSafeTodayDetails = remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
@@ -52,7 +54,7 @@ internal fun rememberOverviewPageLayoutState(
         collapseOffsetPx.floatValue = collapseOffsetPx.floatValue.coerceIn(0f, maxCollapseRangePx.value)
     }
 
-    return OverviewPageLayoutState(
+    return OverviewPageState(
         showForecastDetails = showForecastDetails,
         showSafeTodayDetails = showSafeTodayDetails,
         listState = listState,

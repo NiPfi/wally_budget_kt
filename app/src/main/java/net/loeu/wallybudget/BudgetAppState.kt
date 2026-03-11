@@ -15,7 +15,7 @@ import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.ui.viewmodel.BudgetViewModel
 import java.time.LocalDate
 
-internal data class BudgetAppUiState(
+internal data class BudgetAppState(
     val isOnboardingCompleted: Boolean?,
     val userSettings: UserSettings,
     val budgetState: BudgetState?,
@@ -31,7 +31,7 @@ internal data class BudgetAppUiState(
 )
 
 @Composable
-internal fun rememberBudgetAppUiState(viewModel: BudgetViewModel): BudgetAppUiState {
+internal fun rememberBudgetAppUiState(viewModel: BudgetViewModel): BudgetAppState {
     val isOnboardingCompleted by remember(viewModel) {
         viewModel.userSettingsFlow.map { it.isOnboardingCompleted }
     }.collectAsState(initial = null)
@@ -47,7 +47,7 @@ internal fun rememberBudgetAppUiState(viewModel: BudgetViewModel): BudgetAppUiSt
         .collectAsState(initial = null)
     val isAddExpenseSheetVisible by viewModel.isAddExpenseSheetVisible.collectAsState()
 
-    return BudgetAppUiState(
+    return BudgetAppState(
         isOnboardingCompleted = isOnboardingCompleted,
         userSettings = userSettings,
         budgetState = budgetState,
