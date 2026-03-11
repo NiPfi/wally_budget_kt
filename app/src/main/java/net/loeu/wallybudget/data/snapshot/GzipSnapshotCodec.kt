@@ -1,3 +1,5 @@
+@file:Suppress("MaxLineLength")
+
 package net.loeu.wallybudget.data.snapshot
 
 import java.io.ByteArrayInputStream

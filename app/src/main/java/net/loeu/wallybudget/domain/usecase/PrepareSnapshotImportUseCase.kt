@@ -14,6 +14,7 @@ import net.loeu.wallybudget.domain.model.SnapshotError
 import net.loeu.wallybudget.domain.model.SnapshotImportPreview
 import net.loeu.wallybudget.domain.model.UserSettings
 
+@Suppress("ThrowsCount", "TooGenericExceptionCaught")
 class PrepareSnapshotImportUseCase(
     private val documentUriGateway: DocumentUriGateway,
     private val gzipSnapshotCodec: GzipSnapshotCodec,

@@ -48,6 +48,7 @@ class SnapshotUseCasesTest {
     }
 
     @Test
+    @Suppress("LongMethod")
     fun applyOnboardingRestore_restoresDataAndRebuildsHistory() = runBlocking {
         val expenseDao = FakeExpenseDao()
         val budgetPolicyDao = FakeBudgetPolicyDao()
