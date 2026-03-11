@@ -19,6 +19,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
+@Suppress("LongMethod")
 class PerformMonthlyResetUseCase(
     private val transactionRunner: TransactionRunner,
     private val expenseDao: ExpenseDao,

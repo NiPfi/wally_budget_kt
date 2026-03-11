@@ -1,3 +1,5 @@
+@file:Suppress("MaxLineLength", "TooManyFunctions")
+
 package net.loeu.wallybudget.data.local.dao
 
 import androidx.room.Dao

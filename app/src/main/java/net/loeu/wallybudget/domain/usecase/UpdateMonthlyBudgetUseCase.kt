@@ -22,7 +22,10 @@ class UpdateMonthlyBudgetUseCase(
         val currentDate = currentDateProvider.currentDate()
         val cycleStart = budgetCalculationService.getCycleStartDate(currentDate, settings.paydayDate)
         val cycleEnd = budgetCalculationService.getNextCycleStartDate(currentDate, settings.paydayDate)
-        val currentCycleExpenseCount = expenseDao.countInRange(cycleStart.toString(), currentDate.plusDays(1).toString())
+        val currentCycleExpenseCount = expenseDao.countInRange(
+            cycleStart.toString(),
+            currentDate.plusDays(1).toString()
+        )
 
         if (currentCycleExpenseCount == 0) {
             val currentPolicy = budgetPolicyDao.findActivePolicyForCycle(cycleStart.toString())
