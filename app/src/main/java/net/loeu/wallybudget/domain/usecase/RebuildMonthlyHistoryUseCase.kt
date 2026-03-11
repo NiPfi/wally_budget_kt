@@ -17,9 +17,14 @@ class RebuildMonthlyHistoryUseCase(
     private val monthlyHistoryDao: MonthlyHistoryDao,
     private val budgetCalculationService: BudgetCalculationService
 ) {
-    suspend operator fun invoke(settings: UserSettings) {
+    suspend operator fun invoke(settings: UserSettings, replaceExisting: Boolean = false) {
         val completedUntil = settings.lastResetDateOrNull()
-            ?: return
+        if (completedUntil == null) {
+            if (replaceExisting) {
+                monthlyHistoryDao.deleteAll()
+            }
+            return
+        }
 
         val applicablePolicies = budgetPolicyDao.getAllForSnapshot()
             .filter { it.deletedAtEpochMs == null }
@@ -27,6 +32,9 @@ class RebuildMonthlyHistoryUseCase(
             .sortedBy { it.cycleStartDate }
 
         if (applicablePolicies.isEmpty()) {
+            if (replaceExisting) {
+                monthlyHistoryDao.deleteAll()
+            }
             return
         }
 

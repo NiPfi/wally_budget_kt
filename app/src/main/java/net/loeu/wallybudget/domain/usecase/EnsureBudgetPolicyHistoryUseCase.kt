@@ -21,6 +21,9 @@ class EnsureBudgetPolicyHistoryUseCase(
 ) {
     suspend operator fun invoke(now: LocalDate) {
         val settings = userSettingsStore.ensureIdentity()
+        if (!settings.isOnboardingCompleted) {
+            return
+        }
         val existingPolicies = budgetPolicyDao.getAllForSnapshot()
         if (existingPolicies.isEmpty()) {
             monthlyHistoryDao.getAll()
