@@ -3,6 +3,7 @@ package net.loeu.wallybudget.ui.viewmodel
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
@@ -44,7 +46,7 @@ import net.loeu.wallybudget.domain.usecase.PreparedSnapshotImport
 import net.loeu.wallybudget.domain.usecase.RebuildMonthlyHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ResolveMutationEffectiveDateUseCase
 import net.loeu.wallybudget.domain.usecase.RestoreDeletedExpenseUseCase
-import net.loeu.wallybudget.domain.usecase.SnapshotImportException
+import net.loeu.wallybudget.domain.usecase.SnapshotOperationException
 import net.loeu.wallybudget.domain.usecase.SyncObservedDateUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateMonthlyBudgetUseCase
@@ -355,11 +357,13 @@ class BudgetViewModel(
             _snapshotBusy.value = true
             _snapshotError.value = null
             _snapshotStatusMessage.value = null
+            preparedSnapshotImport = null
+            _snapshotImportPreview.value = null
             try {
                 val prepared = prepareSnapshotImportUseCase(uri)
                 preparedSnapshotImport = prepared
                 _snapshotImportPreview.value = prepared.preview
-            } catch (exception: SnapshotImportException) {
+            } catch (exception: SnapshotOperationException) {
                 preparedSnapshotImport = null
                 _snapshotImportPreview.value = null
                 _snapshotError.value = exception.snapshotError
@@ -386,7 +390,7 @@ class BudgetViewModel(
                 _snapshotImportPreview.value = null
                 _snapshotStatusMessage.value =
                     "Restored ${result.importedExpenseCount} expenses across ${result.importedBudgetPolicyCount} budget cycles."
-            } catch (exception: SnapshotImportException) {
+            } catch (exception: SnapshotOperationException) {
                 _snapshotError.value = exception.snapshotError
             } catch (exception: Exception) {
                 _snapshotError.value = SnapshotError.IoFailure(
@@ -410,14 +414,12 @@ class BudgetViewModel(
             _snapshotError.value = null
             _snapshotStatusMessage.value = null
             try {
-                val bytesWritten = exportSnapshotUseCase(uri)
+                val bytesWritten = withContext(Dispatchers.IO) {
+                    exportSnapshotUseCase(uri)
+                }
                 _snapshotStatusMessage.value = "Compressed snapshot exported (${bytesWritten} bytes)."
-            } catch (exception: SnapshotImportException) {
+            } catch (exception: SnapshotOperationException) {
                 _snapshotError.value = exception.snapshotError
-            } catch (exception: Exception) {
-                _snapshotError.value = SnapshotError.IoFailure(
-                    exception.message ?: "Unable to export snapshot."
-                )
             } finally {
                 _snapshotBusy.value = false
             }
