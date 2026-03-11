@@ -16,6 +16,7 @@ import net.loeu.wallybudget.data.snapshot.model.SnapshotSettingsRecordV1
 import net.loeu.wallybudget.domain.model.SnapshotError
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 
+@Suppress("LongMethod", "ThrowsCount", "TooGenericExceptionCaught")
 class ExportSnapshotUseCase(
     private val documentUriGateway: DocumentUriGateway,
     private val gzipSnapshotCodec: GzipSnapshotCodec,
