@@ -2,7 +2,6 @@ package net.loeu.wallybudget.ui.screens.overview
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
@@ -373,20 +372,6 @@ private fun snapHeaderOffset(collapseOffsetPx: Float, maxCollapsePx: Float): Flo
     } else {
         0f
     }
-}
-
-@Composable
-private fun SectionBlock(
-    modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(0.dp),
-        content = content
-    )
 }
 
 @Composable

@@ -86,9 +86,8 @@ fun HistoryScreen(
     interactionsEnabled: Boolean = true,
     timelineLockReason: String? = null
 ) {
-    val isCompact = !currentWindowAdaptiveInfo().windowSizeClass
-        .isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND)
-    val compactPagerSections = if (embedded) historySections.take(1) else historySections.reversed()
+    val isCompact = isCompactHistoryLayout()
+    val compactPagerSections = compactPagerSections(historySections, embedded)
     val pagerState = rememberPagerState(
         initialPage = compactPagerSections.lastIndex.coerceAtLeast(0)
     ) {
@@ -148,6 +147,19 @@ fun HistoryScreen(
         onDeleteExpense = onDeleteExpense,
         onRestoreExpense = onRestoreExpense
     )
+}
+
+@Composable
+private fun isCompactHistoryLayout(): Boolean {
+    return !currentWindowAdaptiveInfo().windowSizeClass
+        .isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND)
+}
+
+private fun compactPagerSections(
+    historySections: List<ExpenseCycleSection>,
+    embedded: Boolean
+): List<ExpenseCycleSection> {
+    return if (embedded) historySections.take(1) else historySections.reversed()
 }
 
 @Composable

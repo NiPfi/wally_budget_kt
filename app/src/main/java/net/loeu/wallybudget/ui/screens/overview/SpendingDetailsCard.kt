@@ -57,41 +57,11 @@ fun SpendingDetailsCard(
             isLoading = isLoading,
             placeholderText = "$888"
         )
-        DetailRowSmall(
-            label = "Budget adjustment"
-        ) {
-            AnimatedCounter(
-                amountCents = abs(dailyAdjustmentCents),
-                formatter = { value ->
-                    buildString {
-                        append(if (dailyAdjustmentCents >= 0L) "+" else "-")
-                        append(net.loeu.wallybudget.util.CurrencyFormatter.format(value))
-                    }
-                },
-                textStyle = MaterialTheme.typography.bodyLarge.copy(
-                    fontWeight = FontWeight.Medium
-                ),
-                animate = true,
-                textAlign = TextAlign.End,
-                color = if (dailyAdjustmentCents >= 0L) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.error
-                },
-                placeholder = isLoading,
-                placeholderText = "+$888"
-            )
-        }
-        DetailRowSmall("Effective allowance") {
-            AnimatedCounter(
-                amountCents = adjustedDailyAllowanceCents,
-                textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                animate = true,
-                textAlign = TextAlign.End,
-                placeholder = isLoading,
-                placeholderText = "$888"
-            )
-        }
+        BudgetAdjustmentRow(dailyAdjustmentCents = dailyAdjustmentCents, isLoading = isLoading)
+        EffectiveAllowanceRow(
+            adjustedDailyAllowanceCents = adjustedDailyAllowanceCents,
+            isLoading = isLoading
+        )
     }
 }
 
@@ -110,6 +80,51 @@ private fun SpendingDetailAmountRow(
             textAlign = TextAlign.End,
             placeholder = isLoading,
             placeholderText = placeholderText
+        )
+    }
+}
+
+@Composable
+private fun BudgetAdjustmentRow(
+    dailyAdjustmentCents: Long,
+    isLoading: Boolean
+) {
+    DetailRowSmall(label = "Budget adjustment") {
+        AnimatedCounter(
+            amountCents = abs(dailyAdjustmentCents),
+            formatter = { value ->
+                buildString {
+                    append(if (dailyAdjustmentCents >= 0L) "+" else "-")
+                    append(net.loeu.wallybudget.util.CurrencyFormatter.format(value))
+                }
+            },
+            textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+            animate = true,
+            textAlign = TextAlign.End,
+            color = if (dailyAdjustmentCents >= 0L) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.error
+            },
+            placeholder = isLoading,
+            placeholderText = "+$888"
+        )
+    }
+}
+
+@Composable
+private fun EffectiveAllowanceRow(
+    adjustedDailyAllowanceCents: Long,
+    isLoading: Boolean
+) {
+    DetailRowSmall("Effective allowance") {
+        AnimatedCounter(
+            amountCents = adjustedDailyAllowanceCents,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+            animate = true,
+            textAlign = TextAlign.End,
+            placeholder = isLoading,
+            placeholderText = "$888"
         )
     }
 }
