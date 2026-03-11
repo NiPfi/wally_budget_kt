@@ -1,3 +1,5 @@
+@file:Suppress("LongMethod", "MaxLineLength")
+
 package net.loeu.wallybudget.data.local.db
 
 import androidx.room.Database
