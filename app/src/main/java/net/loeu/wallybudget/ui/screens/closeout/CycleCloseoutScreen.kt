@@ -67,34 +67,7 @@ fun CycleCloseoutScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.primaryContainer,
-                shape = MaterialTheme.shapes.extraLarge
-            ) {
-                Column(
-                    modifier = Modifier.padding(22.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text(
-                        text = "Cycle complete",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Black
-                    )
-                    Text(
-                        text = "${pendingCycle.cycleStartDate.format(DateTimeFormatter.ofPattern("MMM d"))} - ${pendingCycle.cycleEndDateExclusive.minusDays(1).format(DateTimeFormatter.ofPattern("MMM d, yyyy"))}",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = if (pendingCycle.surplusCents >= 0L) {
-                            "You finished ${CurrencyFormatter.format(pendingCycle.surplusCents)} under budget."
-                        } else {
-                            "You finished ${CurrencyFormatter.format(kotlin.math.abs(pendingCycle.surplusCents))} over budget."
-                        },
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                }
-            }
+            CycleCloseoutHeroCard(pendingCycle = pendingCycle)
         }
         item {
             InsightGrid(
@@ -103,40 +76,103 @@ fun CycleCloseoutScreen(
             )
         }
         item {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                shape = MaterialTheme.shapes.extraLarge
+            CycleCloseoutActionCard(
+                onReviewCycle = onReviewCycle,
+                onConcludeCycle = onConcludeCycle,
+                concludeButtonScale = scale.value
+            )
+        }
+    }
+}
+
+@Composable
+private fun CycleCloseoutHeroCard(
+    pendingCycle: PendingCycleCloseoutState
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        shape = MaterialTheme.shapes.extraLarge
+    ) {
+        Column(
+            modifier = Modifier.padding(22.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "Cycle complete",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Black
+            )
+            Text(
+                text = buildString {
+                    append(
+                        pendingCycle.cycleStartDate.format(
+                            DateTimeFormatter.ofPattern("MMM d")
+                        )
+                    )
+                    append(" - ")
+                    append(
+                        pendingCycle.cycleEndDateExclusive
+                            .minusDays(1)
+                            .format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
+                    )
+                },
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = if (pendingCycle.surplusCents >= 0L) {
+                    "You finished " +
+                        "${CurrencyFormatter.format(pendingCycle.surplusCents)} under budget."
+                } else {
+                    "You finished " +
+                        "${CurrencyFormatter.format(kotlin.math.abs(pendingCycle.surplusCents))} over budget."
+                },
+                style = MaterialTheme.typography.bodyLarge
+            )
+        }
+    }
+}
+
+@Composable
+private fun CycleCloseoutActionCard(
+    onReviewCycle: () -> Unit,
+    onConcludeCycle: () -> Unit,
+    concludeButtonScale: Float
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        shape = MaterialTheme.shapes.extraLarge
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Before you lock this cycle",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Review the ending cycle if you need to correct an " +
+                    "expense. Normal Home stays locked until you conclude " +
+                    "this cycle.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Button(
+                onClick = onReviewCycle,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "Before you lock this cycle",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Review the ending cycle if you need to correct an expense. Normal Home stays locked until you conclude this cycle.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Button(
-                        onClick = onReviewCycle,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Review cycle expenses")
-                    }
-                    Button(
-                        onClick = onConcludeCycle,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .scale(scale.value)
-                    ) {
-                        Text("Conclude cycle")
-                    }
-                }
+                Text("Review cycle expenses")
+            }
+            Button(
+                onClick = onConcludeCycle,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .scale(concludeButtonScale)
+            ) {
+                Text("Conclude cycle")
             }
         }
     }

@@ -367,7 +367,9 @@ private fun ConfidenceSection(
 
             if (isLoading || snapshot == null) {
                 LoadingValuePlaceholder(
-                    sampleText = "Confidence is moderate. The signal is usable, but the range can still move over the next 3 days.",
+                    sampleText =
+                        "Confidence is moderate. The signal is usable, but the " +
+                            "range can still move over the next 3 days.",
                     textStyle = MaterialTheme.typography.bodyLarge,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Start,
                     fillWidth = true
@@ -455,58 +457,4 @@ private fun PlaceholderEvidenceCard() {
             )
         }
     }
-}
-
-@Composable
-private fun RecommendationRow(
-    index: Int,
-    text: String
-) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        Box(
-            modifier = Modifier
-                .padding(top = 2.dp)
-                .size(22.dp)
-                .clip(MaterialTheme.shapes.small)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = (index + 1).toString(),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                fontWeight = FontWeight.Bold
-            )
-        }
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
-
-@Composable
-private fun verdictContainerColor(
-    verdict: AnalysisVerdictLevel?,
-    isLoading: Boolean
-): Color = when {
-    isLoading -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-    verdict == AnalysisVerdictLevel.AtRisk -> MaterialTheme.colorScheme.errorContainer
-    verdict == AnalysisVerdictLevel.Caution -> MaterialTheme.colorScheme.tertiaryContainer
-    verdict == AnalysisVerdictLevel.Watchful -> MaterialTheme.colorScheme.secondaryContainer
-    else -> MaterialTheme.colorScheme.primaryContainer
-}
-
-@Composable
-private fun evidenceContainerColor(
-    tone: AnalysisEvidenceTone
-): Color = when (tone) {
-    AnalysisEvidenceTone.Positive -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
-    AnalysisEvidenceTone.Warning -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f)
-    AnalysisEvidenceTone.Critical -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f)
-    AnalysisEvidenceTone.Neutral -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
 }

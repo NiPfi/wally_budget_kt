@@ -2,34 +2,24 @@ package net.loeu.wallybudget.ui.screens.overview
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Velocity
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -63,8 +53,7 @@ fun OverviewPage(
     defaultCollapsedHeader: Boolean = false,
     bottomContentPadding: Dp = 24.dp
 ) {
-    val headerHorizontalPadding = 12.dp
-    val headerTopPadding = if (defaultCollapsedHeader) 0.dp else 8.dp
+    val headerHorizontalPadding = 12.dp; val headerTopPadding = if (defaultCollapsedHeader) 0.dp else 8.dp
     val headerBottomSpacing = 10.dp
     val availableRecoverableOverspendCents = calculateAvailableRecoverableOverspendCentsFromForecast(
         remainingTodayCents = budgetState.remainingTodayCents,
@@ -74,301 +63,277 @@ fun OverviewPage(
         remainingTodayCents = budgetState.remainingTodayCents,
         availableRecoverableOverspendCents = availableRecoverableOverspendCents
     )
-    val useWarningTint = budgetState.remainingTodayCents < 0L ||
-        budgetState.remainingCycleCents < 0L ||
-        spendingForecast.isProjectedOverBudget
-    val showForecastDetails = remember { mutableStateOf(false) }
-    val showSafeTodayDetails = remember { mutableStateOf(false) }
-    val listState = rememberLazyListState()
-    val density = LocalDensity.current
-    val defaultCollapseOffsetPx = remember(defaultCollapsedHeader, density) {
-        if (defaultCollapsedHeader) {
-            with(density) { 64.dp.toPx() }
-        } else {
-            0f
-        }
-    }
-    var collapseOffsetPx by remember(defaultCollapsedHeader, density) {
-        mutableFloatStateOf(defaultCollapseOffsetPx)
-    }
-    val maxCollapseRangePx = remember { object { var value: Float = 0f } }
-    val nestedScrollConnection = remember(listState, enableHeaderCollapse) {
-        object : NestedScrollConnection {
-            @Suppress("UNUSED_PARAMETER")
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (!enableHeaderCollapse) return Offset.Zero
-                return consumeHeaderScroll(
-                    availableY = available.y,
-                    collapseOffsetPx = collapseOffsetPx,
-                    setCollapseOffsetPx = { collapseOffsetPx = it },
-                    maxCollapsePx = maxCollapseRangePx.value,
-                    canExpand = listState.firstVisibleItemIndex == 0 &&
-                        listState.firstVisibleItemScrollOffset == 0
-                )
-            }
+    val useWarningTint =
+        budgetState.remainingTodayCents < 0L ||
+            budgetState.remainingCycleCents < 0L ||
+            spendingForecast.isProjectedOverBudget
+    val layoutState = rememberOverviewPageLayoutState(defaultCollapsedHeader, enableHeaderCollapse)
 
-            @Suppress("UNUSED_PARAMETER")
-            override fun onPostScroll(
-                consumed: Offset,
-                available: Offset,
-                source: NestedScrollSource
-            ): Offset {
-                if (!enableHeaderCollapse) return Offset.Zero
-                return consumeHeaderScroll(
-                    availableY = available.y,
-                    collapseOffsetPx = collapseOffsetPx,
-                    setCollapseOffsetPx = { collapseOffsetPx = it },
-                    maxCollapsePx = maxCollapseRangePx.value,
-                    canExpand = listState.firstVisibleItemIndex == 0 &&
-                        listState.firstVisibleItemScrollOffset == 0
-                )
-            }
+    OverviewInfoDialogs(
+        showForecastDetails = layoutState.showForecastDetails.value && !isLoading,
+        onDismissForecastDetails = { layoutState.showForecastDetails.value = false },
+        showSafeTodayDetails = layoutState.showSafeTodayDetails.value && !isLoading,
+        onDismissSafeTodayDetails = { layoutState.showSafeTodayDetails.value = false },
+        spendingForecast = spendingForecast,
+        budgetState = budgetState,
+        availableRecoverableOverspendCents = availableRecoverableOverspendCents,
+        safeToSpendTodayCents = safeToSpendTodayCents
+    )
 
-            @Suppress("UNUSED_PARAMETER", "SameReturnValue")
-            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                if (!enableHeaderCollapse) return Velocity.Zero
-                collapseOffsetPx = snapHeaderOffset(
-                    collapseOffsetPx.coerceIn(0f, maxCollapseRangePx.value),
-                    maxCollapseRangePx.value
-                )
-                return Velocity.Zero
-            }
-        }
-    }
+    OverviewContentLayout(
+        contentState = OverviewContentState(
+            budgetState = budgetState,
+            todayExpenses = todayExpenses,
+            activeCycleExpenseSections = activeCycleExpenseSections,
+            spendingForecast = spendingForecast,
+            onEditTodayExpense = onEditTodayExpense,
+            isLoading = isLoading,
+            onNavigateToSettings = onNavigateToSettings,
+            availableRecoverableOverspendCents = availableRecoverableOverspendCents,
+            useWarningTint = useWarningTint
+        ),
+        layoutState = layoutState,
+        config = OverviewContentConfig(
+            modifier = modifier,
+            showSpendingDetailsSection = showSpendingDetailsSection,
+            showTodayExpensesSection = showTodayExpensesSection,
+            enableHeaderCollapse = enableHeaderCollapse,
+            bottomContentPadding = bottomContentPadding,
+            density = layoutState.density,
+            headerHorizontalPadding = headerHorizontalPadding,
+            headerTopPadding = headerTopPadding,
+            headerBottomSpacing = headerBottomSpacing
+        ),
+        onShowForecastDetails = { layoutState.showForecastDetails.value = true },
+        onShowSafeTodayDetails = { layoutState.showSafeTodayDetails.value = true }
+    )
+}
 
-    SideEffect {
-        val normalizedCollapseOffsetPx = collapseOffsetPx.coerceIn(0f, maxCollapseRangePx.value)
-        if (normalizedCollapseOffsetPx != collapseOffsetPx) {
-            collapseOffsetPx = normalizedCollapseOffsetPx
-        }
-    }
-
-    if (showForecastDetails.value && !isLoading) {
-        AlertDialog(
-            onDismissRequest = { showForecastDetails.value = false },
-            title = { Text("Forecast analysis") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        "This projection combines your recent spending pace with prior cycle behavior to estimate where you may finish by cycle end.",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        "Conservative shows a lower-spend path, Projected is the current best estimate, and High pace is a stress case for how the cycle could finish if spending speeds up.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = MaterialTheme.shapes.large,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            DetailRow("Confidence", "${(spendingForecast.confidenceScore * 100).toInt()}% (${spendingForecast.confidenceRating})")
-                            DetailRow("Average daily pace", CurrencyFormatter.format(spendingForecast.dailyAverageWeightedCents))
-                            DetailRow("Window", "${spendingForecast.usedDataPoints} days")
-                            val trendVal = spendingForecast.trendSlopeCents
-                            val trendText = when {
-                                trendVal > ForecastConfig.TREND_SIGNIFICANCE_THRESHOLD_CENTS -> "Increasing"
-                                trendVal < -ForecastConfig.TREND_SIGNIFICANCE_THRESHOLD_CENTS -> "Decreasing"
-                                else -> "Stable"
-                            }
-                            DetailRow("Trend", trendText)
-                            if (spendingForecast.detectedOutlierCount > 0) {
-                                DetailRow("Filtered anomalies", spendingForecast.detectedOutlierCount.toString())
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showForecastDetails.value = false }) {
-                    Text("Close")
-                }
-            },
-            icon = {
-                androidx.compose.material3.Icon(
-                    painter = painterResource(R.drawable.ic_info),
-                    contentDescription = null
-                )
-            }
+@Composable
+private fun OverviewInfoDialogs(
+    showForecastDetails: Boolean,
+    onDismissForecastDetails: () -> Unit,
+    showSafeTodayDetails: Boolean,
+    onDismissSafeTodayDetails: () -> Unit,
+    spendingForecast: SpendingForecast,
+    budgetState: BudgetState,
+    availableRecoverableOverspendCents: Long,
+    safeToSpendTodayCents: Long
+) {
+    if (showForecastDetails) {
+        ForecastDetailsDialog(
+            spendingForecast = spendingForecast,
+            onDismiss = onDismissForecastDetails
         )
     }
 
-    if (showSafeTodayDetails.value && !isLoading) {
-        AlertDialog(
-            onDismissRequest = { showSafeTodayDetails.value = false },
-            title = { Text("Safe today") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        "The + amount next to Today left is recoverable overspend: extra spending the forecast suggests you can still absorb and make back over the remaining cycle days.",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        "It is not free budget. It sits on top of today’s allowance and depends on forecast confidence and days left in the cycle.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = MaterialTheme.shapes.large,
-                        modifier = Modifier.fillMaxWidth()
+    if (showSafeTodayDetails) {
+        SafeTodayDetailsDialog(
+            budgetState = budgetState,
+            availableRecoverableOverspendCents = availableRecoverableOverspendCents,
+            safeToSpendTodayCents = safeToSpendTodayCents,
+            onDismiss = onDismissSafeTodayDetails
+        )
+    }
+}
+
+@Composable
+private fun ForecastDetailsDialog(
+    spendingForecast: SpendingForecast,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Forecast analysis") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "This projection combines your recent spending pace with prior " +
+                        "cycle behavior to estimate where you may finish by cycle end.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    "Conservative shows a lower-spend path, Projected is the current " +
+                        "best estimate, and High pace is a stress case for how the " +
+                        "cycle could finish if spending speeds up.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = MaterialTheme.shapes.large,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            DetailRow("Today left", CurrencyFormatter.formatSigned(budgetState.remainingTodayCents))
+                        DetailRow(
+                            "Confidence",
+                            "${(spendingForecast.confidenceScore * 100).toInt()}% " +
+                                "(${spendingForecast.confidenceRating})"
+                        )
+                        DetailRow(
+                            "Average daily pace",
+                            CurrencyFormatter.format(spendingForecast.dailyAverageWeightedCents)
+                        )
+                        DetailRow("Window", "${spendingForecast.usedDataPoints} days")
+                        DetailRow("Trend", forecastTrendText(spendingForecast.trendSlopeCents))
+                        if (spendingForecast.detectedOutlierCount > 0) {
                             DetailRow(
-                                "Recoverable overspend",
-                                CurrencyFormatter.format(availableRecoverableOverspendCents)
-                            )
-                            DetailRow(
-                                "Safe to spend now",
-                                CurrencyFormatter.format(safeToSpendTodayCents)
+                                "Filtered anomalies",
+                                spendingForecast.detectedOutlierCount.toString()
                             )
                         }
                     }
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { showSafeTodayDetails.value = false }) {
-                    Text("Close")
-                }
-            },
-            icon = {
-                androidx.compose.material3.Icon(
-                    painter = painterResource(R.drawable.ic_info),
-                    contentDescription = null
-                )
             }
-        )
-    }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        icon = { InfoDialogIcon() }
+    )
+}
 
-    SubcomposeLayout(
-        modifier = modifier
-            .nestedScroll(nestedScrollConnection)
-            .clipToBounds()
-    ) { constraints ->
-        val horizontalPaddingPx = with(density) { headerHorizontalPadding.roundToPx() }
-        val topPaddingPx = with(density) { headerTopPadding.roundToPx() }
-        val bottomSpacingPx = with(density) { headerBottomSpacing.roundToPx() }
-        val headerConstraints = constraints.copy(
-            minWidth = 0,
-            minHeight = 0,
-            maxWidth = (constraints.maxWidth - (horizontalPaddingPx * 2)).coerceAtLeast(0)
-        )
-
-        val expandedHeaderHeightPx = subcompose("expandedHeaderMeasure") {
-            SummaryCard(
-                budgetState = budgetState,
-                recoverableOverspendCents = availableRecoverableOverspendCents,
-                collapseProgress = 0f,
-                isLoading = isLoading,
-                animateCounters = false,
-                useWarningTint = useWarningTint,
-                onSafeTodayInfoClick = { showSafeTodayDetails.value = true },
-                onNavigateToSettings = onNavigateToSettings,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }.maxOfOrNull { it.measure(headerConstraints).height } ?: 0
-
-        val collapsedHeaderHeightPx = subcompose("collapsedHeaderMeasure") {
-            SummaryCard(
-                budgetState = budgetState,
-                recoverableOverspendCents = availableRecoverableOverspendCents,
-                collapseProgress = 1f,
-                isLoading = isLoading,
-                animateCounters = false,
-                useWarningTint = useWarningTint,
-                onSafeTodayInfoClick = { showSafeTodayDetails.value = true },
-                onNavigateToSettings = onNavigateToSettings,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }.maxOfOrNull { it.measure(headerConstraints).height } ?: expandedHeaderHeightPx
-
-        val maxCollapsePx = if (enableHeaderCollapse) {
-            (expandedHeaderHeightPx - collapsedHeaderHeightPx).coerceAtLeast(0).toFloat()
-        } else {
-            0f
-        }
-        maxCollapseRangePx.value = maxCollapsePx
-
-        val clampedCollapseOffsetPx = collapseOffsetPx.coerceIn(0f, maxCollapsePx)
-        val collapseProgress = if (maxCollapsePx == 0f) {
-            0f
-        } else {
-            (clampedCollapseOffsetPx / maxCollapsePx).coerceIn(0f, 1f)
-        }
-
-        val contentPlaceables = subcompose("content") {
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
-                state = listState,
-                contentPadding = PaddingValues(
-                    top = with(density) {
-                        (expandedHeaderHeightPx + topPaddingPx + bottomSpacingPx).toDp()
-                    },
-                    bottom = bottomContentPadding
-                ),
-                verticalArrangement = Arrangement.spacedBy(0.dp)
-            ) {
-                item {
-                    SectionBlock(
-                        modifier = Modifier.testTag("home_forecast_section")
+@Composable
+private fun SafeTodayDetailsDialog(
+    budgetState: BudgetState,
+    availableRecoverableOverspendCents: Long,
+    safeToSpendTodayCents: Long,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Safe today") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "The + amount next to Today left is recoverable overspend: extra " +
+                        "spending the forecast suggests you can still absorb and make " +
+                        "back over the remaining cycle days.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    "It is not free budget. It sits on top of today’s allowance and " +
+                        "depends on forecast confidence and days left in the cycle.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = MaterialTheme.shapes.large,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        ForecastCard(
-                            spendingForecast = spendingForecast,
-                            budgetState = budgetState,
-                            isLoading = isLoading,
-                            onClick = { showForecastDetails.value = true }
+                        DetailRow(
+                            "Today left",
+                            CurrencyFormatter.formatSigned(budgetState.remainingTodayCents)
+                        )
+                        DetailRow(
+                            "Recoverable overspend",
+                            CurrencyFormatter.format(availableRecoverableOverspendCents)
+                        )
+                        DetailRow(
+                            "Safe to spend now",
+                            CurrencyFormatter.format(safeToSpendTodayCents)
                         )
                     }
                 }
-                if (showSpendingDetailsSection) {
-                    item {
-                        SectionBlock {
-                            SpendingTodayPane(
-                                budgetState = budgetState,
-                                todayExpenses = todayExpenses,
-                                activeCycleExpenseSections = activeCycleExpenseSections,
-                                isLoading = isLoading,
-                                onEditTodayExpense = onEditTodayExpense,
-                                showTodayExpensesSection = showTodayExpensesSection
-                            )
-                        }
-                    }
-                }
             }
-        }.map { it.measure(constraints) }
-
-        val headerPlaceables = subcompose("currentHeader") {
-            SummaryCard(
-                budgetState = budgetState,
-                recoverableOverspendCents = availableRecoverableOverspendCents,
-                collapseProgress = collapseProgress,
-                isLoading = isLoading,
-                animateCounters = true,
-                useWarningTint = useWarningTint,
-                tagSecondaryMetrics = true,
-                onSafeTodayInfoClick = { showSafeTodayDetails.value = true },
-                onNavigateToSettings = onNavigateToSettings,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("home_summary_section")
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        },
+        icon = {
+            androidx.compose.material3.Icon(
+                painter = painterResource(R.drawable.ic_info),
+                contentDescription = null
             )
-        }.map { it.measure(headerConstraints) }
+        }
+    )
+}
 
-        layout(constraints.maxWidth, constraints.maxHeight) {
-            val contentOffsetY = -clampedCollapseOffsetPx.roundToInt()
-            contentPlaceables.forEach { it.placeRelative(0, contentOffsetY) }
-            headerPlaceables.forEach { it.placeRelative(horizontalPaddingPx, topPaddingPx) }
+@Composable
+internal fun rememberOverviewNestedScrollConnection(
+    listState: LazyListState,
+    enableHeaderCollapse: Boolean,
+    collapseOffsetPx: () -> Float,
+    setCollapseOffsetPx: (Float) -> Unit,
+    maxCollapsePx: () -> Float
+): NestedScrollConnection {
+    return remember(listState, enableHeaderCollapse) {
+        overviewNestedScrollConnection(
+            enableHeaderCollapse = enableHeaderCollapse,
+            canExpand = {
+                listState.firstVisibleItemIndex == 0 &&
+                    listState.firstVisibleItemScrollOffset == 0
+            },
+            collapseOffsetPx = collapseOffsetPx,
+            setCollapseOffsetPx = setCollapseOffsetPx,
+            maxCollapsePx = maxCollapsePx
+        )
+    }
+}
+
+internal fun overviewNestedScrollConnection(
+    enableHeaderCollapse: Boolean,
+    canExpand: () -> Boolean,
+    collapseOffsetPx: () -> Float,
+    setCollapseOffsetPx: (Float) -> Unit,
+    maxCollapsePx: () -> Float
+): NestedScrollConnection {
+    return object : NestedScrollConnection {
+        @Suppress("UNUSED_PARAMETER")
+        override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+            if (!enableHeaderCollapse) return Offset.Zero
+            return consumeHeaderScroll(
+                availableY = available.y,
+                collapseOffsetPx = collapseOffsetPx(),
+                setCollapseOffsetPx = setCollapseOffsetPx,
+                maxCollapsePx = maxCollapsePx(),
+                canExpand = canExpand()
+            )
+        }
+
+        @Suppress("UNUSED_PARAMETER")
+        override fun onPostScroll(
+            consumed: Offset,
+            available: Offset,
+            source: NestedScrollSource
+        ): Offset {
+            if (!enableHeaderCollapse) return Offset.Zero
+            return consumeHeaderScroll(
+                availableY = available.y,
+                collapseOffsetPx = collapseOffsetPx(),
+                setCollapseOffsetPx = setCollapseOffsetPx,
+                maxCollapsePx = maxCollapsePx(),
+                canExpand = canExpand()
+            )
+        }
+
+        @Suppress("UNUSED_PARAMETER", "SameReturnValue")
+        override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+            if (!enableHeaderCollapse) return Velocity.Zero
+            val latestMaxCollapsePx = maxCollapsePx()
+            setCollapseOffsetPx(
+                snapHeaderOffset(
+                    collapseOffsetPx().coerceIn(0f, latestMaxCollapsePx),
+                    latestMaxCollapsePx
+                )
+            )
+            return Velocity.Zero
         }
     }
+}
+
+private fun forecastTrendText(trendSlopeCents: Double): String = when {
+    trendSlopeCents > ForecastConfig.TREND_SIGNIFICANCE_THRESHOLD_CENTS -> "Increasing"
+    trendSlopeCents < -ForecastConfig.TREND_SIGNIFICANCE_THRESHOLD_CENTS -> "Decreasing"
+    else -> "Stable"
 }
 
 private fun consumeHeaderScroll(
@@ -383,21 +348,21 @@ private fun consumeHeaderScroll(
         setCollapseOffsetPx(normalizedCollapseOffsetPx)
     }
 
-    if (availableY < 0f && normalizedCollapseOffsetPx < maxCollapsePx) {
-        val newOffset = (normalizedCollapseOffsetPx - availableY).coerceAtMost(maxCollapsePx)
-        val consumed = newOffset - normalizedCollapseOffsetPx
-        setCollapseOffsetPx(newOffset)
-        return Offset(0f, -consumed)
+    return when {
+        availableY < 0f && normalizedCollapseOffsetPx < maxCollapsePx -> {
+            val newOffset = (normalizedCollapseOffsetPx - availableY).coerceAtMost(maxCollapsePx)
+            val consumed = newOffset - normalizedCollapseOffsetPx
+            setCollapseOffsetPx(newOffset)
+            Offset(0f, -consumed)
+        }
+        availableY > 0f && canExpand && normalizedCollapseOffsetPx > 0f -> {
+            val newOffset = (normalizedCollapseOffsetPx - availableY).coerceAtLeast(0f)
+            val consumed = normalizedCollapseOffsetPx - newOffset
+            setCollapseOffsetPx(newOffset)
+            Offset(0f, consumed)
+        }
+        else -> Offset.Zero
     }
-
-    if (availableY > 0f && canExpand && normalizedCollapseOffsetPx > 0f) {
-        val newOffset = (normalizedCollapseOffsetPx - availableY).coerceAtLeast(0f)
-        val consumed = normalizedCollapseOffsetPx - newOffset
-        setCollapseOffsetPx(newOffset)
-        return Offset(0f, consumed)
-    }
-
-    return Offset.Zero
 }
 
 private fun snapHeaderOffset(collapseOffsetPx: Float, maxCollapsePx: Float): Float {
@@ -407,20 +372,6 @@ private fun snapHeaderOffset(collapseOffsetPx: Float, maxCollapsePx: Float): Flo
     } else {
         0f
     }
-}
-
-@Composable
-private fun SectionBlock(
-    modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(0.dp),
-        content = content
-    )
 }
 
 @Composable
@@ -443,4 +394,12 @@ private fun DetailRow(label: String, value: String) {
             textAlign = TextAlign.End
         )
     }
+}
+
+@Composable
+private fun InfoDialogIcon() {
+    androidx.compose.material3.Icon(
+        painter = painterResource(R.drawable.ic_info),
+        contentDescription = null
+    )
 }

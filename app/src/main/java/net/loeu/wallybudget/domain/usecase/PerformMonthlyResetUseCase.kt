@@ -81,23 +81,17 @@ class PerformMonthlyResetUseCase(
             nextPendingCycle = endedCycles.last()
         }
 
-        if (clearPending) {
-            userSettingsStore.clearPendingCycle()
-        }
-        when {
-            nextPendingCycle != null -> userSettingsStore.setPendingCycle(
-                cycleStartDate = nextPendingCycle.start,
-                cycleEndDateExclusive = nextPendingCycle.endExclusive,
-                detectedAtTimestamp = Instant.now().toEpochMilli()
-            )
-
-            recoveryPendingCycle != null -> userSettingsStore.setPendingCycle(
-                cycleStartDate = recoveryPendingCycle.start,
-                cycleEndDateExclusive = recoveryPendingCycle.endExclusive,
-                detectedAtTimestamp = Instant.now().toEpochMilli()
-            )
-        }
+        if (clearPending) userSettingsStore.clearPendingCycle()
+        (nextPendingCycle ?: recoveryPendingCycle)?.let { storePendingCycle(it) }
         userSettingsStore.updateLastResetTimestamp(currentCycleStart.toStartOfDayMillis())
+    }
+
+    private suspend fun storePendingCycle(cycleRange: CycleRange) {
+        userSettingsStore.setPendingCycle(
+            cycleStartDate = cycleRange.start,
+            cycleEndDateExclusive = cycleRange.endExclusive,
+            detectedAtTimestamp = Instant.now().toEpochMilli()
+        )
     }
 
     private suspend fun recoverMissingPendingCycle(
@@ -108,21 +102,25 @@ class PerformMonthlyResetUseCase(
             currentCycleStart.minusDays(1),
             settings.paydayDate
         )
-        if (!previousCycleStart.isBefore(currentCycleStart)) return null
-
         val archivedPreviousCycle = monthlyHistoryDao.findByCycleStart(previousCycleStart.toString())
-        if (archivedPreviousCycle != null) return null
 
         val previousCycleExpenseCount = expenseDao.countInRange(
             previousCycleStart.toString(),
             currentCycleStart.toString()
         )
-        if (previousCycleExpenseCount == 0) return null
 
-        return CycleRange(
-            start = previousCycleStart,
-            endExclusive = currentCycleStart
-        )
+        return if (
+            previousCycleStart.isBefore(currentCycleStart) &&
+            archivedPreviousCycle == null &&
+            previousCycleExpenseCount > 0
+        ) {
+            CycleRange(
+                start = previousCycleStart,
+                endExclusive = currentCycleStart
+            )
+        } else {
+            null
+        }
     }
 
     private fun buildEndedCycles(

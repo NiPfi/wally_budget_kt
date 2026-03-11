@@ -21,15 +21,14 @@ internal object ObservedDatePolicy {
     }
 
     fun shouldPersist(lastSeenDate: LocalDate?, observedDate: LocalDate): Boolean {
-        if (lastSeenDate == null || observedDate.isAfter(lastSeenDate)) {
-            return true
+        return when {
+            lastSeenDate == null -> true
+            observedDate.isAfter(lastSeenDate) -> true
+            !observedDate.isBefore(lastSeenDate) -> false
+            else -> {
+                val rollbackDays = ChronoUnit.DAYS.between(observedDate, lastSeenDate)
+                rollbackDays > MAX_BACKWARD_DATE_SKEW_DAYS
+            }
         }
-
-        if (!observedDate.isBefore(lastSeenDate)) {
-            return false
-        }
-
-        val rollbackDays = ChronoUnit.DAYS.between(observedDate, lastSeenDate)
-        return rollbackDays > MAX_BACKWARD_DATE_SKEW_DAYS
     }
 }

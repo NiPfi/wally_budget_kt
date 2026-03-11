@@ -82,8 +82,31 @@ class ObserveHistoryUseCase(
             isEditable = isEditable,
             today = today
         )
+        sections += buildCurrentCycleSection(
+            budgetState = budgetState,
+            currentCycleStart = currentCycleStart,
+            today = today,
+            activeCycleDaySections = activeCycleDaySections,
+            isEditable = isEditable
+        )
 
-        sections += ExpenseCycleSection(
+        if (futureExpenses.isNotEmpty()) {
+            sections += buildFutureExpensesSection(futureExpenses, dayTotals, budgetState.monthlyBudgetCents)
+        }
+
+        sections += buildCompletedHistorySections(monthlyHistory, currentCycleStart, expensesByCycleStart, dayTotals)
+
+        return sections
+    }
+
+    private fun buildCurrentCycleSection(
+        budgetState: BudgetState,
+        currentCycleStart: LocalDate,
+        today: LocalDate,
+        activeCycleDaySections: List<ExpenseDaySection>,
+        isEditable: Boolean
+    ): ExpenseCycleSection {
+        return ExpenseCycleSection(
             cycleStartDate = currentCycleStart,
             cycleEndDateExclusive = today.plusDays(1),
             title = "Current cycle",
@@ -95,54 +118,44 @@ class ObserveHistoryUseCase(
             isReadOnly = !isEditable,
             isCompletedCycle = false
         )
+    }
 
-        if (futureExpenses.isNotEmpty()) {
-            val futureDaySections = futureExpenses
-                .groupByDate()
-                .toSortedMap(compareByDescending { it })
-                .map { (date, expenses) ->
-                    ExpenseDaySection(
-                        date = date,
-                        expenses = expenses,
-                        totalSpentCents = dayTotals[date] ?: expenses.sumOf { it.amountCents },
-                        remainingForDayCents = null,
-                        isEditable = false
-                    )
-                }
-            val futureStart = futureDaySections.last().date
-            val futureEndExclusive = futureDaySections.first().date.plusDays(1)
-            val futureTotalSpent = futureDaySections.sumOf { it.totalSpentCents }
-            sections += ExpenseCycleSection(
-                cycleStartDate = futureStart,
-                cycleEndDateExclusive = futureEndExclusive,
-                title = "Future-dated expenses",
-                budgetAmountCents = budgetState.monthlyBudgetCents,
-                totalSpentCents = futureTotalSpent,
-                surplusCents = budgetState.monthlyBudgetCents - futureTotalSpent,
-                daySections = futureDaySections,
-                isActiveCycle = false,
-                isReadOnly = true,
-                isCompletedCycle = false
-            )
-        }
+    private fun buildFutureExpensesSection(
+        futureExpenses: List<Expense>,
+        dayTotals: Map<LocalDate, Long>,
+        monthlyBudgetCents: Long
+    ): ExpenseCycleSection {
+        val futureDaySections = buildReadOnlyDaySections(futureExpenses, dayTotals)
+        val futureStart = futureDaySections.last().date
+        val futureEndExclusive = futureDaySections.first().date.plusDays(1)
+        val futureTotalSpent = futureDaySections.sumOf { it.totalSpentCents }
 
-        sections += monthlyHistory
+        return ExpenseCycleSection(
+            cycleStartDate = futureStart,
+            cycleEndDateExclusive = futureEndExclusive,
+            title = "Future-dated expenses",
+            budgetAmountCents = monthlyBudgetCents,
+            totalSpentCents = futureTotalSpent,
+            surplusCents = monthlyBudgetCents - futureTotalSpent,
+            daySections = futureDaySections,
+            isActiveCycle = false,
+            isReadOnly = true,
+            isCompletedCycle = false
+        )
+    }
+
+    private fun buildCompletedHistorySections(
+        monthlyHistory: List<MonthlyHistory>,
+        currentCycleStart: LocalDate,
+        expensesByCycleStart: Map<LocalDate, List<Expense>>,
+        dayTotals: Map<LocalDate, Long>
+    ): List<ExpenseCycleSection> {
+        return monthlyHistory
             .filterNot { it.getCycleStart() == currentCycleStart }
             .sortedByDescending { it.endTimestamp }
             .map { monthlyEntry ->
                 val cycleExpenses = expensesByCycleStart[monthlyEntry.getCycleStart()].orEmpty()
-                val daySections = cycleExpenses
-                    .groupByDate()
-                    .toSortedMap(compareByDescending { it })
-                    .map { (date, expenses) ->
-                        ExpenseDaySection(
-                            date = date,
-                            expenses = expenses,
-                            totalSpentCents = dayTotals[date] ?: expenses.sumOf { it.amountCents },
-                            remainingForDayCents = null,
-                            isEditable = false
-                        )
-                    }
+                val daySections = buildReadOnlyDaySections(cycleExpenses, dayTotals)
 
                 ExpenseCycleSection(
                     cycleStartDate = monthlyEntry.getCycleStart(),
@@ -157,8 +170,24 @@ class ObserveHistoryUseCase(
                     isCompletedCycle = true
                 )
             }
+    }
 
-        return sections
+    private fun buildReadOnlyDaySections(
+        expenses: List<Expense>,
+        dayTotals: Map<LocalDate, Long>
+    ): List<ExpenseDaySection> {
+        return expenses
+            .groupByDate()
+            .toSortedMap(compareByDescending { it })
+            .map { (date, groupedExpenses) ->
+                ExpenseDaySection(
+                    date = date,
+                    expenses = groupedExpenses,
+                    totalSpentCents = dayTotals[date] ?: groupedExpenses.sumOf { it.amountCents },
+                    remainingForDayCents = null,
+                    isEditable = false
+                )
+            }
     }
 
     private fun bucketExpensesByCycleStart(

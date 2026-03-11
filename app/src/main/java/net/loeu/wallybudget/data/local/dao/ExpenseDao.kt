@@ -25,10 +25,16 @@ interface ExpenseDao : BaseInsertDao<ExpenseEntity> {
         endDateExclusive: String
     ): Flow<List<ExpenseEntity>>
 
-    @Query("SELECT SUM(amountCents) FROM expenses WHERE expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive")
+    @Query(
+        "SELECT SUM(amountCents) FROM expenses " +
+            "WHERE expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive"
+    )
     suspend fun totalSpentInRange(startDateInclusive: String, endDateExclusive: String): Long?
 
-    @Query("SELECT COUNT(*) FROM expenses WHERE expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive")
+    @Query(
+        "SELECT COUNT(*) FROM expenses " +
+            "WHERE expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive"
+    )
     suspend fun countInRange(startDateInclusive: String, endDateExclusive: String): Int
 
     @Query(

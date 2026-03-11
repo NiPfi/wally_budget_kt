@@ -26,11 +26,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import kotlinx.coroutines.flow.map
 import net.loeu.wallybudget.ui.navigation.Screen
 import net.loeu.wallybudget.ui.screens.analysis.AnalysisScreen
 import net.loeu.wallybudget.ui.screens.closeout.CycleCloseoutReviewScreen
@@ -95,57 +95,25 @@ fun BudgetApp(
         viewModel.refreshCycleState()
         onPauseOrDispose { }
     }
-
-    val onboardingCompletedFlow = remember(viewModel) {
-        viewModel.userSettingsFlow.map { it.isOnboardingCompleted }
-    }
-    val isOnboardingCompleted by onboardingCompletedFlow.collectAsState(initial = null)
-
-    if (isOnboardingCompleted == null) {
-        Box(
-            modifier = modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
-        }
+    val appState = rememberBudgetAppUiState(viewModel)
+    if (appState.isOnboardingCompleted == null) {
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         return
     }
-
-    val userSettings by viewModel.userSettings.collectAsState()
-    val budgetState by viewModel.budgetState.collectAsState()
-    val effectiveCurrentDate by viewModel.effectiveCurrentDate.collectAsState()
-    val todayExpenses by viewModel.todayExpenses.collectAsState()
-    val activeCycleExpenseSections by viewModel.activeCycleExpenseSections.collectAsState()
-    val spendingForecast by viewModel.spendingForecast.collectAsState()
-    val historySections by viewModel.historySections.collectAsState()
-    val pendingCycleCloseoutState by viewModel.pendingCycleCloseoutState.collectAsState()
-    val timelineLockState by viewModel.timelineLockState.collectAsState()
-    val isAddExpenseSheetVisible by viewModel.isAddExpenseSheetVisible.collectAsState()
-    val isHomeDataLoading = budgetState == null || spendingForecast == null
-    val displayBudgetState = budgetState ?: loadingBudgetState(effectiveCurrentDate)
-    val displaySpendingForecast = spendingForecast ?: SpendingForecast()
-
+    val displayBudgetState = appState.budgetState ?: loadingBudgetState(appState.effectiveCurrentDate)
+    val displaySpendingForecast = appState.spendingForecast ?: SpendingForecast()
     when {
-        isOnboardingCompleted != true -> {
-            OnboardingScreen(
-                onComplete = { budgetCents, payday, cycleStartDate, previousExpensesCents ->
-                    viewModel.completeOnboarding(budgetCents, payday, cycleStartDate, previousExpensesCents)
-                }
-            )
-        }
-
-        pendingCycleCloseoutState != null -> {
+        appState.isOnboardingCompleted != true -> OnboardingScreen(onComplete = viewModel::completeOnboarding)
+        appState.pendingCycleCloseoutState != null -> {
             PendingCycleFlow(
-                pendingCycle = pendingCycleCloseoutState!!,
-                showAddExpenseSheet = isAddExpenseSheetVisible,
-                onShowAddExpenseSheet = { viewModel.showAddExpenseSheet() },
-                onHideAddExpenseSheet = { viewModel.hideAddExpenseSheet() },
-                onConcludeCycle = { viewModel.concludePendingCycle() },
-                onAddExpense = { amountCents, description, icon, date ->
-                    viewModel.addExpense(amountCents, description, icon, date)
-                },
-                onUpdateExpense = { expense -> viewModel.updateExpense(expense) },
-                onDeleteExpense = { expense -> viewModel.deleteExpense(expense) },
+                pendingCycle = appState.pendingCycleCloseoutState,
+                showAddExpenseSheet = appState.isAddExpenseSheetVisible,
+                onShowAddExpenseSheet = viewModel::showAddExpenseSheet,
+                onHideAddExpenseSheet = viewModel::hideAddExpenseSheet,
+                onConcludeCycle = viewModel::concludePendingCycle,
+                onAddExpense = viewModel::addExpense,
+                onUpdateExpense = viewModel::updateExpense,
+                onDeleteExpense = viewModel::deleteExpense,
                 modifier = modifier
             )
         }
@@ -154,34 +122,28 @@ fun BudgetApp(
             val shellContent: @Composable () -> Unit = {
                 MainNavigationShell(
                     budgetState = displayBudgetState,
-                    todayExpenses = todayExpenses,
-                    effectiveCurrentDate = effectiveCurrentDate,
-                    activeCycleExpenseSections = activeCycleExpenseSections,
+                    todayExpenses = appState.todayExpenses,
+                    effectiveCurrentDate = appState.effectiveCurrentDate,
+                    activeCycleExpenseSections = appState.activeCycleExpenseSections,
                     spendingForecast = displaySpendingForecast,
                     monthlyHistoryState = viewModel.monthlyHistory,
-                    isHomeDataLoading = isHomeDataLoading,
-                    historySections = historySections,
-                    userSettings = userSettings,
-                    showAddExpenseSheet = isAddExpenseSheetVisible,
-                    onShowAddExpenseSheet = { viewModel.showAddExpenseSheet() },
-                    onHideAddExpenseSheet = { viewModel.hideAddExpenseSheet() },
-                    onAddExpense = { amountCents, description, icon, date ->
-                        viewModel.addExpense(amountCents, description, icon, date)
-                    },
-                    onUpdateExpense = { expense -> viewModel.updateExpense(expense) },
-                    onDeleteExpense = { expense -> viewModel.deleteExpense(expense) },
-                    onRestoreExpense = { expense -> viewModel.restoreDeletedExpense(expense) },
-                    onUpdateBudget = { budgetCents -> viewModel.updateMonthlyBudget(budgetCents) },
-                    onUpdatePayday = { payday -> viewModel.updatePaydayDate(payday) },
-                    timelineLockReason = timelineLockState.reason,
+                    isHomeDataLoading = appState.isHomeDataLoading,
+                    historySections = appState.historySections,
+                    userSettings = appState.userSettings,
+                    showAddExpenseSheet = appState.isAddExpenseSheetVisible,
+                    onShowAddExpenseSheet = viewModel::showAddExpenseSheet,
+                    onHideAddExpenseSheet = viewModel::hideAddExpenseSheet,
+                    onAddExpense = viewModel::addExpense,
+                    onUpdateExpense = viewModel::updateExpense,
+                    onDeleteExpense = viewModel::deleteExpense,
+                    onRestoreExpense = viewModel::restoreDeletedExpense,
+                    onUpdateBudget = viewModel::updateMonthlyBudget,
+                    onUpdatePayday = viewModel::updatePaydayDate,
+                    timelineLockReason = appState.timelineLockReason,
                     modifier = modifier
                 )
             }
-            if (isHomeDataLoading) {
-                PlaceholderShimmerProvider(content = shellContent)
-            } else {
-                shellContent()
-            }
+            if (appState.isHomeDataLoading) PlaceholderShimmerProvider(content = shellContent) else shellContent()
         }
     }
 }
@@ -213,14 +175,7 @@ private fun MainNavigationShell(
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val adaptiveInfo = currentWindowAdaptiveInfo()
-    val navigationLayoutType = if (
-        !adaptiveInfo.windowSizeClass.isHeightAtLeastBreakpoint(HEIGHT_DP_MEDIUM_LOWER_BOUND)
-    ) {
-        NavigationSuiteType.WideNavigationRailCollapsed
-    } else {
-        NavigationSuiteScaffoldDefaults.navigationSuiteType(adaptiveInfo)
-    }
+    val navigationLayoutType = mainNavigationLayoutType()
     val usesVerticalNavigation = when (navigationLayoutType) {
         NavigationSuiteType.NavigationRail,
         NavigationSuiteType.NavigationDrawer,
@@ -238,195 +193,190 @@ private fun MainNavigationShell(
             Arrangement.Top
         },
         navigationItems = {
-            if (usesVerticalNavigation) {
-                Column {
-                    MainNavigationItem(
-                        selected = currentRoute == Screen.Home.route,
-                        onClick = {
-                            navController.navigate(Screen.Home.route) {
-                                popUpTo(Screen.Home.route) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_dashboard),
-                                contentDescription = null
-                            )
-                        },
-                        label = { Text(OVERVIEW_NAVIGATION_LABEL) }
-                    )
-                    MainNavigationItem(
-                        selected = currentRoute == Screen.Analysis.route,
-                        onClick = {
-                            navController.navigate(Screen.Analysis.route) {
-                                popUpTo(Screen.Home.route) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_analytics),
-                                contentDescription = null
-                            )
-                        },
-                        label = { Text("Analysis") }
-                    )
-                    MainNavigationItem(
-                        selected = currentRoute == Screen.History.route,
-                        onClick = {
-                            navController.navigate(Screen.History.route) {
-                                popUpTo(Screen.Home.route) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_history),
-                                contentDescription = null
-                            )
-                        },
-                        label = { Text("History") }
-                    )
-                }
-                MainNavigationItem(
-                    selected = currentRoute == Screen.Settings.route,
-                    onClick = {
-                        navController.navigate(Screen.Settings.route) {
-                            popUpTo(Screen.Home.route) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    icon = {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_settings),
-                            contentDescription = null
-                        )
-                    },
-                    label = { Text("Settings") }
-                )
-            } else {
-                MainNavigationItem(
-                    selected = currentRoute == Screen.Home.route,
-                    onClick = {
-                        navController.navigate(Screen.Home.route) {
-                            popUpTo(Screen.Home.route) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    icon = {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_dashboard),
-                            contentDescription = null
-                        )
-                    },
-                    label = { Text(OVERVIEW_NAVIGATION_LABEL) }
-                )
-                MainNavigationItem(
-                    selected = currentRoute == Screen.Analysis.route,
-                    onClick = {
-                        navController.navigate(Screen.Analysis.route) {
-                            popUpTo(Screen.Home.route) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    icon = {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_analytics),
-                            contentDescription = null
-                        )
-                    },
-                    label = { Text("Analysis") }
-                )
-                MainNavigationItem(
-                    selected = currentRoute == Screen.History.route,
-                    onClick = {
-                        navController.navigate(Screen.History.route) {
-                            popUpTo(Screen.Home.route) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    icon = {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_history),
-                            contentDescription = null
-                        )
-                    },
-                    label = { Text("History") }
-                )
-            }
+            MainNavigationItems(
+                currentRoute = currentRoute,
+                usesVerticalNavigation = usesVerticalNavigation,
+                onNavigate = navController::navigateToTopLevel
+            )
         }
     ) {
-        NavHost(
+        MainNavigationHost(
             navController = navController,
-            startDestination = Screen.Home.route
-        ) {
-            composable(Screen.Home.route) {
-                HomeScreen(
-                    budgetState = budgetState,
-                    todayExpenses = todayExpenses,
-                    currentDate = effectiveCurrentDate,
-                    activeCycleExpenseSections = activeCycleExpenseSections,
-                    spendingForecast = spendingForecast,
-                    isLoadingData = isHomeDataLoading,
-                    onAddExpense = onAddExpense,
-                    onRestoreExpense = onRestoreExpense,
-                    onUpdateExpense = onUpdateExpense,
-                    onDeleteExpense = onDeleteExpense,
-                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                    showTopRightSettingsAction = !usesVerticalNavigation,
-                    showAddExpenseSheet = showAddExpenseSheet,
-                    onShowAddExpenseSheet = onShowAddExpenseSheet,
-                    onHideAddExpenseSheet = onHideAddExpenseSheet,
-                    timelineLockReason = timelineLockReason
-                )
-            }
-            composable(Screen.History.route) {
-                HistoryScreen(
-                    historySections = historySections,
-                    onAddExpense = onAddExpense,
-                    onRestoreExpense = onRestoreExpense,
-                    onUpdateExpense = onUpdateExpense,
-                    onDeleteExpense = onDeleteExpense,
-                    onNavigateToSettings = if (usesVerticalNavigation) null else {
-                        { navController.navigate(Screen.Settings.route) }
-                    },
-                    interactionsEnabled = timelineLockReason == null,
-                    timelineLockReason = timelineLockReason
-                )
-            }
-            composable(Screen.Analysis.route) {
-                val monthlyHistory by monthlyHistoryState.collectAsState()
-                val isAnalysisLoading = isHomeDataLoading || monthlyHistory == null
-                AnalysisScreen(
-                    budgetState = budgetState,
-                    spendingForecast = spendingForecast,
-                    monthlyHistory = monthlyHistory.orEmpty(),
-                    timelineLockReason = timelineLockReason,
-                    isLoading = isAnalysisLoading,
-                    onNavigateToSettings = if (usesVerticalNavigation) {
-                        null
-                    } else {
-                        { navController.navigate(Screen.Settings.route) }
-                    }
-                )
-            }
-            composable(Screen.Settings.route) {
-                SettingsScreen(
-                    userSettings = userSettings,
-                    onUpdateBudget = onUpdateBudget,
-                    onUpdatePayday = onUpdatePayday,
-                    onNavigateBack = { navController.popBackStack() }
+            budgetState = budgetState,
+            todayExpenses = todayExpenses,
+            effectiveCurrentDate = effectiveCurrentDate,
+            activeCycleExpenseSections = activeCycleExpenseSections,
+            spendingForecast = spendingForecast,
+            monthlyHistoryState = monthlyHistoryState,
+            isHomeDataLoading = isHomeDataLoading,
+            historySections = historySections,
+            userSettings = userSettings,
+            showAddExpenseSheet = showAddExpenseSheet,
+            onShowAddExpenseSheet = onShowAddExpenseSheet,
+            onHideAddExpenseSheet = onHideAddExpenseSheet,
+            onAddExpense = onAddExpense,
+            onUpdateExpense = onUpdateExpense,
+            onDeleteExpense = onDeleteExpense,
+            onRestoreExpense = onRestoreExpense,
+            onUpdateBudget = onUpdateBudget,
+            onUpdatePayday = onUpdatePayday,
+            timelineLockReason = timelineLockReason,
+            usesVerticalNavigation = usesVerticalNavigation
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3AdaptiveApi::class)
+@Composable
+private fun mainNavigationLayoutType(): NavigationSuiteType {
+    val adaptiveInfo = currentWindowAdaptiveInfo()
+    return if (
+        !adaptiveInfo.windowSizeClass.isHeightAtLeastBreakpoint(HEIGHT_DP_MEDIUM_LOWER_BOUND)
+    ) {
+        NavigationSuiteType.WideNavigationRailCollapsed
+    } else {
+        NavigationSuiteScaffoldDefaults.navigationSuiteType(adaptiveInfo)
+    }
+}
+
+@Composable
+private fun MainNavigationItems(
+    currentRoute: String?,
+    usesVerticalNavigation: Boolean,
+    onNavigate: (Screen) -> Unit
+) {
+    val primaryScreens = listOf(Screen.Home, Screen.Analysis, Screen.History)
+    if (usesVerticalNavigation) {
+        Column {
+            primaryScreens.forEach { screen ->
+                MainTopLevelNavigationItem(
+                    screen = screen,
+                    selected = currentRoute == screen.route,
+                    onClick = { onNavigate(screen) }
                 )
             }
         }
+        MainTopLevelNavigationItem(
+            screen = Screen.Settings,
+            selected = currentRoute == Screen.Settings.route,
+            onClick = { onNavigate(Screen.Settings) }
+        )
+    } else {
+        primaryScreens.forEach { screen ->
+            MainTopLevelNavigationItem(
+                screen = screen,
+                selected = currentRoute == screen.route,
+                onClick = { onNavigate(screen) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun MainTopLevelNavigationItem(
+    screen: Screen,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val (iconRes, label) = when (screen) {
+        Screen.Home -> R.drawable.ic_dashboard to OVERVIEW_NAVIGATION_LABEL
+        Screen.Analysis -> R.drawable.ic_analytics to "Analysis"
+        Screen.History -> R.drawable.ic_history to "History"
+        Screen.Settings -> R.drawable.ic_settings to "Settings"
+        else -> R.drawable.ic_dashboard to OVERVIEW_NAVIGATION_LABEL
+    }
+    MainNavigationItem(
+        selected = selected,
+        onClick = onClick,
+        icon = {
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = null
+            )
+        },
+        label = { Text(label) }
+    )
+}
+
+private fun NavHostController.navigateToTopLevel(screen: Screen) {
+    navigate(screen.route) {
+        popUpTo(Screen.Home.route) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
+@Composable
+private fun MainNavigationHost(
+    navController: NavHostController,
+    budgetState: BudgetState,
+    todayExpenses: List<Expense>,
+    effectiveCurrentDate: LocalDate,
+    activeCycleExpenseSections: List<ExpenseDaySection>,
+    spendingForecast: SpendingForecast,
+    monthlyHistoryState: StateFlow<List<MonthlyHistory>?>,
+    isHomeDataLoading: Boolean,
+    historySections: List<ExpenseCycleSection>,
+    userSettings: UserSettings,
+    showAddExpenseSheet: Boolean,
+    onShowAddExpenseSheet: () -> Unit,
+    onHideAddExpenseSheet: () -> Unit,
+    onAddExpense: (Long, String, ExpenseCategory?, LocalDate) -> Unit,
+    onUpdateExpense: (Expense) -> Unit,
+    onDeleteExpense: (Expense) -> Unit,
+    onRestoreExpense: (Expense) -> Unit,
+    onUpdateBudget: (Long) -> Unit,
+    onUpdatePayday: (Int) -> Unit,
+    timelineLockReason: String?,
+    usesVerticalNavigation: Boolean
+) {
+    NavHost(
+        navController = navController,
+        startDestination = Screen.Home.route
+    ) {
+        addHomeDestination(
+            navController = navController,
+            budgetState = budgetState,
+            todayExpenses = todayExpenses,
+            effectiveCurrentDate = effectiveCurrentDate,
+            activeCycleExpenseSections = activeCycleExpenseSections,
+            spendingForecast = spendingForecast,
+            isHomeDataLoading = isHomeDataLoading,
+            onAddExpense = onAddExpense,
+            onRestoreExpense = onRestoreExpense,
+            onUpdateExpense = onUpdateExpense,
+            onDeleteExpense = onDeleteExpense,
+            showAddExpenseSheet = showAddExpenseSheet,
+            onShowAddExpenseSheet = onShowAddExpenseSheet,
+            onHideAddExpenseSheet = onHideAddExpenseSheet,
+            timelineLockReason = timelineLockReason,
+            usesVerticalNavigation = usesVerticalNavigation
+        )
+        addHistoryDestination(
+            navController = navController,
+            historySections = historySections,
+            onAddExpense = onAddExpense,
+            onRestoreExpense = onRestoreExpense,
+            onUpdateExpense = onUpdateExpense,
+            onDeleteExpense = onDeleteExpense,
+            timelineLockReason = timelineLockReason,
+            usesVerticalNavigation = usesVerticalNavigation
+        )
+        addAnalysisDestination(
+            navController = navController,
+            budgetState = budgetState,
+            spendingForecast = spendingForecast,
+            monthlyHistoryState = monthlyHistoryState,
+            isHomeDataLoading = isHomeDataLoading,
+            timelineLockReason = timelineLockReason,
+            usesVerticalNavigation = usesVerticalNavigation
+        )
+        addSettingsDestination(
+            navController = navController,
+            userSettings = userSettings,
+            onUpdateBudget = onUpdateBudget,
+            onUpdatePayday = onUpdatePayday
+        )
     }
 }
 
@@ -474,7 +424,6 @@ private fun PendingCycleFlow(
     val navController = rememberNavController()
     var selectedDate by rememberSaveable { mutableStateOf(pendingCycle.cycleEndDateExclusive.minusDays(1)) }
     var expenseBeingEdited by remember { mutableStateOf<Expense?>(null) }
-
     NavHost(
         navController = navController,
         startDestination = Screen.CycleCloseout.route,
@@ -499,42 +448,14 @@ private fun PendingCycleFlow(
             )
         }
     }
-
-    if (showAddExpenseSheet) {
-        AddExpenseSheet(
-            onDismiss = onHideAddExpenseSheet,
-            onSubmitExpense = { amountCents, description, icon ->
-                onAddExpense(amountCents, description, icon, selectedDate)
-            },
-            title = "Add expense for ${selectedDate.format(DateTimeFormatter.ofPattern("MMM d"))}",
-            confirmButtonText = "Add to ${selectedDate.format(DateTimeFormatter.ofPattern("MMM d"))}",
-            dateLabel = "Recorded for ${selectedDate.format(DateTimeFormatter.ofPattern("EEEE, MMM d"))}"
-        )
-    }
-
-    expenseBeingEdited?.let { editingExpense ->
-        AddExpenseSheet(
-            onDismiss = { expenseBeingEdited = null },
-            onSubmitExpense = { amountCents, description, icon ->
-                onUpdateExpense(
-                    editingExpense.copy(
-                        amountCents = amountCents,
-                        description = description,
-                        icon = icon
-                    )
-                )
-                expenseBeingEdited = null
-            },
-            onDeleteExpense = {
-                onDeleteExpense(editingExpense)
-                expenseBeingEdited = null
-            },
-            title = "Edit cycle expense",
-            confirmButtonText = "Save changes",
-            dateLabel = "Recorded for ${editingExpense.recordedDate().format(DateTimeFormatter.ofPattern("EEEE, MMM d"))}",
-            initialAmountCents = editingExpense.amountCents,
-            initialDescription = editingExpense.description,
-            initialIcon = editingExpense.icon
-        )
-    }
+    PendingCycleExpenseSheets(
+        showAddExpenseSheet = showAddExpenseSheet,
+        selectedDate = selectedDate,
+        onHideAddExpenseSheet = onHideAddExpenseSheet,
+        onAddExpense = onAddExpense,
+        expenseBeingEdited = expenseBeingEdited,
+        onDismissExpenseEditor = { expenseBeingEdited = null },
+        onUpdateExpense = onUpdateExpense,
+        onDeleteExpense = onDeleteExpense
+    )
 }

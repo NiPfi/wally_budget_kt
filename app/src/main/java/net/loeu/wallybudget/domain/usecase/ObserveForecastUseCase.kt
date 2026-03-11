@@ -12,6 +12,7 @@ import net.loeu.wallybudget.data.local.entity.toDomainModel
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.domain.config.ForecastConfig
+import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
@@ -50,17 +51,7 @@ class ObserveForecastUseCase(
         val history = monthlyHistoryDao.observeAll().map { entries ->
             entries.map { it.toDomainModel() }
         }
-        val recentExpenses = effectiveDate
-            .map { now ->
-                now.minusDays(ForecastConfig.HISTORICAL_DAYS_LOOKBACK.toLong()).toString()
-            }
-            .distinctUntilChanged()
-            .flatMapLatest { lookbackDate ->
-                expenseDao.observeSince(lookbackDate)
-            }
-            .map { expenses ->
-                expenses.map { it.toDomainModel() }
-            }
+        val recentExpenses = observeRecentExpenses(effectiveDate)
 
         return combine(
             effectiveInputs,
@@ -96,5 +87,14 @@ class ObserveForecastUseCase(
                 recentExpenses = recentExpenseEntries
             )
         }.distinctUntilChanged()
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observeRecentExpenses(effectiveDate: Flow<LocalDate>): Flow<List<Expense>> {
+        return effectiveDate
+            .map { now -> now.minusDays(ForecastConfig.HISTORICAL_DAYS_LOOKBACK.toLong()).toString() }
+            .distinctUntilChanged()
+            .flatMapLatest(expenseDao::observeSince)
+            .map { expenses -> expenses.map { it.toDomainModel() } }
     }
 }

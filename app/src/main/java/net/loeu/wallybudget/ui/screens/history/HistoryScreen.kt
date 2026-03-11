@@ -86,13 +86,8 @@ fun HistoryScreen(
     interactionsEnabled: Boolean = true,
     timelineLockReason: String? = null
 ) {
-    val isCompact = !currentWindowAdaptiveInfo().windowSizeClass
-        .isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND)
-    val compactPagerSections = if (embedded) {
-        historySections.take(1)
-    } else {
-        historySections.reversed()
-    }
+    val isCompact = isCompactHistoryLayout()
+    val compactPagerSections = compactPagerSections(historySections, embedded)
     val pagerState = rememberPagerState(
         initialPage = compactPagerSections.lastIndex.coerceAtLeast(0)
     ) {
@@ -102,205 +97,88 @@ fun HistoryScreen(
     val scope = rememberCoroutineScope()
     val selectedDateEpochDay = rememberSaveable { mutableLongStateOf(LocalDate.now().toEpochDay()) }
     var showInitialSwipeHint by rememberSaveable { mutableStateOf(true) }
-    var expenseBeingEdited by remember { mutableStateOf<Expense?>(null) }
     var isAddSheetVisible by remember { mutableStateOf(false) }
-
-    LaunchedEffect(interactionsEnabled) {
-        if (!interactionsEnabled) {
+    var expenseBeingEdited by remember { mutableStateOf<Expense?>(null) }
+    HistoryScreenEffects(
+        interactionsEnabled = interactionsEnabled,
+        currentPage = pagerState.currentPage,
+        pageCount = compactPagerSections.size,
+        onResetEditing = {
             expenseBeingEdited = null
             isAddSheetVisible = false
-        }
-    }
+        },
+        onDismissInitialSwipeHint = { showInitialSwipeHint = false }
+    )
 
-    LaunchedEffect(pagerState.currentPage, compactPagerSections.size) {
-        val currentCyclePage = compactPagerSections.lastIndex
-        if (compactPagerSections.size > 1 && pagerState.currentPage != currentCyclePage) {
-            showInitialSwipeHint = false
-        }
-    }
-
-    Scaffold(
+    HistoryScreenScaffold(
+        historySections = historySections,
+        compactPagerSections = compactPagerSections,
+        pagerCurrentPage = pagerState.currentPage,
+        pagerState = pagerState,
         modifier = modifier,
-        contentWindowInsets = if (embedded) WindowInsets() else ScaffoldDefaults.contentWindowInsets,
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            if (!embedded && timelineLockReason != null) {
-                TimelineLockBanner(
-                    reason = timelineLockReason,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                )
-            }
-
-            if (historySections.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "No cycle data yet.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            } else if (!embedded && isCompact) {
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    CompactHistoryHeader(
-                        pageCount = compactPagerSections.size,
-                        currentPage = pagerState.currentPage,
-                        onNavigateToSettings = onNavigateToSettings
-                    )
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                    ) {
-                        HorizontalPager(
-                            state = pagerState,
-                            modifier = Modifier.fillMaxSize()
-                        ) { page ->
-                            CycleLedgerPage(
-                                section = compactPagerSections[page],
-                                onEditExpense = { expenseBeingEdited = it },
-                                onAddExpenseForDate = { date ->
-                                    selectedDateEpochDay.longValue = date.toEpochDay()
-                                    isAddSheetVisible = true
-                                },
-                                contentPadding = PaddingValues(
-                                    bottom = 24.dp
-                                )
-                            )
-                        }
-
-                        CyclePagerHint(
-                            currentPage = pagerState.currentPage,
-                            pageCount = compactPagerSections.size,
-                            showSwipeHint = showInitialSwipeHint,
-                            modifier = Modifier
-                                .align(Alignment.TopStart)
-                                .offset(y = (-24).dp)
-                        )
-                    }
-                }
-            } else {
-                val sectionsToShow = if (embedded) historySections.take(1) else historySections
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                ) {
-                    LazyColumn(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .widthIn(max = if (embedded) 560.dp else 760.dp)
-                            .fillMaxWidth(),
-                        contentPadding = PaddingValues(
-                            start = 16.dp,
-                            end = 16.dp,
-                            top = if (embedded) 8.dp else 14.dp,
-                            bottom = 28.dp
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(18.dp)
-                    ) {
-                        sectionsToShow.forEach { section ->
-                            if (!embedded) {
-                                stickyHeader(key = "cycle-${section.title}") {
-                                    CycleHeader(section = section)
-                                }
-                            }
-                            items(
-                                items = section.daySections,
-                                key = { daySection -> "${section.title}-${daySection.date.toEpochDay()}" }
-                            ) { daySection ->
-                                LedgerDaySection(
-                                    daySection = daySection,
-                                    onEditExpense = { expenseBeingEdited = it },
-                                    onAddExpenseForDate = { date ->
-                                        selectedDateEpochDay.longValue = date.toEpochDay()
-                                        isAddSheetVisible = true
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+        embedded = embedded,
+        isCompact = isCompact,
+        showInitialSwipeHint = showInitialSwipeHint,
+        snackbarHostState = snackbarHostState,
+        timelineLockReason = timelineLockReason,
+        onNavigateToSettings = onNavigateToSettings,
+        onEditExpense = { expenseBeingEdited = it },
+        onAddExpenseForDate = { date ->
+            selectedDateEpochDay.longValue = date.toEpochDay()
+            isAddSheetVisible = true
         }
-    }
+    )
 
-    if (isAddSheetVisible && interactionsEnabled) {
-        val selectedDate = LocalDate.ofEpochDay(selectedDateEpochDay.longValue)
-        AddExpenseSheet(
-            onDismiss = { isAddSheetVisible = false },
-            onSubmitExpense = { amountCents, description, icon ->
-                onAddExpense(amountCents, description, icon, selectedDate)
-                isAddSheetVisible = false
-            },
-            title = "Add expense for ${selectedDate.format(DateTimeFormatter.ofPattern("MMM d"))}",
-            confirmButtonText = "Save expense",
-            dateLabel = "Recorded for ${selectedDate.format(DateTimeFormatter.ofPattern("EEEE, MMM d"))}"
-        )
-    }
+    HistoryAddExpenseSheet(
+        isAddSheetVisible = isAddSheetVisible,
+        interactionsEnabled = interactionsEnabled,
+        selectedDateEpochDay = selectedDateEpochDay.longValue,
+        onDismiss = { isAddSheetVisible = false },
+        onAddExpense = onAddExpense
+    )
 
-    expenseBeingEdited?.takeIf { interactionsEnabled }?.let { editingExpense ->
-        AddExpenseSheet(
-            onDismiss = { expenseBeingEdited = null },
-            onSubmitExpense = { amountCents, description, icon ->
-                onUpdateExpense(
-                    editingExpense.copy(
-                        amountCents = amountCents,
-                        description = description,
-                        icon = icon
-                    )
-                )
-                expenseBeingEdited = null
-            },
-            onDeleteExpense = {
-                onDeleteExpense(editingExpense)
-                scope.launch {
-                    val dismissJob = launch {
-                        delay(5000)
-                        snackbarHostState.currentSnackbarData?.dismiss()
-                    }
-                    val result = snackbarHostState.showSnackbar(
-                        message = if (editingExpense.description.isNotBlank()) {
-                            "Deleted \"${editingExpense.description}\""
-                        } else {
-                            "Deleted expense"
-                        },
-                        actionLabel = "Undo",
-                        duration = SnackbarDuration.Short
-                    )
-                    if (result == SnackbarResult.ActionPerformed) {
-                        dismissJob.cancel()
-                        onRestoreExpense(editingExpense)
-                    }
-                }
-                expenseBeingEdited = null
-            },
-            title = "Edit expense",
-            confirmButtonText = "Save changes",
-            dateLabel = "Recorded for ${editingExpense.recordedDate().format(DateTimeFormatter.ofPattern("EEEE, MMM d"))}",
-            initialAmountCents = editingExpense.amountCents,
-            initialDescription = editingExpense.description,
-            initialIcon = editingExpense.icon
-        )
+    HistoryEditExpenseSheet(
+        editingExpense = expenseBeingEdited,
+        interactionsEnabled = interactionsEnabled,
+        snackbarHostState = snackbarHostState,
+        scope = scope,
+        onDismiss = { expenseBeingEdited = null },
+        onUpdateExpense = onUpdateExpense,
+        onDeleteExpense = onDeleteExpense,
+        onRestoreExpense = onRestoreExpense
+    )
+}
+
+@Composable
+private fun isCompactHistoryLayout(): Boolean {
+    return !currentWindowAdaptiveInfo().windowSizeClass
+        .isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND)
+}
+
+private fun compactPagerSections(
+    historySections: List<ExpenseCycleSection>,
+    embedded: Boolean
+): List<ExpenseCycleSection> {
+    return if (embedded) historySections.take(1) else historySections.reversed()
+}
+
+@Composable
+private fun HistoryScreenEffects(
+    interactionsEnabled: Boolean,
+    currentPage: Int,
+    pageCount: Int,
+    onResetEditing: () -> Unit,
+    onDismissInitialSwipeHint: () -> Unit
+) {
+    LaunchedEffect(interactionsEnabled) {
+        if (!interactionsEnabled) onResetEditing()
+    }
+    LaunchedEffect(currentPage, pageCount) {
+        val currentCyclePage = pageCount - 1
+        if (pageCount > 1 && currentPage != currentCyclePage) onDismissInitialSwipeHint()
     }
 }
+
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -356,7 +234,7 @@ fun CycleLedgerScreen(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun CycleLedgerPage(
+internal fun CycleLedgerPage(
     section: ExpenseCycleSection,
     onEditExpense: (Expense) -> Unit,
     onAddExpenseForDate: (LocalDate) -> Unit,
@@ -384,7 +262,7 @@ private fun CycleLedgerPage(
 }
 
 @Composable
-private fun CompactHistoryHeader(
+internal fun CompactHistoryHeader(
     pageCount: Int,
     currentPage: Int,
     onNavigateToSettings: (() -> Unit)?,
@@ -420,7 +298,7 @@ private fun CompactHistoryHeader(
 }
 
 @Composable
-private fun CyclePagerHint(
+internal fun CyclePagerHint(
     currentPage: Int,
     pageCount: Int,
     showSwipeHint: Boolean,
@@ -487,7 +365,7 @@ private fun CyclePagerDots(
 }
 
 @Composable
-private fun CycleHeader(
+internal fun CycleHeader(
     section: ExpenseCycleSection,
     modifier: Modifier = Modifier
 ) {
@@ -527,7 +405,7 @@ private fun CycleHeader(
 }
 
 @Composable
-private fun LedgerDaySection(
+internal fun LedgerDaySection(
     daySection: ExpenseDaySection,
     onEditExpense: (Expense) -> Unit,
     onAddExpenseForDate: (LocalDate) -> Unit

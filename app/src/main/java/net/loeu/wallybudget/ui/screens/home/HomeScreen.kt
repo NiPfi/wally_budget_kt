@@ -35,6 +35,7 @@ import androidx.window.core.layout.WindowSizeClass.Companion.HEIGHT_DP_MEDIUM_LO
 import androidx.window.core.layout.WindowSizeClass.Companion.WIDTH_DP_MEDIUM_LOWER_BOUND
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
 import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.Expense
@@ -83,40 +84,91 @@ fun HomeScreen(
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val canEditExpenses = !isLoadingData && timelineLockReason == null
     val overviewBottomContentPadding = if (showLedgerPane) 24.dp else HomeFabSize + HomeFabListClearance
-
-    LaunchedEffect(canEditExpenses) {
-        if (!canEditExpenses) {
-            expenseBeingEdited = null
-            onHideAddExpenseSheet()
+    val onEditTodayExpense = if (canEditExpenses) { { expense: Expense -> expenseBeingEdited = expense } } else null
+    HomeScreenEffects(canEditExpenses = canEditExpenses, onDisableEditing = {
+        expenseBeingEdited = null
+        onHideAddExpenseSheet()
+    })
+    HomeScreenScaffold(
+        budgetState = budgetState,
+        todayExpenses = todayExpenses,
+        activeCycleExpenseSections = activeCycleExpenseSections,
+        spendingForecast = spendingForecast,
+        modifier = modifier,
+        snackbarHostState = snackbarHostState,
+        showLedgerPane = showLedgerPane,
+        canEditExpenses = canEditExpenses,
+        showTopRightSettingsAction = showTopRightSettingsAction,
+        preferCompactSummary = preferCompactSummary,
+        contentVerticalPadding = contentVerticalPadding,
+        overviewBottomContentPadding = overviewBottomContentPadding,
+        isLoadingData = isLoadingData,
+        timelineLockReason = timelineLockReason,
+        onEditTodayExpense = onEditTodayExpense,
+        onNavigateToSettings = onNavigateToSettings,
+        onShowAddExpenseSheet = {
+            selectedDateForExpenseEpochDay.longValue = currentDate.toEpochDay()
+            onShowAddExpenseSheet()
         }
-    }
+    )
+    AddExpenseSheetDialog(
+        showAddExpenseSheet = showAddExpenseSheet,
+        canEditExpenses = canEditExpenses,
+        selectedDateEpochDay = selectedDateForExpenseEpochDay.longValue,
+        currentDate = currentDate,
+        onDismiss = onHideAddExpenseSheet,
+        onAddExpense = onAddExpense
+    )
+    EditExpenseSheetDialog(
+        editingExpense = expenseBeingEdited,
+        canEditExpenses = canEditExpenses,
+        snackbarHostState = snackbarHostState,
+        onDismiss = { expenseBeingEdited = null },
+        onUpdateExpense = onUpdateExpense,
+        onDeleteExpense = onDeleteExpense,
+        onRestoreExpense = onRestoreExpense,
+        scope = scope
+    )
+}
 
+@Composable
+private fun HomeScreenEffects(
+    canEditExpenses: Boolean,
+    onDisableEditing: () -> Unit
+) {
+    LaunchedEffect(canEditExpenses) {
+        if (!canEditExpenses) onDisableEditing()
+    }
+}
+
+@Composable
+private fun HomeScreenScaffold(
+    budgetState: BudgetState,
+    todayExpenses: List<Expense>,
+    activeCycleExpenseSections: List<ExpenseDaySection>,
+    spendingForecast: SpendingForecast,
+    modifier: Modifier,
+    snackbarHostState: SnackbarHostState,
+    showLedgerPane: Boolean,
+    canEditExpenses: Boolean,
+    showTopRightSettingsAction: Boolean,
+    preferCompactSummary: Boolean,
+    contentVerticalPadding: Dp,
+    overviewBottomContentPadding: Dp,
+    isLoadingData: Boolean,
+    timelineLockReason: String?,
+    onEditTodayExpense: ((Expense) -> Unit)?,
+    onNavigateToSettings: () -> Unit,
+    onShowAddExpenseSheet: () -> Unit
+) {
     Scaffold(
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    if (!canEditExpenses) return@FloatingActionButton
-                    selectedDateForExpenseEpochDay.longValue = currentDate.toEpochDay()
-                    onShowAddExpenseSheet()
-                },
-                containerColor = if (!canEditExpenses) {
-                    MaterialTheme.colorScheme.surfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
-                contentColor = if (!canEditExpenses) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.onPrimary
-                }
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_add),
-                    contentDescription = "Add today’s expense"
-                )
-            }
+            HomeAddExpenseFab(
+                canEditExpenses = canEditExpenses,
+                onShowAddExpenseSheet = onShowAddExpenseSheet
+            )
         }
     ) { paddingValues ->
         Column(
@@ -139,11 +191,7 @@ fun HomeScreen(
                     activeCycleExpenseSections = activeCycleExpenseSections,
                     spendingForecast = spendingForecast,
                     isLoading = isLoadingData,
-                    onEditTodayExpense = if (canEditExpenses) {
-                        { expenseBeingEdited = it }
-                    } else {
-                        null
-                    },
+                    onEditTodayExpense = onEditTodayExpense,
                     onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null,
                     preferCompactSummary = preferCompactSummary,
                     overviewBottomContentPadding = overviewBottomContentPadding,
@@ -159,11 +207,7 @@ fun HomeScreen(
                     activeCycleExpenseSections = activeCycleExpenseSections,
                     spendingForecast = spendingForecast,
                     isLoading = isLoadingData,
-                    onEditTodayExpense = if (canEditExpenses) {
-                        { expenseBeingEdited = it }
-                    } else {
-                        null
-                    },
+                    onEditTodayExpense = onEditTodayExpense,
                     onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null,
                     enableHeaderCollapse = true,
                     defaultCollapsedHeader = false,
@@ -175,77 +219,145 @@ fun HomeScreen(
             }
         }
     }
+}
 
-    if (showAddExpenseSheet && canEditExpenses) {
-        val selectedDate = LocalDate.ofEpochDay(selectedDateForExpenseEpochDay.longValue)
-        AddExpenseSheet(
-            onDismiss = onHideAddExpenseSheet,
-            onSubmitExpense = { amountCents, description, icon ->
-                onAddExpense(amountCents, description, icon, selectedDate)
-            },
-            title = if (selectedDate == currentDate) {
-                "Add expense"
-            } else {
-                "Add expense for ${selectedDate.format(DateTimeFormatter.ofPattern("MMM d"))}"
-            },
-            confirmButtonText = if (selectedDate == currentDate) {
-                "Add expense"
-            } else {
-                "Add to ${selectedDate.format(DateTimeFormatter.ofPattern("MMM d"))}"
-            },
-            dateLabel = if (selectedDate == currentDate) {
-                "Recorded for today"
-            } else {
-                "Recorded for ${selectedDate.format(DateTimeFormatter.ofPattern("EEEE, MMM d"))}"
+@Composable
+private fun HomeAddExpenseFab(
+    canEditExpenses: Boolean,
+    onShowAddExpenseSheet: () -> Unit
+) {
+    FloatingActionButton(
+        onClick = {
+            if (canEditExpenses) {
+                onShowAddExpenseSheet()
             }
-        )
-    }
-
-    expenseBeingEdited?.takeIf { canEditExpenses }?.let { editingExpense ->
-        AddExpenseSheet(
-            onDismiss = { expenseBeingEdited = null },
-            onSubmitExpense = { amountCents, description, icon ->
-                onUpdateExpense(
-                    editingExpense.copy(
-                        amountCents = amountCents,
-                        description = description,
-                        icon = icon
-                    )
-                )
-                expenseBeingEdited = null
-            },
-            onDeleteExpense = {
-                onDeleteExpense(editingExpense)
-                scope.launch {
-                    val dismissJob = launch {
-                        delay(5000)
-                        snackbarHostState.currentSnackbarData?.dismiss()
-                    }
-                    val result = snackbarHostState.showSnackbar(
-                        message = if (editingExpense.description.isNotBlank()) {
-                            "Deleted \"${editingExpense.description}\""
-                        } else {
-                            "Deleted expense"
-                        },
-                        actionLabel = "Undo",
-                        duration = SnackbarDuration.Short
-                    )
-                    if (result == SnackbarResult.ActionPerformed) {
-                        dismissJob.cancel()
-                        onRestoreExpense(editingExpense)
-                    }
-                }
-                expenseBeingEdited = null
-            },
-            title = "Edit expense",
-            confirmButtonText = "Save changes",
-            dateLabel = "Recorded for ${editingExpense.recordedDate().format(DateTimeFormatter.ofPattern("EEEE, MMM d"))}",
-            initialAmountCents = editingExpense.amountCents,
-            initialDescription = editingExpense.description,
-            initialIcon = editingExpense.icon
+        },
+        containerColor = if (!canEditExpenses) {
+            MaterialTheme.colorScheme.surfaceVariant
+        } else {
+            MaterialTheme.colorScheme.primary
+        },
+        contentColor = if (!canEditExpenses) {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        } else {
+            MaterialTheme.colorScheme.onPrimary
+        }
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_add),
+            contentDescription = "Add today’s expense"
         )
     }
 }
+
+@Composable
+private fun AddExpenseSheetDialog(
+    showAddExpenseSheet: Boolean,
+    canEditExpenses: Boolean,
+    selectedDateEpochDay: Long,
+    currentDate: LocalDate,
+    onDismiss: () -> Unit,
+    onAddExpense: (Long, String, ExpenseCategory?, LocalDate) -> Unit
+) {
+    if (!showAddExpenseSheet || !canEditExpenses) return
+
+    val selectedDate = LocalDate.ofEpochDay(selectedDateEpochDay)
+    AddExpenseSheet(
+        onDismiss = onDismiss,
+        onSubmitExpense = { amountCents, description, icon ->
+            onAddExpense(amountCents, description, icon, selectedDate)
+        },
+        title = addExpenseSheetTitle(selectedDate = selectedDate, currentDate = currentDate),
+        confirmButtonText = addExpenseSheetConfirmLabel(
+            selectedDate = selectedDate,
+            currentDate = currentDate
+        ),
+        dateLabel = addExpenseSheetDateLabel(selectedDate = selectedDate, currentDate = currentDate)
+    )
+}
+
+@Composable
+private fun EditExpenseSheetDialog(
+    editingExpense: Expense?,
+    canEditExpenses: Boolean,
+    snackbarHostState: SnackbarHostState,
+    onDismiss: () -> Unit,
+    onUpdateExpense: (Expense) -> Unit,
+    onDeleteExpense: (Expense) -> Unit,
+    onRestoreExpense: (Expense) -> Unit,
+    scope: CoroutineScope
+) {
+    val editableExpense = editingExpense?.takeIf { canEditExpenses } ?: return
+
+    AddExpenseSheet(
+        onDismiss = onDismiss,
+        onSubmitExpense = { amountCents, description, icon ->
+            onUpdateExpense(
+                editableExpense.copy(
+                    amountCents = amountCents,
+                    description = description,
+                    icon = icon
+                )
+            )
+            onDismiss()
+        },
+        onDeleteExpense = {
+            onDeleteExpense(editableExpense)
+            scope.launch {
+                val dismissJob = launch {
+                    delay(5000)
+                    snackbarHostState.currentSnackbarData?.dismiss()
+                }
+                val result = snackbarHostState.showSnackbar(
+                    message = deletedExpenseMessage(editableExpense),
+                    actionLabel = "Undo",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    dismissJob.cancel()
+                    onRestoreExpense(editableExpense)
+                }
+            }
+            onDismiss()
+        },
+        title = "Edit expense",
+        confirmButtonText = "Save changes",
+        dateLabel = "Recorded for ${
+            editableExpense.recordedDate().format(DateTimeFormatter.ofPattern("EEEE, MMM d"))
+        }",
+        initialAmountCents = editableExpense.amountCents,
+        initialDescription = editableExpense.description,
+        initialIcon = editableExpense.icon
+    )
+}
+
+private fun addExpenseSheetTitle(selectedDate: LocalDate, currentDate: LocalDate): String =
+    if (selectedDate == currentDate) {
+        "Add expense"
+    } else {
+        "Add expense for ${selectedDate.format(DateTimeFormatter.ofPattern("MMM d"))}"
+    }
+
+private fun addExpenseSheetConfirmLabel(selectedDate: LocalDate, currentDate: LocalDate): String =
+    if (selectedDate == currentDate) {
+        "Add expense"
+    } else {
+        "Add to ${selectedDate.format(DateTimeFormatter.ofPattern("MMM d"))}"
+    }
+
+private fun addExpenseSheetDateLabel(selectedDate: LocalDate, currentDate: LocalDate): String =
+    if (selectedDate == currentDate) {
+        "Recorded for today"
+    } else {
+        "Recorded for ${selectedDate.format(DateTimeFormatter.ofPattern("EEEE, MMM d"))}"
+    }
+
+private fun deletedExpenseMessage(expense: Expense): String =
+    if (expense.description.isNotBlank()) {
+        "Deleted \"${expense.description}\""
+    } else {
+        "Deleted expense"
+    }
 
 @Composable
 internal fun WideHomeContent(

@@ -20,8 +20,8 @@ val ExpenseCategory?.description: String
  * Optional icons for expenses using Material Icons
  */
 enum class ExpenseCategory(
-    @get:DrawableRes private val _iconRes: Int,
-    private val _description: String
+    @get:DrawableRes private val iconResValue: Int,
+    private val descriptionValue: String
 ) {
     GROCERIES(R.drawable.ic_shopping_cart, "Groceries"),
     RESTAURANT(R.drawable.ic_restaurant, "Food"),
@@ -37,12 +37,12 @@ enum class ExpenseCategory(
      * Non-nullable member property.
      */
     @get:DrawableRes
-    val iconRes: Int get() = _iconRes
+    val iconRes: Int get() = iconResValue
 
     /**
      * Non-nullable member property.
      */
-    val description: String get() = _description
+    val description: String get() = descriptionValue
 
     companion object {
         fun getAllIcons(): List<Pair<ExpenseCategory, Int>> {
