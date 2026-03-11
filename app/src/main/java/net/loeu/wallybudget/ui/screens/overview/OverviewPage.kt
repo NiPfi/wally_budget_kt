@@ -81,29 +81,29 @@ fun OverviewPage(
     )
 
     OverviewContentLayout(
-        budgetState = budgetState,
-        todayExpenses = todayExpenses,
-        activeCycleExpenseSections = activeCycleExpenseSections,
-        spendingForecast = spendingForecast,
-        onEditTodayExpense = onEditTodayExpense,
-        modifier = modifier,
-        isLoading = isLoading,
-        onNavigateToSettings = onNavigateToSettings,
-        showSpendingDetailsSection = showSpendingDetailsSection,
-        showTodayExpensesSection = showTodayExpensesSection,
-        enableHeaderCollapse = enableHeaderCollapse,
-        bottomContentPadding = bottomContentPadding,
-        availableRecoverableOverspendCents = availableRecoverableOverspendCents,
-        useWarningTint = useWarningTint,
-        density = layoutState.density,
-        headerHorizontalPadding = headerHorizontalPadding,
-        headerTopPadding = headerTopPadding,
-        headerBottomSpacing = headerBottomSpacing,
-        listState = layoutState.listState,
-        collapseOffsetPx = layoutState.collapseOffsetPx.value,
-        setCollapseOffsetPx = { layoutState.collapseOffsetPx.value = it },
-        maxCollapseRangePx = layoutState.maxCollapseRangePx,
-        nestedScrollConnection = layoutState.nestedScrollConnection,
+        contentState = OverviewContentState(
+            budgetState = budgetState,
+            todayExpenses = todayExpenses,
+            activeCycleExpenseSections = activeCycleExpenseSections,
+            spendingForecast = spendingForecast,
+            onEditTodayExpense = onEditTodayExpense,
+            isLoading = isLoading,
+            onNavigateToSettings = onNavigateToSettings,
+            availableRecoverableOverspendCents = availableRecoverableOverspendCents,
+            useWarningTint = useWarningTint
+        ),
+        layoutState = layoutState,
+        config = OverviewContentConfig(
+            modifier = modifier,
+            showSpendingDetailsSection = showSpendingDetailsSection,
+            showTodayExpensesSection = showTodayExpensesSection,
+            enableHeaderCollapse = enableHeaderCollapse,
+            bottomContentPadding = bottomContentPadding,
+            density = layoutState.density,
+            headerHorizontalPadding = headerHorizontalPadding,
+            headerTopPadding = headerTopPadding,
+            headerBottomSpacing = headerBottomSpacing
+        ),
         onShowForecastDetails = { layoutState.showForecastDetails.value = true },
         onShowSafeTodayDetails = { layoutState.showSafeTodayDetails.value = true }
     )

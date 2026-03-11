@@ -26,85 +26,88 @@ import net.loeu.wallybudget.domain.model.ExpenseDaySection
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import kotlin.math.roundToInt
 
+internal data class OverviewContentState(
+    val budgetState: BudgetState,
+    val todayExpenses: List<Expense>,
+    val activeCycleExpenseSections: List<ExpenseDaySection>,
+    val spendingForecast: SpendingForecast,
+    val onEditTodayExpense: ((Expense) -> Unit)?,
+    val isLoading: Boolean,
+    val onNavigateToSettings: (() -> Unit)?,
+    val availableRecoverableOverspendCents: Long,
+    val useWarningTint: Boolean
+)
+
+internal data class OverviewContentConfig(
+    val modifier: Modifier = Modifier,
+    val showSpendingDetailsSection: Boolean,
+    val showTodayExpensesSection: Boolean,
+    val enableHeaderCollapse: Boolean,
+    val bottomContentPadding: Dp,
+    val density: Density,
+    val headerHorizontalPadding: Dp,
+    val headerTopPadding: Dp,
+    val headerBottomSpacing: Dp
+)
+
 @Composable
 internal fun OverviewContentLayout(
-    budgetState: BudgetState,
-    todayExpenses: List<Expense>,
-    activeCycleExpenseSections: List<ExpenseDaySection>,
-    spendingForecast: SpendingForecast,
-    onEditTodayExpense: ((Expense) -> Unit)?,
-    modifier: Modifier,
-    isLoading: Boolean,
-    onNavigateToSettings: (() -> Unit)?,
-    showSpendingDetailsSection: Boolean,
-    showTodayExpensesSection: Boolean,
-    enableHeaderCollapse: Boolean,
-    bottomContentPadding: Dp,
-    availableRecoverableOverspendCents: Long,
-    useWarningTint: Boolean,
-    density: Density,
-    headerHorizontalPadding: Dp,
-    headerTopPadding: Dp,
-    headerBottomSpacing: Dp,
-    listState: LazyListState,
-    collapseOffsetPx: Float,
-    setCollapseOffsetPx: (Float) -> Unit,
-    maxCollapseRangePx: CollapseRangeHolder,
-    nestedScrollConnection: NestedScrollConnection,
+    contentState: OverviewContentState,
+    layoutState: OverviewPageState,
+    config: OverviewContentConfig,
     onShowForecastDetails: () -> Unit,
     onShowSafeTodayDetails: () -> Unit
 ) {
     SubcomposeLayout(
-        modifier = modifier
-            .nestedScroll(nestedScrollConnection)
+        modifier = config.modifier
+            .nestedScroll(layoutState.nestedScrollConnection)
             .clipToBounds()
     ) { constraints ->
         val headerMetrics = measureHeaderMetrics(
             constraints = constraints,
-            density = density,
-            headerHorizontalPadding = headerHorizontalPadding,
-            headerTopPadding = headerTopPadding,
-            headerBottomSpacing = headerBottomSpacing,
-            budgetState = budgetState,
-            availableRecoverableOverspendCents = availableRecoverableOverspendCents,
-            isLoading = isLoading,
-            useWarningTint = useWarningTint,
+            density = config.density,
+            headerHorizontalPadding = config.headerHorizontalPadding,
+            headerTopPadding = config.headerTopPadding,
+            headerBottomSpacing = config.headerBottomSpacing,
+            budgetState = contentState.budgetState,
+            availableRecoverableOverspendCents = contentState.availableRecoverableOverspendCents,
+            isLoading = contentState.isLoading,
+            useWarningTint = contentState.useWarningTint,
             onShowSafeTodayDetails = onShowSafeTodayDetails,
-            onNavigateToSettings = onNavigateToSettings
+            onNavigateToSettings = contentState.onNavigateToSettings
         )
-        val maxCollapsePx = if (enableHeaderCollapse) {
+        val maxCollapsePx = if (config.enableHeaderCollapse) {
             (headerMetrics.expandedHeaderHeightPx - headerMetrics.collapsedHeaderHeightPx).coerceAtLeast(0).toFloat()
         } else 0f
-        maxCollapseRangePx.value = maxCollapsePx
-        val clampedCollapseOffsetPx = collapseOffsetPx.coerceIn(0f, maxCollapsePx)
-        if (clampedCollapseOffsetPx != collapseOffsetPx) setCollapseOffsetPx(clampedCollapseOffsetPx)
+        layoutState.maxCollapseRangePx.value = maxCollapsePx
+        val clampedCollapseOffsetPx = layoutState.collapseOffsetPx.value.coerceIn(0f, maxCollapsePx)
         val collapseProgress =
             if (maxCollapsePx == 0f) 0f else (clampedCollapseOffsetPx / maxCollapsePx).coerceIn(0f, 1f)
         val contentPlaceables = measureOverviewBodyPlaceables(
             constraints = constraints,
-            budgetState = budgetState,
-            todayExpenses = todayExpenses,
-            activeCycleExpenseSections = activeCycleExpenseSections,
-            spendingForecast = spendingForecast,
-            onEditTodayExpense = onEditTodayExpense,
-            listState = listState,
-            density = density,
+            budgetState = contentState.budgetState,
+            todayExpenses = contentState.todayExpenses,
+            activeCycleExpenseSections = contentState.activeCycleExpenseSections,
+            spendingForecast = contentState.spendingForecast,
+            onEditTodayExpense = contentState.onEditTodayExpense,
+            listState = layoutState.listState,
+            density = config.density,
             topContentPaddingPx = headerMetrics.topContentPaddingPx,
-            bottomContentPadding = bottomContentPadding,
-            isLoading = isLoading,
+            bottomContentPadding = config.bottomContentPadding,
+            isLoading = contentState.isLoading,
             onShowForecastDetails = onShowForecastDetails,
-            showSpendingDetailsSection = showSpendingDetailsSection,
-            showTodayExpensesSection = showTodayExpensesSection
+            showSpendingDetailsSection = config.showSpendingDetailsSection,
+            showTodayExpensesSection = config.showTodayExpensesSection
         )
         val headerPlaceables = measureOverviewHeaderPlaceables(
             headerConstraints = headerMetrics.headerConstraints,
-            budgetState = budgetState,
-            availableRecoverableOverspendCents = availableRecoverableOverspendCents,
+            budgetState = contentState.budgetState,
+            availableRecoverableOverspendCents = contentState.availableRecoverableOverspendCents,
             collapseProgress = collapseProgress,
-            isLoading = isLoading,
-            useWarningTint = useWarningTint,
+            isLoading = contentState.isLoading,
+            useWarningTint = contentState.useWarningTint,
             onShowSafeTodayDetails = onShowSafeTodayDetails,
-            onNavigateToSettings = onNavigateToSettings
+            onNavigateToSettings = contentState.onNavigateToSettings
         )
         layout(constraints.maxWidth, constraints.maxHeight) {
             placeOverviewContent(contentPlaceables, headerPlaceables, clampedCollapseOffsetPx, headerMetrics)
