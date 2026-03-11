@@ -1,3 +1,5 @@
+@file:Suppress("MaxLineLength")
+
 package net.loeu.wallybudget.ui.screens.settings
 
 import androidx.compose.foundation.layout.Column
@@ -141,6 +143,7 @@ private fun initialBudgetText(userSettings: UserSettings): String =
     CurrencyFormatter.centsToDecimalString(userSettings.monthlyBudgetCents)
 
 @Composable
+@Suppress("LongMethod")
 private fun SettingsScreenContent(
     budgetText: String,
     paydayText: String,
