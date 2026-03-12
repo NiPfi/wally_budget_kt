@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCycleSection
 import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
+import net.loeu.wallybudget.domain.model.displayDescription
 import net.loeu.wallybudget.ui.screens.history.CycleLedgerScreen
 import net.loeu.wallybudget.util.CurrencyFormatter
 import java.time.LocalDate
@@ -201,7 +202,7 @@ private fun InsightGrid(
             InsightRow("Average day", CurrencyFormatter.format(pendingCycle.averageDailySpendCents))
             InsightRow(
                 "Biggest expense",
-                pendingCycle.biggestExpense?.let { "${it.description} • ${CurrencyFormatter.format(it.amountCents)}" }
+                pendingCycle.biggestExpense?.let { "${it.displayDescription} • ${CurrencyFormatter.format(it.amountCents)}" }
                     ?: "No standout expense"
             )
             InsightRow(

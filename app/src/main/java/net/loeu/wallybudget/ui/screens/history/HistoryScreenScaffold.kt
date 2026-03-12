@@ -33,6 +33,7 @@ import kotlinx.coroutines.launch
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.ExpenseCycleSection
+import net.loeu.wallybudget.domain.model.displayDescription
 import net.loeu.wallybudget.domain.model.recordedDate
 import net.loeu.wallybudget.ui.components.TimelineLockBanner
 import net.loeu.wallybudget.ui.screens.home.AddExpenseSheet
@@ -295,8 +296,8 @@ internal fun HistoryEditExpenseSheet(
 }
 
 private fun deletedHistoryExpenseMessage(expense: Expense): String {
-    return if (expense.description.isNotBlank()) {
-        "Deleted \"${expense.description}\""
+    return if (expense.displayDescription.isNotBlank()) {
+        "Deleted \"${expense.displayDescription}\""
     } else {
         "Deleted expense"
     }

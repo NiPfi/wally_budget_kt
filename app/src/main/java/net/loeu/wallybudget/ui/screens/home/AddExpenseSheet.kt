@@ -32,14 +32,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import java.text.DecimalFormatSymbols
 import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.description
 import net.loeu.wallybudget.domain.model.iconRes
 import net.loeu.wallybudget.util.CurrencyFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,8 +60,23 @@ fun AddExpenseSheet(
     initialDescription: String = "",
     initialIcon: ExpenseCategory? = null
 ) {
-    var amountText by remember(initialAmountCents) {
-        mutableStateOf(initialAmountCents?.let { CurrencyFormatter.centsToDecimalString(it) }.orEmpty())
+    val locale = Locale.getDefault()
+    val usesVisualMinorUnitInput = CurrencyFormatter.usesVisualMinorUnitInput(locale)
+    var amountFieldValue by remember(initialAmountCents, locale) {
+        val initialText = initialAmountCents
+            ?.let { CurrencyFormatter.centsToExpenseAmountInput(it, locale) }
+            .orEmpty()
+        val amountText = if (usesVisualMinorUnitInput && initialText.isNotEmpty()) {
+            CurrencyFormatter.formatExpenseAmountInput(initialText, locale)
+        } else {
+            initialText
+        }
+        mutableStateOf(
+            TextFieldValue(
+                text = amountText,
+                selection = TextRange(amountText.length)
+            )
+        )
     }
     var description by remember(initialDescription) { mutableStateOf(initialDescription) }
     var selectedIcon by remember(initialIcon) { mutableStateOf(initialIcon) }
@@ -70,7 +90,8 @@ fun AddExpenseSheet(
         AddExpenseSheetContent(
             title = title,
             dateLabel = dateLabel,
-            amountText = amountText,
+            amountFieldValue = amountFieldValue,
+            usesVisualMinorUnitInput = usesVisualMinorUnitInput,
             showError = showError,
             description = description,
             selectedIcon = selectedIcon,
@@ -78,16 +99,39 @@ fun AddExpenseSheet(
             onDeleteExpense = onDeleteExpense,
             onDismiss = onDismiss,
             onAmountChange = {
-                amountText = it
+                amountFieldValue = if (usesVisualMinorUnitInput) {
+                    normalizeMinorUnitAmountFieldValue(
+                        previousValue = amountFieldValue,
+                        newValue = it,
+                        locale = locale
+                    )
+                } else {
+                    it
+                }
                 showError = false
+            },
+            onAmountFocusChanged = { isFocused ->
+                if (usesVisualMinorUnitInput) {
+                    amountFieldValue = when {
+                        isFocused && amountFieldValue.text.isEmpty() -> {
+                            val placeholder = CurrencyFormatter.expenseAmountPlaceholder(locale)
+                            TextFieldValue(text = placeholder, selection = TextRange(placeholder.length))
+                        }
+                        !isFocused && amountFieldValue.text == CurrencyFormatter.expenseAmountPlaceholder(locale) -> {
+                            TextFieldValue()
+                        }
+                        else -> amountFieldValue
+                    }
+                }
             },
             onDescriptionChange = { description = it },
             onShowIconPicker = { showIconPicker = true },
             onSubmit = {
                 showError = !submitExpense(
-                    amountText = amountText,
+                    amountText = amountFieldValue.text,
                     description = description,
                     selectedIcon = selectedIcon,
+                    locale = locale,
                     onSubmitExpense = onSubmitExpense
                 )
             }
@@ -114,14 +158,16 @@ fun AddExpenseSheet(
 private fun AddExpenseSheetContent(
     title: String,
     dateLabel: String?,
-    amountText: String,
+    amountFieldValue: TextFieldValue,
+    usesVisualMinorUnitInput: Boolean,
     showError: Boolean,
     description: String,
     selectedIcon: ExpenseCategory?,
     confirmButtonText: String,
     onDeleteExpense: (() -> Unit)?,
     onDismiss: () -> Unit,
-    onAmountChange: (String) -> Unit,
+    onAmountChange: (TextFieldValue) -> Unit,
+    onAmountFocusChanged: (Boolean) -> Unit,
     onDescriptionChange: (String) -> Unit,
     onShowIconPicker: () -> Unit,
     onSubmit: () -> Unit
@@ -138,11 +184,13 @@ private fun AddExpenseSheetContent(
             onDismiss = onDismiss
         )
         AddExpenseSheetFormFields(
-            amountText = amountText,
+            amountFieldValue = amountFieldValue,
+            usesVisualMinorUnitInput = usesVisualMinorUnitInput,
             showError = showError,
             description = description,
             selectedIcon = selectedIcon,
             onAmountChange = onAmountChange,
+            onAmountFocusChanged = onAmountFocusChanged,
             onDescriptionChange = onDescriptionChange,
             onShowIconPicker = onShowIconPicker
         )
@@ -163,24 +211,37 @@ private fun AddExpenseSheetContent(
 
 @Composable
 private fun AddExpenseSheetFormFields(
-    amountText: String,
+    amountFieldValue: TextFieldValue,
+    usesVisualMinorUnitInput: Boolean,
     showError: Boolean,
     description: String,
     selectedIcon: ExpenseCategory?,
-    onAmountChange: (String) -> Unit,
+    onAmountChange: (TextFieldValue) -> Unit,
+    onAmountFocusChanged: (Boolean) -> Unit,
     onDescriptionChange: (String) -> Unit,
     onShowIconPicker: () -> Unit
 ) {
     Spacer(modifier = Modifier.height(24.dp))
     OutlinedTextField(
-        value = amountText,
+        value = amountFieldValue,
         onValueChange = onAmountChange,
         label = { Text("Amount") },
-        placeholder = { Text("0.00") },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        placeholder = { Text(CurrencyFormatter.expenseAmountPlaceholder(Locale.getDefault())) },
+        keyboardOptions = KeyboardOptions(
+            keyboardType = if (
+                usesVisualMinorUnitInput ||
+                !amountFieldValue.text.contains('.') && !amountFieldValue.text.contains(',')
+            ) {
+                KeyboardType.Number
+            } else {
+                KeyboardType.Decimal
+            }
+        ),
         singleLine = true,
-        isError = showError && amountText.toDoubleOrNull() == null,
-        modifier = Modifier.fillMaxWidth()
+        isError = showError && CurrencyFormatter.parseExpenseAmountToCents(amountFieldValue.text, Locale.getDefault()) == null,
+        modifier = Modifier
+            .fillMaxWidth()
+            .onFocusChanged { onAmountFocusChanged(it.isFocused) }
     )
     Spacer(modifier = Modifier.height(16.dp))
     Row(
@@ -201,7 +262,7 @@ private fun AddExpenseSheetFormFields(
             value = description,
             onValueChange = onDescriptionChange,
             label = { Text("Description") },
-            placeholder = { Text("What did you buy?") },
+            placeholder = { Text(selectedIcon?.description ?: "What did you buy?") },
             singleLine = true,
             modifier = Modifier.weight(1f)
         )
@@ -307,20 +368,227 @@ private fun submitExpense(
     amountText: String,
     description: String,
     selectedIcon: ExpenseCategory?,
+    locale: Locale,
     onSubmitExpense: (Long, String, ExpenseCategory?) -> Unit
 ): Boolean {
-    val amountCents = CurrencyFormatter.parseAmountToCents(amountText)
+    val amountCents = CurrencyFormatter.parseExpenseAmountToCents(amountText, locale)
     if (amountCents == null || amountCents <= 0L) {
         return false
     }
 
-    val finalDescription = when {
-        description.isNotBlank() -> description
-        selectedIcon != null -> selectedIcon.description
-        else -> "Expense"
-    }
+    val finalDescription = description.trim()
     onSubmitExpense(amountCents, finalDescription, selectedIcon)
     return true
+}
+
+private fun normalizeMinorUnitAmountFieldValue(
+    previousValue: TextFieldValue,
+    newValue: TextFieldValue,
+    locale: Locale
+): TextFieldValue {
+    if (!isSupportedMinorUnitText(newValue.text, locale)) {
+        return previousValue
+    }
+
+    val previousDigits = previousValue.text.filter(Char::isDigit)
+    val digits = resolvedMinorUnitDigits(previousValue, newValue, locale)
+    if (digits.isEmpty()) {
+        return TextFieldValue()
+    }
+
+    val formatted = CurrencyFormatter.formatExpenseAmountInput(digits, locale)
+    if (newValue.text == formatted) {
+        return TextFieldValue(
+            text = formatted,
+            selection = TextRange(
+                start = newValue.selection.start.coerceIn(0, formatted.length),
+                end = newValue.selection.end.coerceIn(0, formatted.length)
+            )
+        )
+    }
+
+    if (
+        digits == previousDigits &&
+        newValue.text.length < previousValue.text.length &&
+        previousValue.selection.collapsed &&
+        newValue.selection.collapsed
+    ) {
+        val fractionDigits = CurrencyFormatter.storageFractionDigitsForInput(locale)
+        val adjustedResult = when {
+            previousValue.selection.start > 0 &&
+                previousValue.text[previousValue.selection.start - 1].isDigit().not() -> {
+                removeDigitAt(
+                    digits = previousDigits,
+                    index = rawDigitBoundaryAtOffset(previousValue.text, previousValue.selection.start, locale) - 1
+                )?.let { adjustedDigits ->
+                    adjustedDigits to newValue.selection.start.coerceIn(
+                        0,
+                        CurrencyFormatter.formatExpenseAmountInput(adjustedDigits, locale).length
+                    )
+                }
+            }
+            previousValue.selection.start < previousValue.text.length &&
+                previousValue.text[previousValue.selection.start].isDigit().not() -> {
+                removeDigitAt(
+                    digits = previousDigits,
+                    index = rawDigitBoundaryAtOffset(previousValue.text, previousValue.selection.start, locale)
+                )?.let { adjustedDigits ->
+                    adjustedDigits to offsetAfterFirstFractionDigit(
+                        formatted = CurrencyFormatter.formatExpenseAmountInput(adjustedDigits, locale),
+                        locale = locale
+                    )
+                }
+            }
+            else -> null
+        }
+
+        if (adjustedResult != null) {
+            val (adjustedDigits, targetOffset) = adjustedResult
+            val adjustedFormatted = CurrencyFormatter.formatExpenseAmountInput(adjustedDigits, locale)
+            return TextFieldValue(
+                text = adjustedFormatted,
+                selection = TextRange(targetOffset.coerceIn(0, adjustedFormatted.length))
+            )
+        }
+    }
+
+    if (
+        newValue.text.length < previousValue.text.length &&
+        previousValue.selection.collapsed &&
+        newValue.selection.collapsed &&
+        previousValue.selection.start < previousValue.text.length &&
+        previousValue.text[previousValue.selection.start] == '0' &&
+        previousValue.selection.start == 0 &&
+        previousValue.text.drop(1).firstOrNull()?.isDigit() == false
+    ) {
+        return TextFieldValue(
+            text = formatted,
+            selection = TextRange((newValue.selection.start + 1).coerceIn(0, formatted.length))
+        )
+    }
+
+    val selectionStartFromEnd = (newValue.text.length - newValue.selection.start).coerceAtLeast(0)
+    val selectionEndFromEnd = (newValue.text.length - newValue.selection.end).coerceAtLeast(0)
+
+    return TextFieldValue(
+        text = formatted,
+        selection = TextRange(
+            start = (formatted.length - selectionStartFromEnd).coerceIn(0, formatted.length),
+            end = (formatted.length - selectionEndFromEnd).coerceIn(0, formatted.length)
+        )
+    )
+}
+
+private fun canonicalMinorUnitDigits(
+    text: String,
+    locale: Locale
+): String {
+    val localeDecimalSeparator = DecimalFormatSymbols.getInstance(locale).decimalSeparator
+    return if (text.any { it == localeDecimalSeparator || it == '.' || it == ',' }) {
+        CurrencyFormatter.parseExpenseAmountToCents(text, locale)?.toString().orEmpty()
+    } else {
+        text.filter(Char::isDigit)
+    }
+}
+
+private fun resolvedMinorUnitDigits(
+    previousValue: TextFieldValue,
+    newValue: TextFieldValue,
+    locale: Locale
+): String {
+    val isSingleCaretEdit = previousValue.selection.collapsed &&
+        newValue.selection.collapsed &&
+        kotlin.math.abs(newValue.text.length - previousValue.text.length) <= 1
+
+    return if (isSingleCaretEdit) {
+        newValue.text.filter(Char::isDigit)
+    } else {
+        canonicalMinorUnitDigits(newValue.text, locale)
+    }
+}
+
+private fun rawDigitBoundaryAtOffset(
+    text: String,
+    offset: Int,
+    locale: Locale
+): Int {
+    val rawDigits = canonicalMinorUnitDigits(text, locale)
+    if (rawDigits.isEmpty()) {
+        return 0
+    }
+
+    return text
+        .take(offset.coerceIn(0, text.length))
+        .count(Char::isDigit)
+        .coerceIn(0, rawDigits.length)
+}
+
+private fun isSupportedMinorUnitText(
+    text: String,
+    locale: Locale
+): Boolean {
+    val decimalSeparator = DecimalFormatSymbols.getInstance(locale).decimalSeparator
+    var separatorCount = 0
+    for (char in text) {
+        when {
+            char.isDigit() -> Unit
+            char == decimalSeparator || char == '.' || char == ',' -> separatorCount += 1
+            else -> return false
+        }
+        if (separatorCount > 1) {
+            return false
+        }
+    }
+    return true
+}
+
+private fun removeDigitAt(digits: String, index: Int): String? {
+    if (index !in digits.indices) {
+        return null
+    }
+    return buildString(digits.length - 1) {
+        append(digits.substring(0, index))
+        append(digits.substring(index + 1))
+    }
+}
+
+private fun offsetForRawDigitBoundary(
+    formatted: String,
+    rawDigitCount: Int,
+    fractionDigits: Int,
+    rawDigitBoundary: Int
+): Int {
+    if (rawDigitBoundary <= 0) return 0
+
+    val paddedLength = maxOf(rawDigitCount, fractionDigits + 1)
+    val leftPadding = paddedLength - rawDigitCount
+    val integerDigits = integerDigitOffset(rawDigitCount, fractionDigits)
+    val paddedBoundary = (leftPadding + rawDigitBoundary).coerceIn(0, paddedLength)
+
+    return if (paddedBoundary <= integerDigits) {
+        paddedBoundary
+    } else {
+        (paddedBoundary + 1).coerceAtMost(formatted.length)
+    }
+}
+
+private fun integerDigitOffset(
+    rawDigitCount: Int,
+    fractionDigits: Int
+): Int {
+    return maxOf(rawDigitCount, fractionDigits + 1) - fractionDigits
+}
+
+private fun offsetAfterFirstFractionDigit(
+    formatted: String,
+    locale: Locale
+): Int {
+    val separator = DecimalFormatSymbols.getInstance(locale).decimalSeparator
+    val separatorIndex = formatted.indexOf(separator)
+    if (separatorIndex == -1) {
+        return formatted.length
+    }
+    return (separatorIndex + 2).coerceAtMost(formatted.length)
 }
 
 @Composable
