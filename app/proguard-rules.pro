@@ -19,3 +19,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Gson serializes snapshot payloads by field name. Preserve this model package
+# so export/import stays stable when release builds are obfuscated.
+-keep class net.loeu.wallybudget.data.snapshot.model.** { *; }

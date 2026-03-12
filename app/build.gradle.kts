@@ -97,7 +97,8 @@ android {
         }
 
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -154,7 +155,7 @@ dependencies {
     implementation(libs.androidx.compose.adaptive.layout)
     implementation(libs.androidx.compose.adaptive.navigation)
     implementation(libs.androidx.compose.adaptive.navigation.suite)
-    implementation(libs.material)
+    implementation(libs.androidx.appcompat)
     implementation(libs.gson)
 
     // Room
