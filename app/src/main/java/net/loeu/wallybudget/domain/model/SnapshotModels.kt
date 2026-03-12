@@ -22,5 +22,6 @@ sealed interface SnapshotError {
     data object MalformedSnapshot : SnapshotError
     data object InvalidCompression : SnapshotError
     data object NonEmptyProfileRestoreBlocked : SnapshotError
+    data object OnboardingCompletedRestoreBlocked : SnapshotError
     data class IoFailure(val message: String) : SnapshotError
 }

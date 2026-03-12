@@ -518,6 +518,8 @@ private fun SnapshotError.toDisplayMessage(): String {
             "The selected file could not be decompressed."
         SnapshotError.NonEmptyProfileRestoreBlocked ->
             "Restore only works before setup is complete and before any local data exists."
+        SnapshotError.OnboardingCompletedRestoreBlocked ->
+            "Restore only works before setup is complete."
         is SnapshotError.IoFailure -> message
     }
 }
