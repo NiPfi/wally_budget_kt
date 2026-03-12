@@ -181,7 +181,6 @@ class SnapshotUseCasesTest {
             transactionRunner = FakeTransactionRunner(),
             expenseDao = expenseDao,
             budgetPolicyDao = budgetPolicyDao,
-            monthlyHistoryDao = monthlyHistoryDao,
             userSettingsStore = settingsStore,
             rebuildMonthlyHistoryUseCase = RebuildMonthlyHistoryUseCase(
                 budgetPolicyDao = budgetPolicyDao,
@@ -204,6 +203,26 @@ class SnapshotUseCasesTest {
     @Test
     @Suppress("LongMethod")
     fun applyOnboardingRestore_allowsOverwriteWhileOnboardingIsIncomplete() = runBlocking {
+        val existingExpenseDao = FakeExpenseDao(
+            listOf(expenseEntityOn(1L, LocalDate.of(2026, 3, 25), 5_000L))
+        )
+        val existingBudgetPolicyDao = FakeBudgetPolicyDao(
+            listOf(
+                BudgetPolicyEntity(
+                    policyUuid = "existing-policy",
+                    cycleStartDate = "2026-03-25",
+                    cycleEndDateExclusive = "2026-04-25",
+                    budgetAmountCents = 80_000L,
+                    paydayDayOfMonth = 25,
+                    originInstallId = "install-a",
+                    lastModifiedByInstallId = "install-a",
+                    createdAtEpochMs = 1L,
+                    updatedAtEpochMs = 1L,
+                    deletedAtEpochMs = null,
+                    modClock = "0000000000001-0000-install-a"
+                )
+            )
+        )
         val existingHistoryDao = FakeMonthlyHistoryDao(
             initialHistory = listOf(
                 historyEntity(
@@ -216,29 +235,12 @@ class SnapshotUseCasesTest {
         )
         val useCase = ApplyOnboardingRestoreUseCase(
             transactionRunner = FakeTransactionRunner(),
-            expenseDao = FakeExpenseDao(listOf(expenseEntityOn(1L, LocalDate.of(2026, 3, 25), 5_000L))),
-            budgetPolicyDao = FakeBudgetPolicyDao(
-                listOf(
-                    BudgetPolicyEntity(
-                        policyUuid = "existing-policy",
-                        cycleStartDate = "2026-03-25",
-                        cycleEndDateExclusive = "2026-04-25",
-                        budgetAmountCents = 80_000L,
-                        paydayDayOfMonth = 25,
-                        originInstallId = "install-a",
-                        lastModifiedByInstallId = "install-a",
-                        createdAtEpochMs = 1L,
-                        updatedAtEpochMs = 1L,
-                        deletedAtEpochMs = null,
-                        modClock = "0000000000001-0000-install-a"
-                    )
-                )
-            ),
-            monthlyHistoryDao = existingHistoryDao,
+            expenseDao = existingExpenseDao,
+            budgetPolicyDao = existingBudgetPolicyDao,
             userSettingsStore = FakeUserSettingsStore(),
             rebuildMonthlyHistoryUseCase = RebuildMonthlyHistoryUseCase(
-                budgetPolicyDao = FakeBudgetPolicyDao(),
-                expenseDao = FakeExpenseDao(),
+                budgetPolicyDao = existingBudgetPolicyDao,
+                expenseDao = existingExpenseDao,
                 monthlyHistoryDao = existingHistoryDao,
                 budgetCalculationService = BudgetCalculationService()
             )
@@ -264,6 +266,8 @@ class SnapshotUseCasesTest {
 
         assertEquals(0, result.importedExpenseCount)
         assertEquals(0, result.importedBudgetPolicyCount)
+        assertEquals(0, existingExpenseDao.countAll())
+        assertEquals(0, existingBudgetPolicyDao.countAll())
         assertTrue(existingHistoryDao.currentHistory.isEmpty())
     }
 
@@ -273,7 +277,6 @@ class SnapshotUseCasesTest {
             transactionRunner = FakeTransactionRunner(),
             expenseDao = FakeExpenseDao(listOf(expenseEntityOn(1L, LocalDate.of(2026, 3, 25), 5_000L))),
             budgetPolicyDao = FakeBudgetPolicyDao(),
-            monthlyHistoryDao = FakeMonthlyHistoryDao(),
             userSettingsStore = FakeUserSettingsStore(
                 UserSettings(isOnboardingCompleted = true)
             ),
@@ -305,7 +308,7 @@ class SnapshotUseCasesTest {
             )
             throw AssertionError("Expected restore to be blocked")
         } catch (exception: SnapshotOperationException) {
-            assertEquals(SnapshotError.NonEmptyProfileRestoreBlocked, exception.snapshotError)
+            assertEquals(SnapshotError.OnboardingCompletedRestoreBlocked, exception.snapshotError)
         }
     }
 }
