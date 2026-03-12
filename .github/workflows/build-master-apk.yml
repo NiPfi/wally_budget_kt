@@ -1,4 +1,4 @@
-name: Build Master APK
+name: Build Master Release Artifacts
 
 on:
   push:
@@ -10,11 +10,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: build-master-apk
+  group: build-master-release-artifacts
   cancel-in-progress: true
 
 jobs:
-  build-debug-apk:
+  build-release-artifacts:
     runs-on: ubuntu-latest
 
     steps:
@@ -38,29 +38,51 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
-      - name: Build debug APK
-        run: ./gradlew :app:assembleDebug
+      - name: Decode release signing key
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "${ANDROID_RELEASE_KEYSTORE_BASE64}" ]; then
+            echo "ANDROID_RELEASE_KEYSTORE_BASE64 is not configured." >&2
+            exit 1
+          fi
 
-      - name: Prepare artifact
+          echo "${ANDROID_RELEASE_KEYSTORE_BASE64}" | base64 --decode > "${RUNNER_TEMP}/wallybudget-release.keystore"
+
+      - name: Build signed release APK and bundle
+        env:
+          WALLYBUDGET_RELEASE_STORE_FILE: ${{ runner.temp }}/wallybudget-release.keystore
+          WALLYBUDGET_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          WALLYBUDGET_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          WALLYBUDGET_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: |
+          test -n "${WALLYBUDGET_RELEASE_STORE_PASSWORD}"
+          test -n "${WALLYBUDGET_RELEASE_KEY_ALIAS}"
+          test -n "${WALLYBUDGET_RELEASE_KEY_PASSWORD}"
+          ./gradlew :app:assembleRelease :app:bundleRelease
+
+      - name: Prepare artifacts
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk "dist/WallyBudget-master-${GITHUB_SHA}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "dist/WallyBudget-master-${GITHUB_SHA}-release.apk"
+          cp app/build/outputs/bundle/release/app-release.aab "dist/WallyBudget-master-${GITHUB_SHA}-release.aab"
 
-      - name: Upload installable APK
+      - name: Upload signed release artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: WallyBudget-master-apk-${{ github.sha }}
-          path: dist/WallyBudget-master-${{ github.sha }}.apk
+          name: WallyBudget-master-release-${{ github.sha }}
+          path: dist/
           if-no-files-found: error
           retention-days: 14
 
       - name: Add workflow summary
         run: |
           {
-            echo "## Installable APK"
+            echo "## Signed Release Artifacts"
             echo
             echo "- Branch: \`master\`"
             echo "- Commit: \`${GITHUB_SHA}\`"
-            echo "- Artifact: \`WallyBudget-master-apk-${GITHUB_SHA}\`"
-            echo "- APK file: \`WallyBudget-master-${GITHUB_SHA}.apk\`"
+            echo "- Artifact: \`WallyBudget-master-release-${GITHUB_SHA}\`"
+            echo "- APK file: \`WallyBudget-master-${GITHUB_SHA}-release.apk\`"
+            echo "- App Bundle file: \`WallyBudget-master-${GITHUB_SHA}-release.aab\`"
           } >> "${GITHUB_STEP_SUMMARY}"

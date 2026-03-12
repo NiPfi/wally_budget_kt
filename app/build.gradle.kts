@@ -78,9 +78,34 @@ fun ensureOnlyEmulatorDevicesForConnectedTests() {
     }
 }
 
+fun Project.gradlePropertyOrEnv(name: String): String? {
+    return providers.gradleProperty(name).orNull ?: System.getenv(name)
+}
+
+val releaseStoreFilePath = project.gradlePropertyOrEnv("WALLYBUDGET_RELEASE_STORE_FILE")
+val releaseStorePassword = project.gradlePropertyOrEnv("WALLYBUDGET_RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = project.gradlePropertyOrEnv("WALLYBUDGET_RELEASE_KEY_ALIAS")
+val releaseKeyPassword = project.gradlePropertyOrEnv("WALLYBUDGET_RELEASE_KEY_PASSWORD")
+val hasReleaseSigning =
+    !releaseStoreFilePath.isNullOrBlank() &&
+        !releaseStorePassword.isNullOrBlank() &&
+        !releaseKeyAlias.isNullOrBlank() &&
+        !releaseKeyPassword.isNullOrBlank()
+
 android {
     namespace = "net.loeu.wallybudget"
     compileSdk = 36
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(releaseStoreFilePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
 
     defaultConfig {
         applicationId = "net.loeu.wallybudget"
@@ -99,6 +124,9 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
