@@ -202,7 +202,9 @@ private fun InsightGrid(
             InsightRow("Average day", CurrencyFormatter.format(pendingCycle.averageDailySpendCents))
             InsightRow(
                 "Biggest expense",
-                pendingCycle.biggestExpense?.let { "${it.displayDescription} • ${CurrencyFormatter.format(it.amountCents)}" }
+                pendingCycle.biggestExpense?.let {
+                    "${it.displayDescription} • ${CurrencyFormatter.format(it.amountCents)}"
+                }
                     ?: "No standout expense"
             )
             InsightRow(

@@ -5,6 +5,7 @@ import java.text.NumberFormat
 import java.util.Locale
 import kotlin.math.roundToLong
 
+@Suppress("TooManyFunctions")
 object CurrencyFormatter {
     private const val STORAGE_FRACTION_DIGITS = 2
 
@@ -59,6 +60,7 @@ object CurrencyFormatter {
         return parseAmountToCents(normalized)
     }
 
+    @Suppress("ReturnCount")
     fun formatExpenseAmountInput(amountText: String, locale: Locale = Locale.getDefault()): String {
         if (!usesVisualMinorUnitInput(locale)) {
             return amountText
@@ -116,6 +118,7 @@ object CurrencyFormatter {
         }
     }
 
+    @Suppress("ReturnCount")
     private fun normalizeExpenseAmountText(amountText: String, locale: Locale): String? {
         val trimmed = amountText.trim()
         if (trimmed.isEmpty()) {

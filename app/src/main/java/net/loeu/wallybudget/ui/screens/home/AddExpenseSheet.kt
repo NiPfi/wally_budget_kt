@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package net.loeu.wallybudget.ui.screens.home
 
 import androidx.compose.foundation.background
@@ -46,6 +48,7 @@ import net.loeu.wallybudget.domain.model.iconRes
 import net.loeu.wallybudget.util.CurrencyFormatter
 import java.util.Locale
 
+@Suppress("LongMethod")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddExpenseSheet(
@@ -238,7 +241,10 @@ private fun AddExpenseSheetFormFields(
             }
         ),
         singleLine = true,
-        isError = showError && CurrencyFormatter.parseExpenseAmountToCents(amountFieldValue.text, Locale.getDefault()) == null,
+        isError = showError && CurrencyFormatter.parseExpenseAmountToCents(
+            amountFieldValue.text,
+            Locale.getDefault()
+        ) == null,
         modifier = Modifier
             .fillMaxWidth()
             .onFocusChanged { onAmountFocusChanged(it.isFocused) }
@@ -381,6 +387,7 @@ private fun submitExpense(
     return true
 }
 
+@Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount", "ComplexCondition")
 private fun normalizeMinorUnitAmountFieldValue(
     previousValue: TextFieldValue,
     newValue: TextFieldValue,
@@ -523,6 +530,7 @@ private fun rawDigitBoundaryAtOffset(
         .coerceIn(0, rawDigits.length)
 }
 
+@Suppress("ReturnCount")
 private fun isSupportedMinorUnitText(
     text: String,
     locale: Locale
