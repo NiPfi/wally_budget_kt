@@ -86,6 +86,10 @@ val releaseStoreFilePath = project.gradlePropertyOrEnv("WALLYBUDGET_RELEASE_STOR
 val releaseStorePassword = project.gradlePropertyOrEnv("WALLYBUDGET_RELEASE_STORE_PASSWORD")
 val releaseKeyAlias = project.gradlePropertyOrEnv("WALLYBUDGET_RELEASE_KEY_ALIAS")
 val releaseKeyPassword = project.gradlePropertyOrEnv("WALLYBUDGET_RELEASE_KEY_PASSWORD")
+val enableAbiSplits = providers.gradleProperty("wallybudget.enableAbiSplits")
+    .map(String::toBoolean)
+    .orElse(false)
+    .get()
 val hasReleaseSigning =
     !releaseStoreFilePath.isNullOrBlank() &&
         !releaseStorePassword.isNullOrBlank() &&
@@ -136,6 +140,24 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/*.version",
+                "META-INF/**/LICENSE.txt"
+            )
+        }
+    }
+    splits {
+        abi {
+            isEnable = enableAbiSplits
+            if (enableAbiSplits) {
+                reset()
+                include("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+                isUniversalApk = false
+            }
+        }
     }
     buildFeatures {
         compose = true

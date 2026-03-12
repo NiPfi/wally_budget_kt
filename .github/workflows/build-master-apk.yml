@@ -49,7 +49,7 @@ jobs:
 
           echo "${ANDROID_RELEASE_KEYSTORE_BASE64}" | base64 --decode > "${RUNNER_TEMP}/wallybudget-release.keystore"
 
-      - name: Build signed release APK and bundle
+      - name: Build signed release bundle
         env:
           WALLYBUDGET_RELEASE_STORE_FILE: ${{ runner.temp }}/wallybudget-release.keystore
           WALLYBUDGET_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
@@ -59,12 +59,24 @@ jobs:
           test -n "${WALLYBUDGET_RELEASE_STORE_PASSWORD}"
           test -n "${WALLYBUDGET_RELEASE_KEY_ALIAS}"
           test -n "${WALLYBUDGET_RELEASE_KEY_PASSWORD}"
-          ./gradlew :app:assembleRelease :app:bundleRelease
+          ./gradlew :app:bundleRelease
+
+      - name: Build signed ABI-split release APKs
+        env:
+          WALLYBUDGET_RELEASE_STORE_FILE: ${{ runner.temp }}/wallybudget-release.keystore
+          WALLYBUDGET_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          WALLYBUDGET_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          WALLYBUDGET_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: |
+          ./gradlew -Pwallybudget.enableAbiSplits=true :app:packageRelease
 
       - name: Prepare artifacts
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/release/app-release.apk "dist/WallyBudget-master-${GITHUB_SHA}-release.apk"
+          find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' -print0 | while IFS= read -r -d '' apk; do
+            filename="$(basename "${apk}")"
+            cp "${apk}" "dist/WallyBudget-master-${GITHUB_SHA}-${filename}"
+          done
           cp app/build/outputs/bundle/release/app-release.aab "dist/WallyBudget-master-${GITHUB_SHA}-release.aab"
 
       - name: Upload signed release artifacts
@@ -83,6 +95,6 @@ jobs:
             echo "- Branch: \`master\`"
             echo "- Commit: \`${GITHUB_SHA}\`"
             echo "- Artifact: \`WallyBudget-master-release-${GITHUB_SHA}\`"
-            echo "- APK file: \`WallyBudget-master-${GITHUB_SHA}-release.apk\`"
+            echo "- APK files: one per ABI from \`app/build/outputs/apk/release/\`"
             echo "- App Bundle file: \`WallyBudget-master-${GITHUB_SHA}-release.aab\`"
           } >> "${GITHUB_STEP_SUMMARY}"
