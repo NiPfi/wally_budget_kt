@@ -420,7 +420,6 @@ private fun normalizeMinorUnitAmountFieldValue(
         previousValue.selection.collapsed &&
         newValue.selection.collapsed
     ) {
-        val fractionDigits = CurrencyFormatter.storageFractionDigitsForInput(locale)
         val adjustedResult = when {
             previousValue.selection.start > 0 &&
                 previousValue.text[previousValue.selection.start - 1].isDigit().not() -> {
@@ -558,33 +557,6 @@ private fun removeDigitAt(digits: String, index: Int): String? {
         append(digits.substring(0, index))
         append(digits.substring(index + 1))
     }
-}
-
-private fun offsetForRawDigitBoundary(
-    formatted: String,
-    rawDigitCount: Int,
-    fractionDigits: Int,
-    rawDigitBoundary: Int
-): Int {
-    if (rawDigitBoundary <= 0) return 0
-
-    val paddedLength = maxOf(rawDigitCount, fractionDigits + 1)
-    val leftPadding = paddedLength - rawDigitCount
-    val integerDigits = integerDigitOffset(rawDigitCount, fractionDigits)
-    val paddedBoundary = (leftPadding + rawDigitBoundary).coerceIn(0, paddedLength)
-
-    return if (paddedBoundary <= integerDigits) {
-        paddedBoundary
-    } else {
-        (paddedBoundary + 1).coerceAtMost(formatted.length)
-    }
-}
-
-private fun integerDigitOffset(
-    rawDigitCount: Int,
-    fractionDigits: Int
-): Int {
-    return maxOf(rawDigitCount, fractionDigits + 1) - fractionDigits
 }
 
 private fun offsetAfterFirstFractionDigit(

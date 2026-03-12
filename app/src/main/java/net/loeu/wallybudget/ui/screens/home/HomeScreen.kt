@@ -354,11 +354,7 @@ private fun addExpenseSheetDateLabel(selectedDate: LocalDate, currentDate: Local
     }
 
 private fun deletedExpenseMessage(expense: Expense): String =
-    if (expense.displayDescription.isNotBlank()) {
-        "Deleted \"${expense.displayDescription}\""
-    } else {
-        "Deleted expense"
-    }
+    "Deleted \"${expense.displayDescription}\""
 
 @Composable
 internal fun WideHomeContent(

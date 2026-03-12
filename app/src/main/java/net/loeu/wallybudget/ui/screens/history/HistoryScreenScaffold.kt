@@ -296,9 +296,5 @@ internal fun HistoryEditExpenseSheet(
 }
 
 private fun deletedHistoryExpenseMessage(expense: Expense): String {
-    return if (expense.displayDescription.isNotBlank()) {
-        "Deleted \"${expense.displayDescription}\""
-    } else {
-        "Deleted expense"
-    }
+    return "Deleted \"${expense.displayDescription}\""
 }
