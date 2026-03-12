@@ -79,7 +79,7 @@ fun ensureOnlyEmulatorDevicesForConnectedTests() {
 }
 
 fun Project.gradlePropertyOrEnv(name: String): String? {
-    return providers.gradleProperty(name).orNull ?: System.getenv(name)
+    return providers.gradleProperty(name).orNull ?: providers.environmentVariable(name).orNull
 }
 
 val releaseStoreFilePath = project.gradlePropertyOrEnv("WALLYBUDGET_RELEASE_STORE_FILE")
@@ -144,8 +144,7 @@ android {
     packaging {
         resources {
             excludes += setOf(
-                "META-INF/*.version",
-                "META-INF/**/LICENSE.txt"
+                "META-INF/*.version"
             )
         }
     }

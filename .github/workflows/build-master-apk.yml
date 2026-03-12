@@ -68,7 +68,7 @@ jobs:
           WALLYBUDGET_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
           WALLYBUDGET_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
         run: |
-          ./gradlew -Pwallybudget.enableAbiSplits=true :app:packageRelease
+          ./gradlew -Pwallybudget.enableAbiSplits=true :app:assembleRelease
 
       - name: Prepare artifacts
         run: |
