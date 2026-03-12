@@ -78,9 +78,38 @@ fun ensureOnlyEmulatorDevicesForConnectedTests() {
     }
 }
 
+fun Project.gradlePropertyOrEnv(name: String): String? {
+    return providers.gradleProperty(name).orNull ?: providers.environmentVariable(name).orNull
+}
+
+val releaseStoreFilePath = project.gradlePropertyOrEnv("WALLYBUDGET_RELEASE_STORE_FILE")
+val releaseStorePassword = project.gradlePropertyOrEnv("WALLYBUDGET_RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = project.gradlePropertyOrEnv("WALLYBUDGET_RELEASE_KEY_ALIAS")
+val releaseKeyPassword = project.gradlePropertyOrEnv("WALLYBUDGET_RELEASE_KEY_PASSWORD")
+val enableAbiSplits = providers.gradleProperty("wallybudget.enableAbiSplits")
+    .map(String::toBoolean)
+    .orElse(false)
+    .get()
+val hasReleaseSigning =
+    !releaseStoreFilePath.isNullOrBlank() &&
+        !releaseStorePassword.isNullOrBlank() &&
+        !releaseKeyAlias.isNullOrBlank() &&
+        !releaseKeyPassword.isNullOrBlank()
+
 android {
     namespace = "net.loeu.wallybudget"
     compileSdk = 36
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(releaseStoreFilePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
 
     defaultConfig {
         applicationId = "net.loeu.wallybudget"
@@ -97,7 +126,11 @@ android {
         }
 
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -107,6 +140,23 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/*.version"
+            )
+        }
+    }
+    splits {
+        abi {
+            isEnable = enableAbiSplits
+            if (enableAbiSplits) {
+                reset()
+                include("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+                isUniversalApk = false
+            }
+        }
     }
     buildFeatures {
         compose = true
@@ -154,7 +204,7 @@ dependencies {
     implementation(libs.androidx.compose.adaptive.layout)
     implementation(libs.androidx.compose.adaptive.navigation)
     implementation(libs.androidx.compose.adaptive.navigation.suite)
-    implementation(libs.material)
+    implementation(libs.androidx.appcompat)
     implementation(libs.gson)
 
     // Room

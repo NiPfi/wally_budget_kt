@@ -1,4 +1,4 @@
-name: Build Master APK
+name: Build Master Release Artifacts
 
 on:
   push:
@@ -7,14 +7,14 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: build-master-apk
+  group: build-master-release-artifacts
   cancel-in-progress: true
 
 jobs:
-  build-debug-apk:
+  build-release-artifacts:
     runs-on: ubuntu-latest
 
     steps:
@@ -38,29 +38,177 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
-      - name: Build debug APK
-        run: ./gradlew :app:assembleDebug
+      - name: Decode release signing key
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "${ANDROID_RELEASE_KEYSTORE_BASE64}" ]; then
+            echo "ANDROID_RELEASE_KEYSTORE_BASE64 is not configured." >&2
+            exit 1
+          fi
 
-      - name: Prepare artifact
+          echo "${ANDROID_RELEASE_KEYSTORE_BASE64}" | base64 --decode > "${RUNNER_TEMP}/wallybudget-release.keystore"
+
+      - name: Build signed release bundle
+        env:
+          WALLYBUDGET_RELEASE_STORE_FILE: ${{ runner.temp }}/wallybudget-release.keystore
+          WALLYBUDGET_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          WALLYBUDGET_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          WALLYBUDGET_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: |
+          test -n "${WALLYBUDGET_RELEASE_STORE_PASSWORD}"
+          test -n "${WALLYBUDGET_RELEASE_KEY_ALIAS}"
+          test -n "${WALLYBUDGET_RELEASE_KEY_PASSWORD}"
+          ./gradlew :app:bundleRelease
+
+      - name: Build signed ABI-split release APKs
+        env:
+          WALLYBUDGET_RELEASE_STORE_FILE: ${{ runner.temp }}/wallybudget-release.keystore
+          WALLYBUDGET_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          WALLYBUDGET_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          WALLYBUDGET_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: |
+          ./gradlew -Pwallybudget.enableAbiSplits=true :app:assembleRelease
+
+      - name: Prepare artifacts
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk "dist/WallyBudget-master-${GITHUB_SHA}.apk"
+          find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' -print0 | while IFS= read -r -d '' apk; do
+            filename="$(basename "${apk}")"
+            cp "${apk}" "dist/WallyBudget-master-${GITHUB_SHA}-${filename}"
+          done
+          cp app/build/outputs/bundle/release/app-release.aab "dist/WallyBudget-master-${GITHUB_SHA}-release.aab"
 
-      - name: Upload installable APK
+      - name: Upload signed release artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: WallyBudget-master-apk-${{ github.sha }}
-          path: dist/WallyBudget-master-${{ github.sha }}.apk
+          name: WallyBudget-master-release-${{ github.sha }}
+          path: dist/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Generate release notes
+        if: github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+          from pathlib import Path
+
+          github_sha = os.environ["GITHUB_SHA"]
+          repo = os.environ["GITHUB_REPOSITORY"]
+          notes_path = Path(os.environ["RUNNER_TEMP"]) / "release-notes.md"
+
+          def gh_json(*args):
+              completed = subprocess.run(
+                  ["gh", "api", *args],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              )
+              return json.loads(completed.stdout)
+
+          def extract_summary(body: str) -> str:
+              match = re.search(
+                  r"(?ims)^##\s+Summary\s*$\n(.*?)(?=^##\s+|\Z)",
+                  body or "",
+              )
+              if not match:
+                  return ""
+              summary = match.group(1).strip()
+              summary = re.sub(
+                  r"(?im)^\s*-\s+Describe the user-visible changes in this PR\.\s*$",
+                  "",
+                  summary,
+              )
+              summary = re.sub(
+                  r"(?im)^\s*-\s+Keep this short and release-note ready\.\s*$",
+                  "",
+                  summary,
+              )
+              return summary.strip()
+
+          pulls = gh_json(
+              f"repos/{repo}/commits/{github_sha}/pulls",
+              "-H",
+              "Accept: application/vnd.github+json",
+          )
+          pr = pulls[0] if pulls else None
+
+          lines = [f"Automated prerelease build for master commit `{github_sha}`.", ""]
+          if pr:
+              summary = extract_summary(pr.get("body", ""))
+              lines.extend(
+                  [
+                      f"From PR #{pr['number']}: {pr['title']}",
+                      "",
+                  ]
+              )
+              if summary:
+                  lines.extend(["## Changes", summary, ""])
+              else:
+                  lines.extend(
+                      [
+                          "## Changes",
+                          "- No `## Summary` section was found in the merged PR body.",
+                          "",
+                      ]
+                  )
+          else:
+              lines.extend(
+                  [
+                      "## Changes",
+                      "- No pull request was associated with this master commit.",
+                      "",
+                  ]
+              )
+
+          lines.append("## Artifacts")
+          for artifact in sorted(Path("dist").iterdir()):
+              if artifact.is_file():
+                  lines.append(f"- {artifact.name}")
+
+          notes_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          print(notes_path)
+          PY
+
+      - name: Publish GitHub prerelease
+        if: github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: master-${{ github.sha }}
+        run: |
+          release_title="Master prerelease ${GITHUB_SHA}"
+          release_notes="${RUNNER_TEMP}/release-notes.md"
+
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release edit "${RELEASE_TAG}" \
+              --title "${release_title}" \
+              --notes-file "${release_notes}" \
+              --prerelease
+          else
+            gh release create "${RELEASE_TAG}" \
+              --target "${GITHUB_SHA}" \
+              --title "${release_title}" \
+              --notes-file "${release_notes}" \
+              --prerelease
+          fi
+
+          gh release upload "${RELEASE_TAG}" dist/* --clobber
 
       - name: Add workflow summary
         run: |
           {
-            echo "## Installable APK"
+            echo "## Signed Release Artifacts"
             echo
             echo "- Branch: \`master\`"
             echo "- Commit: \`${GITHUB_SHA}\`"
-            echo "- Artifact: \`WallyBudget-master-apk-${GITHUB_SHA}\`"
-            echo "- APK file: \`WallyBudget-master-${GITHUB_SHA}.apk\`"
+            echo "- Artifact: \`WallyBudget-master-release-${GITHUB_SHA}\`"
+            echo "- GitHub prerelease: \`master-${GITHUB_SHA}\`"
+            echo "- APK files: one per ABI from \`app/build/outputs/apk/release/\`"
+            echo "- App Bundle file: \`WallyBudget-master-${GITHUB_SHA}-release.aab\`"
           } >> "${GITHUB_STEP_SUMMARY}"
