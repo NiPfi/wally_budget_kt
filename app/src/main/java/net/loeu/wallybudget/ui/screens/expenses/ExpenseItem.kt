@@ -19,6 +19,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.description
+import net.loeu.wallybudget.domain.model.displayDescription
 import net.loeu.wallybudget.domain.model.iconRes
 import net.loeu.wallybudget.ui.screens.overview.AnimatedCounter
 import net.loeu.wallybudget.util.CurrencyFormatter
@@ -61,7 +62,7 @@ fun ExpenseItem(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = expense.description,
+                    text = expense.displayDescription,
                     style = MaterialTheme.typography.bodyLarge
                 )
                 Text(

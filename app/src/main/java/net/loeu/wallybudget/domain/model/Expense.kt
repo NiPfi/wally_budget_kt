@@ -27,6 +27,9 @@ data class Expense(
     val modClock: String = ""
 )
 
+val Expense.displayDescription: String
+    get() = description.ifBlank { icon.description }
+
 fun Expense.recordedDate(): LocalDate {
     return try {
         LocalDate.parse(expenseDate)

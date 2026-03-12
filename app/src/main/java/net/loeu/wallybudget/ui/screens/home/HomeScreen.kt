@@ -42,6 +42,7 @@ import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.ExpenseDaySection
 import net.loeu.wallybudget.domain.model.SpendingForecast
+import net.loeu.wallybudget.domain.model.displayDescription
 import net.loeu.wallybudget.domain.model.recordedDate
 import net.loeu.wallybudget.ui.components.TimelineLockBanner
 import net.loeu.wallybudget.ui.screens.overview.OverviewPage
@@ -353,11 +354,7 @@ private fun addExpenseSheetDateLabel(selectedDate: LocalDate, currentDate: Local
     }
 
 private fun deletedExpenseMessage(expense: Expense): String =
-    if (expense.description.isNotBlank()) {
-        "Deleted \"${expense.description}\""
-    } else {
-        "Deleted expense"
-    }
+    "Deleted \"${expense.displayDescription}\""
 
 @Composable
 internal fun WideHomeContent(
