@@ -35,7 +35,7 @@ Wally Budget treats each budget as a monthly cycle anchored to the user's payday
 
 - Android Studio with the Android SDK installed
 - JDK 17
-- Android SDK platform tools available through `local.properties`, `ANDROID_SDK_ROOT`, or `ANDROID_HOME`
+- Android SDK root configured with `sdk.dir` in `local.properties`, or exposed through `ANDROID_SDK_ROOT` / `ANDROID_HOME`, so Gradle can find `platform-tools/adb`
 - An Android emulator for connected tests and emulator seeding
 
 Android targets:
@@ -89,7 +89,7 @@ You can also run and debug the app directly from Android Studio.
 
 ## Data and Backup Behavior
 
-App data is stored locally on the device using Room and DataStore. The app supports snapshot export and import for backup and restore, with default filenames in the form `wallybudget-snapshot-YYYYMMDD.json.gz`. The current codebase is local-only; the manifest does not declare internet access and the repository does not contain cloud sync or backend integrations.
+App data is stored locally on the device using Room and DataStore. The app supports snapshot export and import for backup and restore, with default filenames in the form `wallybudget-snapshot-yyyyMMdd.json.gz`. The current codebase is local-only; the manifest does not declare internet access and the repository does not contain cloud sync or backend integrations.
 
 ## Release Build Notes
 
@@ -100,7 +100,7 @@ Release signing is optional and becomes active when these Gradle properties or e
 - `WALLYBUDGET_RELEASE_KEY_ALIAS`
 - `WALLYBUDGET_RELEASE_KEY_PASSWORD`
 
-Optional ABI splits can be enabled with `wallybudget.enableAbiSplits=true`.
+Optional ABI splits can be enabled by passing `-Pwallybudget.enableAbiSplits=true` to Gradle or by setting `wallybudget.enableAbiSplits=true` in `gradle.properties`.
 
 ## Status
 
