@@ -1,6 +1,7 @@
 package net.loeu.wallybudget.domain.usecase
 
 import android.net.Uri
+import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
@@ -10,6 +11,7 @@ import net.loeu.wallybudget.data.snapshot.SnapshotCompatibilityService
 import net.loeu.wallybudget.data.snapshot.SnapshotHasher
 import net.loeu.wallybudget.data.snapshot.SnapshotJsonCodec
 import net.loeu.wallybudget.data.snapshot.model.SnapshotBudgetPolicyRecordV1
+import net.loeu.wallybudget.data.snapshot.model.SnapshotBudgetAdjustmentRecordV2
 import net.loeu.wallybudget.data.snapshot.model.SnapshotEnvelopeV1
 import net.loeu.wallybudget.data.snapshot.model.SnapshotExpenseRecordV1
 import net.loeu.wallybudget.data.snapshot.model.SnapshotSettingsRecordV1
@@ -24,6 +26,7 @@ class ExportSnapshotUseCase(
     private val snapshotHasher: SnapshotHasher,
     private val expenseDao: ExpenseDao,
     private val budgetPolicyDao: BudgetPolicyDao,
+    private val budgetAdjustmentDao: BudgetAdjustmentDao,
     private val userSettingsStore: UserSettingsStore,
     private val hybridLogicalClockService: HybridLogicalClockService,
     private val appVersionName: String
@@ -71,6 +74,23 @@ class ExportSnapshotUseCase(
                         updatedAtEpochMs = policy.updatedAtEpochMs,
                         deletedAtEpochMs = policy.deletedAtEpochMs,
                         modClock = policy.modClock
+                    )
+                },
+            budgetAdjustments = budgetAdjustmentDao.getAllForSnapshot()
+                .sortedWith(compareBy({ it.cycleStartDate }, { it.effectiveDate }, { it.updatedAtEpochMs }, { it.adjustmentUuid }))
+                .map { adjustment ->
+                    SnapshotBudgetAdjustmentRecordV2(
+                        adjustmentUuid = adjustment.adjustmentUuid,
+                        cycleStartDate = adjustment.cycleStartDate,
+                        effectiveDate = adjustment.effectiveDate,
+                        previousMonthlyBudgetCents = adjustment.previousMonthlyBudgetCents,
+                        newMonthlyBudgetCents = adjustment.newMonthlyBudgetCents,
+                        originInstallId = adjustment.originInstallId,
+                        lastModifiedByInstallId = adjustment.lastModifiedByInstallId,
+                        createdAtEpochMs = adjustment.createdAtEpochMs,
+                        updatedAtEpochMs = adjustment.updatedAtEpochMs,
+                        deletedAtEpochMs = adjustment.deletedAtEpochMs,
+                        modClock = adjustment.modClock
                     )
                 },
             expenses = expenseDao.getAllForSnapshot()

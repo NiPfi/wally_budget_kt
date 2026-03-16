@@ -35,6 +35,10 @@ class SnapshotJsonCodec(
         requireObject(root, "settings")
         requireArray(root, "budgetPolicies")
         requireArray(root, "expenses")
+        val schemaVersion = root?.get("schemaVersion")?.asInt ?: return
+        if (schemaVersion >= 2) {
+            requireArray(root, "budgetAdjustments")
+        }
     }
 
     private fun requirePrimitive(root: JsonObject?, key: String) {

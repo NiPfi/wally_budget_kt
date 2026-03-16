@@ -48,9 +48,10 @@ import net.loeu.wallybudget.domain.usecase.ResolveMutationEffectiveDateUseCase
 import net.loeu.wallybudget.domain.usecase.RestoreDeletedExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.SnapshotOperationException
 import net.loeu.wallybudget.domain.usecase.SyncObservedDateUseCase
+import net.loeu.wallybudget.domain.usecase.UpdateBudgetSettingsRequest
+import net.loeu.wallybudget.domain.usecase.UpdateBudgetSettingsUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateExpenseUseCase
-import net.loeu.wallybudget.domain.usecase.UpdateMonthlyBudgetUseCase
-import net.loeu.wallybudget.domain.usecase.UpdatePaydayDateUseCase
+import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -65,8 +66,7 @@ class BudgetViewModel(
     private val updateExpenseUseCase: UpdateExpenseUseCase,
     private val deleteExpenseUseCase: DeleteExpenseUseCase,
     private val restoreDeletedExpenseUseCase: RestoreDeletedExpenseUseCase,
-    private val updateMonthlyBudgetUseCase: UpdateMonthlyBudgetUseCase,
-    private val updatePaydayDateUseCase: UpdatePaydayDateUseCase,
+    private val updateBudgetSettingsUseCase: UpdateBudgetSettingsUseCase,
     private val completeOnboardingUseCase: CompleteOnboardingUseCase,
     private val performMonthlyResetUseCase: PerformMonthlyResetUseCase,
     private val concludePendingCycleUseCase: ConcludePendingCycleUseCase,
@@ -188,6 +188,8 @@ class BudgetViewModel(
     val snapshotStatusMessage = _snapshotStatusMessage.asStateFlow()
     private val _snapshotBusy = MutableStateFlow(false)
     val snapshotBusy = _snapshotBusy.asStateFlow()
+    private val _settingsStatusMessage = MutableStateFlow<String?>(null)
+    val settingsStatusMessage = _settingsStatusMessage.asStateFlow()
     private var preparedSnapshotImport: PreparedSnapshotImport? = null
 
     init {
@@ -334,21 +336,20 @@ class BudgetViewModel(
         }
     }
 
-    /**
-     * Update monthly budget
-     */
-    fun updateMonthlyBudget(amountCents: Long) {
+    fun updateBudgetSettings(
+        amountCents: Long,
+        paydayDate: Int,
+        budgetChangeMode: BudgetChangeMode
+    ) {
         viewModelScope.launch {
-            updateMonthlyBudgetUseCase(amountCents)
-        }
-    }
-
-    /**
-     * Update payday date
-     */
-    fun updatePaydayDate(day: Int) {
-        viewModelScope.launch {
-            updatePaydayDateUseCase(day)
+            val result = updateBudgetSettingsUseCase(
+                UpdateBudgetSettingsRequest(
+                    monthlyBudgetCents = amountCents,
+                    paydayDate = paydayDate,
+                    budgetChangeMode = budgetChangeMode
+                )
+            )
+            _settingsStatusMessage.value = result.summaryMessage
         }
     }
 
@@ -429,6 +430,10 @@ class BudgetViewModel(
     fun clearSnapshotFeedback() {
         _snapshotError.value = null
         _snapshotStatusMessage.value = null
+    }
+
+    fun clearSettingsFeedback() {
+        _settingsStatusMessage.value = null
     }
 }
 

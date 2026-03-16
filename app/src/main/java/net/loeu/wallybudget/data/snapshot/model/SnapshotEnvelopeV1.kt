@@ -11,6 +11,7 @@ data class SnapshotEnvelopeV1(
     val appVersionName: String,
     val settings: SnapshotSettingsRecordV1,
     val budgetPolicies: List<SnapshotBudgetPolicyRecordV1>,
+    val budgetAdjustments: List<SnapshotBudgetAdjustmentRecordV2>? = null,
     val expenses: List<SnapshotExpenseRecordV1>
 )
 
@@ -33,6 +34,20 @@ data class SnapshotBudgetPolicyRecordV1(
     val cycleEndDateExclusive: String,
     val budgetAmountCents: Long,
     val paydayDayOfMonth: Int,
+    val originInstallId: String,
+    val lastModifiedByInstallId: String,
+    val createdAtEpochMs: Long,
+    val updatedAtEpochMs: Long,
+    val deletedAtEpochMs: Long?,
+    val modClock: String
+)
+
+data class SnapshotBudgetAdjustmentRecordV2(
+    val adjustmentUuid: String,
+    val cycleStartDate: String,
+    val effectiveDate: String,
+    val previousMonthlyBudgetCents: Long,
+    val newMonthlyBudgetCents: Long,
     val originInstallId: String,
     val lastModifiedByInstallId: String,
     val createdAtEpochMs: Long,

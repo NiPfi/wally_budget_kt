@@ -1,6 +1,7 @@
 package net.loeu.wallybudget.domain.usecase
 
 import android.net.Uri
+import net.loeu.wallybudget.data.local.entity.BudgetAdjustmentEntity
 import net.loeu.wallybudget.data.local.entity.BudgetPolicyEntity
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
 import net.loeu.wallybudget.data.snapshot.DecodedSnapshotPayload
@@ -66,6 +67,7 @@ class PrepareSnapshotImportUseCase(
                 preview = envelope.toPreview(payload),
                 settings = envelope.toUserSettings(),
                 budgetPolicies = envelope.toBudgetPolicyEntities(),
+                budgetAdjustments = envelope.toBudgetAdjustmentEntities(),
                 expenses = envelope.toExpenseEntities()
             )
         } catch (exception: SnapshotOperationException) {
@@ -114,6 +116,24 @@ class PrepareSnapshotImportUseCase(
                 cycleEndDateExclusive = record.cycleEndDateExclusive,
                 budgetAmountCents = record.budgetAmountCents,
                 paydayDayOfMonth = record.paydayDayOfMonth,
+                originInstallId = record.originInstallId,
+                lastModifiedByInstallId = record.lastModifiedByInstallId,
+                createdAtEpochMs = record.createdAtEpochMs,
+                updatedAtEpochMs = record.updatedAtEpochMs,
+                deletedAtEpochMs = record.deletedAtEpochMs,
+                modClock = record.modClock
+            )
+        }
+    }
+
+    private fun SnapshotEnvelopeV1.toBudgetAdjustmentEntities(): List<BudgetAdjustmentEntity> {
+        return budgetAdjustments.orEmpty().map { record ->
+            BudgetAdjustmentEntity(
+                adjustmentUuid = record.adjustmentUuid,
+                cycleStartDate = record.cycleStartDate,
+                effectiveDate = record.effectiveDate,
+                previousMonthlyBudgetCents = record.previousMonthlyBudgetCents,
+                newMonthlyBudgetCents = record.newMonthlyBudgetCents,
                 originInstallId = record.originInstallId,
                 lastModifiedByInstallId = record.lastModifiedByInstallId,
                 createdAtEpochMs = record.createdAtEpochMs,

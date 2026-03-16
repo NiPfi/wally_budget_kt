@@ -4,9 +4,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
+import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.CycleOverviewDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
+import net.loeu.wallybudget.data.local.entity.BudgetAdjustmentEntity
 import net.loeu.wallybudget.data.local.entity.BudgetPolicyEntity
 import net.loeu.wallybudget.data.local.db.TransactionRunner
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
@@ -327,6 +329,74 @@ internal class FakeBudgetPolicyDao(
     }
 }
 
+internal class FakeBudgetAdjustmentDao(
+    initialAdjustments: List<BudgetAdjustmentEntity> = emptyList()
+) : BudgetAdjustmentDao {
+    private val adjustments = initialAdjustments.toMutableList()
+    private val adjustmentFlow = MutableStateFlow(sortedAdjustments())
+    private var nextId = (adjustments.maxOfOrNull { it.id } ?: 0L) + 1L
+
+    override suspend fun insert(entity: BudgetAdjustmentEntity): Long {
+        val inserted = if (entity.id == 0L) entity.copy(id = nextId++) else entity
+        adjustments.removeAll { it.id == inserted.id || it.adjustmentUuid == inserted.adjustmentUuid }
+        adjustments += inserted
+        refresh()
+        return inserted.id
+    }
+
+    override suspend fun insert(entities: List<BudgetAdjustmentEntity>): List<Long> {
+        return entities.map { insert(it) }
+    }
+
+    override suspend fun update(adjustment: BudgetAdjustmentEntity) {
+        adjustments.replaceAll { existing ->
+            if (existing.id == adjustment.id || existing.adjustmentUuid == adjustment.adjustmentUuid) {
+                adjustment
+            } else {
+                existing
+            }
+        }
+        refresh()
+    }
+
+    override fun observeActiveForCycle(cycleStartDate: String): Flow<List<BudgetAdjustmentEntity>> {
+        return adjustmentFlow.map { current ->
+            current.filter { it.deletedAtEpochMs == null && it.cycleStartDate == cycleStartDate }
+        }
+    }
+
+    override suspend fun getActiveForCycle(cycleStartDate: String): List<BudgetAdjustmentEntity> {
+        return adjustments
+            .filter { it.deletedAtEpochMs == null && it.cycleStartDate == cycleStartDate }
+            .sortedWith(compareBy<BudgetAdjustmentEntity> { it.effectiveDate }.thenBy { it.updatedAtEpochMs })
+    }
+
+    override fun observeAllActive(): Flow<List<BudgetAdjustmentEntity>> {
+        return adjustmentFlow.map { current -> current.filter { it.deletedAtEpochMs == null } }
+    }
+
+    override suspend fun getAllForSnapshot(): List<BudgetAdjustmentEntity> = adjustments.toList()
+
+    override suspend fun countAll(): Int = adjustments.size
+
+    override suspend fun deleteAll() {
+        adjustments.clear()
+        refresh()
+    }
+
+    private fun refresh() {
+        adjustmentFlow.value = sortedAdjustments()
+    }
+
+    private fun sortedAdjustments(): List<BudgetAdjustmentEntity> {
+        return adjustments.sortedWith(
+            compareBy<BudgetAdjustmentEntity> { it.cycleStartDate }
+                .thenBy { it.effectiveDate }
+                .thenBy { it.updatedAtEpochMs }
+        )
+    }
+}
+
 internal class FakeCycleOverviewDao(
     private val expenseDao: FakeExpenseDao
 ) : CycleOverviewDao {
@@ -403,6 +473,30 @@ internal fun budgetPolicyEntity(
         cycleEndDateExclusive = cycleEndExclusive.toString(),
         budgetAmountCents = budgetAmountCents,
         paydayDayOfMonth = paydayDayOfMonth,
+        originInstallId = "test-install-id",
+        lastModifiedByInstallId = "test-install-id",
+        createdAtEpochMs = timestamp,
+        updatedAtEpochMs = timestamp,
+        deletedAtEpochMs = null,
+        modClock = "%013d-%04d-%s".format(timestamp, 0, "test-install-id")
+    )
+}
+
+internal fun budgetAdjustmentEntity(
+    id: Long,
+    cycleStart: LocalDate,
+    effectiveDate: LocalDate,
+    previousMonthlyBudgetCents: Long,
+    newMonthlyBudgetCents: Long
+): BudgetAdjustmentEntity {
+    val timestamp = effectiveDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    return BudgetAdjustmentEntity(
+        id = id,
+        adjustmentUuid = "adjustment-$id",
+        cycleStartDate = cycleStart.toString(),
+        effectiveDate = effectiveDate.toString(),
+        previousMonthlyBudgetCents = previousMonthlyBudgetCents,
+        newMonthlyBudgetCents = newMonthlyBudgetCents,
         originInstallId = "test-install-id",
         lastModifiedByInstallId = "test-install-id",
         createdAtEpochMs = timestamp,

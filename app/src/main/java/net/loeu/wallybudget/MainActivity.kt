@@ -57,6 +57,7 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.window.core.layout.WindowSizeClass.Companion.HEIGHT_DP_MEDIUM_LOWER_BOUND
+import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
@@ -163,11 +164,11 @@ fun BudgetApp(
                     onUpdateExpense = viewModel::updateExpense,
                     onDeleteExpense = viewModel::deleteExpense,
                     onRestoreExpense = viewModel::restoreDeletedExpense,
-                    onUpdateBudget = viewModel::updateMonthlyBudget,
-                    onUpdatePayday = viewModel::updatePaydayDate,
+                    onSaveSettings = viewModel::updateBudgetSettings,
                     onRequestExportSnapshot = {
                         createSnapshotDocument.launch(defaultSnapshotFilename(appState.effectiveCurrentDate))
                     },
+                    settingsMessage = appState.settingsStatusMessage,
                     snapshotMessage = appState.snapshotStatusMessage,
                     snapshotErrorMessage = snapshotErrorMessage,
                     isSnapshotBusy = appState.snapshotBusy,
@@ -199,9 +200,9 @@ private fun MainNavigationShell(
     onUpdateExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
-    onUpdateBudget: (Long) -> Unit,
-    onUpdatePayday: (Int) -> Unit,
+    onSaveSettings: (Long, Int, BudgetChangeMode) -> Unit,
     onRequestExportSnapshot: () -> Unit,
+    settingsMessage: String?,
     snapshotMessage: String?,
     snapshotErrorMessage: String?,
     isSnapshotBusy: Boolean,
@@ -254,9 +255,9 @@ private fun MainNavigationShell(
             onUpdateExpense = onUpdateExpense,
             onDeleteExpense = onDeleteExpense,
             onRestoreExpense = onRestoreExpense,
-            onUpdateBudget = onUpdateBudget,
-            onUpdatePayday = onUpdatePayday,
+            onSaveSettings = onSaveSettings,
             onRequestExportSnapshot = onRequestExportSnapshot,
+            settingsMessage = settingsMessage,
             snapshotMessage = snapshotMessage,
             snapshotErrorMessage = snapshotErrorMessage,
             isSnapshotBusy = isSnapshotBusy,
@@ -365,9 +366,9 @@ private fun MainNavigationHost(
     onUpdateExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
-    onUpdateBudget: (Long) -> Unit,
-    onUpdatePayday: (Int) -> Unit,
+    onSaveSettings: (Long, Int, BudgetChangeMode) -> Unit,
     onRequestExportSnapshot: () -> Unit,
+    settingsMessage: String?,
     snapshotMessage: String?,
     snapshotErrorMessage: String?,
     isSnapshotBusy: Boolean,
@@ -418,9 +419,10 @@ private fun MainNavigationHost(
         addSettingsDestination(
             navController = navController,
             userSettings = userSettings,
-            onUpdateBudget = onUpdateBudget,
-            onUpdatePayday = onUpdatePayday,
+            currentDate = effectiveCurrentDate,
+            onSaveSettings = onSaveSettings,
             onRequestExportSnapshot = onRequestExportSnapshot,
+            settingsMessage = settingsMessage,
             snapshotMessage = snapshotMessage,
             snapshotErrorMessage = snapshotErrorMessage,
             isSnapshotBusy = isSnapshotBusy

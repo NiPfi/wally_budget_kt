@@ -2,6 +2,7 @@ package net.loeu.wallybudget.domain.usecase
 
 import kotlinx.coroutines.runBlocking
 import net.loeu.wallybudget.domain.model.UserSettings
+import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -28,6 +29,7 @@ class RebuildMonthlyHistoryUseCaseTest {
                 ).copy(deletedAtEpochMs = 42L)
             )
         )
+        val budgetAdjustmentDao = FakeBudgetAdjustmentDao()
         val expenseDao = FakeExpenseDao(
             listOf(
                 expenseEntityOn(1L, LocalDate.of(2026, 2, 26), 10_000L),
@@ -46,9 +48,11 @@ class RebuildMonthlyHistoryUseCaseTest {
         )
         val useCase = RebuildMonthlyHistoryUseCase(
             budgetPolicyDao = budgetPolicyDao,
+            budgetAdjustmentDao = budgetAdjustmentDao,
             expenseDao = expenseDao,
             monthlyHistoryDao = monthlyHistoryDao,
-            budgetCalculationService = BudgetCalculationService()
+            budgetCalculationService = BudgetCalculationService(),
+            budgetAdjustmentResolver = BudgetAdjustmentResolver()
         )
 
         useCase(
@@ -80,9 +84,11 @@ class RebuildMonthlyHistoryUseCaseTest {
         )
         val useCase = RebuildMonthlyHistoryUseCase(
             budgetPolicyDao = FakeBudgetPolicyDao(),
+            budgetAdjustmentDao = FakeBudgetAdjustmentDao(),
             expenseDao = FakeExpenseDao(),
             monthlyHistoryDao = monthlyHistoryDao,
-            budgetCalculationService = BudgetCalculationService()
+            budgetCalculationService = BudgetCalculationService(),
+            budgetAdjustmentResolver = BudgetAdjustmentResolver()
         )
 
         useCase(UserSettings(lastResetTimestamp = 0L))
