@@ -9,11 +9,10 @@ import org.junit.Test
 class SettingsFormValidationTest {
 
     @Test
-    fun validateSettingsForm_rejectsInvalidBudgetWhenPaydayIsLocked() {
+    fun validateSettingsForm_rejectsInvalidBudget() {
         val result = validateSettingsForm(
             budgetText = "0",
             paydayText = "5",
-            paydayEditingEnabled = true,
             budgetChangeMode = BudgetChangeMode.APPLY_NEXT_CYCLE
         )
 
@@ -23,11 +22,10 @@ class SettingsFormValidationTest {
     }
 
     @Test
-    fun validateSettingsForm_rejectsInvalidPaydayWhenEditingIsEnabled() {
+    fun validateSettingsForm_rejectsInvalidPayday() {
         val result = validateSettingsForm(
             budgetText = "1200",
             paydayText = "",
-            paydayEditingEnabled = true,
             budgetChangeMode = BudgetChangeMode.APPLY_NEXT_CYCLE
         )
 
@@ -41,7 +39,6 @@ class SettingsFormValidationTest {
         val result = validateSettingsForm(
             budgetText = "1200",
             paydayText = "5",
-            paydayEditingEnabled = true,
             budgetChangeMode = BudgetChangeMode.PRORATE_CURRENT_CYCLE
         )
 

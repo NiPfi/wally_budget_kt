@@ -26,7 +26,7 @@ class SnapshotJsonCodec(
 
     private fun validateEnvelope(root: JsonObject?) {
         requirePrimitive(root, "format")
-        requirePrimitive(root, "schemaVersion")
+        val schemaVersion = requireIntPrimitive(root, "schemaVersion")
         requirePrimitive(root, "snapshotId")
         requirePrimitive(root, "exportedAtEpochMs")
         requirePrimitive(root, "writerInstallId")
@@ -35,7 +35,6 @@ class SnapshotJsonCodec(
         requireObject(root, "settings")
         requireArray(root, "budgetPolicies")
         requireArray(root, "expenses")
-        val schemaVersion = root?.get("schemaVersion")?.asInt ?: return
         if (schemaVersion >= 2) {
             requireArray(root, "budgetAdjustments")
         }
@@ -46,6 +45,17 @@ class SnapshotJsonCodec(
         if (value == null || value.isJsonNull || !value.isJsonPrimitive) {
             throw IllegalArgumentException("Missing required snapshot field: $key")
         }
+    }
+
+    private fun requireIntPrimitive(root: JsonObject?, key: String): Int {
+        requirePrimitive(root, key)
+        val value = checkNotNull(root?.get(key)) {
+            "Missing required snapshot field: $key"
+        }
+        if (!value.asJsonPrimitive.isNumber) {
+            throw IllegalArgumentException("Snapshot field '$key' must be numeric")
+        }
+        return value.asInt
     }
 
     private fun requireObject(root: JsonObject?, key: String) {

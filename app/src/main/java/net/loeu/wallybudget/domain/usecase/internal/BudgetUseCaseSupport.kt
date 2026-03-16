@@ -10,8 +10,10 @@ import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseDaySection
 import net.loeu.wallybudget.domain.model.MonthlyHistory
+import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
 import net.loeu.wallybudget.domain.model.TimelineLockState
 import net.loeu.wallybudget.domain.model.UserSettings
+import net.loeu.wallybudget.domain.model.recordedDate
 import net.loeu.wallybudget.domain.policy.ObservedDatePolicy
 import net.loeu.wallybudget.domain.policy.TimelineLockPolicy
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
@@ -88,7 +90,6 @@ internal suspend fun archiveCycleIfNeeded(
 }
 
 internal fun buildBudgetState(
-    settings: UserSettings,
     today: LocalDate,
     history: List<MonthlyHistory>,
     totalSpentThisCycleCents: Long,
@@ -124,6 +125,63 @@ internal fun buildBudgetState(
         plannedTodayBudgetCents = resolvedCycleBudget.plannedTodayBudgetCents,
         allocatedBeforeTodayCents = resolvedCycleBudget.allocatedBeforeDateCents,
         paydayDate = cyclePolicy.paydayDayOfMonth
+    )
+}
+
+internal fun buildPendingCycleCloseoutState(
+    settings: UserSettings,
+    expenses: List<Expense>,
+    dayTotals: Map<LocalDate, Long>,
+    adjustments: List<BudgetAdjustment>,
+    resolvedPendingPolicy: ResolvedCyclePolicy?,
+    budgetAdjustmentResolver: BudgetAdjustmentResolver
+): PendingCycleCloseoutState? {
+    val pendingCycle = settings.pendingCycleRangeOrNull() ?: return null
+    val cycleExpenses = expenses.filterByRange(
+        start = pendingCycle.start,
+        endExclusive = pendingCycle.endExclusive
+    )
+    val dayCount = java.time.temporal.ChronoUnit.DAYS
+        .between(pendingCycle.start, pendingCycle.endExclusive)
+        .toInt()
+        .coerceAtLeast(1)
+    val cycleBudgetAmount = budgetAdjustmentResolver.resolveEffectiveCycleBudgetAmount(
+        cycleStart = pendingCycle.start,
+        cycleEndExclusive = pendingCycle.endExclusive,
+        baseMonthlyBudgetCents = resolvedPendingPolicy?.budgetAmountCents ?: settings.monthlyBudgetCents,
+        adjustments = adjustments
+    )
+    val baseDailyBudget = cycleBudgetAmount / dayCount
+    val daySections = buildContinuousDaySections(
+        start = pendingCycle.start,
+        endInclusive = pendingCycle.endExclusive.minusDays(1),
+        expensesByDate = cycleExpenses.groupBy { it.recordedDate() },
+        dayTotals = dayTotals,
+        remainingBudgetForDay = { totalSpent -> baseDailyBudget - totalSpent },
+        isEditable = true,
+        today = null
+    )
+    val totalSpent = cycleExpenses.sumOf { it.amountCents }
+    val biggestExpense = cycleExpenses.maxByOrNull { it.amountCents }
+    val highestSpendDay = daySections.maxByOrNull { it.totalSpentCents }?.date
+    val topCategory = cycleExpenses
+        .filter { it.icon != null }
+        .groupBy { it.icon }
+        .maxByOrNull { (_, categoryExpenses) -> categoryExpenses.sumOf { it.amountCents } }
+        ?.key
+
+    return PendingCycleCloseoutState(
+        cycleStartDate = pendingCycle.start,
+        cycleEndDateExclusive = pendingCycle.endExclusive,
+        budgetAmountCents = cycleBudgetAmount,
+        totalSpentCents = totalSpent,
+        surplusCents = cycleBudgetAmount - totalSpent,
+        averageDailySpendCents = totalSpent / dayCount,
+        biggestExpense = biggestExpense,
+        highestSpendDay = highestSpendDay,
+        topCategory = topCategory,
+        trendSummary = buildTrendSummary(daySections),
+        daySections = daySections
     )
 }
 

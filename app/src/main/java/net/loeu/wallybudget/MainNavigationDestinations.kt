@@ -116,8 +116,10 @@ internal fun NavGraphBuilder.addAnalysisDestination(
 internal fun NavGraphBuilder.addSettingsDestination(
     navController: NavHostController,
     userSettings: UserSettings,
+    budgetState: BudgetState,
     currentDate: LocalDate,
     onSaveSettings: (Long, Int, BudgetChangeMode) -> Unit,
+    onSettingsMessageConsumed: () -> Unit,
     onRequestExportSnapshot: () -> Unit,
     settingsMessage: String?,
     snapshotMessage: String?,
@@ -127,8 +129,10 @@ internal fun NavGraphBuilder.addSettingsDestination(
     composable(Screen.Settings.route) {
         SettingsScreen(
             userSettings = userSettings,
+            budgetState = budgetState,
             currentDate = currentDate,
             onSaveSettings = onSaveSettings,
+            onSettingsMessageConsumed = onSettingsMessageConsumed,
             onRequestExportSnapshot = onRequestExportSnapshot,
             settingsMessage = settingsMessage,
             snapshotMessage = snapshotMessage,

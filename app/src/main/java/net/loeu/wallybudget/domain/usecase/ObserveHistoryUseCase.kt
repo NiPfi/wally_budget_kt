@@ -82,14 +82,11 @@ class ObserveHistoryUseCase(
     ): List<ExpenseCycleSection> {
         val sections = mutableListOf<ExpenseCycleSection>()
         val currentCycleStart = budgetState.cycleStartDate
-        val activeCycleExpenses = allExpenses.filter { expense ->
-            val recordedDate = expense.recordedDate()
-            !recordedDate.isBefore(currentCycleStart) && !recordedDate.isAfter(today)
-        }
+        val expensesByDate = allExpenses.groupByDate()
         val activeCycleDaySections = buildContinuousDaySections(
             start = currentCycleStart,
             endInclusive = today,
-            expensesByDate = activeCycleExpenses.groupByDate(),
+            expensesByDate = expensesByDate,
             dayTotals = dayTotals,
             remainingBudgetForDay = { totalSpent -> budgetState.dailyBudgetCents - totalSpent },
             isEditable = isEditable,
@@ -114,7 +111,7 @@ class ObserveHistoryUseCase(
             sections += futureSections
         }
 
-        sections += buildCompletedHistorySections(monthlyHistory, currentCycleStart, allExpenses, dayTotals)
+        sections += buildCompletedHistorySections(monthlyHistory, currentCycleStart, expensesByDate, dayTotals)
 
         return sections
     }
@@ -181,18 +178,20 @@ class ObserveHistoryUseCase(
     private fun buildCompletedHistorySections(
         monthlyHistory: List<MonthlyHistory>,
         currentCycleStart: LocalDate,
-        allExpenses: List<Expense>,
+        expensesByDate: Map<LocalDate, List<Expense>>,
         dayTotals: Map<LocalDate, Long>
     ): List<ExpenseCycleSection> {
         return monthlyHistory
             .filterNot { it.getCycleStart() == currentCycleStart }
             .sortedByDescending { it.endTimestamp }
             .map { monthlyEntry ->
-                val cycleExpenses = allExpenses.filter { expense ->
-                    val recordedDate = expense.recordedDate()
-                    !recordedDate.isBefore(monthlyEntry.getCycleStart()) &&
-                        recordedDate.isBefore(monthlyEntry.getCycleEnd())
-                }
+                val cycleExpenses = expensesByDate
+                    .filterKeys { date ->
+                        !date.isBefore(monthlyEntry.getCycleStart()) &&
+                            date.isBefore(monthlyEntry.getCycleEnd())
+                    }
+                    .values
+                    .flatten()
                 val daySections = buildReadOnlyDaySections(cycleExpenses, dayTotals)
 
                 ExpenseCycleSection(

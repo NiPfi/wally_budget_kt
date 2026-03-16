@@ -118,13 +118,47 @@ class UpdateBudgetSettingsUseCase(
         val futurePolicies = existingPolicies
             .filter { !it.cycleStart().isBefore(currentPolicy.cycleEndExclusive) }
             .sortedBy { it.cycleStartDate }
-        val needsFutureRewrite = futurePolicies.isNotEmpty() ||
-            request.paydayDate != settings.paydayDate
-        if (!needsFutureRewrite) {
+        if (!needsFutureRewrite(futurePolicies, request, settings)) {
             return
         }
 
         val nowEpochMs = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        softDeleteFuturePolicies(futurePolicies, settings, nowEpochMs)
+
+        val targetBudget = request.monthlyBudgetCents
+        val targetPayday = request.paydayDate
+        if (targetPayday != currentPolicy.paydayDayOfMonth) {
+            insertTransitionPolicies(
+                settings = settings,
+                currentPolicy = currentPolicy,
+                targetBudget = targetBudget,
+                targetPayday = targetPayday,
+                nowEpochMs = nowEpochMs
+            )
+        } else if (request.budgetChangeMode == BudgetChangeMode.APPLY_NEXT_CYCLE || futurePolicies.isNotEmpty()) {
+            insertNextCyclePolicy(
+                settings = settings,
+                currentPolicy = currentPolicy,
+                targetBudget = targetBudget,
+                targetPayday = targetPayday,
+                nowEpochMs = nowEpochMs
+            )
+        }
+    }
+
+    private fun needsFutureRewrite(
+        futurePolicies: List<BudgetPolicy>,
+        request: UpdateBudgetSettingsRequest,
+        settings: UserSettings
+    ): Boolean {
+        return futurePolicies.isNotEmpty() || request.paydayDate != settings.paydayDate
+    }
+
+    private suspend fun softDeleteFuturePolicies(
+        futurePolicies: List<BudgetPolicy>,
+        settings: UserSettings,
+        nowEpochMs: Long
+    ) {
         futurePolicies.forEach { policy ->
             val entity = budgetPolicyDao.findByPolicyUuid(policy.policyUuid) ?: return@forEach
             budgetPolicyDao.update(
@@ -140,59 +174,85 @@ class UpdateBudgetSettingsUseCase(
                 )
             )
         }
+    }
 
-        val targetBudget = request.monthlyBudgetCents
-        val targetPayday = request.paydayDate
-        if (targetPayday != currentPolicy.paydayDayOfMonth) {
-            val transition = cycleScheduleResolver.planPaydayTransition(
-                currentCycleEndExclusive = currentPolicy.cycleEndExclusive,
-                targetMonthlyBudgetCents = targetBudget,
-                newPaydayDayOfMonth = targetPayday
-            )
-            transition.bridgeCycle?.let { bridge ->
-                budgetPolicyDao.insert(
-                    newBudgetPolicy(
-                        cycleStart = bridge.cycleStart,
-                        cycleEndExclusive = bridge.cycleEndExclusive,
-                        budgetAmountCents = bridge.budgetAmountCents,
-                        paydayDayOfMonth = bridge.paydayDayOfMonth,
-                        installId = settings.installDeviceId,
-                        nowEpochMs = nowEpochMs,
-                        hybridLogicalClockService = hybridLogicalClockService
-                    ).toEntity()
-                )
-            }
-            budgetPolicyDao.insert(
-                newBudgetPolicy(
-                    cycleStart = transition.firstRegularCycle.cycleStart,
-                    cycleEndExclusive = transition.firstRegularCycle.cycleEndExclusive,
-                    budgetAmountCents = transition.firstRegularCycle.budgetAmountCents,
-                    paydayDayOfMonth = transition.firstRegularCycle.paydayDayOfMonth,
-                    installId = settings.installDeviceId,
-                    nowEpochMs = nowEpochMs,
-                    hybridLogicalClockService = hybridLogicalClockService
-                ).toEntity()
-            )
-        } else if (request.budgetChangeMode == BudgetChangeMode.APPLY_NEXT_CYCLE || futurePolicies.isNotEmpty()) {
-            budgetPolicyDao.insert(
-                newBudgetPolicy(
-                    cycleStart = currentPolicy.cycleEndExclusive,
-                    cycleEndExclusive = cycleScheduleResolver.policyForCycleStart(
-                        cycleStart = currentPolicy.cycleEndExclusive,
-                        settings = settings.copy(
-                            paydayDate = targetPayday,
-                            monthlyBudgetCents = targetBudget
-                        ),
-                        policies = emptyList()
-                    ).cycleEndExclusive,
-                    budgetAmountCents = targetBudget,
-                    paydayDayOfMonth = targetPayday,
-                    installId = settings.installDeviceId,
-                    nowEpochMs = nowEpochMs,
-                    hybridLogicalClockService = hybridLogicalClockService
-                ).toEntity()
+    private suspend fun insertTransitionPolicies(
+        settings: UserSettings,
+        currentPolicy: net.loeu.wallybudget.domain.service.ResolvedCyclePolicy,
+        targetBudget: Long,
+        targetPayday: Int,
+        nowEpochMs: Long
+    ) {
+        val transition = cycleScheduleResolver.planPaydayTransition(
+            currentCycleEndExclusive = currentPolicy.cycleEndExclusive,
+            targetMonthlyBudgetCents = targetBudget,
+            newPaydayDayOfMonth = targetPayday
+        )
+        transition.bridgeCycle?.let { bridge ->
+            insertBudgetPolicy(
+                settings = settings,
+                cycleStart = bridge.cycleStart,
+                cycleEndExclusive = bridge.cycleEndExclusive,
+                budgetAmountCents = bridge.budgetAmountCents,
+                paydayDayOfMonth = bridge.paydayDayOfMonth,
+                nowEpochMs = nowEpochMs
             )
         }
+        insertBudgetPolicy(
+            settings = settings,
+            cycleStart = transition.firstRegularCycle.cycleStart,
+            cycleEndExclusive = transition.firstRegularCycle.cycleEndExclusive,
+            budgetAmountCents = transition.firstRegularCycle.budgetAmountCents,
+            paydayDayOfMonth = transition.firstRegularCycle.paydayDayOfMonth,
+            nowEpochMs = nowEpochMs
+        )
+    }
+
+    private suspend fun insertNextCyclePolicy(
+        settings: UserSettings,
+        currentPolicy: net.loeu.wallybudget.domain.service.ResolvedCyclePolicy,
+        targetBudget: Long,
+        targetPayday: Int,
+        nowEpochMs: Long
+    ) {
+        val nextCycleStart = currentPolicy.cycleEndExclusive
+        val nextCycleEndExclusive = cycleScheduleResolver.policyForCycleStart(
+            cycleStart = nextCycleStart,
+            settings = settings.copy(
+                paydayDate = targetPayday,
+                monthlyBudgetCents = targetBudget
+            ),
+            policies = emptyList()
+        ).cycleEndExclusive
+        insertBudgetPolicy(
+            settings = settings,
+            cycleStart = nextCycleStart,
+            cycleEndExclusive = nextCycleEndExclusive,
+            budgetAmountCents = targetBudget,
+            paydayDayOfMonth = targetPayday,
+            nowEpochMs = nowEpochMs
+        )
+    }
+
+    private suspend fun insertBudgetPolicy(
+        settings: UserSettings,
+        cycleStart: LocalDate,
+        cycleEndExclusive: LocalDate,
+        budgetAmountCents: Long,
+        paydayDayOfMonth: Int,
+        nowEpochMs: Long
+    ) {
+        budgetPolicyDao.insert(
+            newBudgetPolicy(
+                cycleStart = cycleStart,
+                cycleEndExclusive = cycleEndExclusive,
+                budgetAmountCents = budgetAmountCents,
+                paydayDayOfMonth = paydayDayOfMonth,
+                installId = settings.installDeviceId,
+                nowEpochMs = nowEpochMs,
+                hybridLogicalClockService = hybridLogicalClockService
+            ).toEntity()
+        )
     }
 
     private fun buildSummaryMessage(

@@ -16,12 +16,16 @@ import net.loeu.wallybudget.data.local.entity.toDomainModel
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.domain.config.ForecastConfig
+import net.loeu.wallybudget.domain.model.BudgetAdjustment
+import net.loeu.wallybudget.domain.model.BudgetPolicy
 import net.loeu.wallybudget.domain.model.Expense
+import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
+import net.loeu.wallybudget.domain.service.ResolvedCyclePolicy
 import net.loeu.wallybudget.domain.usecase.internal.buildBudgetState
 import net.loeu.wallybudget.domain.usecase.internal.effectiveCurrentDate
 import net.loeu.wallybudget.domain.usecase.internal.filterByRange
@@ -46,15 +50,7 @@ class ObserveForecastUseCase(
     @OptIn(ExperimentalCoroutinesApi::class)
     operator fun invoke(): Flow<SpendingForecast> {
         val userSettings = userSettingsStore.userSettings
-        val effectiveInputs = combine(
-            userSettings,
-            currentDateProvider.observeCurrentDate()
-        ) { settings, observedDate ->
-            EffectiveForecastInputs(
-                settings = settings,
-                today = effectiveCurrentDate(settings, observedDate)
-            )
-        }.distinctUntilChanged()
+        val effectiveInputs = observeEffectiveInputs(userSettings)
         val effectiveDate = effectiveInputs
             .map { inputs -> inputs.today }
             .distinctUntilChanged()
@@ -64,13 +60,7 @@ class ObserveForecastUseCase(
         val budgetPolicies = budgetPolicyDao.observeActivePolicies().map { entries ->
             entries.map { it.policyToDomainModel() }
         }
-        val currentPolicy = combine(effectiveInputs, budgetPolicies) { inputs, policies ->
-            cycleScheduleResolver.resolvePolicyForDate(
-                date = inputs.today,
-                settings = inputs.settings,
-                policies = policies
-            )
-        }.distinctUntilChanged()
+        val currentPolicy = observeCurrentPolicy(effectiveInputs, budgetPolicies)
         val currentAdjustments = currentPolicy
             .map { it.cycleStart.toString() }
             .distinctUntilChanged()
@@ -84,42 +74,79 @@ class ObserveForecastUseCase(
             effectiveInputs,
             history,
             recentExpenses,
-            budgetPolicies,
+            currentPolicy,
             currentAdjustments
-        ) { inputs, historyEntries, recentExpenseEntries, policies, adjustments ->
-            val currentPolicy = cycleScheduleResolver.resolvePolicyForDate(
+        ) { inputs, historyEntries, recentExpenseEntries, resolvedCurrentPolicy, adjustments ->
+            buildSpendingForecast(
+                inputs = inputs,
+                historyEntries = historyEntries,
+                recentExpenseEntries = recentExpenseEntries,
+                currentPolicy = resolvedCurrentPolicy,
+                adjustments = adjustments
+            )
+        }.distinctUntilChanged()
+    }
+
+    private fun observeEffectiveInputs(
+        userSettings: Flow<UserSettings>
+    ): Flow<EffectiveForecastInputs> {
+        return combine(
+            userSettings,
+            currentDateProvider.observeCurrentDate()
+        ) { settings, observedDate ->
+            EffectiveForecastInputs(
+                settings = settings,
+                today = effectiveCurrentDate(settings, observedDate)
+            )
+        }.distinctUntilChanged()
+    }
+
+    private fun observeCurrentPolicy(
+        effectiveInputs: Flow<EffectiveForecastInputs>,
+        budgetPolicies: Flow<List<BudgetPolicy>>
+    ): Flow<ResolvedCyclePolicy> {
+        return combine(effectiveInputs, budgetPolicies) { inputs, policies ->
+            cycleScheduleResolver.resolvePolicyForDate(
                 date = inputs.today,
                 settings = inputs.settings,
                 policies = policies
             )
-            val currentCycleExpenses = recentExpenseEntries.filterByRange(
-                start = currentPolicy.cycleStart,
-                endExclusive = minOf(inputs.today.plusDays(1), currentPolicy.cycleEndExclusive)
-            )
-            val todayExpenses = currentCycleExpenses.filterByRange(
-                start = inputs.today,
-                endExclusive = inputs.today.plusDays(1)
-            )
-            val totalSpentThisCycleCents = currentCycleExpenses.sumOf { it.amountCents }
-            val spentTodayCents = todayExpenses.sumOf { it.amountCents }
-            val budgetState = buildBudgetState(
-                settings = inputs.settings,
-                today = inputs.today,
-                history = historyEntries,
-                totalSpentThisCycleCents = totalSpentThisCycleCents,
-                spentTodayCents = spentTodayCents,
-                cyclePolicy = currentPolicy,
-                adjustments = adjustments,
-                budgetAdjustmentResolver = budgetAdjustmentResolver,
-                budgetCalculationService = budgetCalculationService
-            )
-            budgetCalculationService.calculateSpendingForecast(
-                budgetState = budgetState,
-                now = inputs.today,
-                monthlyHistory = historyEntries,
-                recentExpenses = recentExpenseEntries
-            )
         }.distinctUntilChanged()
+    }
+
+    private fun buildSpendingForecast(
+        inputs: EffectiveForecastInputs,
+        historyEntries: List<MonthlyHistory>,
+        recentExpenseEntries: List<Expense>,
+        currentPolicy: ResolvedCyclePolicy,
+        adjustments: List<BudgetAdjustment>
+    ): SpendingForecast {
+        val currentCycleExpenses = recentExpenseEntries.filterByRange(
+            start = currentPolicy.cycleStart,
+            endExclusive = minOf(inputs.today.plusDays(1), currentPolicy.cycleEndExclusive)
+        )
+        val todayExpenses = currentCycleExpenses.filterByRange(
+            start = inputs.today,
+            endExclusive = inputs.today.plusDays(1)
+        )
+        val totalSpentThisCycleCents = currentCycleExpenses.sumOf { it.amountCents }
+        val spentTodayCents = todayExpenses.sumOf { it.amountCents }
+        val budgetState = buildBudgetState(
+            today = inputs.today,
+            history = historyEntries,
+            totalSpentThisCycleCents = totalSpentThisCycleCents,
+            spentTodayCents = spentTodayCents,
+            cyclePolicy = currentPolicy,
+            adjustments = adjustments,
+            budgetAdjustmentResolver = budgetAdjustmentResolver,
+            budgetCalculationService = budgetCalculationService
+        )
+        return budgetCalculationService.calculateSpendingForecast(
+            budgetState = budgetState,
+            now = inputs.today,
+            monthlyHistory = historyEntries,
+            recentExpenses = recentExpenseEntries
+        )
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)

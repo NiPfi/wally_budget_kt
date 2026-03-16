@@ -19,7 +19,7 @@ Connected test tasks are guarded to fail if a physical device is attached; use a
 Use Kotlin with 4-space indentation, Java/Kotlin 17 targets, and package paths that mirror directories. Follow existing naming patterns: `PascalCase` for classes, screens, and use cases (`ObserveForecastUseCase`), `camelCase` for functions and properties, and descriptive file names that match the main declaration. Keep lines at 120 characters or less. Detekt enforces rules such as no wildcard imports, newline at EOF, and restrained return counts.
 
 ## Testing Guidelines
-Name tests with the subject under test plus `Test`, for example `BudgetCalculationServiceTest.kt`. Keep fast logic tests in `src/test` and database/UI/device behavior in `src/androidTest`. Add or update tests with every behavior change, especially around `domain/usecase`, Room migrations, and Compose screens.
+Name tests with the subject under test plus `Test`, for example `BudgetCalculationServiceTest.kt`. Keep fast logic tests in `src/test` and database/UI/device behavior in `src/androidTest`. Add or update tests with every behavior change, especially around `domain/usecase`, Room migrations, and Compose screens. When finishing code changes, run `./gradlew detekt` in addition to the relevant test task unless there is a clear reason you cannot.
 
 ## Commit & Pull Request Guidelines
 Recent history uses short, imperative commit subjects such as `Fix onboarding snapshot restore overwrite (#48)` and `Address PR #47 review feedback`. Keep subjects concise, action-first, and reference issues or PRs when useful. PRs should describe the user-visible change, list verification steps run, and include screenshots or recordings for UI changes.

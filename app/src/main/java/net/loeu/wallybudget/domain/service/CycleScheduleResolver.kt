@@ -112,7 +112,10 @@ class CycleScheduleResolver(
             bridgeCycle = bridgeCycle,
             firstRegularCycle = ResolvedCyclePolicy(
                 cycleStart = firstRegularStart,
-                cycleEndExclusive = budgetCalculationService.getNextCycleStartDate(firstRegularStart, newPaydayDayOfMonth),
+                cycleEndExclusive = budgetCalculationService.getNextCycleStartDate(
+                    firstRegularStart,
+                    newPaydayDayOfMonth
+                ),
                 budgetAmountCents = targetMonthlyBudgetCents,
                 paydayDayOfMonth = newPaydayDayOfMonth
             )
@@ -123,7 +126,10 @@ class CycleScheduleResolver(
         val cycleStart = budgetCalculationService.getCycleStartDate(date, settings.paydayDate)
         return ResolvedCyclePolicy(
             cycleStart = cycleStart,
-            cycleEndExclusive = budgetCalculationService.getNextCycleStartDate(cycleStart, settings.paydayDate),
+            cycleEndExclusive = budgetCalculationService.getNextCycleStartDate(
+                cycleStart,
+                settings.paydayDate
+            ),
             budgetAmountCents = settings.monthlyBudgetCents,
             paydayDayOfMonth = settings.paydayDate
         )

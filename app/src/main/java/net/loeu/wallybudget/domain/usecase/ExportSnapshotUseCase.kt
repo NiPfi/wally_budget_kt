@@ -77,7 +77,14 @@ class ExportSnapshotUseCase(
                     )
                 },
             budgetAdjustments = budgetAdjustmentDao.getAllForSnapshot()
-                .sortedWith(compareBy({ it.cycleStartDate }, { it.effectiveDate }, { it.updatedAtEpochMs }, { it.adjustmentUuid }))
+                .sortedWith(
+                    compareBy(
+                        { it.cycleStartDate },
+                        { it.effectiveDate },
+                        { it.updatedAtEpochMs },
+                        { it.adjustmentUuid }
+                    )
+                )
                 .map { adjustment ->
                     SnapshotBudgetAdjustmentRecordV2(
                         adjustmentUuid = adjustment.adjustmentUuid,

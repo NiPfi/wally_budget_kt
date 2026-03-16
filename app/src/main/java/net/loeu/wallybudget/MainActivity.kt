@@ -165,6 +165,7 @@ fun BudgetApp(
                     onDeleteExpense = viewModel::deleteExpense,
                     onRestoreExpense = viewModel::restoreDeletedExpense,
                     onSaveSettings = viewModel::updateBudgetSettings,
+                    onSettingsMessageConsumed = viewModel::clearSettingsFeedback,
                     onRequestExportSnapshot = {
                         createSnapshotDocument.launch(defaultSnapshotFilename(appState.effectiveCurrentDate))
                     },
@@ -201,6 +202,7 @@ private fun MainNavigationShell(
     onDeleteExpense: (Expense) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
     onSaveSettings: (Long, Int, BudgetChangeMode) -> Unit,
+    onSettingsMessageConsumed: () -> Unit,
     onRequestExportSnapshot: () -> Unit,
     settingsMessage: String?,
     snapshotMessage: String?,
@@ -256,6 +258,7 @@ private fun MainNavigationShell(
             onDeleteExpense = onDeleteExpense,
             onRestoreExpense = onRestoreExpense,
             onSaveSettings = onSaveSettings,
+            onSettingsMessageConsumed = onSettingsMessageConsumed,
             onRequestExportSnapshot = onRequestExportSnapshot,
             settingsMessage = settingsMessage,
             snapshotMessage = snapshotMessage,
@@ -367,6 +370,7 @@ private fun MainNavigationHost(
     onDeleteExpense: (Expense) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
     onSaveSettings: (Long, Int, BudgetChangeMode) -> Unit,
+    onSettingsMessageConsumed: () -> Unit,
     onRequestExportSnapshot: () -> Unit,
     settingsMessage: String?,
     snapshotMessage: String?,
@@ -419,8 +423,10 @@ private fun MainNavigationHost(
         addSettingsDestination(
             navController = navController,
             userSettings = userSettings,
+            budgetState = budgetState,
             currentDate = effectiveCurrentDate,
             onSaveSettings = onSaveSettings,
+            onSettingsMessageConsumed = onSettingsMessageConsumed,
             onRequestExportSnapshot = onRequestExportSnapshot,
             settingsMessage = settingsMessage,
             snapshotMessage = snapshotMessage,

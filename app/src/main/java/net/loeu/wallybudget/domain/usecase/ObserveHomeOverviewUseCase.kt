@@ -22,7 +22,6 @@ import net.loeu.wallybudget.domain.model.BudgetPolicy
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.HomeOverviewState
 import net.loeu.wallybudget.domain.model.MonthlyHistory
-import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.model.groupByDate
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
@@ -32,15 +31,14 @@ import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.ResolvedCyclePolicy
 import net.loeu.wallybudget.domain.usecase.internal.buildBudgetState
 import net.loeu.wallybudget.domain.usecase.internal.buildContinuousDaySections
+import net.loeu.wallybudget.domain.usecase.internal.buildPendingCycleCloseoutState
 import net.loeu.wallybudget.domain.usecase.internal.buildTimelineLockState
-import net.loeu.wallybudget.domain.usecase.internal.buildTrendSummary
 import net.loeu.wallybudget.domain.usecase.internal.effectiveCurrentDate
 import net.loeu.wallybudget.domain.usecase.internal.filterByRange
 import net.loeu.wallybudget.domain.usecase.internal.lastResetDateOrNull
 import net.loeu.wallybudget.domain.usecase.internal.pendingCycleRangeOrNull
 import net.loeu.wallybudget.domain.usecase.internal.toDayTotalsMap
 import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 
 private data class CurrentHomeOverviewInputs(
     val settings: UserSettings,
@@ -58,6 +56,12 @@ private data class EffectiveHomeDateInputs(
     val today: LocalDate
 )
 
+private fun observeLatestExpenseDate(expenseDao: ExpenseDao): Flow<LocalDate?> {
+    return expenseDao.observeLatestExpenseDate().map { date ->
+        date?.let(LocalDate::parse)
+    }
+}
+
 class ObserveHomeOverviewUseCase(
     private val expenseDao: ExpenseDao,
     private val monthlyHistoryDao: MonthlyHistoryDao,
@@ -74,14 +78,13 @@ class ObserveHomeOverviewUseCase(
     operator fun invoke(): Flow<HomeOverviewState> {
         val userSettings = userSettingsStore.userSettings
         val effectiveInputs = observeEffectiveInputs(userSettings)
-        val currentCycleRange = observeCurrentCycleRange(effectiveInputs)
         val pendingCycle = userSettings
             .map { settings -> settings.pendingCycleRangeOrNull() }
             .distinctUntilChanged()
         val pendingCycleExpenses = observePendingCycleExpenses(pendingCycle)
         val pendingCycleDayTotals = observePendingCycleDayTotals(pendingCycle)
         val pendingCycleAdjustments = observePendingCycleAdjustments(pendingCycle)
-        val latestExpenseDate = observeLatestExpenseDate()
+        val latestExpenseDate = observeLatestExpenseDate(expenseDao)
         val history = monthlyHistoryDao.observeAll().map { entries ->
             entries.map { it.toDomainModel() }
         }
@@ -98,6 +101,7 @@ class ObserveHomeOverviewUseCase(
                 policies = policies
             )
         }.distinctUntilChanged()
+        val currentCycleRange = observeCurrentCycleRange(currentPolicy)
         val currentAdjustments = currentPolicy
             .map { it.cycleStart.toString() }
             .distinctUntilChanged()
@@ -196,20 +200,17 @@ class ObserveHomeOverviewUseCase(
     }
 
     private fun observeCurrentCycleRange(
-        effectiveInputs: Flow<EffectiveHomeDateInputs>
+        currentPolicy: Flow<ResolvedCyclePolicy>
     ): Flow<CycleDateRange> {
         return combine(
-            effectiveInputs,
-            budgetPolicyDao.observeActivePolicies().map { entries -> entries.map { it.policyToDomainModel() } }
-        ) { inputs, policies ->
-            val currentPolicy = cycleScheduleResolver.resolvePolicyForDate(
-                date = inputs.today,
-                settings = inputs.settings,
-                policies = policies
-            )
+            currentPolicy,
+            currentDateProvider.observeCurrentDate(),
+            userSettingsStore.userSettings
+        ) { resolvedPolicy, observedDate, settings ->
+            val effectiveDate = effectiveCurrentDate(settings, observedDate)
             CycleDateRange(
-                start = currentPolicy.cycleStart,
-                endExclusive = minOf(inputs.today.plusDays(1), currentPolicy.cycleEndExclusive)
+                start = resolvedPolicy.cycleStart,
+                endExclusive = minOf(effectiveDate.plusDays(1), resolvedPolicy.cycleEndExclusive)
             )
         }.distinctUntilChanged()
     }
@@ -284,12 +285,6 @@ class ObserveHomeOverviewUseCase(
         }
     }
 
-    private fun observeLatestExpenseDate(): Flow<LocalDate?> {
-        return expenseDao.observeLatestExpenseDate().map { date ->
-            date?.let(LocalDate::parse)
-        }
-    }
-
     private fun buildHomeOverviewState(
         currentInputs: CurrentHomeOverviewInputs,
         pendingExpenses: List<Expense>,
@@ -304,7 +299,6 @@ class ObserveHomeOverviewUseCase(
         val totalSpentThisCycleCents = currentInputs.currentExpenses.sumOf { it.amountCents }
         val spentTodayCents = todayExpenses.sumOf { it.amountCents }
         val budgetState = buildBudgetState(
-            settings = currentInputs.settings,
             today = currentInputs.today,
             history = currentInputs.historyEntries,
             totalSpentThisCycleCents = totalSpentThisCycleCents,
@@ -340,80 +334,22 @@ class ObserveHomeOverviewUseCase(
                 expenses = pendingExpenses,
                 dayTotals = pendingDayTotals,
                 adjustments = pendingAdjustments,
-                budgetPolicies = currentInputs.budgetPolicies,
-                resolvedPendingPolicy = currentInputs.budgetPolicies
-                    .firstOrNull { it.deletedAtEpochMs == null && it.cycleStartDate == currentInputs.settings.pendingCycleStartDate }
-                    ?.let {
-                        ResolvedCyclePolicy(
-                            cycleStart = it.cycleStart(),
-                            cycleEndExclusive = it.cycleEndExclusive(),
-                            budgetAmountCents = it.budgetAmountCents,
-                            paydayDayOfMonth = it.paydayDayOfMonth
-                        )
-                    }
+                resolvedPendingPolicy = resolvePendingPolicy(currentInputs),
+                budgetAdjustmentResolver = budgetAdjustmentResolver
             ),
             timelineLockState = timelineLockState
         )
     }
 
-    private fun buildPendingCycleCloseoutState(
-        settings: UserSettings,
-        expenses: List<Expense>,
-        dayTotals: Map<LocalDate, Long>,
-        adjustments: List<BudgetAdjustment>,
-        budgetPolicies: List<BudgetPolicy>,
-        resolvedPendingPolicy: ResolvedCyclePolicy?
-    ): PendingCycleCloseoutState? {
-        val pendingCycle = settings.pendingCycleRangeOrNull() ?: return null
-        val cycleExpenses = expenses.filterByRange(
-            start = pendingCycle.start,
-            endExclusive = pendingCycle.endExclusive
-        )
-        val dayCount = ChronoUnit.DAYS.between(pendingCycle.start, pendingCycle.endExclusive)
-            .toInt()
-            .coerceAtLeast(1)
-        val baseBudgetAmount = resolvedPendingPolicy?.budgetAmountCents
-            ?: budgetPolicies
-                .firstOrNull { it.deletedAtEpochMs == null && it.cycleStartDate == pendingCycle.start.toString() }
-                ?.budgetAmountCents
-            ?: settings.monthlyBudgetCents
-        val cycleBudgetAmount = budgetAdjustmentResolver.resolveEffectiveCycleBudgetAmount(
-            cycleStart = pendingCycle.start,
-            cycleEndExclusive = pendingCycle.endExclusive,
-            baseMonthlyBudgetCents = baseBudgetAmount,
-            adjustments = adjustments
-        )
-        val baseDailyBudget = cycleBudgetAmount / dayCount
-        val daySections = buildContinuousDaySections(
-            start = pendingCycle.start,
-            endInclusive = pendingCycle.endExclusive.minusDays(1),
-            expensesByDate = cycleExpenses.groupByDate(),
-            dayTotals = dayTotals,
-            remainingBudgetForDay = { totalSpent -> baseDailyBudget - totalSpent },
-            isEditable = true,
-            today = null
-        )
-        val totalSpent = cycleExpenses.sumOf { it.amountCents }
-        val biggestExpense = cycleExpenses.maxByOrNull { it.amountCents }
-        val highestSpendDay = daySections.maxByOrNull { it.totalSpentCents }?.date
-        val topCategory = cycleExpenses
-            .filter { it.icon != null }
-            .groupBy { it.icon }
-            .maxByOrNull { (_, categoryExpenses) -> categoryExpenses.sumOf { it.amountCents } }
-            ?.key
-
-        return PendingCycleCloseoutState(
-            cycleStartDate = pendingCycle.start,
-            cycleEndDateExclusive = pendingCycle.endExclusive,
-            budgetAmountCents = cycleBudgetAmount,
-            totalSpentCents = totalSpent,
-            surplusCents = cycleBudgetAmount - totalSpent,
-            averageDailySpendCents = totalSpent / dayCount,
-            biggestExpense = biggestExpense,
-            highestSpendDay = highestSpendDay,
-            topCategory = topCategory,
-            trendSummary = buildTrendSummary(daySections),
-            daySections = daySections
-        )
+    private fun resolvePendingPolicy(
+        currentInputs: CurrentHomeOverviewInputs
+    ): ResolvedCyclePolicy? {
+        return currentInputs.settings.pendingCycleRangeOrNull()?.let { pendingCycle ->
+            cycleScheduleResolver.policyForCycleStart(
+                cycleStart = pendingCycle.start,
+                settings = currentInputs.settings,
+                policies = currentInputs.budgetPolicies
+            )
+        }
     }
 }

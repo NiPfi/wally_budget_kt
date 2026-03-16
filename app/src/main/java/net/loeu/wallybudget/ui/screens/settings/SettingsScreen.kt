@@ -25,17 +25,14 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import net.loeu.wallybudget.R
+import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.util.CurrencyFormatter
@@ -46,8 +43,10 @@ import java.time.temporal.ChronoUnit
 @Composable
 fun SettingsScreen(
     userSettings: UserSettings,
+    budgetState: BudgetState,
     currentDate: LocalDate,
     onSaveSettings: (Long, Int, BudgetChangeMode) -> Unit,
+    onSettingsMessageConsumed: () -> Unit,
     onRequestExportSnapshot: () -> Unit,
     settingsMessage: String?,
     snapshotMessage: String?,
@@ -56,19 +55,8 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var budgetText by remember { mutableStateOf(initialBudgetText(userSettings)) }
-    var paydayText by remember { mutableStateOf(userSettings.paydayDate.toString()) }
-    var budgetChangeMode by remember { mutableStateOf(BudgetChangeMode.APPLY_NEXT_CYCLE) }
-    var showBudgetError by remember { mutableStateOf(false) }
-    var showPaydayError by remember { mutableStateOf(false) }
+    val formState = rememberSettingsFormState(userSettings)
     val snackbarHostState = remember { SnackbarHostState() }
-
-    LaunchedEffect(userSettings) {
-        budgetText = CurrencyFormatter.centsToDecimalString(userSettings.monthlyBudgetCents)
-        paydayText = userSettings.paydayDate.toString()
-        showBudgetError = false
-        showPaydayError = false
-    }
 
     Scaffold(
         topBar = { SettingsTopBar(onNavigateBack) },
@@ -76,34 +64,34 @@ fun SettingsScreen(
         modifier = modifier
     ) { paddingValues ->
         SettingsScreenContent(
-            budgetText = budgetText,
-            paydayText = paydayText,
+            budgetText = formState.budgetText,
+            paydayText = formState.paydayText,
             currentDate = currentDate,
+            budgetState = budgetState,
             currentSettings = userSettings,
-            selectedBudgetChangeMode = budgetChangeMode,
-            showBudgetError = showBudgetError,
-            showPaydayError = showPaydayError,
+            selectedBudgetChangeMode = formState.budgetChangeMode,
+            showBudgetError = formState.showBudgetError,
+            showPaydayError = formState.showPaydayError,
             paddingValues = paddingValues,
             onBudgetChange = {
-                budgetText = it
-                showBudgetError = false
+                formState.budgetText = it
+                formState.showBudgetError = false
             },
             onPaydayChange = {
                 if (it.isEmpty() || (it.toIntOrNull() ?: 0) in 1..31) {
-                    paydayText = it
-                    showPaydayError = false
+                    formState.paydayText = it
+                    formState.showPaydayError = false
                 }
             },
-            onBudgetChangeModeChanged = { budgetChangeMode = it },
+            onBudgetChangeModeChanged = { formState.budgetChangeMode = it },
             onSave = {
                 val validation = validateSettingsForm(
-                    budgetText = budgetText,
-                    paydayText = paydayText,
-                    paydayEditingEnabled = true,
-                    budgetChangeMode = budgetChangeMode
+                    budgetText = formState.budgetText,
+                    paydayText = formState.paydayText,
+                    budgetChangeMode = formState.budgetChangeMode
                 )
-                showBudgetError = !validation.isBudgetValid
-                showPaydayError = !validation.isPaydayValid
+                formState.showBudgetError = !validation.isBudgetValid
+                formState.showPaydayError = !validation.isPaydayValid
 
                 if (!validation.isValid) return@SettingsScreenContent
                 onSaveSettings(
@@ -120,7 +108,7 @@ fun SettingsScreen(
         )
     }
 
-    SettingsSaveEffect(settingsMessage, snackbarHostState)
+    SettingsSaveEffect(settingsMessage, snackbarHostState, onSettingsMessageConsumed)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -140,26 +128,12 @@ private fun SettingsTopBar(onNavigateBack: () -> Unit) {
 }
 
 @Composable
-private fun SettingsSaveEffect(
-    settingsMessage: String?,
-    snackbarHostState: SnackbarHostState
-) {
-    LaunchedEffect(settingsMessage) {
-        if (!settingsMessage.isNullOrBlank()) {
-            snackbarHostState.showSnackbar(settingsMessage)
-        }
-    }
-}
-
-private fun initialBudgetText(userSettings: UserSettings): String =
-    CurrencyFormatter.centsToDecimalString(userSettings.monthlyBudgetCents)
-
-@Composable
 @Suppress("LongMethod")
 private fun SettingsScreenContent(
     budgetText: String,
     paydayText: String,
     currentDate: LocalDate,
+    budgetState: BudgetState,
     currentSettings: UserSettings,
     selectedBudgetChangeMode: BudgetChangeMode,
     showBudgetError: Boolean,
@@ -214,7 +188,7 @@ private fun SettingsScreenContent(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             singleLine = true,
             isError = showPaydayError,
-            supportingText = { Text(paydaySupportingText(showPaydayError)) },
+            supportingText = { Text(PAYDAY_SUPPORTING_TEXT) },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -231,6 +205,7 @@ private fun SettingsScreenContent(
         EffectivePreviewCard(
             currentSettings = currentSettings,
             currentDate = currentDate,
+            budgetState = budgetState,
             budgetText = budgetText,
             paydayText = paydayText,
             budgetChangeMode = selectedBudgetChangeMode
@@ -307,15 +282,16 @@ private fun BudgetChangeModeCard(
 private fun EffectivePreviewCard(
     currentSettings: UserSettings,
     currentDate: LocalDate,
+    budgetState: BudgetState,
     budgetText: String,
     paydayText: String,
     budgetChangeMode: BudgetChangeMode
 ) {
     val newBudget = CurrencyFormatter.parseAmountToCents(budgetText)
     val newPayday = paydayText.toIntOrNull()
-    val currentCycleEnd = approximateNextCycleStart(currentDate, currentSettings.paydayDate)
+    val currentCycleEnd = currentDate.plusDays(budgetState.daysRemainingInCycle.toLong())
     val previewLines = buildList {
-        add("Current cycle keeps payday ${currentSettings.paydayDate} until $currentCycleEnd.")
+        add("Current cycle keeps payday ${budgetState.paydayDate} until $currentCycleEnd.")
         if (newBudget != null && newBudget != currentSettings.monthlyBudgetCents) {
             add(
                 when (budgetChangeMode) {
@@ -353,103 +329,4 @@ private fun EffectivePreviewCard(
             }
         }
     }
-}
-
-@Composable
-private fun SettingsInfoCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "How the Budget Works",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            Text(
-                text = "Your budget follows the saved cycle schedule. Prorated budget changes only affect the remaining days in the active cycle, and payday changes switch over after the active cycle closes.",
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-    }
-}
-
-private fun paydaySupportingText(
-    showPaydayError: Boolean
-): String {
-    return if (showPaydayError) "Enter a day between 1 and 31" else "Enter a day between 1 and 31"
-}
-
-@Composable
-private fun SnapshotExportCard(
-    onRequestExportSnapshot: () -> Unit,
-    snapshotMessage: String?,
-    snapshotErrorMessage: String?,
-    isSnapshotBusy: Boolean
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Data Snapshot",
-                style = MaterialTheme.typography.titleMedium
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Export a compressed snapshot of your settings, budget cycles, adjustments, and expenses. Snapshot files are compressed, not encrypted.",
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = onRequestExportSnapshot,
-                enabled = !isSnapshotBusy,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(if (isSnapshotBusy) "Exporting..." else "Export compressed snapshot")
-            }
-            snapshotMessage?.let {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-            snapshotErrorMessage?.let {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-        }
-    }
-}
-
-private fun approximateNextCycleStart(now: LocalDate, paydayDate: Int): LocalDate {
-    val normalizedPayday = paydayDate.coerceIn(1, 31)
-    val effectivePayday = minOf(normalizedPayday, now.lengthOfMonth())
-    return if (now.dayOfMonth >= effectivePayday) {
-        val nextMonth = now.plusMonths(1)
-        nextMonth.withDayOfMonth(minOf(normalizedPayday, nextMonth.lengthOfMonth()))
-    } else {
-        now.withDayOfMonth(effectivePayday)
-    }
-}
-
-private fun firstOccurrenceOnOrAfter(anchor: LocalDate, paydayDayOfMonth: Int): LocalDate {
-    val thisMonthDay = minOf(paydayDayOfMonth.coerceIn(1, 31), anchor.lengthOfMonth())
-    val thisMonthOccurrence = anchor.withDayOfMonth(thisMonthDay)
-    if (!thisMonthOccurrence.isBefore(anchor)) return thisMonthOccurrence
-    val nextMonth = anchor.plusMonths(1)
-    return nextMonth.withDayOfMonth(minOf(paydayDayOfMonth.coerceIn(1, 31), nextMonth.lengthOfMonth()))
 }
