@@ -3,9 +3,6 @@ package net.loeu.wallybudget.domain.service
 import net.loeu.wallybudget.domain.model.BudgetPolicy
 import net.loeu.wallybudget.domain.model.UserSettings
 import java.time.LocalDate
-import java.time.temporal.ChronoUnit
-import kotlin.math.roundToLong
-
 data class ResolvedCyclePolicy(
     val cycleStart: LocalDate,
     val cycleEndExclusive: LocalDate,
@@ -13,8 +10,9 @@ data class ResolvedCyclePolicy(
     val paydayDayOfMonth: Int
 )
 
-data class ScheduledPaydayTransition(
-    val bridgeCycle: ResolvedCyclePolicy?,
+data class ImmediatePaydayChangePlan(
+    val rewrittenCurrentCycle: ResolvedCyclePolicy,
+    val originalCurrentCycleEndExclusive: LocalDate,
     val firstRegularCycle: ResolvedCyclePolicy
 )
 
@@ -84,42 +82,43 @@ class CycleScheduleResolver(
         return nextMonth.withDayOfMonth(minOf(paydayDayOfMonth.coerceIn(1, 31), nextMonth.lengthOfMonth()))
     }
 
-    fun planPaydayTransition(
-        currentCycleEndExclusive: LocalDate,
+    fun planImmediatePaydayChange(
+        currentCycle: ResolvedCyclePolicy,
+        today: LocalDate,
         targetMonthlyBudgetCents: Long,
         newPaydayDayOfMonth: Int
-    ): ScheduledPaydayTransition {
-        val bridgeEnd = firstOccurrenceOnOrAfter(currentCycleEndExclusive, newPaydayDayOfMonth)
-        val bridgeCycle = if (bridgeEnd.isAfter(currentCycleEndExclusive)) {
-            val firstRegularEnd = budgetCalculationService.getNextCycleStartDate(bridgeEnd, newPaydayDayOfMonth)
-            val fullTargetCycleDays =
-                ChronoUnit.DAYS.between(bridgeEnd, firstRegularEnd).toInt().coerceAtLeast(1)
-            val bridgeDays =
-                ChronoUnit.DAYS.between(currentCycleEndExclusive, bridgeEnd).toInt().coerceAtLeast(0)
-            val bridgeBudgetCents =
-                ((targetMonthlyBudgetCents.toDouble() * bridgeDays) / fullTargetCycleDays).roundToLong()
-            ResolvedCyclePolicy(
-                cycleStart = currentCycleEndExclusive,
-                cycleEndExclusive = bridgeEnd,
-                budgetAmountCents = bridgeBudgetCents,
+    ): ImmediatePaydayChangePlan {
+        val rewrittenCurrentCycleEnd = nextOccurrenceWithinCurrentCycle(
+            today = today,
+            currentCycleEndExclusive = currentCycle.cycleEndExclusive,
+            newPaydayDayOfMonth = newPaydayDayOfMonth
+        ) ?: firstOccurrenceOnOrAfter(currentCycle.cycleEndExclusive, newPaydayDayOfMonth)
+
+        return ImmediatePaydayChangePlan(
+            rewrittenCurrentCycle = currentCycle.copy(
+                cycleEndExclusive = rewrittenCurrentCycleEnd,
                 paydayDayOfMonth = newPaydayDayOfMonth
-            )
-        } else {
-            null
-        }
-        val firstRegularStart = bridgeCycle?.cycleEndExclusive ?: currentCycleEndExclusive
-        return ScheduledPaydayTransition(
-            bridgeCycle = bridgeCycle,
+            ),
+            originalCurrentCycleEndExclusive = currentCycle.cycleEndExclusive,
             firstRegularCycle = ResolvedCyclePolicy(
-                cycleStart = firstRegularStart,
+                cycleStart = rewrittenCurrentCycleEnd,
                 cycleEndExclusive = budgetCalculationService.getNextCycleStartDate(
-                    firstRegularStart,
+                    rewrittenCurrentCycleEnd,
                     newPaydayDayOfMonth
                 ),
                 budgetAmountCents = targetMonthlyBudgetCents,
                 paydayDayOfMonth = newPaydayDayOfMonth
             )
         )
+    }
+
+    fun nextOccurrenceWithinCurrentCycle(
+        today: LocalDate,
+        currentCycleEndExclusive: LocalDate,
+        newPaydayDayOfMonth: Int
+    ): LocalDate? {
+        val candidate = firstOccurrenceOnOrAfter(today.plusDays(1), newPaydayDayOfMonth)
+        return candidate.takeIf { it.isBefore(currentCycleEndExclusive) }
     }
 
     private fun syntheticPolicyForDate(date: LocalDate, settings: UserSettings): ResolvedCyclePolicy {

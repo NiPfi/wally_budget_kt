@@ -165,6 +165,9 @@ fun BudgetApp(
                     onDeleteExpense = viewModel::deleteExpense,
                     onRestoreExpense = viewModel::restoreDeletedExpense,
                     onSaveSettings = viewModel::updateBudgetSettings,
+                    onUndoSettings = viewModel::undoBudgetSettingsChange,
+                    isSettingsUndoAvailable = appState.isSettingsUndoAvailable,
+                    settingsUndoExpiresAtExclusive = appState.settingsUndoExpiresAtExclusive,
                     onSettingsMessageConsumed = viewModel::clearSettingsFeedback,
                     onRequestExportSnapshot = {
                         createSnapshotDocument.launch(defaultSnapshotFilename(appState.effectiveCurrentDate))
@@ -182,6 +185,7 @@ fun BudgetApp(
     }
 }
 
+@Suppress("LongMethod")
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 private fun MainNavigationShell(
@@ -202,6 +206,9 @@ private fun MainNavigationShell(
     onDeleteExpense: (Expense) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
     onSaveSettings: (Long, Int, BudgetChangeMode) -> Unit,
+    onUndoSettings: () -> Unit,
+    isSettingsUndoAvailable: Boolean,
+    settingsUndoExpiresAtExclusive: LocalDate?,
     onSettingsMessageConsumed: () -> Unit,
     onRequestExportSnapshot: () -> Unit,
     settingsMessage: String?,
@@ -258,6 +265,9 @@ private fun MainNavigationShell(
             onDeleteExpense = onDeleteExpense,
             onRestoreExpense = onRestoreExpense,
             onSaveSettings = onSaveSettings,
+            onUndoSettings = onUndoSettings,
+            isSettingsUndoAvailable = isSettingsUndoAvailable,
+            settingsUndoExpiresAtExclusive = settingsUndoExpiresAtExclusive,
             onSettingsMessageConsumed = onSettingsMessageConsumed,
             onRequestExportSnapshot = onRequestExportSnapshot,
             settingsMessage = settingsMessage,
@@ -370,6 +380,9 @@ private fun MainNavigationHost(
     onDeleteExpense: (Expense) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
     onSaveSettings: (Long, Int, BudgetChangeMode) -> Unit,
+    onUndoSettings: () -> Unit,
+    isSettingsUndoAvailable: Boolean,
+    settingsUndoExpiresAtExclusive: LocalDate?,
     onSettingsMessageConsumed: () -> Unit,
     onRequestExportSnapshot: () -> Unit,
     settingsMessage: String?,
@@ -426,6 +439,9 @@ private fun MainNavigationHost(
             budgetState = budgetState,
             currentDate = effectiveCurrentDate,
             onSaveSettings = onSaveSettings,
+            onUndoSettings = onUndoSettings,
+            isSettingsUndoAvailable = isSettingsUndoAvailable,
+            settingsUndoExpiresAtExclusive = settingsUndoExpiresAtExclusive,
             onSettingsMessageConsumed = onSettingsMessageConsumed,
             onRequestExportSnapshot = onRequestExportSnapshot,
             settingsMessage = settingsMessage,

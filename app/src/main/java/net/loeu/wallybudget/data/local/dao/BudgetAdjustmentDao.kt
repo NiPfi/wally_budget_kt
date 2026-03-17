@@ -38,6 +38,16 @@ interface BudgetAdjustmentDao : BaseInsertDao<BudgetAdjustmentEntity> {
     )
     suspend fun getAllForSnapshot(): List<BudgetAdjustmentEntity>
 
+    @Query(
+        "SELECT * FROM budget_adjustments " +
+            "WHERE adjustmentUuid = :adjustmentUuid " +
+            "ORDER BY updatedAtEpochMs DESC LIMIT 1"
+    )
+    suspend fun findByAdjustmentUuid(adjustmentUuid: String): BudgetAdjustmentEntity?
+
+    @Query("DELETE FROM budget_adjustments WHERE adjustmentUuid IN (:adjustmentUuids)")
+    suspend fun deleteByAdjustmentUuids(adjustmentUuids: List<String>)
+
     @Query("SELECT COUNT(*) FROM budget_adjustments")
     suspend fun countAll(): Int
 

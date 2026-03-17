@@ -16,6 +16,7 @@ import net.loeu.wallybudget.data.local.entity.MonthlyHistoryEntity
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.local.querymodel.ExpenseDayTotalRow
 import net.loeu.wallybudget.data.time.CurrentDateProvider
+import net.loeu.wallybudget.domain.model.PendingSettingsUndo
 import net.loeu.wallybudget.domain.model.UserSettings
 import java.time.LocalDate
 import java.time.ZoneId
@@ -25,8 +26,10 @@ internal class FakeUserSettingsStore(
     initialSettings: UserSettings = UserSettings()
 ) : UserSettingsStore {
     private val mutableUserSettings = MutableStateFlow(initialSettings)
+    private val mutablePendingSettingsUndo = MutableStateFlow<PendingSettingsUndo?>(null)
 
     override val userSettings: Flow<UserSettings> = mutableUserSettings
+    override val pendingSettingsUndo: Flow<PendingSettingsUndo?> = mutablePendingSettingsUndo
 
     var completedOnboarding = false
     var clearPendingCount = 0
@@ -53,6 +56,13 @@ internal class FakeUserSettingsStore(
 
     override suspend fun updateMonthlyBudget(amountCents: Long) {
         mutableUserSettings.value = mutableUserSettings.value.copy(monthlyBudgetCents = amountCents)
+    }
+
+    override suspend fun updateCycleSettings(monthlyBudgetCents: Long, paydayDate: Int) {
+        mutableUserSettings.value = mutableUserSettings.value.copy(
+            monthlyBudgetCents = monthlyBudgetCents,
+            paydayDate = paydayDate
+        )
     }
 
     override suspend fun updatePaydayDate(day: Int) {
@@ -93,8 +103,17 @@ internal class FakeUserSettingsStore(
         )
     }
 
+    override suspend fun savePendingSettingsUndo(pendingSettingsUndo: PendingSettingsUndo) {
+        mutablePendingSettingsUndo.value = pendingSettingsUndo
+    }
+
+    override suspend fun clearPendingSettingsUndo() {
+        mutablePendingSettingsUndo.value = null
+    }
+
     override suspend fun restoreFromSnapshot(settings: UserSettings, onboardingCompleted: Boolean) {
         mutableUserSettings.value = settings.copy(isOnboardingCompleted = onboardingCompleted)
+        mutablePendingSettingsUndo.value = null
     }
 }
 
@@ -376,6 +395,17 @@ internal class FakeBudgetAdjustmentDao(
     }
 
     override suspend fun getAllForSnapshot(): List<BudgetAdjustmentEntity> = adjustments.toList()
+
+    override suspend fun findByAdjustmentUuid(adjustmentUuid: String): BudgetAdjustmentEntity? {
+        return adjustments
+            .filter { it.adjustmentUuid == adjustmentUuid }
+            .maxByOrNull { it.updatedAtEpochMs }
+    }
+
+    override suspend fun deleteByAdjustmentUuids(adjustmentUuids: List<String>) {
+        adjustments.removeAll { it.adjustmentUuid in adjustmentUuids }
+        refresh()
+    }
 
     override suspend fun countAll(): Int = adjustments.size
 

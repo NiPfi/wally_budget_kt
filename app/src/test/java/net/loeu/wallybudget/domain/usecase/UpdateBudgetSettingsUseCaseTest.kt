@@ -1,5 +1,6 @@
 package net.loeu.wallybudget.domain.usecase
 
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import net.loeu.wallybudget.domain.model.UserSettings
@@ -8,6 +9,7 @@ import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
@@ -39,15 +41,11 @@ class UpdateBudgetSettingsUseCaseTest {
             )
         )
         val budgetAdjustmentDao = FakeBudgetAdjustmentDao()
-        val useCase = UpdateBudgetSettingsUseCase(
-            transactionRunner = FakeTransactionRunner(),
-            userSettingsStore = settingsStore,
+        val useCase = updateBudgetSettingsUseCase(
+            settingsStore = settingsStore,
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = budgetAdjustmentDao,
-            currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
-            cycleScheduleResolver = cycleScheduleResolver,
-            budgetAdjustmentResolver = BudgetAdjustmentResolver(),
-            hybridLogicalClockService = HybridLogicalClockService()
+            currentDate = LocalDate.of(2026, 4, 10)
         )
 
         val result = useCase(
@@ -64,7 +62,7 @@ class UpdateBudgetSettingsUseCaseTest {
     }
 
     @Test
-    fun invoke_schedulesBridgeCycleWhenPaydayChanges() = runBlocking {
+    fun invoke_extendsCurrentCycleImmediatelyWhenLaterPaydayChanges() = runBlocking {
         val settingsStore = FakeUserSettingsStore(
             UserSettings(
                 monthlyBudgetCents = 100_000L,
@@ -83,18 +81,14 @@ class UpdateBudgetSettingsUseCaseTest {
                 )
             )
         )
-        val useCase = UpdateBudgetSettingsUseCase(
-            transactionRunner = FakeTransactionRunner(),
-            userSettingsStore = settingsStore,
+        val useCase = updateBudgetSettingsUseCase(
+            settingsStore = settingsStore,
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = FakeBudgetAdjustmentDao(),
-            currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
-            cycleScheduleResolver = cycleScheduleResolver,
-            budgetAdjustmentResolver = BudgetAdjustmentResolver(),
-            hybridLogicalClockService = HybridLogicalClockService()
+            currentDate = LocalDate.of(2026, 4, 10)
         )
 
-        useCase(
+        val result = useCase(
             UpdateBudgetSettingsRequest(
                 monthlyBudgetCents = 120_000L,
                 paydayDate = 1,
@@ -103,11 +97,73 @@ class UpdateBudgetSettingsUseCaseTest {
         )
 
         assertEquals(1, settingsStore.currentSettings.paydayDate)
-        assertEquals(3, budgetPolicyDao.currentPolicies.size)
-        assertEquals("2026-04-25", budgetPolicyDao.currentPolicies[1].cycleStartDate)
-        assertEquals("2026-05-01", budgetPolicyDao.currentPolicies[1].cycleEndDateExclusive)
-        assertEquals(23_226L, budgetPolicyDao.currentPolicies[1].budgetAmountCents)
-        assertEquals("2026-05-01", budgetPolicyDao.currentPolicies[2].cycleStartDate)
+        val activePolicies = budgetPolicyDao.currentPolicies
+            .filter { it.deletedAtEpochMs == null }
+            .sortedWith(compareBy({ it.cycleStartDate }, { it.cycleEndDateExclusive }))
+        assertEquals(2, activePolicies.size)
+        assertEquals("2026-03-25", activePolicies[0].cycleStartDate)
+        assertEquals("2026-05-01", activePolicies[0].cycleEndDateExclusive)
+        assertEquals(100_000L, activePolicies[0].budgetAmountCents)
+        assertEquals(1, activePolicies[0].paydayDayOfMonth)
+        assertEquals("2026-05-01", activePolicies[1].cycleStartDate)
+        assertEquals("2026-06-01", activePolicies[1].cycleEndDateExclusive)
+        assertEquals(120_000L, activePolicies[1].budgetAmountCents)
+        assertTrue(result.summaryMessage.contains("Budget changes on 2026-05-01"))
+        assertTrue(result.summaryMessage.contains("Payday switches from 25 to 1 now."))
+        assertTrue(result.summaryMessage.contains("This cycle extends to 2026-05-01."))
+    }
+
+    @Test
+    fun invoke_shortensCurrentCycleWhenEarlierPaydayIsStillAhead() = runBlocking {
+        val settingsStore = FakeUserSettingsStore(
+            UserSettings(
+                monthlyBudgetCents = 100_000L,
+                paydayDate = 25,
+                lastResetTimestamp = LocalDate.of(2026, 3, 25)
+                    .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            )
+        )
+        val budgetPolicyDao = FakeBudgetPolicyDao(
+            listOf(
+                budgetPolicyEntity(
+                    id = 1L,
+                    cycleStart = LocalDate.of(2026, 3, 25),
+                    cycleEndExclusive = LocalDate.of(2026, 4, 25),
+                    budgetAmountCents = 100_000L
+                )
+            )
+        )
+        val useCase = updateBudgetSettingsUseCase(
+            settingsStore = settingsStore,
+            budgetPolicyDao = budgetPolicyDao,
+            budgetAdjustmentDao = FakeBudgetAdjustmentDao(),
+            currentDate = LocalDate.of(2026, 4, 10)
+        )
+
+        val result = useCase(
+            UpdateBudgetSettingsRequest(
+                monthlyBudgetCents = 120_000L,
+                paydayDate = 20,
+                budgetChangeMode = BudgetChangeMode.APPLY_NEXT_CYCLE
+            )
+        )
+
+        assertEquals(20, settingsStore.currentSettings.paydayDate)
+        val activePolicies = budgetPolicyDao.currentPolicies
+            .filter { it.deletedAtEpochMs == null }
+            .sortedWith(compareBy({ it.cycleStartDate }, { it.cycleEndDateExclusive }))
+        assertEquals(2, activePolicies.size)
+        assertEquals("2026-03-25", activePolicies[0].cycleStartDate)
+        assertEquals("2026-04-20", activePolicies[0].cycleEndDateExclusive)
+        assertEquals(100_000L, activePolicies[0].budgetAmountCents)
+        assertEquals(20, activePolicies[0].paydayDayOfMonth)
+        assertEquals("2026-04-20", activePolicies[1].cycleStartDate)
+        assertEquals("2026-05-20", activePolicies[1].cycleEndDateExclusive)
+        assertEquals(120_000L, activePolicies[1].budgetAmountCents)
+        assertTrue(result.summaryMessage.contains("Budget changes on 2026-04-20"))
+        assertTrue(result.summaryMessage.contains("Payday switches from 25 to 20 now."))
+        assertTrue(result.summaryMessage.contains("This cycle now ends on 2026-04-20."))
+        assertEquals("2026-04-20", settingsStore.pendingSettingsUndo.first()?.expiresAtExclusive)
     }
 
     @Test
@@ -132,15 +188,11 @@ class UpdateBudgetSettingsUseCaseTest {
             )
         )
         val budgetAdjustmentDao = FakeBudgetAdjustmentDao()
-        val useCase = UpdateBudgetSettingsUseCase(
-            transactionRunner = FakeTransactionRunner(),
-            userSettingsStore = settingsStore,
+        val useCase = updateBudgetSettingsUseCase(
+            settingsStore = settingsStore,
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = budgetAdjustmentDao,
-            currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 9)),
-            cycleScheduleResolver = cycleScheduleResolver,
-            budgetAdjustmentResolver = BudgetAdjustmentResolver(),
-            hybridLogicalClockService = HybridLogicalClockService()
+            currentDate = LocalDate.of(2026, 4, 9)
         )
 
         useCase(
@@ -152,5 +204,178 @@ class UpdateBudgetSettingsUseCaseTest {
         )
 
         assertEquals("2026-04-10", budgetAdjustmentDao.getAllForSnapshot().single().effectiveDate)
+    }
+
+    @Test
+    fun invoke_replacementBudgetChangeLeavesSingleActiveAdjustmentFromBaseline() = runBlocking {
+        val settingsStore = FakeUserSettingsStore(
+            UserSettings(
+                monthlyBudgetCents = 100_000L,
+                paydayDate = 25,
+                lastResetTimestamp = LocalDate.of(2026, 3, 25)
+                    .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            )
+        )
+        val budgetPolicyDao = FakeBudgetPolicyDao(
+            listOf(
+                budgetPolicyEntity(
+                    id = 1L,
+                    cycleStart = LocalDate.of(2026, 3, 25),
+                    cycleEndExclusive = LocalDate.of(2026, 4, 25),
+                    budgetAmountCents = 100_000L
+                )
+            )
+        )
+        val budgetAdjustmentDao = FakeBudgetAdjustmentDao()
+        val useCase = updateBudgetSettingsUseCase(
+            settingsStore = settingsStore,
+            budgetPolicyDao = budgetPolicyDao,
+            budgetAdjustmentDao = budgetAdjustmentDao,
+            currentDate = LocalDate.of(2026, 4, 10)
+        )
+
+        useCase(
+            UpdateBudgetSettingsRequest(
+                monthlyBudgetCents = 120_000L,
+                paydayDate = 25,
+                budgetChangeMode = BudgetChangeMode.PRORATE_CURRENT_CYCLE
+            )
+        )
+        useCase(
+            UpdateBudgetSettingsRequest(
+                monthlyBudgetCents = 110_000L,
+                paydayDate = 25,
+                budgetChangeMode = BudgetChangeMode.PRORATE_CURRENT_CYCLE
+            )
+        )
+
+        val activeAdjustments = budgetAdjustmentDao.getActiveForCycle("2026-03-25")
+        assertEquals(1, activeAdjustments.size)
+        assertEquals(100_000L, activeAdjustments.single().previousMonthlyBudgetCents)
+        assertEquals(110_000L, activeAdjustments.single().newMonthlyBudgetCents)
+        assertEquals("2026-04-10", activeAdjustments.single().effectiveDate)
+    }
+
+    @Test
+    fun invoke_replacementChangeMatchingBaselineIsIgnoredAfterPendingUndoRestore() = runBlocking {
+        val settingsStore = FakeUserSettingsStore(
+            UserSettings(
+                monthlyBudgetCents = 100_000L,
+                paydayDate = 25,
+                lastResetTimestamp = LocalDate.of(2026, 3, 25)
+                    .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            )
+        )
+        val budgetPolicyDao = FakeBudgetPolicyDao(
+            listOf(
+                budgetPolicyEntity(
+                    id = 1L,
+                    cycleStart = LocalDate.of(2026, 3, 25),
+                    cycleEndExclusive = LocalDate.of(2026, 4, 25),
+                    budgetAmountCents = 100_000L
+                )
+            )
+        )
+        val budgetAdjustmentDao = FakeBudgetAdjustmentDao()
+        val useCase = updateBudgetSettingsUseCase(
+            settingsStore = settingsStore,
+            budgetPolicyDao = budgetPolicyDao,
+            budgetAdjustmentDao = budgetAdjustmentDao,
+            currentDate = LocalDate.of(2026, 4, 10)
+        )
+
+        useCase(
+            UpdateBudgetSettingsRequest(
+                monthlyBudgetCents = 120_000L,
+                paydayDate = 25,
+                budgetChangeMode = BudgetChangeMode.PRORATE_CURRENT_CYCLE
+            )
+        )
+        val result = useCase(
+            UpdateBudgetSettingsRequest(
+                monthlyBudgetCents = 100_000L,
+                paydayDate = 25,
+                budgetChangeMode = BudgetChangeMode.PRORATE_CURRENT_CYCLE
+            )
+        )
+
+        assertEquals("No settings changed.", result.summaryMessage)
+        assertEquals(100_000L, settingsStore.currentSettings.monthlyBudgetCents)
+        assertEquals(0, budgetAdjustmentDao.getActiveForCycle("2026-03-25").size)
+        assertEquals(null, settingsStore.pendingSettingsUndo.first())
+    }
+
+    @Test
+    fun invoke_revertsPendingUndoBeforeApplyingReplacementChange() = runBlocking {
+        val settingsStore = FakeUserSettingsStore(
+            UserSettings(
+                monthlyBudgetCents = 100_000L,
+                paydayDate = 25,
+                lastResetTimestamp = LocalDate.of(2026, 3, 25)
+                    .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            )
+        )
+        val budgetPolicyDao = FakeBudgetPolicyDao(
+            listOf(
+                budgetPolicyEntity(
+                    id = 1L,
+                    cycleStart = LocalDate.of(2026, 3, 25),
+                    cycleEndExclusive = LocalDate.of(2026, 4, 25),
+                    budgetAmountCents = 100_000L
+                )
+            )
+        )
+        val budgetAdjustmentDao = FakeBudgetAdjustmentDao()
+        val useCase = updateBudgetSettingsUseCase(
+            settingsStore = settingsStore,
+            budgetPolicyDao = budgetPolicyDao,
+            budgetAdjustmentDao = budgetAdjustmentDao,
+            currentDate = LocalDate.of(2026, 4, 10)
+        )
+
+        useCase(
+            UpdateBudgetSettingsRequest(
+                monthlyBudgetCents = 120_000L,
+                paydayDate = 25,
+                budgetChangeMode = BudgetChangeMode.PRORATE_CURRENT_CYCLE
+            )
+        )
+
+        useCase(
+            UpdateBudgetSettingsRequest(
+                monthlyBudgetCents = 110_000L,
+                paydayDate = 25,
+                budgetChangeMode = BudgetChangeMode.PRORATE_CURRENT_CYCLE
+            )
+        )
+
+        assertEquals(110_000L, settingsStore.currentSettings.monthlyBudgetCents)
+        val activeAdjustments = budgetAdjustmentDao.getActiveForCycle("2026-03-25")
+        assertEquals(1, activeAdjustments.size)
+        assertEquals(100_000L, activeAdjustments.single().previousMonthlyBudgetCents)
+        assertEquals(110_000L, activeAdjustments.single().newMonthlyBudgetCents)
+
+        val pendingUndo = settingsStore.pendingSettingsUndo.first()
+        assertNotNull(pendingUndo)
+        assertEquals(100_000L, pendingUndo?.previousSettings?.monthlyBudgetCents)
+        assertEquals(25, pendingUndo?.previousSettings?.paydayDate)
+    }
+
+    private fun updateBudgetSettingsUseCase(
+        settingsStore: FakeUserSettingsStore,
+        budgetPolicyDao: FakeBudgetPolicyDao,
+        budgetAdjustmentDao: FakeBudgetAdjustmentDao,
+        currentDate: LocalDate
+    ): UpdateBudgetSettingsUseCase {
+        return UpdateBudgetSettingsUseCase(
+            transactionRunner = FakeTransactionRunner(),
+            userSettingsStore = settingsStore,
+            budgetPolicyDao = budgetPolicyDao,
+            budgetAdjustmentDao = budgetAdjustmentDao,
+            currentDateProvider = FakeCurrentDateProvider(currentDate),
+            cycleScheduleResolver = cycleScheduleResolver,
+            budgetAdjustmentResolver = BudgetAdjustmentResolver(),
+            hybridLogicalClockService = HybridLogicalClockService()
+        )
     }
 }

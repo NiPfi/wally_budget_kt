@@ -21,6 +21,7 @@ import net.loeu.wallybudget.domain.usecase.ApplyOnboardingRestoreUseCase
 import net.loeu.wallybudget.domain.usecase.AddExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.CompleteOnboardingUseCase
 import net.loeu.wallybudget.domain.usecase.ConcludePendingCycleUseCase
+import net.loeu.wallybudget.domain.usecase.ClearPendingSettingsUndoUseCase
 import net.loeu.wallybudget.domain.usecase.DeleteExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.EnsureBudgetPolicyHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ExportSnapshotUseCase
@@ -33,6 +34,7 @@ import net.loeu.wallybudget.domain.usecase.ResolveMutationEffectiveDateUseCase
 import net.loeu.wallybudget.domain.usecase.RestoreDeletedExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.RebuildMonthlyHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.SyncObservedDateUseCase
+import net.loeu.wallybudget.domain.usecase.UndoBudgetSettingsChangeUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateBudgetSettingsUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateExpenseUseCase
 
@@ -191,6 +193,18 @@ class BudgetViewModelFactory(
             hybridLogicalClockService = hybridLogicalClockService
         )
     }
+    private val undoBudgetSettingsChangeUseCase by lazy {
+        UndoBudgetSettingsChangeUseCase(
+            transactionRunner = database,
+            userSettingsStore = userPreferencesManager,
+            budgetPolicyDao = budgetPolicyDao,
+            budgetAdjustmentDao = budgetAdjustmentDao,
+            currentDateProvider = currentDateProvider
+        )
+    }
+    private val clearPendingSettingsUndoUseCase by lazy {
+        ClearPendingSettingsUndoUseCase(userPreferencesManager)
+    }
     private val completeOnboardingUseCase by lazy {
         CompleteOnboardingUseCase(
             transactionRunner = database,
@@ -285,6 +299,7 @@ class BudgetViewModelFactory(
                 deleteExpenseUseCase = deleteExpenseUseCase,
                 restoreDeletedExpenseUseCase = restoreDeletedExpenseUseCase,
                 updateBudgetSettingsUseCase = updateBudgetSettingsUseCase,
+                undoBudgetSettingsChangeUseCase = undoBudgetSettingsChangeUseCase,
                 completeOnboardingUseCase = completeOnboardingUseCase,
                 performMonthlyResetUseCase = performMonthlyResetUseCase,
                 concludePendingCycleUseCase = concludePendingCycleUseCase,
@@ -294,6 +309,8 @@ class BudgetViewModelFactory(
                 ensureBudgetPolicyHistoryUseCase = ensureBudgetPolicyHistoryUseCase,
                 rebuildMonthlyHistoryUseCase = rebuildMonthlyHistoryUseCase,
                 resolveMutationEffectiveDateUseCase = resolveMutationEffectiveDateUseCase,
+                clearPendingSettingsUndoUseCase = clearPendingSettingsUndoUseCase,
+                pendingSettingsUndoFlow = userPreferencesManager.pendingSettingsUndo,
                 syncObservedDateUseCase = syncObservedDateUseCase,
                 currentDateProvider = currentDateProvider
             ) as T

@@ -1,12 +1,10 @@
 package net.loeu.wallybudget.ui.screens.settings
 
-import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import net.loeu.wallybudget.util.CurrencyFormatter
 
 internal data class SettingsFormValidation(
     val budgetCents: Long?,
     val payday: Int?,
-    val budgetChangeMode: BudgetChangeMode,
     val isBudgetValid: Boolean,
     val isPaydayValid: Boolean
 ) {
@@ -16,8 +14,7 @@ internal data class SettingsFormValidation(
 
 internal fun validateSettingsForm(
     budgetText: String,
-    paydayText: String,
-    budgetChangeMode: BudgetChangeMode
+    paydayText: String
 ): SettingsFormValidation {
     val budgetCents = CurrencyFormatter.parseAmountToCents(budgetText)
     val payday = paydayText.toIntOrNull()
@@ -27,7 +24,6 @@ internal fun validateSettingsForm(
     return SettingsFormValidation(
         budgetCents = budgetCents,
         payday = payday,
-        budgetChangeMode = budgetChangeMode,
         isBudgetValid = isBudgetValid,
         isPaydayValid = isPaydayValid
     )

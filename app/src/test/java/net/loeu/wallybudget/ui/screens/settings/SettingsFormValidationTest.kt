@@ -1,6 +1,5 @@
 package net.loeu.wallybudget.ui.screens.settings
 
-import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -12,8 +11,7 @@ class SettingsFormValidationTest {
     fun validateSettingsForm_rejectsInvalidBudget() {
         val result = validateSettingsForm(
             budgetText = "0",
-            paydayText = "5",
-            budgetChangeMode = BudgetChangeMode.APPLY_NEXT_CYCLE
+            paydayText = "5"
         )
 
         assertFalse(result.isValid)
@@ -25,8 +23,7 @@ class SettingsFormValidationTest {
     fun validateSettingsForm_rejectsInvalidPayday() {
         val result = validateSettingsForm(
             budgetText = "1200",
-            paydayText = "",
-            budgetChangeMode = BudgetChangeMode.APPLY_NEXT_CYCLE
+            paydayText = ""
         )
 
         assertFalse(result.isValid)
@@ -38,8 +35,7 @@ class SettingsFormValidationTest {
     fun validateSettingsForm_acceptsValidBudgetAndPayday() {
         val result = validateSettingsForm(
             budgetText = "1200",
-            paydayText = "5",
-            budgetChangeMode = BudgetChangeMode.PRORATE_CURRENT_CYCLE
+            paydayText = "5"
         )
 
         assertTrue(result.isValid)

@@ -6,7 +6,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.util.CurrencyFormatter
 
@@ -16,7 +15,6 @@ internal class SettingsFormState(
 ) {
     var budgetText by mutableStateOf(initialBudgetText)
     var paydayText by mutableStateOf(initialPaydayText)
-    var budgetChangeMode by mutableStateOf(BudgetChangeMode.APPLY_NEXT_CYCLE)
     var showBudgetError by mutableStateOf(false)
     var showPaydayError by mutableStateOf(false)
 
