@@ -361,6 +361,114 @@ class UpdateBudgetSettingsUseCaseTest {
         assertEquals(25, pendingUndo?.previousSettings?.paydayDate)
     }
 
+    @Test
+    fun invoke_replacementBudgetChangeTombstonesPriorAdjustmentWithFreshMetadata() = runBlocking {
+        val settingsStore = FakeUserSettingsStore(
+            UserSettings(
+                monthlyBudgetCents = 100_000L,
+                paydayDate = 25,
+                lastResetTimestamp = LocalDate.of(2026, 3, 25)
+                    .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            )
+        )
+        val budgetPolicyDao = FakeBudgetPolicyDao(
+            listOf(
+                budgetPolicyEntity(
+                    id = 1L,
+                    cycleStart = LocalDate.of(2026, 3, 25),
+                    cycleEndExclusive = LocalDate.of(2026, 4, 25),
+                    budgetAmountCents = 100_000L
+                )
+            )
+        )
+        val budgetAdjustmentDao = FakeBudgetAdjustmentDao()
+        val useCase = updateBudgetSettingsUseCase(
+            settingsStore = settingsStore,
+            budgetPolicyDao = budgetPolicyDao,
+            budgetAdjustmentDao = budgetAdjustmentDao,
+            currentDate = LocalDate.of(2026, 4, 10)
+        )
+
+        useCase(
+            UpdateBudgetSettingsRequest(
+                monthlyBudgetCents = 120_000L,
+                paydayDate = 25,
+                budgetChangeMode = BudgetChangeMode.PRORATE_CURRENT_CYCLE
+            )
+        )
+        val originalAdjustment = budgetAdjustmentDao.getAllForSnapshot().single()
+
+        useCase(
+            UpdateBudgetSettingsRequest(
+                monthlyBudgetCents = 110_000L,
+                paydayDate = 25,
+                budgetChangeMode = BudgetChangeMode.PRORATE_CURRENT_CYCLE
+            )
+        )
+
+        val tombstonedAdjustment = budgetAdjustmentDao.getAllForSnapshot()
+            .first { it.adjustmentUuid == originalAdjustment.adjustmentUuid }
+        assertNotNull(tombstonedAdjustment.deletedAtEpochMs)
+        assertEquals(tombstonedAdjustment.deletedAtEpochMs, tombstonedAdjustment.updatedAtEpochMs)
+        assertTrue(tombstonedAdjustment.updatedAtEpochMs > originalAdjustment.updatedAtEpochMs)
+        assertEquals(settingsStore.currentSettings.installDeviceId, tombstonedAdjustment.lastModifiedByInstallId)
+        assertTrue(tombstonedAdjustment.modClock != originalAdjustment.modClock)
+    }
+
+    @Test
+    fun invoke_replacementPaydayChangeTombstonesPriorPoliciesWithFreshMetadata() = runBlocking {
+        val settingsStore = FakeUserSettingsStore(
+            UserSettings(
+                monthlyBudgetCents = 100_000L,
+                paydayDate = 25,
+                lastResetTimestamp = LocalDate.of(2026, 3, 25)
+                    .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            )
+        )
+        val budgetPolicyDao = FakeBudgetPolicyDao(
+            listOf(
+                budgetPolicyEntity(
+                    id = 1L,
+                    cycleStart = LocalDate.of(2026, 3, 25),
+                    cycleEndExclusive = LocalDate.of(2026, 4, 25),
+                    budgetAmountCents = 100_000L
+                )
+            )
+        )
+        val useCase = updateBudgetSettingsUseCase(
+            settingsStore = settingsStore,
+            budgetPolicyDao = budgetPolicyDao,
+            budgetAdjustmentDao = FakeBudgetAdjustmentDao(),
+            currentDate = LocalDate.of(2026, 4, 10)
+        )
+
+        useCase(
+            UpdateBudgetSettingsRequest(
+                monthlyBudgetCents = 100_000L,
+                paydayDate = 20,
+                budgetChangeMode = BudgetChangeMode.PRORATE_CURRENT_CYCLE
+            )
+        )
+        val firstRewritePolicy = budgetPolicyDao.currentPolicies
+            .first { it.deletedAtEpochMs == null && it.cycleEndDateExclusive == "2026-04-20" }
+
+        useCase(
+            UpdateBudgetSettingsRequest(
+                monthlyBudgetCents = 100_000L,
+                paydayDate = 21,
+                budgetChangeMode = BudgetChangeMode.PRORATE_CURRENT_CYCLE
+            )
+        )
+
+        val tombstonedPolicy = budgetPolicyDao.currentPolicies
+            .first { it.policyUuid == firstRewritePolicy.policyUuid }
+        assertNotNull(tombstonedPolicy.deletedAtEpochMs)
+        assertEquals(tombstonedPolicy.deletedAtEpochMs, tombstonedPolicy.updatedAtEpochMs)
+        assertTrue(tombstonedPolicy.updatedAtEpochMs > firstRewritePolicy.updatedAtEpochMs)
+        assertEquals(settingsStore.currentSettings.installDeviceId, tombstonedPolicy.lastModifiedByInstallId)
+        assertTrue(tombstonedPolicy.modClock != firstRewritePolicy.modClock)
+    }
+
     private fun updateBudgetSettingsUseCase(
         settingsStore: FakeUserSettingsStore,
         budgetPolicyDao: FakeBudgetPolicyDao,

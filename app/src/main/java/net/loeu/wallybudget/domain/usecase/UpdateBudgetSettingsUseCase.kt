@@ -155,10 +155,11 @@ class UpdateBudgetSettingsUseCase(
             return
         }
 
+        val nowEpochMs = System.currentTimeMillis()
         transactionRunner.inTransaction {
-            pendingUndo.policiesToDeactivate.forEach { deactivateInsertedPolicy(it) }
+            pendingUndo.policiesToDeactivate.forEach { deactivateInsertedPolicy(it, settings, nowEpochMs) }
             pendingUndo.policiesToRestore.forEach { restorePolicy(it) }
-            pendingUndo.adjustmentsToDeactivate.forEach { deactivateInsertedAdjustment(it) }
+            pendingUndo.adjustmentsToDeactivate.forEach { deactivateInsertedAdjustment(it, settings, nowEpochMs) }
             pendingUndo.adjustmentsToRestore.forEach { restoreAdjustment(it) }
         }
         userSettingsStore.restoreFromSnapshot(
@@ -398,12 +399,24 @@ class UpdateBudgetSettingsUseCase(
         )
     }
 
-    private suspend fun deactivateInsertedPolicy(policy: BudgetPolicy) {
+    private suspend fun deactivateInsertedPolicy(
+        policy: BudgetPolicy,
+        settings: UserSettings,
+        nowEpochMs: Long
+    ) {
         val entity = budgetPolicyDao.findByPolicyUuid(policy.policyUuid) ?: return
         if (entity.deletedAtEpochMs != null) return
+        val tombstoneEpochMs = maxOf(nowEpochMs, entity.updatedAtEpochMs + 1L)
         budgetPolicyDao.update(
             entity.copy(
-                deletedAtEpochMs = entity.updatedAtEpochMs
+                deletedAtEpochMs = tombstoneEpochMs,
+                updatedAtEpochMs = tombstoneEpochMs,
+                lastModifiedByInstallId = settings.installDeviceId,
+                modClock = hybridLogicalClockService.next(
+                    previousClock = entity.modClock,
+                    nowEpochMs = tombstoneEpochMs,
+                    installId = settings.installDeviceId
+                )
             )
         )
     }
@@ -417,12 +430,24 @@ class UpdateBudgetSettingsUseCase(
         }
     }
 
-    private suspend fun deactivateInsertedAdjustment(adjustment: BudgetAdjustment) {
+    private suspend fun deactivateInsertedAdjustment(
+        adjustment: BudgetAdjustment,
+        settings: UserSettings,
+        nowEpochMs: Long
+    ) {
         val entity = budgetAdjustmentDao.findByAdjustmentUuid(adjustment.adjustmentUuid) ?: return
         if (entity.deletedAtEpochMs != null) return
+        val tombstoneEpochMs = maxOf(nowEpochMs, entity.updatedAtEpochMs + 1L)
         budgetAdjustmentDao.update(
             entity.copy(
-                deletedAtEpochMs = entity.updatedAtEpochMs
+                deletedAtEpochMs = tombstoneEpochMs,
+                updatedAtEpochMs = tombstoneEpochMs,
+                lastModifiedByInstallId = settings.installDeviceId,
+                modClock = hybridLogicalClockService.next(
+                    previousClock = entity.modClock,
+                    nowEpochMs = tombstoneEpochMs,
+                    installId = settings.installDeviceId
+                )
             )
         )
     }
