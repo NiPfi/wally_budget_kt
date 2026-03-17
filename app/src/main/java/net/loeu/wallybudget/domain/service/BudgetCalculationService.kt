@@ -39,26 +39,52 @@ class BudgetCalculationService(
     ): BudgetState {
         val cycleStart = getCycleStartDate(now, settings.paydayDate)
         val cycleEnd = getNextCycleStartDate(now, settings.paydayDate)
+        return calculateBudgetStateForResolvedCycle(
+            now = now,
+            cycleStart = cycleStart,
+            cycleEndExclusive = cycleEnd,
+            cycleBudgetAmountCents = cycleBudgetAmountCents,
+            plannedTodayBudgetCents = null,
+            allocatedBeforeTodayCents = null,
+            totalSpentThisCycleCents = totalSpentThisCycleCents,
+            spentTodayCents = spentTodayCents,
+            cumulativeSavingsCents = cumulativeSavingsCents,
+            paydayDate = settings.paydayDate
+        )
+    }
 
+    fun calculateBudgetStateForResolvedCycle(
+        now: LocalDate,
+        cycleStart: LocalDate,
+        cycleEndExclusive: LocalDate,
+        cycleBudgetAmountCents: Long,
+        plannedTodayBudgetCents: Long?,
+        allocatedBeforeTodayCents: Long?,
+        totalSpentThisCycleCents: Long,
+        spentTodayCents: Long,
+        cumulativeSavingsCents: Long,
+        paydayDate: Int
+    ): BudgetState {
         // Days remaining in cycle including today (e.g. last day => 1)
         // Uses exclusive cycleEnd (invariant), so between(today, nextCycleStart) correctly includes today.
-        val daysRemainingInCycle = ChronoUnit.DAYS.between(now, cycleEnd).toInt().coerceAtLeast(1)
+        val daysRemainingInCycle = ChronoUnit.DAYS.between(now, cycleEndExclusive).toInt().coerceAtLeast(1)
 
         // Calculate today's budget by spreading prior over/underspend across remaining days
         // Note: cycleEnd is EXCLUSIVE (see MonthlyHistory invariant)
-        val daysInCycle = ChronoUnit.DAYS.between(cycleStart, cycleEnd).toInt().coerceAtLeast(1)
+        val daysInCycle = ChronoUnit.DAYS.between(cycleStart, cycleEndExclusive).toInt().coerceAtLeast(1)
         val baseDailyAllocationCents =
-            (cycleBudgetAmountCents.toDouble() / daysInCycle).roundToLong()
+            plannedTodayBudgetCents ?: (cycleBudgetAmountCents.toDouble() / daysInCycle).roundToLong()
 
-        val daysBeforeToday = ChronoUnit.DAYS.between(cycleStart, now).toInt().coerceAtLeast(0)
-        val allocatedBeforeTodayCents =
+        val resolvedAllocatedBeforeTodayCents = allocatedBeforeTodayCents ?: run {
+            val daysBeforeToday = ChronoUnit.DAYS.between(cycleStart, now).toInt().coerceAtLeast(0)
             ((cycleBudgetAmountCents.toDouble() * daysBeforeToday) / daysInCycle)
                 .roundToLong()
+        }
         val spentBeforeTodayCents = (totalSpentThisCycleCents - spentTodayCents).coerceAtLeast(0L)
 
-        val cycleVarianceBeforeTodayCents = allocatedBeforeTodayCents - spentBeforeTodayCents
+        val cycleVarianceBeforeTodayCents = resolvedAllocatedBeforeTodayCents - spentBeforeTodayCents
         val futureDaysAfterToday =
-            ChronoUnit.DAYS.between(now.plusDays(1), cycleEnd).toInt().coerceAtLeast(0)
+            ChronoUnit.DAYS.between(now.plusDays(1), cycleEndExclusive).toInt().coerceAtLeast(0)
         val remainingDaysForAdjustment = futureDaysAfterToday + 1 // include today; on final day this is exactly 1
         val distributedAdjustmentCents =
             (cycleVarianceBeforeTodayCents.toDouble() / remainingDaysForAdjustment).roundToLong()
@@ -72,7 +98,7 @@ class BudgetCalculationService(
             remainingTodayCents = effectiveDailyBudgetCents - spentTodayCents,
             daysRemainingInCycle = daysRemainingInCycle,
             cumulativeSavingsCents = cumulativeSavingsCents,
-            paydayDate = settings.paydayDate,
+            paydayDate = paydayDate,
             cycleStartDate = cycleStart
         )
     }

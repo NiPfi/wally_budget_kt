@@ -2,7 +2,9 @@ package net.loeu.wallybudget.domain.usecase
 
 import kotlinx.coroutines.runBlocking
 import net.loeu.wallybudget.domain.model.UserSettings
+import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
+import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -20,15 +22,20 @@ class ConcludePendingCycleUseCaseTest {
             )
         )
         val budgetPolicyDao = FakeBudgetPolicyDao()
+        val budgetAdjustmentDao = FakeBudgetAdjustmentDao()
         val historyDao = FakeMonthlyHistoryDao()
         val settingsStore = FakeUserSettingsStore()
+        val budgetCalculationService = BudgetCalculationService()
         val useCase = ConcludePendingCycleUseCase(
             transactionRunner = transactionRunner,
             expenseDao = expenseDao,
             budgetPolicyDao = budgetPolicyDao,
+            budgetAdjustmentDao = budgetAdjustmentDao,
             monthlyHistoryDao = historyDao,
             userSettingsStore = settingsStore,
-            budgetCalculationService = BudgetCalculationService()
+            budgetCalculationService = budgetCalculationService,
+            cycleScheduleResolver = CycleScheduleResolver(budgetCalculationService),
+            budgetAdjustmentResolver = BudgetAdjustmentResolver()
         )
         val settings = UserSettings(
             monthlyBudgetCents = 100_000L,

@@ -6,6 +6,7 @@ import net.loeu.wallybudget.domain.model.HomeOverviewState
 import net.loeu.wallybudget.domain.model.TimelineLockState
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
+import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.LocalDate
@@ -29,6 +30,7 @@ class ObserveHistoryUseCaseTest {
                 historyEntity(LocalDate.of(2026, 1, 25), LocalDate.of(2026, 2, 25), 60_000L)
             )
         )
+        val budgetPolicyDao = FakeBudgetPolicyDao()
         val settingsStore = FakeUserSettingsStore(
             UserSettings(
                 monthlyBudgetCents = 100_000L,
@@ -41,7 +43,9 @@ class ObserveHistoryUseCaseTest {
         val useCase = ObserveHistoryUseCase(
             expenseDao = expenseDao,
             monthlyHistoryDao = historyDao,
-            budgetCalculationService = budgetCalculationService
+            budgetPolicyDao = budgetPolicyDao,
+            userSettingsStore = settingsStore,
+            cycleScheduleResolver = CycleScheduleResolver(budgetCalculationService)
         )
         val today = LocalDate.of(2026, 4, 10)
         val homeOverviewState = HomeOverviewState(
@@ -74,7 +78,7 @@ class ObserveHistoryUseCaseTest {
 private fun expectedHistorySectionTitles(): List<String> {
     return listOf(
         "Current cycle",
-        "Future-dated expenses",
+        "Upcoming 2026-03-25 - 2026-04-24",
         "Feb 25 - Mar 24, 2026",
         "Jan 25 - Feb 24, 2026"
     )

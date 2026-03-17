@@ -16,6 +16,7 @@ appcompat = "1.7.1"
 composeAdaptive = "1.2.0"
 detekt = "2.0.0-alpha.2"
 gson = "2.13.2"
+startupRuntime = "1.2.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -44,6 +45,7 @@ androidx-compose-adaptive = { group = "androidx.compose.material3.adaptive", nam
 androidx-compose-adaptive-layout = { group = "androidx.compose.material3.adaptive", name = "adaptive-layout", version.ref = "composeAdaptive" }
 androidx-compose-adaptive-navigation = { group = "androidx.compose.material3.adaptive", name = "adaptive-navigation", version.ref = "composeAdaptive" }
 androidx-compose-adaptive-navigation-suite = { group = "androidx.compose.material3", name = "material3-adaptive-navigation-suite" }
+androidx-startup-runtime = { group = "androidx.startup", name = "startup-runtime", version.ref = "startupRuntime" }
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 
 [plugins]

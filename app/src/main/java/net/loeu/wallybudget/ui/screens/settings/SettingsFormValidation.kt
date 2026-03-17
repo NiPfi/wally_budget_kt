@@ -14,13 +14,12 @@ internal data class SettingsFormValidation(
 
 internal fun validateSettingsForm(
     budgetText: String,
-    paydayText: String,
-    paydayEditingEnabled: Boolean
+    paydayText: String
 ): SettingsFormValidation {
     val budgetCents = CurrencyFormatter.parseAmountToCents(budgetText)
-    val payday = paydayText.toIntOrNull()?.takeIf { paydayEditingEnabled }
+    val payday = paydayText.toIntOrNull()
     val isBudgetValid = budgetCents != null && budgetCents > 0L
-    val isPaydayValid = !paydayEditingEnabled || (payday != null && payday in 1..31)
+    val isPaydayValid = payday != null && payday in 1..31
 
     return SettingsFormValidation(
         budgetCents = budgetCents,

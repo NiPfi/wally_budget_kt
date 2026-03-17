@@ -13,6 +13,7 @@ import net.loeu.wallybudget.data.snapshot.model.SnapshotExpenseRecordV1
 import net.loeu.wallybudget.data.snapshot.model.SnapshotSettingsRecordV1
 import net.loeu.wallybudget.domain.model.SnapshotError
 import net.loeu.wallybudget.domain.model.UserSettings
+import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -118,6 +119,7 @@ class SnapshotUseCasesTest {
     fun applyOnboardingRestore_restoresDataAndRebuildsHistory() = runBlocking {
         val expenseDao = FakeExpenseDao()
         val budgetPolicyDao = FakeBudgetPolicyDao()
+        val budgetAdjustmentDao = FakeBudgetAdjustmentDao()
         val monthlyHistoryDao = FakeMonthlyHistoryDao()
         val settingsStore = FakeUserSettingsStore()
         val lastResetTimestamp = LocalDate.of(2026, 4, 25)
@@ -160,6 +162,7 @@ class SnapshotUseCasesTest {
                     modClock = "0000000000001-0000-install-a"
                 )
             ),
+            budgetAdjustments = emptyList(),
             expenses = listOf(
                 ExpenseEntity(
                     recordUuid = "expense-1",
@@ -181,12 +184,15 @@ class SnapshotUseCasesTest {
             transactionRunner = FakeTransactionRunner(),
             expenseDao = expenseDao,
             budgetPolicyDao = budgetPolicyDao,
+            budgetAdjustmentDao = budgetAdjustmentDao,
             userSettingsStore = settingsStore,
             rebuildMonthlyHistoryUseCase = RebuildMonthlyHistoryUseCase(
                 budgetPolicyDao = budgetPolicyDao,
+                budgetAdjustmentDao = budgetAdjustmentDao,
                 expenseDao = expenseDao,
                 monthlyHistoryDao = monthlyHistoryDao,
-                budgetCalculationService = BudgetCalculationService()
+                budgetCalculationService = BudgetCalculationService(),
+                budgetAdjustmentResolver = BudgetAdjustmentResolver()
             )
         )
 
@@ -233,16 +239,20 @@ class SnapshotUseCasesTest {
                 )
             )
         )
+        val existingBudgetAdjustmentDao = FakeBudgetAdjustmentDao()
         val useCase = ApplyOnboardingRestoreUseCase(
             transactionRunner = FakeTransactionRunner(),
             expenseDao = existingExpenseDao,
             budgetPolicyDao = existingBudgetPolicyDao,
+            budgetAdjustmentDao = existingBudgetAdjustmentDao,
             userSettingsStore = FakeUserSettingsStore(),
             rebuildMonthlyHistoryUseCase = RebuildMonthlyHistoryUseCase(
                 budgetPolicyDao = existingBudgetPolicyDao,
+                budgetAdjustmentDao = existingBudgetAdjustmentDao,
                 expenseDao = existingExpenseDao,
                 monthlyHistoryDao = existingHistoryDao,
-                budgetCalculationService = BudgetCalculationService()
+                budgetCalculationService = BudgetCalculationService(),
+                budgetAdjustmentResolver = BudgetAdjustmentResolver()
             )
         )
 
@@ -260,6 +270,7 @@ class SnapshotUseCasesTest {
                 ),
                 settings = UserSettings(),
                 budgetPolicies = emptyList(),
+                budgetAdjustments = emptyList(),
                 expenses = emptyList()
             )
         )
@@ -277,14 +288,17 @@ class SnapshotUseCasesTest {
             transactionRunner = FakeTransactionRunner(),
             expenseDao = FakeExpenseDao(listOf(expenseEntityOn(1L, LocalDate.of(2026, 3, 25), 5_000L))),
             budgetPolicyDao = FakeBudgetPolicyDao(),
+            budgetAdjustmentDao = FakeBudgetAdjustmentDao(),
             userSettingsStore = FakeUserSettingsStore(
                 UserSettings(isOnboardingCompleted = true)
             ),
             rebuildMonthlyHistoryUseCase = RebuildMonthlyHistoryUseCase(
                 budgetPolicyDao = FakeBudgetPolicyDao(),
+                budgetAdjustmentDao = FakeBudgetAdjustmentDao(),
                 expenseDao = FakeExpenseDao(),
                 monthlyHistoryDao = FakeMonthlyHistoryDao(),
-                budgetCalculationService = BudgetCalculationService()
+                budgetCalculationService = BudgetCalculationService(),
+                budgetAdjustmentResolver = BudgetAdjustmentResolver()
             )
         )
 
@@ -303,6 +317,7 @@ class SnapshotUseCasesTest {
                     ),
                     settings = UserSettings(),
                     budgetPolicies = emptyList(),
+                    budgetAdjustments = emptyList(),
                     expenses = emptyList()
                 )
             )
@@ -360,6 +375,7 @@ private fun sampleEnvelope(): SnapshotEnvelopeV1 {
                 modClock = "0000000001234-0000-install-a"
             )
         ),
+        budgetAdjustments = emptyList(),
         expenses = listOf(
             SnapshotExpenseRecordV1(
                 recordUuid = "expense-1",

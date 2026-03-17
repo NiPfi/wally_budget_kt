@@ -3,7 +3,9 @@ package net.loeu.wallybudget.domain.usecase
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import net.loeu.wallybudget.domain.model.UserSettings
+import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
+import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
@@ -34,12 +36,19 @@ class ObserveForecastUseCaseTest {
                     .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
             )
         )
+        val budgetPolicyDao = FakeBudgetPolicyDao()
+        val budgetAdjustmentDao = FakeBudgetAdjustmentDao()
+        val budgetCalculationService = BudgetCalculationService()
         val useCase = ObserveForecastUseCase(
+            budgetPolicyDao = budgetPolicyDao,
+            budgetAdjustmentDao = budgetAdjustmentDao,
             expenseDao = expenseDao,
             monthlyHistoryDao = historyDao,
             userSettingsStore = settingsStore,
             currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
-            budgetCalculationService = BudgetCalculationService()
+            budgetCalculationService = budgetCalculationService,
+            cycleScheduleResolver = CycleScheduleResolver(budgetCalculationService),
+            budgetAdjustmentResolver = BudgetAdjustmentResolver()
         )
 
         val forecast = useCase().first()

@@ -3,6 +3,7 @@ package net.loeu.wallybudget.domain.usecase
 import kotlinx.coroutines.runBlocking
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
+import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -29,7 +30,9 @@ class ResolveMutationEffectiveDateUseCaseTest {
         val useCase = ResolveMutationEffectiveDateUseCase(
             userSettingsStore = settingsStore,
             expenseDao = expenseDao,
-            budgetCalculationService = BudgetCalculationService()
+            budgetPolicyDao = FakeBudgetPolicyDao(),
+            budgetCalculationService = BudgetCalculationService(),
+            cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService())
         )
 
         val result = useCase(
@@ -59,7 +62,9 @@ class ResolveMutationEffectiveDateUseCaseTest {
         val useCase = ResolveMutationEffectiveDateUseCase(
             userSettingsStore = settingsStore,
             expenseDao = expenseDao,
-            budgetCalculationService = BudgetCalculationService()
+            budgetPolicyDao = FakeBudgetPolicyDao(),
+            budgetCalculationService = BudgetCalculationService(),
+            cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService())
         )
 
         val result = useCase(

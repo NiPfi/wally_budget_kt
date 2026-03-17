@@ -1,13 +1,18 @@
 package net.loeu.wallybudget.domain.usecase
 
+import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
 import net.loeu.wallybudget.data.local.db.TransactionRunner
+import net.loeu.wallybudget.data.local.entity.toDomainModel as adjustmentToDomainModel
+import net.loeu.wallybudget.data.local.entity.toDomainModel as policyToDomainModel
 import net.loeu.wallybudget.data.local.entity.toEntity as budgetPolicyToEntity
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.domain.model.UserSettings
+import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
+import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import net.loeu.wallybudget.domain.usecase.internal.CycleRange
 import net.loeu.wallybudget.domain.usecase.internal.archiveCycleIfNeeded
@@ -24,23 +29,30 @@ class PerformMonthlyResetUseCase(
     private val transactionRunner: TransactionRunner,
     private val expenseDao: ExpenseDao,
     private val budgetPolicyDao: BudgetPolicyDao,
+    private val budgetAdjustmentDao: BudgetAdjustmentDao,
     private val monthlyHistoryDao: MonthlyHistoryDao,
     private val userSettingsStore: UserSettingsStore,
     private val budgetCalculationService: BudgetCalculationService,
+    private val cycleScheduleResolver: CycleScheduleResolver,
+    private val budgetAdjustmentResolver: BudgetAdjustmentResolver,
     private val hybridLogicalClockService: HybridLogicalClockService
 ) {
     suspend operator fun invoke(settings: UserSettings, now: LocalDate) {
         val ensuredSettings = userSettingsStore.ensureIdentity()
         val lastResetDate = settings.lastResetDateOrNull() ?: return
-        val currentCycleStart = budgetCalculationService.getCycleStartDate(now, settings.paydayDate)
+        val policies = budgetPolicyDao.getAllForSnapshot()
+            .filter { it.deletedAtEpochMs == null }
+            .map { it.policyToDomainModel() }
+        val currentPolicy = cycleScheduleResolver.resolvePolicyForDate(now, settings, policies)
+        val currentCycleStart = currentPolicy.cycleStart
         val existingPending = settings.pendingCycleRangeOrNull()
         val recoveryPendingCycle = if (existingPending == null) {
-            recoverMissingPendingCycle(settings, currentCycleStart)
+            recoverMissingPendingCycle(settings, currentPolicy, policies)
         } else {
             null
         }
 
-        if (!budgetCalculationService.shouldPerformReset(now, settings.paydayDate, lastResetDate)) {
+        if (!currentCycleStart.isAfter(lastResetDate)) {
             recoveryPendingCycle?.let { pendingCycle ->
                 userSettingsStore.setPendingCycle(
                     cycleStartDate = pendingCycle.start,
@@ -56,11 +68,20 @@ class PerformMonthlyResetUseCase(
 
         transactionRunner.inTransaction {
             if (existingPending != null && existingPending.endExclusive.isBefore(currentCycleStart)) {
+                val pendingPolicy = cycleScheduleResolver.policyForCycleStart(
+                    cycleStart = existingPending.start,
+                    settings = settings,
+                    policies = policies
+                )
                 archiveCycleIfNeeded(
                     expenseDao = expenseDao,
                     budgetPolicyDao = budgetPolicyDao,
                     monthlyHistoryDao = monthlyHistoryDao,
                     budgetCalculationService = budgetCalculationService,
+                    budgetAdjustmentResolver = budgetAdjustmentResolver,
+                    cyclePolicy = pendingPolicy,
+                    adjustments = budgetAdjustmentDao.getActiveForCycle(existingPending.start.toString())
+                        .map { it.adjustmentToDomainModel() },
                     settings = settings,
                     cycleStart = existingPending.start,
                     cycleEnd = existingPending.endExclusive
@@ -68,10 +89,11 @@ class PerformMonthlyResetUseCase(
                 clearPending = true
             }
 
-            val endedCycles = buildEndedCycles(
-                fromStart = lastResetDate,
-                untilExclusive = currentCycleStart,
-                paydayDate = settings.paydayDate
+            val endedCycles = cycleScheduleResolver.completedCyclesBetween(
+                fromStartInclusive = lastResetDate,
+                untilStartExclusive = currentCycleStart,
+                settings = settings,
+                policies = policies
             )
 
             if (endedCycles.isEmpty()) {
@@ -84,15 +106,20 @@ class PerformMonthlyResetUseCase(
                     budgetPolicyDao = budgetPolicyDao,
                     monthlyHistoryDao = monthlyHistoryDao,
                     budgetCalculationService = budgetCalculationService,
+                    budgetAdjustmentResolver = budgetAdjustmentResolver,
+                    cyclePolicy = cycle,
+                    adjustments = budgetAdjustmentDao.getActiveForCycle(cycle.cycleStart.toString())
+                        .map { it.adjustmentToDomainModel() },
                     settings = settings,
-                    cycleStart = cycle.start,
-                    cycleEnd = cycle.endExclusive
+                    cycleStart = cycle.cycleStart,
+                    cycleEnd = cycle.cycleEndExclusive
                 )
             }
-            nextPendingCycle = endedCycles.last()
+            nextPendingCycle = endedCycles.last().let { CycleRange(it.cycleStart, it.cycleEndExclusive) }
             ensurePolicyForCycle(
                 settings = ensuredSettings,
-                cycleStart = currentCycleStart
+                cycleStart = currentCycleStart,
+                cyclePolicy = currentPolicy
             )
         }
 
@@ -103,7 +130,8 @@ class PerformMonthlyResetUseCase(
 
     private suspend fun ensurePolicyForCycle(
         settings: UserSettings,
-        cycleStart: LocalDate
+        cycleStart: LocalDate,
+        cyclePolicy: net.loeu.wallybudget.domain.service.ResolvedCyclePolicy
     ) {
         if (budgetPolicyDao.findActivePolicyForCycle(cycleStart.toString()) != null) return
 
@@ -111,9 +139,9 @@ class PerformMonthlyResetUseCase(
         budgetPolicyDao.insert(
             newBudgetPolicy(
                 cycleStart = cycleStart,
-                cycleEndExclusive = budgetCalculationService.getNextCycleStartDate(cycleStart, settings.paydayDate),
-                budgetAmountCents = settings.monthlyBudgetCents,
-                paydayDayOfMonth = settings.paydayDate,
+                cycleEndExclusive = cyclePolicy.cycleEndExclusive,
+                budgetAmountCents = cyclePolicy.budgetAmountCents,
+                paydayDayOfMonth = cyclePolicy.paydayDayOfMonth,
                 installId = settings.installDeviceId,
                 nowEpochMs = nowEpochMs,
                 hybridLogicalClockService = hybridLogicalClockService
@@ -131,47 +159,32 @@ class PerformMonthlyResetUseCase(
 
     private suspend fun recoverMissingPendingCycle(
         settings: UserSettings,
-        currentCycleStart: LocalDate
+        currentPolicy: net.loeu.wallybudget.domain.service.ResolvedCyclePolicy,
+        policies: List<net.loeu.wallybudget.domain.model.BudgetPolicy>
     ): CycleRange? {
-        val previousCycleStart = budgetCalculationService.getCycleStartDate(
-            currentCycleStart.minusDays(1),
-            settings.paydayDate
+        val previousCycleStart = cycleScheduleResolver.findPreviousCycleStart(
+            date = currentPolicy.cycleStart,
+            settings = settings,
+            policies = policies
         )
         val archivedPreviousCycle = monthlyHistoryDao.findByCycleStart(previousCycleStart.toString())
 
         val previousCycleExpenseCount = expenseDao.countInRange(
             previousCycleStart.toString(),
-            currentCycleStart.toString()
+            currentPolicy.cycleStart.toString()
         )
 
         return if (
-            previousCycleStart.isBefore(currentCycleStart) &&
+            previousCycleStart.isBefore(currentPolicy.cycleStart) &&
             archivedPreviousCycle == null &&
             previousCycleExpenseCount > 0
         ) {
             CycleRange(
                 start = previousCycleStart,
-                endExclusive = currentCycleStart
+                endExclusive = currentPolicy.cycleStart
             )
         } else {
             null
         }
-    }
-
-    private fun buildEndedCycles(
-        fromStart: LocalDate,
-        untilExclusive: LocalDate,
-        paydayDate: Int
-    ): List<CycleRange> {
-        if (!fromStart.isBefore(untilExclusive)) return emptyList()
-
-        val cycles = mutableListOf<CycleRange>()
-        var cursor = fromStart
-        while (cursor.isBefore(untilExclusive)) {
-            val nextCycleStart = budgetCalculationService.getNextCycleStartDate(cursor, paydayDate)
-            cycles += CycleRange(start = cursor, endExclusive = nextCycleStart)
-            cursor = nextCycleStart
-        }
-        return cycles
     }
 }

@@ -2,7 +2,9 @@ package net.loeu.wallybudget.domain.usecase
 
 import kotlinx.coroutines.runBlocking
 import net.loeu.wallybudget.domain.model.UserSettings
+import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
+import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -13,6 +15,8 @@ import java.time.ZoneId
 class PerformMonthlyResetUseCaseTest {
 
     private val budgetCalculationService = BudgetCalculationService()
+    private val cycleScheduleResolver = CycleScheduleResolver(budgetCalculationService)
+    private val budgetAdjustmentResolver = BudgetAdjustmentResolver()
 
     @Test
     fun invoke_recoversMissingPendingCycle_whenPreviousCycleHasExpensesButNoArchive() = runBlocking {
@@ -23,15 +27,19 @@ class PerformMonthlyResetUseCaseTest {
             )
         )
         val budgetPolicyDao = FakeBudgetPolicyDao()
+        val budgetAdjustmentDao = FakeBudgetAdjustmentDao()
         val historyDao = FakeMonthlyHistoryDao()
         val userSettingsStore = FakeUserSettingsStore()
         val useCase = PerformMonthlyResetUseCase(
             transactionRunner = transactionRunner,
             expenseDao = expenseDao,
             budgetPolicyDao = budgetPolicyDao,
+            budgetAdjustmentDao = budgetAdjustmentDao,
             monthlyHistoryDao = historyDao,
             userSettingsStore = userSettingsStore,
             budgetCalculationService = budgetCalculationService,
+            cycleScheduleResolver = cycleScheduleResolver,
+            budgetAdjustmentResolver = budgetAdjustmentResolver,
             hybridLogicalClockService = HybridLogicalClockService()
         )
         val settings = UserSettings(
@@ -60,15 +68,19 @@ class PerformMonthlyResetUseCaseTest {
             )
         )
         val budgetPolicyDao = FakeBudgetPolicyDao()
+        val budgetAdjustmentDao = FakeBudgetAdjustmentDao()
         val historyDao = FakeMonthlyHistoryDao()
         val userSettingsStore = FakeUserSettingsStore()
         val useCase = PerformMonthlyResetUseCase(
             transactionRunner = transactionRunner,
             expenseDao = expenseDao,
             budgetPolicyDao = budgetPolicyDao,
+            budgetAdjustmentDao = budgetAdjustmentDao,
             monthlyHistoryDao = historyDao,
             userSettingsStore = userSettingsStore,
             budgetCalculationService = budgetCalculationService,
+            cycleScheduleResolver = cycleScheduleResolver,
+            budgetAdjustmentResolver = budgetAdjustmentResolver,
             hybridLogicalClockService = HybridLogicalClockService()
         )
         val settings = UserSettings(
@@ -98,15 +110,19 @@ class PerformMonthlyResetUseCaseTest {
             )
         )
         val budgetPolicyDao = FakeBudgetPolicyDao()
+        val budgetAdjustmentDao = FakeBudgetAdjustmentDao()
         val historyDao = FakeMonthlyHistoryDao()
         val userSettingsStore = FakeUserSettingsStore()
         val useCase = PerformMonthlyResetUseCase(
             transactionRunner = transactionRunner,
             expenseDao = expenseDao,
             budgetPolicyDao = budgetPolicyDao,
+            budgetAdjustmentDao = budgetAdjustmentDao,
             monthlyHistoryDao = historyDao,
             userSettingsStore = userSettingsStore,
             budgetCalculationService = budgetCalculationService,
+            cycleScheduleResolver = cycleScheduleResolver,
+            budgetAdjustmentResolver = budgetAdjustmentResolver,
             hybridLogicalClockService = HybridLogicalClockService()
         )
         val settings = UserSettings(

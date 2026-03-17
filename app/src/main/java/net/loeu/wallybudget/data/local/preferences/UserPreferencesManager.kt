@@ -12,6 +12,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import net.loeu.wallybudget.domain.model.PendingSettingsUndo
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import java.time.LocalDate
@@ -19,9 +20,11 @@ import java.util.UUID
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_settings")
 
+@Suppress("TooManyFunctions")
 class UserPreferencesManager(
     private val context: Context,
-    private val hybridLogicalClockService: HybridLogicalClockService = HybridLogicalClockService()
+    private val hybridLogicalClockService: HybridLogicalClockService = HybridLogicalClockService(),
+    private val settingsUndoJsonCodec: SettingsUndoJsonCodec = SettingsUndoJsonCodec()
 ) : UserSettingsStore {
 
     private object PreferenceKeys {
@@ -38,6 +41,7 @@ class UserPreferencesManager(
         val SETTINGS_UPDATED_AT_EPOCH_MS = longPreferencesKey("settings_updated_at_epoch_ms")
         val SETTINGS_MOD_CLOCK = stringPreferencesKey("settings_mod_clock")
         val SETTINGS_LAST_MODIFIED_BY_INSTALL_ID = stringPreferencesKey("settings_last_modified_by_install_id")
+        val PENDING_SETTINGS_UNDO_JSON = stringPreferencesKey("pending_settings_undo_json")
     }
 
     override val userSettings: Flow<UserSettings> = context.dataStore.data.map { preferences ->
@@ -57,6 +61,11 @@ class UserPreferencesManager(
             settingsLastModifiedByInstallId =
                 preferences[PreferenceKeys.SETTINGS_LAST_MODIFIED_BY_INSTALL_ID] ?: ""
         )
+    }
+
+    override val pendingSettingsUndo: Flow<PendingSettingsUndo?> = context.dataStore.data.map { preferences ->
+        preferences[PreferenceKeys.PENDING_SETTINGS_UNDO_JSON]
+            ?.let(settingsUndoJsonCodec::decodeOrNull)
     }
 
     override suspend fun ensureIdentity(): UserSettings {
@@ -90,6 +99,15 @@ class UserPreferencesManager(
         context.dataStore.edit { preferences ->
             ensureSettingsIdentity(preferences)
             preferences[PreferenceKeys.MONTHLY_BUDGET_CENTS] = amountCents
+            touchSettingsMetadata(preferences)
+        }
+    }
+
+    override suspend fun updateCycleSettings(monthlyBudgetCents: Long, paydayDate: Int) {
+        context.dataStore.edit { preferences ->
+            ensureSettingsIdentity(preferences)
+            preferences[PreferenceKeys.MONTHLY_BUDGET_CENTS] = monthlyBudgetCents
+            preferences[PreferenceKeys.PAYDAY_DATE] = paydayDate
             touchSettingsMetadata(preferences)
         }
     }
@@ -148,6 +166,18 @@ class UserPreferencesManager(
         }
     }
 
+    override suspend fun savePendingSettingsUndo(pendingSettingsUndo: PendingSettingsUndo) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferenceKeys.PENDING_SETTINGS_UNDO_JSON] = settingsUndoJsonCodec.encode(pendingSettingsUndo)
+        }
+    }
+
+    override suspend fun clearPendingSettingsUndo() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(PreferenceKeys.PENDING_SETTINGS_UNDO_JSON)
+        }
+    }
+
     override suspend fun restoreFromSnapshot(settings: UserSettings, onboardingCompleted: Boolean) {
         context.dataStore.edit { preferences ->
             val installId = preferences[PreferenceKeys.INSTALL_DEVICE_ID]
@@ -181,6 +211,7 @@ class UserPreferencesManager(
             preferences[PreferenceKeys.SETTINGS_LAST_MODIFIED_BY_INSTALL_ID] =
                 settings.settingsLastModifiedByInstallId.ifBlank { installId }
             preferences[PreferenceKeys.INSTALL_DEVICE_ID] = installId
+            preferences.remove(PreferenceKeys.PENDING_SETTINGS_UNDO_JSON)
         }
     }
 

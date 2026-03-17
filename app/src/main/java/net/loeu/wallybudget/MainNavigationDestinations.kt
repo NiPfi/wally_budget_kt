@@ -14,6 +14,7 @@ import net.loeu.wallybudget.domain.model.ExpenseDaySection
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.UserSettings
+import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import net.loeu.wallybudget.ui.navigation.Screen
 import net.loeu.wallybudget.ui.screens.analysis.AnalysisScreen
 import net.loeu.wallybudget.ui.screens.history.HistoryScreen
@@ -115,9 +116,15 @@ internal fun NavGraphBuilder.addAnalysisDestination(
 internal fun NavGraphBuilder.addSettingsDestination(
     navController: NavHostController,
     userSettings: UserSettings,
-    onUpdateBudget: (Long) -> Unit,
-    onUpdatePayday: (Int) -> Unit,
+    budgetState: BudgetState,
+    currentDate: LocalDate,
+    onSaveSettings: (Long, Int, BudgetChangeMode) -> Unit,
+    onUndoSettings: () -> Unit,
+    isSettingsUndoAvailable: Boolean,
+    settingsUndoExpiresAtExclusive: LocalDate?,
+    onSettingsMessageConsumed: () -> Unit,
     onRequestExportSnapshot: () -> Unit,
+    settingsMessage: String?,
     snapshotMessage: String?,
     snapshotErrorMessage: String?,
     isSnapshotBusy: Boolean
@@ -125,9 +132,15 @@ internal fun NavGraphBuilder.addSettingsDestination(
     composable(Screen.Settings.route) {
         SettingsScreen(
             userSettings = userSettings,
-            onUpdateBudget = onUpdateBudget,
-            onUpdatePayday = onUpdatePayday,
+            budgetState = budgetState,
+            currentDate = currentDate,
+            onSaveSettings = onSaveSettings,
+            onUndoSettings = onUndoSettings,
+            isSettingsUndoAvailable = isSettingsUndoAvailable,
+            settingsUndoExpiresAtExclusive = settingsUndoExpiresAtExclusive,
+            onSettingsMessageConsumed = onSettingsMessageConsumed,
             onRequestExportSnapshot = onRequestExportSnapshot,
+            settingsMessage = settingsMessage,
             snapshotMessage = snapshotMessage,
             snapshotErrorMessage = snapshotErrorMessage,
             isSnapshotBusy = isSnapshotBusy,

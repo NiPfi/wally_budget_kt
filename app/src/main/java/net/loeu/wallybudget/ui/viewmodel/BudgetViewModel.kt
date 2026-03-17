@@ -34,6 +34,7 @@ import net.loeu.wallybudget.domain.usecase.ApplyOnboardingRestoreUseCase
 import net.loeu.wallybudget.domain.usecase.AddExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.CompleteOnboardingUseCase
 import net.loeu.wallybudget.domain.usecase.ConcludePendingCycleUseCase
+import net.loeu.wallybudget.domain.usecase.ClearPendingSettingsUndoUseCase
 import net.loeu.wallybudget.domain.usecase.DeleteExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.EnsureBudgetPolicyHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ExportSnapshotUseCase
@@ -48,12 +49,18 @@ import net.loeu.wallybudget.domain.usecase.ResolveMutationEffectiveDateUseCase
 import net.loeu.wallybudget.domain.usecase.RestoreDeletedExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.SnapshotOperationException
 import net.loeu.wallybudget.domain.usecase.SyncObservedDateUseCase
+import net.loeu.wallybudget.domain.usecase.UndoBudgetSettingsChangeUseCase
+import net.loeu.wallybudget.domain.usecase.UpdateBudgetSettingsRequest
+import net.loeu.wallybudget.domain.usecase.UpdateBudgetSettingsUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateExpenseUseCase
-import net.loeu.wallybudget.domain.usecase.UpdateMonthlyBudgetUseCase
-import net.loeu.wallybudget.domain.usecase.UpdatePaydayDateUseCase
+import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+
+data class SettingsUndoState(
+    val expiresAtExclusive: LocalDate
+)
 
 @Suppress("TooManyFunctions", "TooGenericExceptionCaught")
 class BudgetViewModel(
@@ -65,8 +72,8 @@ class BudgetViewModel(
     private val updateExpenseUseCase: UpdateExpenseUseCase,
     private val deleteExpenseUseCase: DeleteExpenseUseCase,
     private val restoreDeletedExpenseUseCase: RestoreDeletedExpenseUseCase,
-    private val updateMonthlyBudgetUseCase: UpdateMonthlyBudgetUseCase,
-    private val updatePaydayDateUseCase: UpdatePaydayDateUseCase,
+    private val updateBudgetSettingsUseCase: UpdateBudgetSettingsUseCase,
+    private val undoBudgetSettingsChangeUseCase: UndoBudgetSettingsChangeUseCase,
     private val completeOnboardingUseCase: CompleteOnboardingUseCase,
     private val performMonthlyResetUseCase: PerformMonthlyResetUseCase,
     private val concludePendingCycleUseCase: ConcludePendingCycleUseCase,
@@ -76,6 +83,8 @@ class BudgetViewModel(
     private val ensureBudgetPolicyHistoryUseCase: EnsureBudgetPolicyHistoryUseCase,
     private val rebuildMonthlyHistoryUseCase: RebuildMonthlyHistoryUseCase,
     private val resolveMutationEffectiveDateUseCase: ResolveMutationEffectiveDateUseCase,
+    private val clearPendingSettingsUndoUseCase: ClearPendingSettingsUndoUseCase,
+    pendingSettingsUndoFlow: Flow<net.loeu.wallybudget.domain.model.PendingSettingsUndo?>,
     private val syncObservedDateUseCase: SyncObservedDateUseCase,
     private val currentDateProvider: CurrentDateProvider
 ) : ViewModel() {
@@ -188,6 +197,10 @@ class BudgetViewModel(
     val snapshotStatusMessage = _snapshotStatusMessage.asStateFlow()
     private val _snapshotBusy = MutableStateFlow(false)
     val snapshotBusy = _snapshotBusy.asStateFlow()
+    private val _settingsStatusMessage = MutableStateFlow<String?>(null)
+    val settingsStatusMessage = _settingsStatusMessage.asStateFlow()
+    private val _settingsUndoState = MutableStateFlow<SettingsUndoState?>(null)
+    val settingsUndoState = _settingsUndoState.asStateFlow()
     private var preparedSnapshotImport: PreparedSnapshotImport? = null
 
     init {
@@ -201,6 +214,22 @@ class BudgetViewModel(
             }.collect { (settings, observedDate) ->
                 val effectiveDate = syncObservedDateUseCase(settings, observedDate)
                 performMonthlyResetUseCase(settings, effectiveDate)
+            }
+        }
+        viewModelScope.launch {
+            combine(pendingSettingsUndoFlow, effectiveCurrentDate) { pendingUndo, effectiveDate ->
+                pendingUndo to effectiveDate
+            }.collect { (pendingUndo, effectiveDate) ->
+                if (pendingUndo == null) {
+                    _settingsUndoState.value = null
+                } else if (!effectiveDate.isBefore(pendingUndo.expiresAtExclusiveDate())) {
+                    clearPendingSettingsUndoUseCase()
+                    _settingsUndoState.value = null
+                } else {
+                    _settingsUndoState.value = SettingsUndoState(
+                        expiresAtExclusive = pendingUndo.expiresAtExclusiveDate()
+                    )
+                }
             }
         }
     }
@@ -334,21 +363,27 @@ class BudgetViewModel(
         }
     }
 
-    /**
-     * Update monthly budget
-     */
-    fun updateMonthlyBudget(amountCents: Long) {
+    fun updateBudgetSettings(
+        amountCents: Long,
+        paydayDate: Int,
+        budgetChangeMode: BudgetChangeMode
+    ) {
         viewModelScope.launch {
-            updateMonthlyBudgetUseCase(amountCents)
+            val result = updateBudgetSettingsUseCase(
+                UpdateBudgetSettingsRequest(
+                    monthlyBudgetCents = amountCents,
+                    paydayDate = paydayDate,
+                    budgetChangeMode = budgetChangeMode
+                )
+            )
+            _settingsStatusMessage.value = result.summaryMessage
         }
     }
 
-    /**
-     * Update payday date
-     */
-    fun updatePaydayDate(day: Int) {
+    fun undoBudgetSettingsChange() {
         viewModelScope.launch {
-            updatePaydayDateUseCase(day)
+            val result = undoBudgetSettingsChangeUseCase()
+            _settingsStatusMessage.value = result.summaryMessage
         }
     }
 
@@ -429,6 +464,10 @@ class BudgetViewModel(
     fun clearSnapshotFeedback() {
         _snapshotError.value = null
         _snapshotStatusMessage.value = null
+    }
+
+    fun clearSettingsFeedback() {
+        _settingsStatusMessage.value = null
     }
 }
 

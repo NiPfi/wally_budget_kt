@@ -9,16 +9,18 @@ import androidx.room.migration.Migration
 import androidx.room.withTransaction
 import androidx.sqlite.db.SupportSQLiteDatabase
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
+import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.CycleOverviewDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
+import net.loeu.wallybudget.data.local.entity.BudgetAdjustmentEntity
 import net.loeu.wallybudget.data.local.entity.BudgetPolicyEntity
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
 import net.loeu.wallybudget.data.local.entity.MonthlyHistoryEntity
 
 @Database(
-    entities = [ExpenseEntity::class, MonthlyHistoryEntity::class, BudgetPolicyEntity::class],
-    version = 8,
+    entities = [ExpenseEntity::class, MonthlyHistoryEntity::class, BudgetPolicyEntity::class, BudgetAdjustmentEntity::class],
+    version = 9,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -27,6 +29,7 @@ abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
     abstract fun monthlyHistoryDao(): MonthlyHistoryDao
     abstract fun cycleOverviewDao(): CycleOverviewDao
     abstract fun budgetPolicyDao(): BudgetPolicyDao
+    abstract fun budgetAdjustmentDao(): BudgetAdjustmentDao
 
     override suspend fun <T> inTransaction(block: suspend () -> T): T = withTransaction { block() }
 
@@ -376,6 +379,41 @@ abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
                         "CREATE INDEX IF NOT EXISTS `index_budget_policies_deletedAtEpochMs` ON `budget_policies` (`deletedAtEpochMs`)"
                     )
                 }
+            }
+        }
+
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `budget_adjustments` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `adjustmentUuid` TEXT NOT NULL,
+                        `cycleStartDate` TEXT NOT NULL,
+                        `effectiveDate` TEXT NOT NULL,
+                        `previousMonthlyBudgetCents` INTEGER NOT NULL,
+                        `newMonthlyBudgetCents` INTEGER NOT NULL,
+                        `originInstallId` TEXT NOT NULL,
+                        `lastModifiedByInstallId` TEXT NOT NULL,
+                        `createdAtEpochMs` INTEGER NOT NULL,
+                        `updatedAtEpochMs` INTEGER NOT NULL,
+                        `deletedAtEpochMs` INTEGER,
+                        `modClock` TEXT NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_budget_adjustments_adjustmentUuid` ON `budget_adjustments` (`adjustmentUuid`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_budget_adjustments_cycleStartDate` ON `budget_adjustments` (`cycleStartDate`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_budget_adjustments_effectiveDate` ON `budget_adjustments` (`effectiveDate`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_budget_adjustments_deletedAtEpochMs` ON `budget_adjustments` (`deletedAtEpochMs`)"
+                )
             }
         }
     }

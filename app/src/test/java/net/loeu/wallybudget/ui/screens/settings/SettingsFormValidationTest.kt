@@ -8,11 +8,10 @@ import org.junit.Test
 class SettingsFormValidationTest {
 
     @Test
-    fun validateSettingsForm_rejectsInvalidBudgetWhenPaydayIsLocked() {
+    fun validateSettingsForm_rejectsInvalidBudget() {
         val result = validateSettingsForm(
             budgetText = "0",
-            paydayText = "5",
-            paydayEditingEnabled = false
+            paydayText = "5"
         )
 
         assertFalse(result.isValid)
@@ -21,11 +20,10 @@ class SettingsFormValidationTest {
     }
 
     @Test
-    fun validateSettingsForm_rejectsInvalidPaydayWhenEditingIsEnabled() {
+    fun validateSettingsForm_rejectsInvalidPayday() {
         val result = validateSettingsForm(
             budgetText = "1200",
-            paydayText = "",
-            paydayEditingEnabled = true
+            paydayText = ""
         )
 
         assertFalse(result.isValid)
@@ -34,15 +32,14 @@ class SettingsFormValidationTest {
     }
 
     @Test
-    fun validateSettingsForm_acceptsValidBudgetWhenPaydayIsLocked() {
+    fun validateSettingsForm_acceptsValidBudgetAndPayday() {
         val result = validateSettingsForm(
             budgetText = "1200",
-            paydayText = "5",
-            paydayEditingEnabled = false
+            paydayText = "5"
         )
 
         assertTrue(result.isValid)
         assertEquals(120_000L, result.budgetCents)
-        assertEquals(null, result.payday)
+        assertEquals(5, result.payday)
     }
 }

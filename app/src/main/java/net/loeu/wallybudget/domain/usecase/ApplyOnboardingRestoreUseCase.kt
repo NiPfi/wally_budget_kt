@@ -1,5 +1,6 @@
 package net.loeu.wallybudget.domain.usecase
 
+import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.db.TransactionRunner
@@ -11,6 +12,7 @@ class ApplyOnboardingRestoreUseCase(
     private val transactionRunner: TransactionRunner,
     private val expenseDao: ExpenseDao,
     private val budgetPolicyDao: BudgetPolicyDao,
+    private val budgetAdjustmentDao: BudgetAdjustmentDao,
     private val userSettingsStore: UserSettingsStore,
     private val rebuildMonthlyHistoryUseCase: RebuildMonthlyHistoryUseCase
 ) {
@@ -23,7 +25,9 @@ class ApplyOnboardingRestoreUseCase(
         transactionRunner.inTransaction {
             expenseDao.deleteAll()
             budgetPolicyDao.deleteAll()
+            budgetAdjustmentDao.deleteAll()
             budgetPolicyDao.insert(preparedSnapshotImport.budgetPolicies)
+            budgetAdjustmentDao.insert(preparedSnapshotImport.budgetAdjustments)
             expenseDao.insert(preparedSnapshotImport.expenses)
             rebuildMonthlyHistoryUseCase(preparedSnapshotImport.settings, replaceExisting = true)
         }
