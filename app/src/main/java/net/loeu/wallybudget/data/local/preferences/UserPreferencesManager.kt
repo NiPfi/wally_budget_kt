@@ -29,6 +29,7 @@ class UserPreferencesManager(
 
     private object PreferenceKeys {
         val MONTHLY_BUDGET_CENTS = longPreferencesKey("monthly_budget_cents")
+        val PORTFOLIO_MONTHLY_BUDGET_CENTS = longPreferencesKey("portfolio_monthly_budget_cents")
         val PAYDAY_DATE = intPreferencesKey("payday_date")
         val LAST_RESET_TIMESTAMP = longPreferencesKey("last_reset_timestamp")
         val LAST_SEEN_DATE = stringPreferencesKey("last_seen_date")
@@ -36,6 +37,8 @@ class UserPreferencesManager(
         val PENDING_CYCLE_START_DATE = stringPreferencesKey("pending_cycle_start_date")
         val PENDING_CYCLE_END_DATE_EXCLUSIVE = stringPreferencesKey("pending_cycle_end_date_exclusive")
         val PENDING_CYCLE_DETECTED_AT_TIMESTAMP = longPreferencesKey("pending_cycle_detected_at_timestamp")
+        val PRIMARY_BUCKET_UUID = stringPreferencesKey("primary_bucket_uuid")
+        val SELECTED_BUCKET_UUID = stringPreferencesKey("selected_bucket_uuid")
         val INSTALL_DEVICE_ID = stringPreferencesKey("install_device_id")
         val SETTINGS_RECORD_UUID = stringPreferencesKey("settings_record_uuid")
         val SETTINGS_UPDATED_AT_EPOCH_MS = longPreferencesKey("settings_updated_at_epoch_ms")
@@ -47,6 +50,7 @@ class UserPreferencesManager(
     override val userSettings: Flow<UserSettings> = context.dataStore.data.map { preferences ->
         UserSettings(
             monthlyBudgetCents = preferences[PreferenceKeys.MONTHLY_BUDGET_CENTS] ?: 0L,
+            portfolioMonthlyBudgetCents = preferences[PreferenceKeys.PORTFOLIO_MONTHLY_BUDGET_CENTS],
             paydayDate = preferences[PreferenceKeys.PAYDAY_DATE] ?: 1,
             lastResetTimestamp = preferences[PreferenceKeys.LAST_RESET_TIMESTAMP] ?: 0L,
             lastSeenDate = preferences[PreferenceKeys.LAST_SEEN_DATE],
@@ -54,6 +58,8 @@ class UserPreferencesManager(
             pendingCycleStartDate = preferences[PreferenceKeys.PENDING_CYCLE_START_DATE],
             pendingCycleEndDateExclusive = preferences[PreferenceKeys.PENDING_CYCLE_END_DATE_EXCLUSIVE],
             pendingCycleDetectedAtTimestamp = preferences[PreferenceKeys.PENDING_CYCLE_DETECTED_AT_TIMESTAMP] ?: 0L,
+            primaryBucketUuid = preferences[PreferenceKeys.PRIMARY_BUCKET_UUID],
+            selectedBucketUuid = preferences[PreferenceKeys.SELECTED_BUCKET_UUID],
             installDeviceId = preferences[PreferenceKeys.INSTALL_DEVICE_ID] ?: "",
             settingsRecordUuid = preferences[PreferenceKeys.SETTINGS_RECORD_UUID] ?: "",
             settingsUpdatedAtEpochMs = preferences[PreferenceKeys.SETTINGS_UPDATED_AT_EPOCH_MS] ?: 0L,
@@ -103,6 +109,18 @@ class UserPreferencesManager(
         }
     }
 
+    override suspend fun updatePortfolioMonthlyBudget(amountCents: Long?) {
+        context.dataStore.edit { preferences ->
+            ensureSettingsIdentity(preferences)
+            if (amountCents == null) {
+                preferences.remove(PreferenceKeys.PORTFOLIO_MONTHLY_BUDGET_CENTS)
+            } else {
+                preferences[PreferenceKeys.PORTFOLIO_MONTHLY_BUDGET_CENTS] = amountCents
+            }
+            touchSettingsMetadata(preferences)
+        }
+    }
+
     override suspend fun updateCycleSettings(monthlyBudgetCents: Long, paydayDate: Int) {
         context.dataStore.edit { preferences ->
             ensureSettingsIdentity(preferences)
@@ -116,6 +134,17 @@ class UserPreferencesManager(
         context.dataStore.edit { preferences ->
             ensureSettingsIdentity(preferences)
             preferences[PreferenceKeys.PAYDAY_DATE] = day
+            touchSettingsMetadata(preferences)
+        }
+    }
+
+    override suspend fun updateBucketSelection(primaryBucketUuid: String?, selectedBucketUuid: String?) {
+        context.dataStore.edit { preferences ->
+            ensureSettingsIdentity(preferences)
+            primaryBucketUuid?.let { preferences[PreferenceKeys.PRIMARY_BUCKET_UUID] = it }
+                ?: preferences.remove(PreferenceKeys.PRIMARY_BUCKET_UUID)
+            selectedBucketUuid?.let { preferences[PreferenceKeys.SELECTED_BUCKET_UUID] = it }
+                ?: preferences.remove(PreferenceKeys.SELECTED_BUCKET_UUID)
             touchSettingsMetadata(preferences)
         }
     }
@@ -178,6 +207,7 @@ class UserPreferencesManager(
         }
     }
 
+    @Suppress("CyclomaticComplexMethod")
     override suspend fun restoreFromSnapshot(settings: UserSettings, onboardingCompleted: Boolean) {
         context.dataStore.edit { preferences ->
             val installId = preferences[PreferenceKeys.INSTALL_DEVICE_ID]
@@ -186,6 +216,9 @@ class UserPreferencesManager(
                     preferences[PreferenceKeys.INSTALL_DEVICE_ID] = it
                 }
             preferences[PreferenceKeys.MONTHLY_BUDGET_CENTS] = settings.monthlyBudgetCents
+            settings.portfolioMonthlyBudgetCents?.let {
+                preferences[PreferenceKeys.PORTFOLIO_MONTHLY_BUDGET_CENTS] = it
+            } ?: preferences.remove(PreferenceKeys.PORTFOLIO_MONTHLY_BUDGET_CENTS)
             preferences[PreferenceKeys.PAYDAY_DATE] = settings.paydayDate
             preferences[PreferenceKeys.LAST_RESET_TIMESTAMP] = settings.lastResetTimestamp
             settings.lastSeenDate?.let { preferences[PreferenceKeys.LAST_SEEN_DATE] = it }
@@ -197,6 +230,10 @@ class UserPreferencesManager(
             } ?: preferences.remove(PreferenceKeys.PENDING_CYCLE_END_DATE_EXCLUSIVE)
             preferences[PreferenceKeys.PENDING_CYCLE_DETECTED_AT_TIMESTAMP] =
                 settings.pendingCycleDetectedAtTimestamp
+            settings.primaryBucketUuid?.let { preferences[PreferenceKeys.PRIMARY_BUCKET_UUID] = it }
+                ?: preferences.remove(PreferenceKeys.PRIMARY_BUCKET_UUID)
+            settings.selectedBucketUuid?.let { preferences[PreferenceKeys.SELECTED_BUCKET_UUID] = it }
+                ?: preferences.remove(PreferenceKeys.SELECTED_BUCKET_UUID)
             preferences[PreferenceKeys.ONBOARDING_COMPLETED] = onboardingCompleted
             preferences[PreferenceKeys.SETTINGS_RECORD_UUID] = settings.settingsRecordUuid
                 .takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString()

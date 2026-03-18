@@ -35,7 +35,7 @@ class BudgetCalculationService(
         totalSpentThisCycleCents: Long,
         spentTodayCents: Long,
         cumulativeSavingsCents: Long,
-        cycleBudgetAmountCents: Long = settings.monthlyBudgetCents
+        cycleBudgetAmountCents: Long
     ): BudgetState {
         val cycleStart = getCycleStartDate(now, settings.paydayDate)
         val cycleEnd = getNextCycleStartDate(now, settings.paydayDate)

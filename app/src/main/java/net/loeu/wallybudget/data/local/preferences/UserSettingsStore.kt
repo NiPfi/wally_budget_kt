@@ -14,9 +14,13 @@ interface UserSettingsStore {
 
     suspend fun updateCycleSettings(monthlyBudgetCents: Long, paydayDate: Int)
 
+    suspend fun updatePortfolioMonthlyBudget(amountCents: Long?)
+
     suspend fun updateMonthlyBudget(amountCents: Long)
 
     suspend fun updatePaydayDate(day: Int)
+
+    suspend fun updateBucketSelection(primaryBucketUuid: String?, selectedBucketUuid: String?)
 
     suspend fun updateLastResetTimestamp(timestamp: Long)
 

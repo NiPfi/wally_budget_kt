@@ -5,11 +5,19 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
+import net.loeu.wallybudget.data.local.dao.BucketAllocationAdjustmentDao
+import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
+import net.loeu.wallybudget.data.local.dao.BucketMonthlyHistoryDao
+import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.CycleOverviewDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
 import net.loeu.wallybudget.data.local.entity.BudgetAdjustmentEntity
 import net.loeu.wallybudget.data.local.entity.BudgetPolicyEntity
+import net.loeu.wallybudget.data.local.entity.BucketAllocationAdjustmentEntity
+import net.loeu.wallybudget.data.local.entity.BucketAllocationPolicyEntity
+import net.loeu.wallybudget.data.local.entity.BucketMonthlyHistoryEntity
+import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
 import net.loeu.wallybudget.data.local.db.TransactionRunner
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
 import net.loeu.wallybudget.data.local.entity.MonthlyHistoryEntity
@@ -58,6 +66,10 @@ internal class FakeUserSettingsStore(
         mutableUserSettings.value = mutableUserSettings.value.copy(monthlyBudgetCents = amountCents)
     }
 
+    override suspend fun updatePortfolioMonthlyBudget(amountCents: Long?) {
+        mutableUserSettings.value = mutableUserSettings.value.copy(portfolioMonthlyBudgetCents = amountCents)
+    }
+
     override suspend fun updateCycleSettings(monthlyBudgetCents: Long, paydayDate: Int) {
         mutableUserSettings.value = mutableUserSettings.value.copy(
             monthlyBudgetCents = monthlyBudgetCents,
@@ -67,6 +79,13 @@ internal class FakeUserSettingsStore(
 
     override suspend fun updatePaydayDate(day: Int) {
         mutableUserSettings.value = mutableUserSettings.value.copy(paydayDate = day)
+    }
+
+    override suspend fun updateBucketSelection(primaryBucketUuid: String?, selectedBucketUuid: String?) {
+        mutableUserSettings.value = mutableUserSettings.value.copy(
+            primaryBucketUuid = primaryBucketUuid,
+            selectedBucketUuid = selectedBucketUuid
+        )
     }
 
     override suspend fun updateLastResetTimestamp(timestamp: Long) {
@@ -424,6 +443,260 @@ internal class FakeBudgetAdjustmentDao(
                 .thenBy { it.effectiveDate }
                 .thenBy { it.updatedAtEpochMs }
         )
+    }
+}
+
+internal class FakeBudgetBucketDao(
+    initialBuckets: List<BudgetBucketEntity> = emptyList()
+) : BudgetBucketDao {
+    private val buckets = initialBuckets.toMutableList()
+    private val bucketFlow = MutableStateFlow(sortedBuckets())
+    private var nextId = (buckets.maxOfOrNull { it.id } ?: 0L) + 1L
+
+    override suspend fun insert(entity: BudgetBucketEntity): Long {
+        val inserted = if (entity.id == 0L) entity.copy(id = nextId++) else entity
+        buckets.removeAll { it.id == inserted.id || it.bucketUuid == inserted.bucketUuid }
+        buckets += inserted
+        refresh()
+        return inserted.id
+    }
+
+    override suspend fun insert(entities: List<BudgetBucketEntity>): List<Long> = entities.map { insert(it) }
+
+    override suspend fun update(bucket: BudgetBucketEntity) {
+        buckets.replaceAll { existing ->
+            if (existing.id == bucket.id || existing.bucketUuid == bucket.bucketUuid) bucket else existing
+        }
+        refresh()
+    }
+
+    override fun observeAllActive(): Flow<List<BudgetBucketEntity>> = bucketFlow.map { current ->
+        current.filter { it.deletedAtEpochMs == null }
+    }
+
+    override fun observeAll(): Flow<List<BudgetBucketEntity>> = bucketFlow
+
+    override suspend fun getAllActive(): List<BudgetBucketEntity> = buckets
+        .filter { it.deletedAtEpochMs == null }
+        .sortedWith(compareBy<BudgetBucketEntity> { it.sortOrder }.thenBy { it.createdAtEpochMs })
+
+    override suspend fun getAllForSnapshot(): List<BudgetBucketEntity> = sortedBuckets()
+
+    override suspend fun findByBucketUuid(bucketUuid: String): BudgetBucketEntity? = buckets
+        .filter { it.bucketUuid == bucketUuid }
+        .maxByOrNull { it.updatedAtEpochMs }
+
+    override suspend fun countAll(): Int = buckets.size
+
+    override suspend fun deleteAll() {
+        buckets.clear()
+        refresh()
+    }
+
+    private fun refresh() {
+        bucketFlow.value = sortedBuckets()
+    }
+
+    private fun sortedBuckets(): List<BudgetBucketEntity> {
+        return buckets.sortedWith(compareBy<BudgetBucketEntity> { it.sortOrder }.thenBy { it.createdAtEpochMs })
+    }
+}
+
+internal class FakeBucketAllocationPolicyDao(
+    initialPolicies: List<BucketAllocationPolicyEntity> = emptyList()
+) : BucketAllocationPolicyDao {
+    private val policies = initialPolicies.toMutableList()
+    private val policyFlow = MutableStateFlow(sortedPolicies())
+    private var nextId = (policies.maxOfOrNull { it.id } ?: 0L) + 1L
+
+    override suspend fun insert(entity: BucketAllocationPolicyEntity): Long {
+        val inserted = if (entity.id == 0L) entity.copy(id = nextId++) else entity
+        policies.removeAll { it.id == inserted.id || it.allocationUuid == inserted.allocationUuid }
+        policies += inserted
+        refresh()
+        return inserted.id
+    }
+
+    override suspend fun insert(entities: List<BucketAllocationPolicyEntity>): List<Long> = entities.map { insert(it) }
+
+    override suspend fun update(policy: BucketAllocationPolicyEntity) {
+        policies.replaceAll { existing ->
+            if (existing.id == policy.id || existing.allocationUuid == policy.allocationUuid) policy else existing
+        }
+        refresh()
+    }
+
+    override fun observeActivePolicies(): Flow<List<BucketAllocationPolicyEntity>> = policyFlow.map { current ->
+        current.filter { it.deletedAtEpochMs == null }
+    }
+
+    override suspend fun findActivePolicyForCycle(
+        bucketUuid: String,
+        cycleStartDate: String
+    ): BucketAllocationPolicyEntity? {
+        return policies
+            .filter {
+                it.deletedAtEpochMs == null &&
+                    it.bucketUuid == bucketUuid &&
+                    it.cycleStartDate == cycleStartDate
+            }
+            .maxByOrNull { it.updatedAtEpochMs }
+    }
+
+    override suspend fun findByAllocationUuid(allocationUuid: String): BucketAllocationPolicyEntity? = policies
+        .filter { it.allocationUuid == allocationUuid }
+        .maxByOrNull { it.updatedAtEpochMs }
+
+    override suspend fun getAllForSnapshot(): List<BucketAllocationPolicyEntity> = sortedPolicies()
+
+    override suspend fun countAll(): Int = policies.size
+
+    override suspend fun deleteAll() {
+        policies.clear()
+        refresh()
+    }
+
+    private fun refresh() {
+        policyFlow.value = sortedPolicies()
+    }
+
+    private fun sortedPolicies(): List<BucketAllocationPolicyEntity> {
+        return policies.sortedWith(
+            compareBy<BucketAllocationPolicyEntity> { it.cycleStartDate }
+                .thenBy { it.updatedAtEpochMs }
+        )
+    }
+}
+
+internal class FakeBucketAllocationAdjustmentDao(
+    initialAdjustments: List<BucketAllocationAdjustmentEntity> = emptyList()
+) : BucketAllocationAdjustmentDao {
+    private val adjustments = initialAdjustments.toMutableList()
+    private val adjustmentFlow = MutableStateFlow(sortedAdjustments())
+    private var nextId = (adjustments.maxOfOrNull { it.id } ?: 0L) + 1L
+
+    override suspend fun insert(entity: BucketAllocationAdjustmentEntity): Long {
+        val inserted = if (entity.id == 0L) entity.copy(id = nextId++) else entity
+        adjustments.removeAll { it.id == inserted.id || it.adjustmentUuid == inserted.adjustmentUuid }
+        adjustments += inserted
+        refresh()
+        return inserted.id
+    }
+
+    override suspend fun insert(entities: List<BucketAllocationAdjustmentEntity>): List<Long> =
+        entities.map { insert(it) }
+
+    override suspend fun update(adjustment: BucketAllocationAdjustmentEntity) {
+        adjustments.replaceAll { existing ->
+            if (existing.id == adjustment.id || existing.adjustmentUuid == adjustment.adjustmentUuid) {
+                adjustment
+            } else {
+                existing
+            }
+        }
+        refresh()
+    }
+
+    override fun observeActiveForCycle(
+        bucketUuid: String,
+        cycleStartDate: String
+    ): Flow<List<BucketAllocationAdjustmentEntity>> = adjustmentFlow.map { current ->
+        current.filter {
+            it.deletedAtEpochMs == null && it.bucketUuid == bucketUuid && it.cycleStartDate == cycleStartDate
+        }
+    }
+
+    override suspend fun getActiveForCycle(
+        bucketUuid: String,
+        cycleStartDate: String
+    ): List<BucketAllocationAdjustmentEntity> {
+        return adjustments.filter {
+            it.deletedAtEpochMs == null && it.bucketUuid == bucketUuid && it.cycleStartDate == cycleStartDate
+        }.sortedWith(
+            compareBy<BucketAllocationAdjustmentEntity> { it.effectiveDate }
+                .thenBy { it.updatedAtEpochMs }
+        )
+    }
+
+    override fun observeAllActive(): Flow<List<BucketAllocationAdjustmentEntity>> = adjustmentFlow.map { current ->
+        current.filter { it.deletedAtEpochMs == null }
+    }
+
+    override suspend fun getAllForSnapshot(): List<BucketAllocationAdjustmentEntity> = sortedAdjustments()
+
+    override suspend fun findByAdjustmentUuid(adjustmentUuid: String): BucketAllocationAdjustmentEntity? = adjustments
+        .filter { it.adjustmentUuid == adjustmentUuid }
+        .maxByOrNull { it.updatedAtEpochMs }
+
+    override suspend fun countAll(): Int = adjustments.size
+
+    override suspend fun deleteAll() {
+        adjustments.clear()
+        refresh()
+    }
+
+    private fun refresh() {
+        adjustmentFlow.value = sortedAdjustments()
+    }
+
+    private fun sortedAdjustments(): List<BucketAllocationAdjustmentEntity> {
+        return adjustments.sortedWith(
+            compareBy<BucketAllocationAdjustmentEntity> { it.bucketUuid }
+                .thenBy { it.cycleStartDate }
+                .thenBy { it.effectiveDate }
+                .thenBy { it.updatedAtEpochMs }
+        )
+    }
+}
+
+internal class FakeBucketMonthlyHistoryDao(
+    initialHistory: List<BucketMonthlyHistoryEntity> = emptyList()
+) : BucketMonthlyHistoryDao {
+    private val history = initialHistory.toMutableList()
+    private val historyFlow = MutableStateFlow(sortedHistory())
+
+    override suspend fun insert(entity: BucketMonthlyHistoryEntity): Long {
+        history.removeAll { it.bucketUuid == entity.bucketUuid && it.cycleStartDate == entity.cycleStartDate }
+        history += entity
+        refresh()
+        return 1L
+    }
+
+    override suspend fun insert(entities: List<BucketMonthlyHistoryEntity>): List<Long> = entities.map { insert(it) }
+
+    override fun observeAll(): Flow<List<BucketMonthlyHistoryEntity>> = historyFlow
+
+    override fun observeForBucket(bucketUuid: String): Flow<List<BucketMonthlyHistoryEntity>> =
+        historyFlow.map { current ->
+            current.filter { it.bucketUuid == bucketUuid }
+        }
+
+    override suspend fun findByBucketAndCycleStart(
+        bucketUuid: String,
+        cycleStartDate: String
+    ): BucketMonthlyHistoryEntity? = history.firstOrNull {
+        it.bucketUuid == bucketUuid && it.cycleStartDate == cycleStartDate
+    }
+
+    override suspend fun getAll(): List<BucketMonthlyHistoryEntity> = sortedHistory()
+
+    override suspend fun getAllForBucket(bucketUuid: String): List<BucketMonthlyHistoryEntity> = sortedHistory()
+        .filter { it.bucketUuid == bucketUuid }
+
+    override suspend fun deleteAll() {
+        history.clear()
+        refresh()
+    }
+
+    val currentHistory: List<BucketMonthlyHistoryEntity>
+        get() = historyFlow.value
+
+    private fun refresh() {
+        historyFlow.value = sortedHistory()
+    }
+
+    private fun sortedHistory(): List<BucketMonthlyHistoryEntity> {
+        return history.sortedByDescending { it.endTimestamp }
     }
 }
 

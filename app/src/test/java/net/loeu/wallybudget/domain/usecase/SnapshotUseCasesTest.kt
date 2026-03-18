@@ -8,9 +8,14 @@ import net.loeu.wallybudget.data.snapshot.GzipSnapshotCodec
 import net.loeu.wallybudget.data.snapshot.SnapshotCompatibilityService
 import net.loeu.wallybudget.data.snapshot.SnapshotJsonCodec
 import net.loeu.wallybudget.data.snapshot.model.SnapshotBudgetPolicyRecordV1
+import net.loeu.wallybudget.data.snapshot.model.SnapshotBudgetBucketRecordV3
+import net.loeu.wallybudget.data.snapshot.model.SnapshotBucketAllocationPolicyRecordV3
 import net.loeu.wallybudget.data.snapshot.model.SnapshotEnvelopeV1
 import net.loeu.wallybudget.data.snapshot.model.SnapshotExpenseRecordV1
 import net.loeu.wallybudget.data.snapshot.model.SnapshotSettingsRecordV1
+import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
+import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
+import net.loeu.wallybudget.domain.service.BucketAllocationResolver
 import net.loeu.wallybudget.domain.model.SnapshotError
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
@@ -26,6 +31,22 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 class SnapshotUseCasesTest {
+
+    private fun rebuildBucketHistory(
+        expenseDao: FakeExpenseDao,
+        bucketAllocationPolicyDao: FakeBucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(),
+        bucketAllocationAdjustmentDao: FakeBucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
+        bucketMonthlyHistoryDao: FakeBucketMonthlyHistoryDao = FakeBucketMonthlyHistoryDao()
+    ): RebuildBucketMonthlyHistoryUseCase {
+        return RebuildBucketMonthlyHistoryUseCase(
+            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+            expenseDao = expenseDao,
+            bucketMonthlyHistoryDao = bucketMonthlyHistoryDao,
+            budgetCalculationService = BudgetCalculationService(),
+            bucketAllocationResolver = BucketAllocationResolver()
+        )
+    }
 
     @Test
     fun gzipSnapshotCodec_roundTripsCompactJsonEnvelope() {
@@ -122,6 +143,10 @@ class SnapshotUseCasesTest {
         val budgetAdjustmentDao = FakeBudgetAdjustmentDao()
         val monthlyHistoryDao = FakeMonthlyHistoryDao()
         val settingsStore = FakeUserSettingsStore()
+        val budgetBucketDao = FakeBudgetBucketDao()
+        val bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao()
+        val bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao()
+        val bucketMonthlyHistoryDao = FakeBucketMonthlyHistoryDao()
         val lastResetTimestamp = LocalDate.of(2026, 4, 25)
             .atStartOfDay(ZoneId.systemDefault())
             .toInstant()
@@ -185,6 +210,10 @@ class SnapshotUseCasesTest {
             expenseDao = expenseDao,
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = budgetAdjustmentDao,
+            budgetBucketDao = budgetBucketDao,
+            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+            bucketMonthlyHistoryDao = bucketMonthlyHistoryDao,
             userSettingsStore = settingsStore,
             rebuildMonthlyHistoryUseCase = RebuildMonthlyHistoryUseCase(
                 budgetPolicyDao = budgetPolicyDao,
@@ -193,6 +222,12 @@ class SnapshotUseCasesTest {
                 monthlyHistoryDao = monthlyHistoryDao,
                 budgetCalculationService = BudgetCalculationService(),
                 budgetAdjustmentResolver = BudgetAdjustmentResolver()
+            ),
+            rebuildBucketMonthlyHistoryUseCase = rebuildBucketHistory(
+                expenseDao = expenseDao,
+                bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+                bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+                bucketMonthlyHistoryDao = bucketMonthlyHistoryDao
             )
         )
 
@@ -240,11 +275,19 @@ class SnapshotUseCasesTest {
             )
         )
         val existingBudgetAdjustmentDao = FakeBudgetAdjustmentDao()
+        val existingBudgetBucketDao = FakeBudgetBucketDao()
+        val existingBucketAllocationPolicyDao = FakeBucketAllocationPolicyDao()
+        val existingBucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao()
+        val existingBucketHistoryDao = FakeBucketMonthlyHistoryDao()
         val useCase = ApplyOnboardingRestoreUseCase(
             transactionRunner = FakeTransactionRunner(),
             expenseDao = existingExpenseDao,
             budgetPolicyDao = existingBudgetPolicyDao,
             budgetAdjustmentDao = existingBudgetAdjustmentDao,
+            budgetBucketDao = existingBudgetBucketDao,
+            bucketAllocationPolicyDao = existingBucketAllocationPolicyDao,
+            bucketAllocationAdjustmentDao = existingBucketAllocationAdjustmentDao,
+            bucketMonthlyHistoryDao = existingBucketHistoryDao,
             userSettingsStore = FakeUserSettingsStore(),
             rebuildMonthlyHistoryUseCase = RebuildMonthlyHistoryUseCase(
                 budgetPolicyDao = existingBudgetPolicyDao,
@@ -253,6 +296,12 @@ class SnapshotUseCasesTest {
                 monthlyHistoryDao = existingHistoryDao,
                 budgetCalculationService = BudgetCalculationService(),
                 budgetAdjustmentResolver = BudgetAdjustmentResolver()
+            ),
+            rebuildBucketMonthlyHistoryUseCase = rebuildBucketHistory(
+                expenseDao = existingExpenseDao,
+                bucketAllocationPolicyDao = existingBucketAllocationPolicyDao,
+                bucketAllocationAdjustmentDao = existingBucketAllocationAdjustmentDao,
+                bucketMonthlyHistoryDao = existingBucketHistoryDao
             )
         )
 
@@ -289,6 +338,10 @@ class SnapshotUseCasesTest {
             expenseDao = FakeExpenseDao(listOf(expenseEntityOn(1L, LocalDate.of(2026, 3, 25), 5_000L))),
             budgetPolicyDao = FakeBudgetPolicyDao(),
             budgetAdjustmentDao = FakeBudgetAdjustmentDao(),
+            budgetBucketDao = FakeBudgetBucketDao(),
+            bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(),
+            bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
+            bucketMonthlyHistoryDao = FakeBucketMonthlyHistoryDao(),
             userSettingsStore = FakeUserSettingsStore(
                 UserSettings(isOnboardingCompleted = true)
             ),
@@ -299,7 +352,8 @@ class SnapshotUseCasesTest {
                 monthlyHistoryDao = FakeMonthlyHistoryDao(),
                 budgetCalculationService = BudgetCalculationService(),
                 budgetAdjustmentResolver = BudgetAdjustmentResolver()
-            )
+            ),
+            rebuildBucketMonthlyHistoryUseCase = rebuildBucketHistory(expenseDao = FakeExpenseDao())
         )
 
         try {
@@ -338,6 +392,7 @@ private class FakeDocumentUriGateway(
     override fun openOutputStream(uri: android.net.Uri): OutputStream = writtenBytes
 }
 
+@Suppress("LongMethod")
 private fun sampleEnvelope(): SnapshotEnvelopeV1 {
     return SnapshotEnvelopeV1(
         format = SnapshotCompatibilityService.SNAPSHOT_FORMAT,
@@ -383,6 +438,7 @@ private fun sampleEnvelope(): SnapshotEnvelopeV1 {
                 description = "Coffee",
                 timestampEpochMs = 1234L,
                 expenseDate = "2026-03-26",
+                bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
                 icon = "FOOD",
                 originInstallId = "install-a",
                 lastModifiedByInstallId = "install-a",
@@ -391,6 +447,40 @@ private fun sampleEnvelope(): SnapshotEnvelopeV1 {
                 deletedAtEpochMs = null,
                 modClock = "0000000001234-0000-install-a"
             )
-        )
+        ),
+        budgetBuckets = listOf(
+            SnapshotBudgetBucketRecordV3(
+                bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                name = DEFAULT_SPENDING_BUCKET_NAME,
+                trackingMode = "DAILY_TARGET",
+                balanceBehavior = "RETURN_TO_PORTFOLIO",
+                defaultAllocatedAmountCents = 100_000L,
+                sortOrder = 0,
+                isPrimary = true,
+                originInstallId = "install-a",
+                lastModifiedByInstallId = "install-a",
+                createdAtEpochMs = 1234L,
+                updatedAtEpochMs = 1234L,
+                closedAtEpochMs = null,
+                deletedAtEpochMs = null,
+                modClock = "0000000001234-0000-install-a"
+            )
+        ),
+        bucketAllocationPolicies = listOf(
+            SnapshotBucketAllocationPolicyRecordV3(
+                allocationUuid = "alloc-1",
+                bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                cycleStartDate = "2026-03-25",
+                cycleEndDateExclusive = "2026-04-25",
+                allocatedAmountCents = 100_000L,
+                originInstallId = "install-a",
+                lastModifiedByInstallId = "install-a",
+                createdAtEpochMs = 1234L,
+                updatedAtEpochMs = 1234L,
+                deletedAtEpochMs = null,
+                modClock = "0000000001234-0000-install-a"
+            )
+        ),
+        bucketAllocationAdjustments = emptyList()
     )
 }

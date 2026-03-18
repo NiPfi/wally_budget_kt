@@ -2,6 +2,7 @@ package net.loeu.wallybudget.domain.usecase
 
 import kotlinx.coroutines.runBlocking
 import net.loeu.wallybudget.domain.model.UserSettings
+import net.loeu.wallybudget.domain.service.BucketAllocationResolver
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
@@ -24,6 +25,9 @@ class ConcludePendingCycleUseCaseTest {
         val budgetPolicyDao = FakeBudgetPolicyDao()
         val budgetAdjustmentDao = FakeBudgetAdjustmentDao()
         val historyDao = FakeMonthlyHistoryDao()
+        val bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao()
+        val bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao()
+        val bucketHistoryDao = FakeBucketMonthlyHistoryDao()
         val settingsStore = FakeUserSettingsStore()
         val budgetCalculationService = BudgetCalculationService()
         val useCase = ConcludePendingCycleUseCase(
@@ -35,7 +39,15 @@ class ConcludePendingCycleUseCaseTest {
             userSettingsStore = settingsStore,
             budgetCalculationService = budgetCalculationService,
             cycleScheduleResolver = CycleScheduleResolver(budgetCalculationService),
-            budgetAdjustmentResolver = BudgetAdjustmentResolver()
+            budgetAdjustmentResolver = BudgetAdjustmentResolver(),
+            rebuildBucketMonthlyHistoryUseCase = RebuildBucketMonthlyHistoryUseCase(
+                bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+                bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+                expenseDao = expenseDao,
+                bucketMonthlyHistoryDao = bucketHistoryDao,
+                budgetCalculationService = budgetCalculationService,
+                bucketAllocationResolver = BucketAllocationResolver()
+            )
         )
         val settings = UserSettings(
             monthlyBudgetCents = 100_000L,

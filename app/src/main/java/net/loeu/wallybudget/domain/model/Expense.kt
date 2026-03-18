@@ -11,6 +11,7 @@ import java.time.format.DateTimeParseException
 data class Expense(
     val id: Long = 0,
     val recordUuid: String = "",
+    val bucketUuid: String = DEFAULT_SPENDING_BUCKET_UUID,
     val amountCents: Long,
     val description: String,
     val timestamp: Long = Instant.now().toEpochMilli(),

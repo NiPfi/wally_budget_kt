@@ -2,6 +2,9 @@ package net.loeu.wallybudget.domain.usecase
 
 import net.loeu.wallybudget.data.local.entity.BudgetPolicyEntity
 import net.loeu.wallybudget.data.local.entity.BudgetAdjustmentEntity
+import net.loeu.wallybudget.data.local.entity.BucketAllocationAdjustmentEntity
+import net.loeu.wallybudget.data.local.entity.BucketAllocationPolicyEntity
+import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
 import net.loeu.wallybudget.domain.model.SnapshotError
 import net.loeu.wallybudget.domain.model.SnapshotImportPreview
@@ -12,6 +15,9 @@ data class PreparedSnapshotImport(
     val settings: UserSettings,
     val budgetPolicies: List<BudgetPolicyEntity>,
     val budgetAdjustments: List<BudgetAdjustmentEntity>,
+    val budgetBuckets: List<BudgetBucketEntity> = emptyList(),
+    val bucketAllocationPolicies: List<BucketAllocationPolicyEntity> = emptyList(),
+    val bucketAllocationAdjustments: List<BucketAllocationAdjustmentEntity> = emptyList(),
     val expenses: List<ExpenseEntity>
 )
 

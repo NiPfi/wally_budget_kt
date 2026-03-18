@@ -33,9 +33,11 @@ import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.domain.usecase.ApplyOnboardingRestoreUseCase
 import net.loeu.wallybudget.domain.usecase.AddExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.CompleteOnboardingUseCase
+import net.loeu.wallybudget.domain.usecase.CompletePortfolioMigrationUseCase
 import net.loeu.wallybudget.domain.usecase.ConcludePendingCycleUseCase
 import net.loeu.wallybudget.domain.usecase.ClearPendingSettingsUndoUseCase
 import net.loeu.wallybudget.domain.usecase.DeleteExpenseUseCase
+import net.loeu.wallybudget.domain.usecase.EnsureBucketMigrationStateUseCase
 import net.loeu.wallybudget.domain.usecase.EnsureBudgetPolicyHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ExportSnapshotUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveForecastUseCase
@@ -80,8 +82,10 @@ class BudgetViewModel(
     private val exportSnapshotUseCase: ExportSnapshotUseCase,
     private val prepareSnapshotImportUseCase: PrepareSnapshotImportUseCase,
     private val applyOnboardingRestoreUseCase: ApplyOnboardingRestoreUseCase,
+    private val ensureBucketMigrationStateUseCase: EnsureBucketMigrationStateUseCase,
     private val ensureBudgetPolicyHistoryUseCase: EnsureBudgetPolicyHistoryUseCase,
     private val rebuildMonthlyHistoryUseCase: RebuildMonthlyHistoryUseCase,
+    private val completePortfolioMigrationUseCase: CompletePortfolioMigrationUseCase,
     private val resolveMutationEffectiveDateUseCase: ResolveMutationEffectiveDateUseCase,
     private val clearPendingSettingsUndoUseCase: ClearPendingSettingsUndoUseCase,
     pendingSettingsUndoFlow: Flow<net.loeu.wallybudget.domain.model.PendingSettingsUndo?>,
@@ -204,6 +208,9 @@ class BudgetViewModel(
     private var preparedSnapshotImport: PreparedSnapshotImport? = null
 
     init {
+        viewModelScope.launch {
+            ensureBucketMigrationStateUseCase(currentDateProvider.currentDate())
+        }
         viewModelScope.launch {
             ensureBudgetPolicyHistoryUseCase(currentDateProvider.currentDate())
         }
@@ -377,6 +384,12 @@ class BudgetViewModel(
                 )
             )
             _settingsStatusMessage.value = result.summaryMessage
+        }
+    }
+
+    fun completePortfolioMigration(portfolioMonthlyBudgetCents: Long) {
+        viewModelScope.launch {
+            completePortfolioMigrationUseCase(portfolioMonthlyBudgetCents)
         }
     }
 

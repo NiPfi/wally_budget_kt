@@ -68,7 +68,7 @@ class UpdateBudgetSettingsUseCase(
         restorePendingUndoBeforeApplyingNewSave()
         val context = buildUpdateContext(request)
         val settings = context.settings
-        val budgetChanged = request.monthlyBudgetCents != settings.monthlyBudgetCents
+        val budgetChanged = request.monthlyBudgetCents != settings.resolvedPortfolioMonthlyBudgetCents
         val paydayChanged = request.paydayDate != settings.paydayDate
         if (!budgetChanged && !paydayChanged) {
             return UpdateBudgetSettingsResult(summaryMessage = "No settings changed.")
@@ -132,11 +132,11 @@ class UpdateBudgetSettingsUseCase(
         context: UpdateBudgetSettingsContext,
         mutation: UpdateBudgetSettingsMutation
     ) {
-        if (budgetChanged || paydayChanged) {
-            userSettingsStore.updateCycleSettings(
-                monthlyBudgetCents = request.monthlyBudgetCents,
-                paydayDate = request.paydayDate
-            )
+        if (budgetChanged) {
+            userSettingsStore.updatePortfolioMonthlyBudget(request.monthlyBudgetCents)
+        }
+        if (paydayChanged) {
+            userSettingsStore.updatePaydayDate(request.paydayDate)
         }
         userSettingsStore.savePendingSettingsUndo(
             buildPendingSettingsUndo(
@@ -385,7 +385,7 @@ class UpdateBudgetSettingsUseCase(
             cycleStart = nextCycleStart,
             settings = settings.copy(
                 paydayDate = targetPayday,
-                monthlyBudgetCents = targetBudget
+                portfolioMonthlyBudgetCents = targetBudget
             ),
             policies = emptyList()
         ).cycleEndExclusive
@@ -518,8 +518,8 @@ class UpdateBudgetSettingsUseCase(
         val parts = mutableListOf<String>()
         if (budgetChanged) {
             parts += when (request.budgetChangeMode) {
-                BudgetChangeMode.PRORATE_CURRENT_CYCLE -> "Budget prorated from $effectiveDate."
-                BudgetChangeMode.APPLY_NEXT_CYCLE -> "Budget changes on $nextCycleStart."
+                BudgetChangeMode.PRORATE_CURRENT_CYCLE -> "Portfolio budget prorated from $effectiveDate."
+                BudgetChangeMode.APPLY_NEXT_CYCLE -> "Portfolio budget changes on $nextCycleStart."
             }
         }
         if (paydayChanged) {

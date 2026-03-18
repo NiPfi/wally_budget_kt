@@ -19,6 +19,7 @@ import java.time.LocalDate
 
 internal data class BudgetAppState(
     val isOnboardingCompleted: Boolean?,
+    val isPortfolioMigrationRequired: Boolean,
     val userSettings: UserSettings,
     val budgetState: BudgetState?,
     val effectiveCurrentDate: LocalDate,
@@ -64,6 +65,8 @@ internal fun rememberBudgetAppUiState(viewModel: BudgetViewModel): BudgetAppStat
 
     return BudgetAppState(
         isOnboardingCompleted = isOnboardingCompleted,
+        isPortfolioMigrationRequired = userSettings.isOnboardingCompleted &&
+            userSettings.portfolioMonthlyBudgetCents == null,
         userSettings = userSettings,
         budgetState = budgetState,
         effectiveCurrentDate = effectiveCurrentDate,

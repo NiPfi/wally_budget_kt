@@ -232,7 +232,7 @@ private fun SettingsScreenContent(
                 OutlinedTextField(
                     value = budgetText,
                     onValueChange = onBudgetChange,
-                    label = { Text("Monthly Budget") },
+                    label = { Text("Portfolio Budget") },
                     placeholder = { Text("1000.00") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
@@ -322,8 +322,8 @@ private fun EffectivePreviewCard(
     val preview = calculateSettingsChangePreview(
         budgetState = budgetState,
         currentDate = currentDate,
-        currentMonthlyBudgetCents = currentSettings.monthlyBudgetCents,
-        proposedMonthlyBudgetCents = newBudget ?: currentSettings.monthlyBudgetCents,
+        currentMonthlyBudgetCents = currentSettings.resolvedPortfolioMonthlyBudgetCents,
+        proposedMonthlyBudgetCents = newBudget ?: currentSettings.resolvedPortfolioMonthlyBudgetCents,
         proposedPaydayDayOfMonth = newPayday ?: currentSettings.paydayDate
     )
     val previewLines = buildList {
@@ -338,9 +338,9 @@ private fun EffectivePreviewCard(
                 add("Cycle end stays ${preview.projectedCycleEnd}.")
             }
         }
-        if (newBudget != null && newBudget != currentSettings.monthlyBudgetCents) {
+        if (newBudget != null && newBudget != currentSettings.resolvedPortfolioMonthlyBudgetCents) {
             add(
-                "The new budget is prorated across the remaining " +
+                "The new portfolio budget is prorated across the remaining " +
                     "${ChronoUnit.DAYS.between(currentDate, preview.projectedCycleEnd)} days of this cycle."
             )
         }

@@ -55,7 +55,8 @@ class ObserveHistoryUseCaseTest {
                 now = today,
                 totalSpentThisCycleCents = 6_000L,
                 spentTodayCents = 2_000L,
-                cumulativeSavingsCents = 0L
+                cumulativeSavingsCents = 0L,
+                cycleBudgetAmountCents = 100_000L
             ),
             todayExpenses = emptyList(),
             activeCycleExpenseSections = emptyList(),

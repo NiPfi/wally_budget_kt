@@ -52,7 +52,7 @@ class EnsureBudgetPolicyHistoryUseCase(
                 newBudgetPolicy(
                     cycleStart = currentCycleStart,
                     cycleEndExclusive = cycleEnd,
-                    budgetAmountCents = settings.monthlyBudgetCents,
+                    budgetAmountCents = settings.resolvedPortfolioMonthlyBudgetCents,
                     paydayDayOfMonth = settings.paydayDate,
                     installId = settings.installDeviceId,
                     nowEpochMs = now.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),

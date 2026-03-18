@@ -42,6 +42,7 @@ import net.loeu.wallybudget.ui.screens.closeout.CycleCloseoutScreen
 import net.loeu.wallybudget.ui.screens.history.HistoryScreen
 import net.loeu.wallybudget.ui.screens.home.AddExpenseSheet
 import net.loeu.wallybudget.ui.screens.home.HomeScreen
+import net.loeu.wallybudget.ui.screens.migration.MigrationSetupScreen
 import net.loeu.wallybudget.ui.screens.onboarding.OnboardingScreen
 import net.loeu.wallybudget.ui.screens.overview.PlaceholderShimmerProvider
 import net.loeu.wallybudget.ui.screens.settings.SettingsScreen
@@ -130,6 +131,11 @@ fun BudgetApp(
             snapshotErrorMessage = snapshotErrorMessage,
             snapshotStatusMessage = appState.snapshotStatusMessage,
             isSnapshotBusy = appState.snapshotBusy
+        )
+        appState.isPortfolioMigrationRequired -> MigrationSetupScreen(
+            defaultBucketBudgetCents = appState.userSettings.monthlyBudgetCents,
+            onCompleteMigration = viewModel::completePortfolioMigration,
+            modifier = modifier
         )
         appState.pendingCycleCloseoutState != null -> {
             PendingCycleFlow(
