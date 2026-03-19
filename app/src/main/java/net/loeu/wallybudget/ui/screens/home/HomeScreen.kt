@@ -424,38 +424,35 @@ private fun HomePagerHeader(
         contentColor = contentColor,
         tonalElevation = 0.dp
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Box(
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 14.dp, vertical = 7.dp)
+        ) {
+            Text(
+                text = title,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 14.dp, vertical = 7.dp)
-            ) {
-                Text(
-                    text = title,
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .widthIn(max = 260.dp),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = contentColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (showTopRightSettingsAction) {
-                    IconButton(
-                        onClick = onNavigateToSettings,
-                        modifier = Modifier.align(Alignment.CenterEnd)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_settings),
-                            contentDescription = "Open settings",
-                            tint = contentColor
-                        )
-                    }
+                    .align(Alignment.CenterStart)
+                    .widthIn(max = 260.dp),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = contentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (showTopRightSettingsAction) {
+                IconButton(
+                    onClick = onNavigateToSettings,
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_settings),
+                        contentDescription = "Open settings",
+                        tint = contentColor
+                    )
                 }
             }
-            HorizontalDivider(color = contentColor.copy(alpha = 0.18f))
         }
     }
 }
@@ -561,22 +558,15 @@ private fun PortfolioSummaryCard(
             modifier = Modifier.padding(horizontal = horizontalPadding, vertical = verticalPadding),
             verticalArrangement = Arrangement.spacedBy(contentSpacing)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = "Portfolio",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = colors.content
-                )
-                Text(
-                    text = CurrencyFormatter.format(portfolioState.remainingThisCycleCents),
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontSize = amountFontSize,
-                        fontWeight = FontWeight.Black
-                    ),
-                    fontWeight = FontWeight.Black,
-                    color = colors.content
-                )
-            }
+            Text(
+                text = CurrencyFormatter.format(portfolioState.remainingThisCycleCents),
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontSize = amountFontSize,
+                    fontWeight = FontWeight.Black
+                ),
+                fontWeight = FontWeight.Black,
+                color = colors.content
+            )
             CollapsingMetricsRow(visibilityProgress = (1f - progress * 1.15f).coerceIn(0f, 1f)) {
                 SummaryMetricColumn(
                     label = "Portfolio total",
@@ -822,11 +812,6 @@ private fun ReserveSummaryCard(
             modifier = Modifier.padding(horizontal = horizontalPadding, vertical = verticalPadding),
             verticalArrangement = Arrangement.spacedBy(contentSpacing)
         ) {
-            Text(
-                text = selectedBucketOverview.bucket.name,
-                style = MaterialTheme.typography.titleMedium,
-                color = colors.content
-            )
             Text(
                 text = CurrencyFormatter.formatSigned(summary.remainingThisCycleCents),
                 style = MaterialTheme.typography.headlineMedium.copy(
