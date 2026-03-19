@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package net.loeu.wallybudget.ui.screens.overview
 
 import androidx.compose.foundation.clickable
@@ -8,6 +10,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,6 +31,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
@@ -73,37 +78,161 @@ fun SummaryCard(
         tonalElevation = lerp(2.dp, 0.dp, progress),
         shape = FlatSummaryCardShape
     ) {
-        Column(
+        SummaryCardBody(
+            budgetState = budgetState,
+            recoverableOverspendCents = recoverableOverspendCents,
+            progress = progress,
+            horizontalPadding = horizontalPadding,
+            verticalPadding = verticalPadding,
+            contentSpacing = contentSpacing,
+            amountFontSize = amountFontSize,
+            amountLineHeight = amountLineHeight,
+            contentColor = colors.content,
+            iconAlpha = iconAlpha,
+            iconOffsetPx = iconOffsetPx,
+            rightTopOffsetPx = rightTopOffsetPx,
+            safeTodayAlpha = safeTodayAlpha,
+            bottomOffsetPx = bottomOffsetPx,
+            secondaryMetricsProgress = secondaryMetricsProgress,
+            isLoading = isLoading,
+            animateCounters = animateCounters,
+            tagSecondaryMetrics = tagSecondaryMetrics,
+            onSafeTodayInfoClick = onSafeTodayInfoClick,
+            onNavigateToSettings = onNavigateToSettings
+        )
+    }
+}
+
+@Composable
+internal fun SummaryCardBody(
+    budgetState: BudgetState,
+    recoverableOverspendCents: Long,
+    progress: Float,
+    horizontalPadding: androidx.compose.ui.unit.Dp,
+    verticalPadding: androidx.compose.ui.unit.Dp,
+    contentSpacing: androidx.compose.ui.unit.Dp,
+    amountFontSize: androidx.compose.ui.unit.TextUnit,
+    amountLineHeight: androidx.compose.ui.unit.TextUnit,
+    contentColor: Color,
+    iconAlpha: Float,
+    iconOffsetPx: Float,
+    rightTopOffsetPx: Float,
+    safeTodayAlpha: Float,
+    bottomOffsetPx: Float,
+    secondaryMetricsProgress: Float,
+    isLoading: Boolean,
+    animateCounters: Boolean,
+    tagSecondaryMetrics: Boolean,
+    onSafeTodayInfoClick: (() -> Unit)?,
+    onNavigateToSettings: (() -> Unit)?
+) {
+    Column(
+        modifier = Modifier.padding(horizontal = horizontalPadding, vertical = verticalPadding),
+        verticalArrangement = Arrangement.spacedBy(contentSpacing)
+    ) {
+        SummaryCardPrimaryRow(
+            budgetState = budgetState,
+            amountFontSize = amountFontSize,
+            amountLineHeight = amountLineHeight,
+            contentColor = contentColor,
+            progress = progress,
+            iconAlpha = iconAlpha,
+            iconOffsetPx = iconOffsetPx,
+            rightTopOffsetPx = rightTopOffsetPx,
+            recoverableOverspendCents = recoverableOverspendCents,
+            safeTodayAlpha = safeTodayAlpha,
+            isLoading = isLoading,
+            animateCounters = animateCounters,
+            onSafeTodayInfoClick = onSafeTodayInfoClick,
+            onNavigateToSettings = onNavigateToSettings
+        )
+        SummaryCardSecondaryMetrics(
+            budgetState = budgetState,
+            secondaryMetricsProgress = secondaryMetricsProgress,
+            bottomOffsetPx = bottomOffsetPx,
+            progress = progress,
+            contentColor = contentColor,
+            animateCounters = animateCounters,
+            isLoading = isLoading,
+            tagSecondaryMetrics = tagSecondaryMetrics
+        )
+    }
+}
+
+@Composable
+internal fun MergedSummaryHeaderSurface(
+    title: String,
+    summaryColors: SummaryCardColors,
+    modifier: Modifier = Modifier,
+    onNavigateToSettings: (() -> Unit)? = null,
+    headerRowTestTag: String? = null,
+    titleTestTag: String? = null,
+    settingsTestTag: String? = null,
+    body: @Composable () -> Unit
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(14.dp, FlatSummaryCardShape),
+        color = summaryColors.container,
+        shape = FlatSummaryCardShape
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            MergedSummaryHeaderRow(
+                title = title,
+                contentColor = summaryColors.content,
+                onNavigateToSettings = onNavigateToSettings,
+                modifier = Modifier.fillMaxWidth(),
+                rowTestTag = headerRowTestTag,
+                titleTestTag = titleTestTag,
+                settingsTestTag = settingsTestTag
+            )
+            body()
+        }
+    }
+}
+
+@Composable
+internal fun MergedSummaryHeaderRow(
+    title: String,
+    contentColor: Color,
+    onNavigateToSettings: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    rowTestTag: String? = null,
+    titleTestTag: String? = null,
+    settingsTestTag: String? = null
+) {
+    Box(
+        modifier = modifier
+            .then(if (rowTestTag != null) Modifier.testTag(rowTestTag) else Modifier)
+            .statusBarsPadding()
+            .padding(horizontal = 14.dp, vertical = 7.dp)
+    ) {
+        Text(
+            text = title,
             modifier = Modifier
-                .padding(horizontal = horizontalPadding, vertical = verticalPadding),
-            verticalArrangement = Arrangement.spacedBy(contentSpacing)
-        ) {
-            SummaryCardPrimaryRow(
-                budgetState = budgetState,
-                amountFontSize = amountFontSize,
-                amountLineHeight = amountLineHeight,
-                contentColor = colors.content,
-                progress = progress,
-                iconAlpha = iconAlpha,
-                iconOffsetPx = iconOffsetPx,
-                rightTopOffsetPx = rightTopOffsetPx,
-                recoverableOverspendCents = recoverableOverspendCents,
-                safeTodayAlpha = safeTodayAlpha,
-                isLoading = isLoading,
-                animateCounters = animateCounters,
-                onSafeTodayInfoClick = onSafeTodayInfoClick,
-                onNavigateToSettings = onNavigateToSettings
-            )
-            SummaryCardSecondaryMetrics(
-                budgetState = budgetState,
-                secondaryMetricsProgress = secondaryMetricsProgress,
-                bottomOffsetPx = bottomOffsetPx,
-                progress = progress,
-                contentColor = colors.content,
-                animateCounters = animateCounters,
-                isLoading = isLoading,
-                tagSecondaryMetrics = tagSecondaryMetrics
-            )
+                .align(Alignment.CenterStart)
+                .widthIn(max = 260.dp)
+                .then(if (titleTestTag != null) Modifier.testTag(titleTestTag) else Modifier),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = contentColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        if (onNavigateToSettings != null) {
+            IconButton(
+                onClick = onNavigateToSettings,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .then(if (settingsTestTag != null) Modifier.testTag(settingsTestTag) else Modifier)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_settings),
+                    contentDescription = "Open settings",
+                    tint = contentColor
+                )
+            }
         }
     }
 }

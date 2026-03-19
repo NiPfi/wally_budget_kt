@@ -5,6 +5,8 @@ package net.loeu.wallybudget.ui.screens.overview
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -24,6 +26,8 @@ internal data class CollapsingSummaryLayoutConfig(
     val headerTopPadding: Dp = 8.dp,
     val headerBottomSpacing: Dp = 10.dp
 )
+
+internal val LocalCollapsingHeaderIsForMeasurement = compositionLocalOf { false }
 
 @Composable
 internal fun CollapsingSummaryLayout(
@@ -132,7 +136,9 @@ private fun SubcomposeMeasureScope.measureCollapsingHeaderHeight(
     fallbackHeight: Int = 0
 ): Int {
     return subcompose(slotId) {
-        header(collapseProgress)
+        CompositionLocalProvider(LocalCollapsingHeaderIsForMeasurement provides true) {
+            header(collapseProgress)
+        }
     }.maxOfOrNull { it.measure(constraints).height } ?: fallbackHeight
 }
 

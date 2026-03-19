@@ -14,12 +14,14 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.layout.SubcomposeMeasureScope
 import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.unit.lerp
+import androidx.compose.ui.unit.sp
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseDaySection
@@ -33,6 +35,8 @@ internal data class OverviewContentState(
     val spendingForecast: SpendingForecast,
     val onEditTodayExpense: ((Expense) -> Unit)?,
     val isLoading: Boolean,
+    val headerTitle: String?,
+    val headerSettingsAction: (() -> Unit)?,
     val onNavigateToSettings: (() -> Unit)?,
     val availableRecoverableOverspendCents: Long,
     val useWarningTint: Boolean
@@ -51,6 +55,7 @@ internal data class OverviewContentConfig(
 )
 
 @Composable
+@Suppress("LongMethod")
 internal fun OverviewContentLayout(
     contentState: OverviewContentState,
     layoutState: OverviewPageState,
@@ -74,6 +79,8 @@ internal fun OverviewContentLayout(
             isLoading = contentState.isLoading,
             useWarningTint = contentState.useWarningTint,
             onShowSafeTodayDetails = onShowSafeTodayDetails,
+            headerTitle = contentState.headerTitle,
+            headerSettingsAction = contentState.headerSettingsAction,
             onNavigateToSettings = contentState.onNavigateToSettings
         )
         val maxCollapsePx = if (config.enableHeaderCollapse) {
@@ -107,6 +114,9 @@ internal fun OverviewContentLayout(
             isLoading = contentState.isLoading,
             useWarningTint = contentState.useWarningTint,
             onShowSafeTodayDetails = onShowSafeTodayDetails,
+            headerTitle = contentState.headerTitle,
+            headerSettingsAction = contentState.headerSettingsAction,
+            showTestTags = true,
             onNavigateToSettings = contentState.onNavigateToSettings
         )
         layout(constraints.maxWidth, constraints.maxHeight) {
@@ -169,6 +179,9 @@ private fun SubcomposeMeasureScope.measureOverviewHeaderPlaceables(
     isLoading: Boolean,
     useWarningTint: Boolean,
     onShowSafeTodayDetails: () -> Unit,
+    headerTitle: String?,
+    headerSettingsAction: (() -> Unit)?,
+    showTestTags: Boolean,
     onNavigateToSettings: (() -> Unit)?
 ) = subcompose("currentHeader") {
     CurrentSummaryHeader(
@@ -178,6 +191,9 @@ private fun SubcomposeMeasureScope.measureOverviewHeaderPlaceables(
         isLoading = isLoading,
         useWarningTint = useWarningTint,
         onShowSafeTodayDetails = onShowSafeTodayDetails,
+        headerTitle = headerTitle,
+        headerSettingsAction = headerSettingsAction,
+        showTestTags = showTestTags,
         onNavigateToSettings = onNavigateToSettings
     )
 }.map { it.measure(headerConstraints) }
@@ -202,6 +218,8 @@ private fun SubcomposeMeasureScope.measureHeaderMetrics(
     isLoading: Boolean,
     useWarningTint: Boolean,
     onShowSafeTodayDetails: () -> Unit,
+    headerTitle: String?,
+    headerSettingsAction: (() -> Unit)?,
     onNavigateToSettings: (() -> Unit)?
 ): OverviewHeaderMetrics {
     val horizontalPaddingPx = with(density) { headerHorizontalPadding.roundToPx() }
@@ -220,6 +238,9 @@ private fun SubcomposeMeasureScope.measureHeaderMetrics(
         isLoading = isLoading,
         useWarningTint = useWarningTint,
         onSafeTodayInfoClick = onShowSafeTodayDetails,
+        headerTitle = headerTitle,
+        headerSettingsAction = headerSettingsAction,
+        showTestTags = false,
         onNavigateToSettings = onNavigateToSettings,
         constraints = headerConstraints
     )
@@ -231,6 +252,9 @@ private fun SubcomposeMeasureScope.measureHeaderMetrics(
         isLoading = isLoading,
         useWarningTint = useWarningTint,
         onSafeTodayInfoClick = onShowSafeTodayDetails,
+        headerTitle = headerTitle,
+        headerSettingsAction = headerSettingsAction,
+        showTestTags = false,
         onNavigateToSettings = onNavigateToSettings,
         constraints = headerConstraints,
         fallbackHeight = expandedHeaderHeightPx
@@ -246,6 +270,7 @@ private fun SubcomposeMeasureScope.measureHeaderMetrics(
 }
 
 @Composable
+@Suppress("LongMethod")
 private fun CurrentSummaryHeader(
     budgetState: BudgetState,
     availableRecoverableOverspendCents: Long,
@@ -253,22 +278,76 @@ private fun CurrentSummaryHeader(
     isLoading: Boolean,
     useWarningTint: Boolean,
     onShowSafeTodayDetails: () -> Unit,
+    headerTitle: String?,
+    headerSettingsAction: (() -> Unit)?,
+    showTestTags: Boolean,
     onNavigateToSettings: (() -> Unit)?
 ) {
-    SummaryCard(
-        budgetState = budgetState,
-        recoverableOverspendCents = availableRecoverableOverspendCents,
-        collapseProgress = collapseProgress,
-        isLoading = isLoading,
-        animateCounters = true,
-        useWarningTint = useWarningTint,
-        tagSecondaryMetrics = true,
-        onSafeTodayInfoClick = onShowSafeTodayDetails,
-        onNavigateToSettings = onNavigateToSettings,
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("home_summary_section")
-    )
+    val summaryModifier = Modifier
+        .fillMaxWidth()
+        .then(if (showTestTags) Modifier.testTag("home_summary_section") else Modifier)
+    if (headerTitle != null) {
+        val progress = collapseProgress.coerceIn(0f, 1f)
+        val density = LocalDensity.current
+        val horizontalPadding = lerp(20.dp, 16.dp, progress)
+        val verticalPadding = lerp(18.dp, 8.dp, progress)
+        val contentSpacing = lerp(12.dp, 4.dp, progress)
+        val iconAlpha = (1f - progress * 1.35f).coerceIn(0f, 1f)
+        val secondaryMetricsProgress = 1f - progress
+        val amountFontSize = lerp(22.sp, 17.sp, progress)
+        val amountLineHeight = lerp(28.sp, 20.sp, progress)
+        val safeTodayAlpha = (1f - progress * 1.5f).coerceIn(0f, 1f)
+        val rightTopOffsetPx = with(density) { ((1f - progress) * 6.dp.toPx()) }
+        val iconOffsetPx = with(density) { (progress * -4.dp.toPx()) }
+        val bottomOffsetPx = with(density) { ((1f - secondaryMetricsProgress) * -6.dp.toPx()) }
+        val colors = summaryCardColors(useWarningTint)
+
+        MergedSummaryHeaderSurface(
+            title = headerTitle,
+            summaryColors = colors,
+            modifier = summaryModifier,
+            onNavigateToSettings = headerSettingsAction,
+            headerRowTestTag = if (showTestTags) "home_page_header_row" else null,
+            titleTestTag = if (showTestTags) "home_page_header_title" else null,
+            settingsTestTag = if (showTestTags) "home_page_header_settings" else null
+        ) {
+            SummaryCardBody(
+                budgetState = budgetState,
+                recoverableOverspendCents = availableRecoverableOverspendCents,
+                progress = progress,
+                horizontalPadding = horizontalPadding,
+                verticalPadding = verticalPadding,
+                contentSpacing = contentSpacing,
+                amountFontSize = amountFontSize,
+                amountLineHeight = amountLineHeight,
+                contentColor = colors.content,
+                iconAlpha = iconAlpha,
+                iconOffsetPx = iconOffsetPx,
+                rightTopOffsetPx = rightTopOffsetPx,
+                safeTodayAlpha = safeTodayAlpha,
+                bottomOffsetPx = bottomOffsetPx,
+                secondaryMetricsProgress = secondaryMetricsProgress,
+                isLoading = isLoading,
+                animateCounters = true,
+                tagSecondaryMetrics = showTestTags,
+                onSafeTodayInfoClick = onShowSafeTodayDetails,
+                onNavigateToSettings = null
+            )
+        }
+    } else {
+        SummaryCard(
+            budgetState = budgetState,
+            recoverableOverspendCents = availableRecoverableOverspendCents,
+            collapseProgress = collapseProgress,
+            isLoading = isLoading,
+            animateCounters = true,
+            useWarningTint = useWarningTint,
+            tagSecondaryMetrics = showTestTags,
+            onSafeTodayInfoClick = onShowSafeTodayDetails,
+            onNavigateToSettings = onNavigateToSettings,
+            modifier = summaryModifier
+        )
+    }
 }
 
 @Composable
@@ -347,21 +426,25 @@ private fun SubcomposeMeasureScope.measureSummaryCardHeight(
     isLoading: Boolean,
     useWarningTint: Boolean,
     onSafeTodayInfoClick: () -> Unit,
+    headerTitle: String?,
+    headerSettingsAction: (() -> Unit)?,
+    showTestTags: Boolean,
     onNavigateToSettings: (() -> Unit)?,
     constraints: Constraints,
     fallbackHeight: Int = 0
 ): Int {
     return subcompose(slotId) {
-        SummaryCard(
+        CurrentSummaryHeader(
             budgetState = budgetState,
-            recoverableOverspendCents = recoverableOverspendCents,
+            availableRecoverableOverspendCents = recoverableOverspendCents,
             collapseProgress = collapseProgress,
             isLoading = isLoading,
-            animateCounters = false,
             useWarningTint = useWarningTint,
-            onSafeTodayInfoClick = onSafeTodayInfoClick,
-            onNavigateToSettings = onNavigateToSettings,
-            modifier = Modifier.fillMaxWidth()
+            onShowSafeTodayDetails = onSafeTodayInfoClick,
+            headerTitle = headerTitle,
+            headerSettingsAction = headerSettingsAction,
+            showTestTags = showTestTags,
+            onNavigateToSettings = onNavigateToSettings
         )
     }.maxOfOrNull { it.measure(constraints).height } ?: fallbackHeight
 }

@@ -17,16 +17,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -41,7 +36,6 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,13 +49,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
@@ -91,6 +83,8 @@ import net.loeu.wallybudget.ui.components.TimelineLockBanner
 import net.loeu.wallybudget.ui.screens.expenses.ExpenseItem
 import net.loeu.wallybudget.ui.screens.overview.CollapsingSummaryLayout
 import net.loeu.wallybudget.ui.screens.overview.CollapsingSummaryLayoutConfig
+import net.loeu.wallybudget.ui.screens.overview.LocalCollapsingHeaderIsForMeasurement
+import net.loeu.wallybudget.ui.screens.overview.MergedSummaryHeaderSurface
 import net.loeu.wallybudget.ui.screens.overview.OverviewPage
 import net.loeu.wallybudget.ui.screens.overview.rememberOverviewPageLayoutState
 import net.loeu.wallybudget.ui.screens.overview.summaryCardColors
@@ -104,8 +98,6 @@ import kotlin.math.roundToInt
 
 private val HomeFabSize = 56.dp
 private val HomeFabListClearance = 16.dp
-private val FlatSummaryCardShape = RoundedCornerShape(0.dp)
-
 private sealed interface HomePage {
     data object Portfolio : HomePage
     data class Bucket(val bucketUuid: String) : HomePage
@@ -188,32 +180,6 @@ fun HomeScreen(
         snackbarHostState = snackbarHostState,
         onSettingsMessageConsumed = onSettingsMessageConsumed
     )
-    val currentPage = pages.getOrNull(pagerState.currentPage)
-    val headerColors = when (currentPage) {
-        HomePage.Portfolio -> summaryCardColors(
-            useWarningTint = portfolioState.remainingThisCycleCents < 0L
-        )
-
-        is HomePage.Bucket -> {
-            val isDailyTarget = selectedBucketOverview.bucket.bucketUuid == currentPage.bucketUuid &&
-                selectedBucketOverview.budgetState != null &&
-                spendingForecast != null
-            if (isDailyTarget) {
-                summaryCardColors(
-                    useWarningTint = selectedBucketOverview.budgetState.remainingTodayCents < 0L ||
-                        selectedBucketOverview.budgetState.remainingCycleCents < 0L ||
-                        spendingForecast.isProjectedOverBudget
-                )
-            } else {
-                summaryCardColors(
-                    useWarningTint = selectedBucketOverview.summary.remainingThisCycleCents < 0L ||
-                        selectedBucketOverview.summary.overspentCents > 0L
-                )
-            }
-        }
-
-        null -> summaryCardColors(useWarningTint = false)
-    }
 
     LaunchedEffect(defaultPageIndex, primaryBucketUuid, didInitializePage, pages.size) {
         if (!didInitializePage && pages.isNotEmpty()) {
@@ -221,6 +187,21 @@ fun HomeScreen(
             primaryBucketUuid?.let(onSelectBucket)
             didInitializePage = true
         }
+    }
+
+    fun openBucketSettings(bucketUuid: String) {
+        val bucket = allBuckets.firstOrNull { it.bucketUuid == bucketUuid } ?: return
+        val summary = bucketSummaries.firstOrNull { it.bucket.bucketUuid == bucketUuid }
+        bucketEditorState = HomeBucketEditorState(
+            bucketUuid = bucket.bucketUuid,
+            name = bucket.name,
+            trackingMode = bucket.trackingMode,
+            balanceBehavior = bucket.balanceBehavior,
+            amountText = CurrencyFormatter.centsToDecimalString(
+                summary?.allocatedThisCycleCents ?: bucket.defaultAllocatedAmountCents
+            ),
+            isPrimary = bucket.isPrimary
+        )
     }
 
     LaunchedEffect(pagerState, pages) {
@@ -282,38 +263,6 @@ fun HomeScreen(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                     )
                 }
-                HomePagerHeader(
-                    title = pages.currentPageTitle(
-                        currentPage = pagerState.currentPage,
-                        bucketSummaries = orderedOpenSummaries,
-                        selectedBucketOverview = selectedBucketOverview
-                    ),
-                    backgroundColor = headerColors.container,
-                    contentColor = headerColors.content,
-                    showTopRightSettingsAction = showTopRightSettingsAction,
-                    onNavigateToSettings = {
-                        when (val currentPage = pages.getOrNull(pagerState.currentPage)) {
-                            HomePage.Portfolio -> onNavigateToSettings()
-                            is HomePage.Bucket -> {
-                                val bucket = allBuckets.firstOrNull { it.bucketUuid == currentPage.bucketUuid } ?: return@HomePagerHeader
-                                val summary = bucketSummaries.firstOrNull { it.bucket.bucketUuid == currentPage.bucketUuid }
-                                bucketEditorState = HomeBucketEditorState(
-                                    bucketUuid = bucket.bucketUuid,
-                                    name = bucket.name,
-                                    trackingMode = bucket.trackingMode,
-                                    balanceBehavior = bucket.balanceBehavior,
-                                    amountText = CurrencyFormatter.centsToDecimalString(
-                                        summary?.allocatedThisCycleCents ?: bucket.defaultAllocatedAmountCents
-                                    ),
-                                    isPrimary = bucket.isPrimary
-                                )
-                            }
-
-                            null -> onNavigateToSettings()
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize()
@@ -322,6 +271,8 @@ fun HomeScreen(
                         HomePage.Portfolio -> PortfolioOverviewPage(
                             portfolioState = portfolioState,
                             bucketSummaries = orderedOpenSummaries,
+                            showTopRightSettingsAction = showTopRightSettingsAction,
+                            onNavigateToSettings = onNavigateToSettings,
                             modifier = Modifier.fillMaxSize()
                         )
 
@@ -329,9 +280,18 @@ fun HomeScreen(
                             selectedBucketOverview = selectedBucketOverview,
                             spendingForecast = spendingForecast,
                             bucketUuid = page.bucketUuid,
+                            pageTitle = orderedOpenSummaries.firstOrNull { it.bucket.bucketUuid == page.bucketUuid }?.bucket?.name
+                                ?: "Bucket",
+                            pageSummary = orderedOpenSummaries.firstOrNull { it.bucket.bucketUuid == page.bucketUuid },
                             canEditExpenses = canEditExpenses,
                             isLoadingData = isLoadingData,
                             onEditExpense = { expenseBeingEdited = it },
+                            showTopRightSettingsAction = showTopRightSettingsAction,
+                            onNavigateToSettings = if (showTopRightSettingsAction) {
+                                { openBucketSettings(page.bucketUuid) }
+                            } else {
+                                null
+                            },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -410,57 +370,6 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomePagerHeader(
-    title: String,
-    backgroundColor: androidx.compose.ui.graphics.Color,
-    contentColor: androidx.compose.ui.graphics.Color,
-    showTopRightSettingsAction: Boolean,
-    onNavigateToSettings: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = backgroundColor,
-        contentColor = contentColor,
-        tonalElevation = 0.dp
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 14.dp, vertical = 7.dp)
-            ) {
-                Text(
-                    text = title,
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .widthIn(max = 260.dp),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = contentColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (showTopRightSettingsAction) {
-                    IconButton(
-                        onClick = onNavigateToSettings,
-                        modifier = Modifier.align(Alignment.CenterEnd)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_settings),
-                            contentDescription = "Open settings",
-                            tint = contentColor
-                        )
-                    }
-                }
-            }
-            HorizontalDivider(color = contentColor.copy(alpha = 0.18f))
-        }
-    }
-}
-
-@Composable
 private fun BottomPageIndicator(
     pageCount: Int,
     currentPage: Int,
@@ -497,6 +406,8 @@ private fun HomeScreenEffects(
 private fun PortfolioOverviewPage(
     portfolioState: PortfolioState,
     bucketSummaries: List<BucketSummaryState>,
+    showTopRightSettingsAction: Boolean,
+    onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val layoutState = rememberOverviewPageLayoutState(
@@ -514,7 +425,8 @@ private fun PortfolioOverviewPage(
         header = { collapseProgress ->
             PortfolioSummaryCard(
                 portfolioState = portfolioState,
-                collapseProgress = collapseProgress
+                collapseProgress = collapseProgress,
+                onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null
             )
         }
     ) { listState, contentPadding ->
@@ -541,8 +453,10 @@ private fun PortfolioOverviewPage(
 @Composable
 private fun PortfolioSummaryCard(
     portfolioState: PortfolioState,
-    collapseProgress: Float
+    collapseProgress: Float,
+    onNavigateToSettings: (() -> Unit)?
 ) {
+    val showTestTags = !LocalCollapsingHeaderIsForMeasurement.current
     val colors = summaryCardColors(useWarningTint = portfolioState.remainingThisCycleCents < 0L)
     val progress = collapseProgress.coerceIn(0f, 1f)
     val horizontalPadding = lerp(20.dp, 16.dp, progress)
@@ -550,23 +464,22 @@ private fun PortfolioSummaryCard(
     val contentSpacing = lerp(12.dp, 6.dp, progress)
     val amountFontSize = lerp(34.sp, 24.sp, progress)
 
-    Card(
+    MergedSummaryHeaderSurface(
+        title = "Portfolio",
+        summaryColors = colors,
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(14.dp, FlatSummaryCardShape),
-        shape = FlatSummaryCardShape,
-        colors = CardDefaults.cardColors(containerColor = colors.container)
+            .then(if (showTestTags) Modifier else Modifier),
+        onNavigateToSettings = onNavigateToSettings,
+        headerRowTestTag = if (showTestTags) "home_page_header_row" else null,
+        titleTestTag = if (showTestTags) "home_page_header_title" else null,
+        settingsTestTag = if (showTestTags) "home_page_header_settings" else null
     ) {
         Column(
             modifier = Modifier.padding(horizontal = horizontalPadding, vertical = verticalPadding),
             verticalArrangement = Arrangement.spacedBy(contentSpacing)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = "Portfolio",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = colors.content
-                )
                 Text(
                     text = CurrencyFormatter.format(portfolioState.remainingThisCycleCents),
                     style = MaterialTheme.typography.headlineMedium.copy(
@@ -713,21 +626,43 @@ private fun BucketHomePage(
     selectedBucketOverview: SelectedBucketOverview,
     spendingForecast: SpendingForecast?,
     bucketUuid: String,
+    pageTitle: String,
+    pageSummary: BucketSummaryState?,
     canEditExpenses: Boolean,
     isLoadingData: Boolean,
     onEditExpense: (Expense) -> Unit,
+    showTopRightSettingsAction: Boolean,
+    onNavigateToSettings: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     if (selectedBucketOverview.bucket.bucketUuid != bucketUuid) {
-        Box(
-            modifier = modifier.padding(24.dp),
-            contentAlignment = Alignment.TopStart
-        ) {
-            Text(
-                text = "Loading bucket…",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        Column(modifier = modifier.fillMaxSize()) {
+            pageSummary?.let { summary ->
+                ReserveSummaryCard(
+                    selectedBucketOverview = SelectedBucketOverview(
+                        bucket = summary.bucket,
+                        summary = summary,
+                        budgetState = summary.budgetState,
+                        todayExpenses = emptyList(),
+                        activeCycleExpenseSections = emptyList(),
+                        spendingForecast = null
+                    ),
+                    collapseProgress = 0f,
+                    onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                contentAlignment = Alignment.TopStart
+            ) {
+                Text(
+                    text = "Loading $pageTitle…",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
         return
     }
@@ -747,6 +682,8 @@ private fun BucketHomePage(
                 null
             },
             isLoading = isLoadingData,
+            headerTitle = pageTitle,
+            headerSettingsAction = if (showTopRightSettingsAction) onNavigateToSettings else null,
             onNavigateToSettings = null,
             enableHeaderCollapse = true,
             defaultCollapsedHeader = false,
@@ -768,7 +705,8 @@ private fun BucketHomePage(
             header = { collapseProgress ->
                 ReserveSummaryCard(
                     selectedBucketOverview = selectedBucketOverview,
-                    collapseProgress = collapseProgress
+                    collapseProgress = collapseProgress,
+                    onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null
                 )
             }
         ) { listState, contentPadding ->
@@ -800,8 +738,10 @@ private fun BucketHomePage(
 @Composable
 private fun ReserveSummaryCard(
     selectedBucketOverview: SelectedBucketOverview,
-    collapseProgress: Float
+    collapseProgress: Float,
+    onNavigateToSettings: (() -> Unit)?
 ) {
+    val showTestTags = !LocalCollapsingHeaderIsForMeasurement.current
     val summary = selectedBucketOverview.summary
     val colors = summaryCardColors(
         useWarningTint = summary.remainingThisCycleCents < 0L || summary.overspentCents > 0L
@@ -811,22 +751,19 @@ private fun ReserveSummaryCard(
     val verticalPadding = lerp(18.dp, 10.dp, progress)
     val contentSpacing = lerp(12.dp, 6.dp, progress)
     val amountFontSize = lerp(34.sp, 24.sp, progress)
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(14.dp, FlatSummaryCardShape),
-        shape = FlatSummaryCardShape,
-        colors = CardDefaults.cardColors(containerColor = colors.container)
+    MergedSummaryHeaderSurface(
+        title = selectedBucketOverview.bucket.name,
+        summaryColors = colors,
+        modifier = Modifier.fillMaxWidth(),
+        onNavigateToSettings = onNavigateToSettings,
+        headerRowTestTag = if (showTestTags) "home_page_header_row" else null,
+        titleTestTag = if (showTestTags) "home_page_header_title" else null,
+        settingsTestTag = if (showTestTags) "home_page_header_settings" else null
     ) {
         Column(
             modifier = Modifier.padding(horizontal = horizontalPadding, vertical = verticalPadding),
             verticalArrangement = Arrangement.spacedBy(contentSpacing)
         ) {
-            Text(
-                text = selectedBucketOverview.bucket.name,
-                style = MaterialTheme.typography.titleMedium,
-                color = colors.content
-            )
             Text(
                 text = CurrencyFormatter.formatSigned(summary.remainingThisCycleCents),
                 style = MaterialTheme.typography.headlineMedium.copy(
@@ -1536,23 +1473,4 @@ private fun BucketTrackingMode.displayLabel(): String = when (this) {
 private fun BucketBalanceBehavior.displayLabel(): String = when (this) {
     BucketBalanceBehavior.RETURN_TO_PORTFOLIO -> "Return to portfolio"
     BucketBalanceBehavior.RETAIN_IN_BUCKET -> "Retain in bucket"
-}
-
-private fun List<HomePage>.currentPageTitle(
-    currentPage: Int,
-    bucketSummaries: List<BucketSummaryState>,
-    selectedBucketOverview: SelectedBucketOverview
-): String {
-    val page = getOrNull(currentPage) ?: return ""
-    return when (page) {
-        HomePage.Portfolio -> "Portfolio"
-        is HomePage.Bucket -> {
-            if (selectedBucketOverview.bucket.bucketUuid == page.bucketUuid) {
-                selectedBucketOverview.bucket.name
-            } else {
-                bucketSummaries.firstOrNull { it.bucket.bucketUuid == page.bucketUuid }?.bucket?.name
-                    ?: "Bucket"
-            }
-        }
-    }
 }

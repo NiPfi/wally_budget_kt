@@ -46,6 +46,8 @@ fun OverviewPage(
     onEditTodayExpense: ((Expense) -> Unit)?,
     modifier: Modifier = Modifier,
     isLoading: Boolean = false,
+    headerTitle: String? = null,
+    headerSettingsAction: (() -> Unit)? = null,
     onNavigateToSettings: (() -> Unit)? = null,
     showSpendingDetailsSection: Boolean = true,
     showTodayExpensesSection: Boolean = true,
@@ -88,6 +90,8 @@ fun OverviewPage(
             spendingForecast = spendingForecast,
             onEditTodayExpense = onEditTodayExpense,
             isLoading = isLoading,
+            headerTitle = headerTitle,
+            headerSettingsAction = headerSettingsAction,
             onNavigateToSettings = onNavigateToSettings,
             availableRecoverableOverspendCents = availableRecoverableOverspendCents,
             useWarningTint = useWarningTint
