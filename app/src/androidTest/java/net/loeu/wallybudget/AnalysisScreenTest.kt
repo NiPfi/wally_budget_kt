@@ -158,6 +158,7 @@ class AnalysisScreenTest {
         composeRule.setContent {
             WallyBudgetTheme {
                 AnalysisScreen(
+                    selectedBucketOverview = null,
                     budgetState = budgetState,
                     spendingForecast = spendingForecast,
                     monthlyHistory = monthlyHistory,

@@ -9,7 +9,10 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import net.loeu.wallybudget.domain.model.BudgetChangeMode
-import net.loeu.wallybudget.domain.model.BudgetState
+import net.loeu.wallybudget.domain.model.BudgetBucket
+import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
+import net.loeu.wallybudget.domain.model.BucketSummaryState
+import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.ui.screens.settings.SettingsScreen
 import net.loeu.wallybudget.ui.theme.WallyBudgetTheme
@@ -30,7 +33,7 @@ class SettingsScreenTest {
         val saveCalls = mutableListOf<Triple<Long, Int, BudgetChangeMode>>()
 
         setSettingsScreenContent(
-            onSaveSettings = { budgetCents, paydayDate, mode ->
+            onSaveSettings = { budgetCents, paydayDate, _, mode ->
                 saveCalls += Triple(budgetCents, paydayDate, mode)
             }
         )
@@ -47,7 +50,7 @@ class SettingsScreenTest {
         val saveCalls = mutableListOf<Triple<Long, Int, BudgetChangeMode>>()
 
         setSettingsScreenContent(
-            onSaveSettings = { budgetCents, paydayDate, mode ->
+            onSaveSettings = { budgetCents, paydayDate, _, mode ->
                 saveCalls += Triple(budgetCents, paydayDate, mode)
             }
         )
@@ -64,7 +67,7 @@ class SettingsScreenTest {
         var undoCalls = 0
 
         setSettingsScreenContent(
-            onSaveSettings = { _, _, _ -> },
+            onSaveSettings = { _, _, _, _ -> },
             onUndoSettings = { undoCalls += 1 },
             isSettingsUndoAvailable = true,
             settingsUndoExpiresAtExclusive = LocalDate.of(2026, 12, 25)
@@ -77,11 +80,37 @@ class SettingsScreenTest {
     }
 
     private fun setSettingsScreenContent(
-        onSaveSettings: (Long, Int, BudgetChangeMode) -> Unit,
+        onSaveSettings: (Long, Int, List<net.loeu.wallybudget.domain.usecase.BucketDraft>, BudgetChangeMode) -> Unit,
         onUndoSettings: () -> Unit = {},
         isSettingsUndoAvailable: Boolean = false,
         settingsUndoExpiresAtExclusive: LocalDate? = null
     ) {
+        val allBuckets = listOf(
+            BudgetBucket(
+                bucketUuid = "bucket-1",
+                name = "Groceries",
+                trackingMode = BucketTrackingMode.CYCLE_RESERVE,
+                balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
+                defaultAllocatedAmountCents = 100_000L,
+                sortOrder = 0,
+                isPrimary = true,
+                originInstallId = "test-install",
+                lastModifiedByInstallId = "test-install",
+                createdAtEpochMs = 1L,
+                updatedAtEpochMs = 1L,
+                modClock = "clock-1"
+            )
+        )
+        val bucketSummaries = listOf(
+            BucketSummaryState(
+                bucket = allBuckets.single(),
+                allocatedThisCycleCents = 100_000L,
+                spentThisCycleCents = 40_000L,
+                remainingThisCycleCents = 60_000L,
+                overspentCents = 0L,
+                earmarkedBalanceCents = 0L
+            )
+        )
         composeRule.setContent {
             WallyBudgetTheme {
                 SettingsScreen(
@@ -90,17 +119,8 @@ class SettingsScreenTest {
                         paydayDate = 25,
                         isOnboardingCompleted = true
                     ),
-                    budgetState = BudgetState(
-                        monthlyBudgetCents = 100_000L,
-                        totalSpentThisCycleCents = 40_000L,
-                        dailyBudgetCents = 3_750L,
-                        spentTodayCents = 1_250L,
-                        remainingTodayCents = 2_500L,
-                        daysRemainingInCycle = 21,
-                        cumulativeSavingsCents = 8_000L,
-                        paydayDate = 25,
-                        cycleStartDate = LocalDate.of(2026, 11, 25)
-                    ),
+                    allBuckets = allBuckets,
+                    bucketSummaries = bucketSummaries,
                     currentDate = LocalDate.of(2026, 12, 4),
                     onSaveSettings = onSaveSettings,
                     onUndoSettings = onUndoSettings,
