@@ -33,6 +33,7 @@ import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.ResolvedCyclePolicy
 import net.loeu.wallybudget.domain.usecase.internal.effectiveCurrentDate
 import net.loeu.wallybudget.domain.usecase.internal.filterByRange
+import net.loeu.wallybudget.domain.usecase.internal.resolveSelectedOpenBucket
 import java.time.LocalDate
 
 private data class EffectiveForecastInputs(
@@ -70,14 +71,14 @@ class ObserveForecastUseCase(
             .distinctUntilChanged()
         val selectedBucketUuid = userSettings
             .map { settings ->
-                settings.selectedBucketUuid ?: settings.primaryBucketUuid ?: DEFAULT_SPENDING_BUCKET_UUID
+                settings.selectedBucketUuid ?: DEFAULT_SPENDING_BUCKET_UUID
             }
             .distinctUntilChanged()
         val buckets = budgetBucketDao.observeAllActive().map { entries ->
             entries.map { it.bucketToDomainModel() }
         }
         val selectedBucket = combine(selectedBucketUuid, buckets) { bucketUuid, bucketEntries ->
-            bucketEntries.firstOrNull { it.bucketUuid == bucketUuid }
+            resolveSelectedOpenBucket(bucketUuid, bucketEntries)
         }.distinctUntilChanged()
         val history = selectedBucketUuid.flatMapLatest { bucketUuid ->
             bucketMonthlyHistoryDao.observeForBucket(bucketUuid).map { entries ->

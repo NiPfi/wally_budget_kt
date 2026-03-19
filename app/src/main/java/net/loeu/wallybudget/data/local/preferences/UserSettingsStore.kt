@@ -20,7 +20,7 @@ interface UserSettingsStore {
 
     suspend fun updatePaydayDate(day: Int)
 
-    suspend fun updateBucketSelection(primaryBucketUuid: String?, selectedBucketUuid: String?)
+    suspend fun updateSelectedBucket(selectedBucketUuid: String?)
 
     suspend fun updateLastResetTimestamp(timestamp: Long)
 

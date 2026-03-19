@@ -53,7 +53,6 @@ class SettingsFormValidationTest {
                 balanceBehavior = net.loeu.wallybudget.domain.model.BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
                 amountText = "15.0",
                 sortOrder = 0,
-                isPrimary = true,
                 closeRequested = false,
                 existingClosed = false
             )
@@ -83,7 +82,6 @@ class SettingsFormValidationTest {
                 balanceBehavior = net.loeu.wallybudget.domain.model.BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
                 amountText = "15.0",
                 sortOrder = 0,
-                isPrimary = true,
                 closeRequested = false,
                 existingClosed = false
             )

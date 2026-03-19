@@ -57,6 +57,7 @@ import net.loeu.wallybudget.domain.usecase.internal.effectiveCurrentDate
 import net.loeu.wallybudget.domain.usecase.internal.filterByRange
 import net.loeu.wallybudget.domain.usecase.internal.lastResetDateOrNull
 import net.loeu.wallybudget.domain.usecase.internal.pendingCycleRangeOrNull
+import net.loeu.wallybudget.domain.usecase.internal.resolveSelectedOpenBucket
 import net.loeu.wallybudget.domain.usecase.internal.toDayTotalsMap
 import java.time.LocalDate
 
@@ -89,7 +90,7 @@ private fun observePendingCycle(userSettings: Flow<UserSettings>) = userSettings
 
 private fun observeSelectedBucketUuid(userSettings: Flow<UserSettings>) = userSettings
     .map { settings ->
-        settings.selectedBucketUuid ?: settings.primaryBucketUuid ?: DEFAULT_SPENDING_BUCKET_UUID
+        settings.selectedBucketUuid ?: DEFAULT_SPENDING_BUCKET_UUID
     }
     .distinctUntilChanged()
 
@@ -247,9 +248,7 @@ private fun resolvedSelectedBucket(
     buckets: List<BudgetBucket>,
     selectedBucketUuid: String
 ): BudgetBucket? {
-    return buckets.firstOrNull { it.bucketUuid == selectedBucketUuid }
-        ?: buckets.firstOrNull { it.isPrimary }
-        ?: buckets.firstOrNull()
+    return resolveSelectedOpenBucket(selectedBucketUuid, buckets)
 }
 
 private fun resolveCurrentBucketPolicy(
@@ -531,7 +530,6 @@ class ObserveHomeOverviewUseCase(
             balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
             defaultAllocatedAmountCents = inputs.settings.monthlyBudgetCents,
             sortOrder = 0,
-            isPrimary = true,
             originInstallId = inputs.settings.installDeviceId,
             lastModifiedByInstallId = inputs.settings.installDeviceId,
             createdAtEpochMs = 0L,

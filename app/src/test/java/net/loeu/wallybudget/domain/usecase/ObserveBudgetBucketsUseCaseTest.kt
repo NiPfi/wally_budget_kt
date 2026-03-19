@@ -41,7 +41,6 @@ class ObserveBudgetBucketsUseCaseTest {
             balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
             defaultAllocatedAmountCents = 0L,
             sortOrder = id.toInt(),
-            isPrimary = id == 1L,
             originInstallId = "test-install-id",
             lastModifiedByInstallId = "test-install-id",
             createdAtEpochMs = id,

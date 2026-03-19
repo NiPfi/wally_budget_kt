@@ -12,8 +12,8 @@ class SnapshotCompatibilityService {
     }
 
     companion object {
-        const val CURRENT_SCHEMA_VERSION = 3
-        val SUPPORTED_SCHEMA_VERSIONS = 1..3
+        const val CURRENT_SCHEMA_VERSION = 4
+        val SUPPORTED_SCHEMA_VERSIONS = 1..4
         const val SNAPSHOT_FORMAT = "wallybudget-snapshot"
     }
 }

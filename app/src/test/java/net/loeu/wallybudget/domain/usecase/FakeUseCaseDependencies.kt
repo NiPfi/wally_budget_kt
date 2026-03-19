@@ -81,9 +81,8 @@ internal class FakeUserSettingsStore(
         mutableUserSettings.value = mutableUserSettings.value.copy(paydayDate = day)
     }
 
-    override suspend fun updateBucketSelection(primaryBucketUuid: String?, selectedBucketUuid: String?) {
+    override suspend fun updateSelectedBucket(selectedBucketUuid: String?) {
         mutableUserSettings.value = mutableUserSettings.value.copy(
-            primaryBucketUuid = primaryBucketUuid,
             selectedBucketUuid = selectedBucketUuid
         )
     }

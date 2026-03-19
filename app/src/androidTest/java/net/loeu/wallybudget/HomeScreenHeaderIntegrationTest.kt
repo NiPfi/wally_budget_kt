@@ -18,7 +18,6 @@ import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketSummaryState
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
-import net.loeu.wallybudget.domain.model.PortfolioState
 import net.loeu.wallybudget.domain.model.SelectedBucketOverview
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.ui.screens.home.HomeScreen
@@ -37,13 +36,11 @@ class HomeScreenHeaderIntegrationTest {
     @Test
     fun home_screen_merged_header_moves_with_page_and_keeps_contextual_actions() {
         composeRule.setContent {
-            val portfolioState = testPortfolioState()
             val bucketSummaries = remember { listOf(testBucketSummary("bucket-1", "Groceries"), testBucketSummary("bucket-2", "Travel")) }
             var selectedBucketUuid by remember { mutableStateOf("bucket-1") }
 
             WallyBudgetTheme {
                 HomeScreen(
-                    portfolioState = portfolioState,
                     bucketSummaries = bucketSummaries,
                     selectedBucketOverview = selectedBucketOverview(
                         bucketSummaries = bucketSummaries,
@@ -65,7 +62,6 @@ class HomeScreenHeaderIntegrationTest {
                     onRestoreExpense = {},
                     onUpdateExpense = {},
                     onDeleteExpense = {},
-                    onNavigateToSettings = {},
                     showTopRightSettingsAction = true,
                     showAddExpenseSheet = false,
                     onShowAddExpenseSheet = {},
@@ -102,20 +98,6 @@ class HomeScreenHeaderIntegrationTest {
             spendingForecast = null
         )
     }
-
-    private fun testPortfolioState() = PortfolioState(
-        portfolioTotalBudgetCents = 250_000L,
-        allocatedToBucketsCents = 140_000L,
-        unassignedPlannedBudgetCents = 110_000L,
-        totalSpentThisCycleCents = 82_000L,
-        remainingThisCycleCents = 168_000L,
-        completedCycleReserveCents = 0L,
-        netReserveCents = 0L,
-        earmarkedReserveCents = 0L,
-        unassignedReserveCents = 0L,
-        cycleStartDate = LocalDate.of(2026, 3, 1),
-        cycleEndDateExclusive = LocalDate.of(2026, 4, 1)
-    )
 
     private fun testBucketSummary(bucketUuid: String, name: String) = BucketSummaryState(
         bucket = BudgetBucket(

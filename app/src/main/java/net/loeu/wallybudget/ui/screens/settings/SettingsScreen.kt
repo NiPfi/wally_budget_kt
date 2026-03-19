@@ -58,7 +58,6 @@ internal data class EditableBucketUi(
     val balanceBehavior: BucketBalanceBehavior,
     val amountText: String,
     val sortOrder: Int,
-    val isPrimary: Boolean,
     val closeRequested: Boolean,
     val existingClosed: Boolean
 )
@@ -176,7 +175,6 @@ fun SettingsScreen(
                             balanceBehavior = bucket.balanceBehavior,
                             defaultAllocatedAmountCents = amount,
                             sortOrder = bucket.sortOrder,
-                            isPrimary = bucket.isPrimary,
                             closeRequested = bucket.closeRequested
                         )
                     }
@@ -238,7 +236,7 @@ private fun PortfolioSection(
         ) {
             Text(text = "Portfolio", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(
-                text = "Changes apply immediately when you save. Bucket allocations can be lower than the portfolio total so the difference stays unassigned.",
+                text = "Changes apply immediately when you save. Any amount not allocated to named buckets stays in the default bucket automatically.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -314,7 +312,6 @@ private fun BudgetBucket.toEditableUi(summary: BucketSummaryState?): EditableBuc
             summary?.allocatedThisCycleCents ?: defaultAllocatedAmountCents
         ),
         sortOrder = sortOrder,
-        isPrimary = isPrimary,
         closeRequested = isClosed,
         existingClosed = isClosed
     )

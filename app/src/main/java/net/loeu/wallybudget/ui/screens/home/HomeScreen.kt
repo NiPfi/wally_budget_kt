@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -37,7 +38,6 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -70,6 +70,7 @@ import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketSummaryState
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
+import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.PortfolioState
@@ -79,6 +80,7 @@ import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.model.displayDescription
 import net.loeu.wallybudget.domain.model.recordedDate
 import net.loeu.wallybudget.domain.usecase.BucketDraft
+import net.loeu.wallybudget.domain.usecase.internal.resolveSelectedOpenBucketUuid
 import net.loeu.wallybudget.ui.components.PagerDots
 import net.loeu.wallybudget.ui.components.TimelineLockBanner
 import net.loeu.wallybudget.ui.screens.expenses.ExpenseItem
@@ -99,10 +101,6 @@ import kotlin.math.roundToInt
 
 private val HomeFabSize = 56.dp
 private val HomeFabListClearance = 16.dp
-private sealed interface HomePage {
-    data object Portfolio : HomePage
-    data class Bucket(val bucketUuid: String) : HomePage
-}
 
 private data class HomeBucketEditorState(
     val bucketUuid: String,
@@ -110,12 +108,11 @@ private data class HomeBucketEditorState(
     val trackingMode: BucketTrackingMode,
     val balanceBehavior: BucketBalanceBehavior,
     val amountText: String,
-    val isPrimary: Boolean
+    val isSystemDefault: Boolean
 )
 
 @Composable
 fun HomeScreen(
-    portfolioState: PortfolioState,
     bucketSummaries: List<BucketSummaryState>,
     selectedBucketOverview: SelectedBucketOverview,
     allBuckets: List<BudgetBucket>,
@@ -128,7 +125,6 @@ fun HomeScreen(
     onRestoreExpense: (Expense) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
-    onNavigateToSettings: () -> Unit,
     showTopRightSettingsAction: Boolean,
     showAddExpenseSheet: Boolean,
     onShowAddExpenseSheet: () -> Unit,
@@ -140,34 +136,30 @@ fun HomeScreen(
     timelineLockReason: String? = null
 ) {
     var expenseBeingEdited by remember { mutableStateOf<Expense?>(null) }
-    var showAddBucketDialog by rememberSaveable { mutableStateOf(false) }
     var bucketEditorState by remember { mutableStateOf<HomeBucketEditorState?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val canEditExpenses = !isLoadingData && timelineLockReason == null
     val openBuckets = allBuckets.filterNot { it.isClosed }
     val orderedOpenSummaries = remember(bucketSummaries) {
-        bucketSummaries.sortedWith(compareBy<BucketSummaryState> { it.bucket.sortOrder }.thenBy { it.bucket.createdAtEpochMs })
+        bucketSummaries.sortedWith(
+            compareBy<BucketSummaryState> { it.bucket.bucketUuid != DEFAULT_SPENDING_BUCKET_UUID }
+                .thenBy { it.bucket.sortOrder }
+                .thenBy { it.bucket.createdAtEpochMs }
+        )
     }
-    val primaryBucketUuid = remember(openBuckets, userSettings.primaryBucketUuid) {
-        openBuckets.firstOrNull { it.bucketUuid == userSettings.primaryBucketUuid }?.bucketUuid
-            ?: openBuckets.firstOrNull { it.isPrimary }?.bucketUuid
-            ?: openBuckets.firstOrNull()?.bucketUuid
+    val initialBucketUuid = remember(orderedOpenSummaries, userSettings.selectedBucketUuid) {
+        resolveSelectedOpenBucketUuid(
+            selectedBucketUuid = userSettings.selectedBucketUuid,
+            openBuckets = orderedOpenSummaries.map { it.bucket }
+        )
     }
-    val pages = remember(orderedOpenSummaries) {
-        buildList {
-            add(HomePage.Portfolio)
-            orderedOpenSummaries.forEach { add(HomePage.Bucket(it.bucket.bucketUuid)) }
-        }
-    }
-    val defaultPageIndex = remember(pages, primaryBucketUuid) {
-        pages.indexOfFirst { page ->
-            page is HomePage.Bucket && page.bucketUuid == primaryBucketUuid
-        }.takeIf { it >= 0 } ?: 0
+    val pages = remember(orderedOpenSummaries) { orderedOpenSummaries.map { it.bucket.bucketUuid } }
+    val defaultPageIndex = remember(pages, initialBucketUuid) {
+        pages.indexOf(initialBucketUuid).takeIf { it >= 0 } ?: 0
     }
     val pagerState = rememberPagerState(initialPage = defaultPageIndex) { pages.size }
     var didInitializePage by rememberSaveable { mutableStateOf(false) }
-    var pendingCreatedBucketUuid by rememberSaveable { mutableStateOf<String?>(null) }
 
     HomeScreenEffects(
         canEditExpenses = canEditExpenses,
@@ -182,10 +174,10 @@ fun HomeScreen(
         onSettingsMessageConsumed = onSettingsMessageConsumed
     )
 
-    LaunchedEffect(defaultPageIndex, primaryBucketUuid, didInitializePage, pages.size) {
+    LaunchedEffect(defaultPageIndex, initialBucketUuid, didInitializePage, pages.size) {
         if (!didInitializePage && pages.isNotEmpty()) {
             pagerState.scrollToPage(defaultPageIndex)
-            primaryBucketUuid?.let(onSelectBucket)
+            initialBucketUuid?.let(onSelectBucket)
             didInitializePage = true
         }
     }
@@ -201,29 +193,17 @@ fun HomeScreen(
             amountText = CurrencyFormatter.centsToDecimalString(
                 summary?.allocatedThisCycleCents ?: bucket.defaultAllocatedAmountCents
             ),
-            isPrimary = bucket.isPrimary
+            isSystemDefault = bucket.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID
         )
     }
 
     LaunchedEffect(pagerState, pages) {
         snapshotFlow { pagerState.settledPage }
             .map { page -> pages.getOrNull(page) }
-            .filter { it is HomePage.Bucket }
-            .map { (it as HomePage.Bucket).bucketUuid }
+            .filter { it != null }
+            .map { requireNotNull(it) }
             .distinctUntilChanged()
             .collect { onSelectBucket(it) }
-    }
-
-    LaunchedEffect(openBuckets, pendingCreatedBucketUuid, pages) {
-        val targetBucketUuid = pendingCreatedBucketUuid ?: return@LaunchedEffect
-        val targetPage = pages.indexOfFirst { page ->
-            page is HomePage.Bucket && page.bucketUuid == targetBucketUuid
-        }
-        if (targetPage >= 0) {
-            pagerState.animateScrollToPage(targetPage)
-            onSelectBucket(targetBucketUuid)
-            pendingCreatedBucketUuid = null
-        }
     }
 
     Scaffold(
@@ -234,20 +214,12 @@ fun HomeScreen(
             FloatingActionButton(
                 onClick = {
                     if (!canEditExpenses) return@FloatingActionButton
-                    when (pages.getOrNull(pagerState.currentPage)) {
-                        HomePage.Portfolio -> showAddBucketDialog = true
-                        is HomePage.Bucket -> onShowAddExpenseSheet()
-                        null -> Unit
-                    }
+                    onShowAddExpenseSheet()
                 }
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_add),
-                    contentDescription = if (pages.getOrNull(pagerState.currentPage) == HomePage.Portfolio) {
-                        "Add bucket"
-                    } else {
-                        "Add expense"
-                    }
+                    contentDescription = "Add expense"
                 )
             }
         }
@@ -268,34 +240,25 @@ fun HomeScreen(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize()
                 ) { pageIndex ->
-                    when (val page = pages[pageIndex]) {
-                        HomePage.Portfolio -> PortfolioOverviewPage(
-                            portfolioState = portfolioState,
-                            bucketSummaries = orderedOpenSummaries,
-                            showTopRightSettingsAction = showTopRightSettingsAction,
-                            onNavigateToSettings = onNavigateToSettings,
-                            modifier = Modifier.fillMaxSize()
-                        )
-
-                        is HomePage.Bucket -> BucketHomePage(
-                            selectedBucketOverview = selectedBucketOverview,
-                            spendingForecast = spendingForecast,
-                            bucketUuid = page.bucketUuid,
-                            pageTitle = orderedOpenSummaries.firstOrNull { it.bucket.bucketUuid == page.bucketUuid }?.bucket?.name
-                                ?: "Bucket",
-                            pageSummary = orderedOpenSummaries.firstOrNull { it.bucket.bucketUuid == page.bucketUuid },
-                            canEditExpenses = canEditExpenses,
-                            isLoadingData = isLoadingData,
-                            onEditExpense = { expenseBeingEdited = it },
-                            showTopRightSettingsAction = showTopRightSettingsAction,
-                            onNavigateToSettings = if (showTopRightSettingsAction) {
-                                { openBucketSettings(page.bucketUuid) }
-                            } else {
-                                null
-                            },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
+                    val pageBucketUuid = pages[pageIndex]
+                    BucketHomePage(
+                        selectedBucketOverview = selectedBucketOverview,
+                        spendingForecast = spendingForecast,
+                        bucketUuid = pageBucketUuid,
+                        pageTitle = orderedOpenSummaries.firstOrNull { it.bucket.bucketUuid == pageBucketUuid }?.bucket?.name
+                            ?: "Bucket",
+                        pageSummary = orderedOpenSummaries.firstOrNull { it.bucket.bucketUuid == pageBucketUuid },
+                        canEditExpenses = canEditExpenses,
+                        isLoadingData = isLoadingData,
+                        onEditExpense = { expenseBeingEdited = it },
+                        showTopRightSettingsAction = showTopRightSettingsAction,
+                        onNavigateToSettings = if (showTopRightSettingsAction) {
+                            { openBucketSettings(pageBucketUuid) }
+                        } else {
+                            null
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
             BottomPageIndicator(
@@ -314,28 +277,6 @@ fun HomeScreen(
         selectedBucketOverview = selectedBucketOverview,
         onDismiss = onHideAddExpenseSheet,
         onAddExpense = onAddExpense
-    )
-    AddBucketSheet(
-        showSheet = showAddBucketDialog,
-        portfolioBudgetCents = userSettings.resolvedPortfolioMonthlyBudgetCents,
-        allocatedToBucketsCents = portfolioState.allocatedToBucketsCents,
-        existingBuckets = allBuckets,
-        bucketSummaries = bucketSummaries,
-        onDismiss = { showAddBucketDialog = false },
-        onCreateBucket = { newBucketDraft ->
-            onSaveSettings(
-                userSettings.resolvedPortfolioMonthlyBudgetCents,
-                userSettings.paydayDate,
-                buildHomeBucketDrafts(
-                    allBuckets = allBuckets,
-                    bucketSummaries = bucketSummaries,
-                    newBucketDraft = newBucketDraft
-                ),
-                BudgetChangeMode.PRORATE_CURRENT_CYCLE
-            )
-            pendingCreatedBucketUuid = newBucketDraft.bucketUuid
-            showAddBucketDialog = false
-        }
     )
     HomeBucketSettingsSheet(
         state = bucketEditorState,
@@ -404,139 +345,96 @@ private fun HomeScreenEffects(
 }
 
 @Composable
-private fun PortfolioOverviewPage(
-    portfolioState: PortfolioState,
+internal fun PortfolioOverviewPage(
     bucketSummaries: List<BucketSummaryState>,
     showTopRightSettingsAction: Boolean,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val layoutState = rememberOverviewPageLayoutState(
-        defaultCollapsedHeader = false,
-        enableHeaderCollapse = true
-    )
-    CollapsingSummaryLayout(
-        layoutState = layoutState,
-        config = CollapsingSummaryLayoutConfig(
-            modifier = modifier.fillMaxSize(),
-            headerHorizontalPadding = 0.dp,
-            headerTopPadding = 0.dp,
-            bottomContentPadding = HomeFabSize + HomeFabListClearance + 16.dp
+    val defaultBucketSummary = bucketSummaries.firstOrNull { it.bucket.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
+    val namedBucketAllocationCents = bucketSummaries
+        .filterNot { it.bucket.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
+        .sumOf { it.allocatedThisCycleCents }
+    val portfolioTotalBudgetCents = namedBucketAllocationCents + (defaultBucketSummary?.allocatedThisCycleCents ?: 0L)
+
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .statusBarsPadding(),
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            end = 16.dp,
+            top = 16.dp,
+            bottom = HomeFabSize + HomeFabListClearance + 16.dp
         ),
-        header = { collapseProgress ->
-            PortfolioSummaryCard(
-                portfolioState = portfolioState,
-                collapseProgress = collapseProgress,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            PortfolioHeaderRow(
                 onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null
             )
         }
-    ) { listState, contentPadding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
-            state = listState,
-            contentPadding = contentPadding,
-            verticalArrangement = Arrangement.spacedBy(0.dp)
-        ) {
-            item {
-                OverviewLikeSection {
-                    PortfolioDetailsSection(portfolioState = portfolioState)
-                }
-            }
-            item {
-                OverviewLikeSection {
-                    ActiveBucketsSection(bucketSummaries = bucketSummaries)
-                }
-            }
+        item {
+            PortfolioDetailsSection(
+                portfolioTotalBudgetCents = portfolioTotalBudgetCents,
+                namedBucketAllocationCents = namedBucketAllocationCents,
+                defaultBucketAllocationCents = defaultBucketSummary?.allocatedThisCycleCents ?: 0L
+            )
+        }
+        item {
+            ActiveBucketsSection(bucketSummaries = bucketSummaries)
         }
     }
 }
 
 @Composable
-private fun PortfolioSummaryCard(
-    portfolioState: PortfolioState,
-    collapseProgress: Float,
+private fun PortfolioHeaderRow(
     onNavigateToSettings: (() -> Unit)?
 ) {
-    val showTestTags = !LocalCollapsingHeaderIsForMeasurement.current
-    val colors = summaryCardColors(useWarningTint = portfolioState.remainingThisCycleCents < 0L)
-    val progress = collapseProgress.coerceIn(0f, 1f)
-    val horizontalPadding = lerp(20.dp, 16.dp, progress)
-    val verticalPadding = lerp(18.dp, 10.dp, progress)
-    val mergedHeaderTopPadding = 0.dp
-    val mergedHeaderBodyOffset = lerp(0.dp, (-6).dp, progress)
-    val contentSpacing = lerp(12.dp, 6.dp, progress)
-    val amountFontSize = lerp(34.sp, 24.sp, progress)
-
-    MergedSummaryHeaderSurface(
-        title = "Portfolio",
-        summaryColors = colors,
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (showTestTags) Modifier else Modifier),
-        headerHorizontalPadding = horizontalPadding,
-        headerBottomPadding = 0.dp,
-        onNavigateToSettings = onNavigateToSettings,
-        headerRowTestTag = if (showTestTags) "home_page_header_row" else null,
-        titleTestTag = if (showTestTags) "home_page_header_title" else null,
-        settingsTestTag = if (showTestTags) "home_page_header_settings" else null
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(
-            modifier = Modifier
-                .padding(
-                    start = horizontalPadding,
-                    top = mergedHeaderTopPadding,
-                    end = horizontalPadding,
-                    bottom = verticalPadding
-                )
-                .offset(y = mergedHeaderBodyOffset),
-            verticalArrangement = Arrangement.spacedBy(contentSpacing)
-        ) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
-                text = CurrencyFormatter.format(portfolioState.remainingThisCycleCents),
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontSize = amountFontSize,
-                    fontWeight = FontWeight.Black
-                ),
-                fontWeight = FontWeight.Black,
-                color = colors.content
+                text = "Portfolio",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Black
             )
-            CollapsingMetricsRow(visibilityProgress = (1f - progress * 1.15f).coerceIn(0f, 1f)) {
-                SummaryMetricColumn(
-                    label = "Portfolio total",
-                    value = CurrencyFormatter.format(portfolioState.portfolioTotalBudgetCents),
-                    contentColor = colors.content
-                )
-                SummaryMetricColumn(
-                    label = "Allocated",
-                    value = CurrencyFormatter.format(portfolioState.allocatedToBucketsCents),
-                    contentColor = colors.content
-                )
-                SummaryMetricColumn(
-                    label = "Unassigned",
-                    value = CurrencyFormatter.format(portfolioState.unassignedPlannedBudgetCents),
-                    contentColor = colors.content
+            Text(
+                text = "Planning totals and bucket allocations for this cycle.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (onNavigateToSettings != null) {
+            IconButton(
+                onClick = onNavigateToSettings,
+                modifier = Modifier.padding(8.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_settings),
+                    contentDescription = "Open settings"
                 )
             }
         }
     }
 }
+
 @Composable
 private fun PortfolioDetailsSection(
-    portfolioState: PortfolioState
+    portfolioTotalBudgetCents: Long,
+    namedBucketAllocationCents: Long,
+    defaultBucketAllocationCents: Long
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        SectionHeading("Portfolio details")
-        PlainMetricRow("Portfolio total", CurrencyFormatter.format(portfolioState.portfolioTotalBudgetCents))
-        PlainMetricRow("Allocated to buckets", CurrencyFormatter.format(portfolioState.allocatedToBucketsCents))
-        PlainMetricRow("Unassigned planned", CurrencyFormatter.format(portfolioState.unassignedPlannedBudgetCents))
-        PlainMetricRow("Net reserve", CurrencyFormatter.formatSigned(portfolioState.netReserveCents))
-        if (portfolioState.earmarkedReserveCents > 0L) {
-            PlainMetricRow("Earmarked reserve", CurrencyFormatter.format(portfolioState.earmarkedReserveCents))
-            PlainMetricRow("Unassigned reserve", CurrencyFormatter.formatSigned(portfolioState.unassignedReserveCents))
-        }
+        PlainMetricRow("Portfolio total", CurrencyFormatter.format(portfolioTotalBudgetCents))
+        PlainMetricRow("Outside default bucket", CurrencyFormatter.format(namedBucketAllocationCents))
+        PlainMetricRow("Default bucket", CurrencyFormatter.format(defaultBucketAllocationCents))
     }
 }
 
@@ -917,7 +815,7 @@ private fun PlainMetricRow(label: String, value: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddBucketSheet(
+internal fun AddBucketSheet(
     showSheet: Boolean,
     portfolioBudgetCents: Long,
     allocatedToBucketsCents: Long,
@@ -959,7 +857,6 @@ private fun HomeBucketSettingsSheet(
     var amountText by remember(editor) { mutableStateOf(editor.amountText) }
     var trackingMode by remember(editor) { mutableStateOf(editor.trackingMode) }
     var balanceBehavior by remember(editor) { mutableStateOf(editor.balanceBehavior) }
-    var isPrimary by remember(editor) { mutableStateOf(editor.isPrimary) }
     var errorMessage by remember(editor) { mutableStateOf<String?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -992,60 +889,58 @@ private fun HomeBucketSettingsSheet(
             OutlinedTextField(
                 value = amountText,
                 onValueChange = {
-                    amountText = it
+                    if (!editor.isSystemDefault) {
+                        amountText = it
+                    }
                     errorMessage = null
                 },
-                label = { Text("Cycle allocation") },
+                label = { Text(if (editor.isSystemDefault) "Computed remainder" else "Cycle allocation") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
+                enabled = !editor.isSystemDefault,
                 modifier = Modifier.fillMaxWidth()
             )
-            Text(
-                text = "Tracking mode",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                BucketTrackingMode.entries.forEach { mode ->
-                    FilterChip(
-                        selected = trackingMode == mode,
-                        onClick = {
-                            trackingMode = mode
-                            errorMessage = null
-                        },
-                        label = { Text(mode.displayLabel()) }
-                    )
-                }
-            }
-            Text(
-                text = "Balance behavior",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                BucketBalanceBehavior.entries.forEach { behavior ->
-                    FilterChip(
-                        selected = balanceBehavior == behavior,
-                        onClick = {
-                            balanceBehavior = behavior
-                            errorMessage = null
-                        },
-                        label = { Text(behavior.displayLabel()) }
-                    )
-                }
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("Primary bucket", style = MaterialTheme.typography.bodyLarge)
-                Switch(
-                    checked = isPrimary,
-                    onCheckedChange = {
-                        isPrimary = it
-                        errorMessage = null
-                    }
+            if (editor.isSystemDefault) {
+                Text(
+                    text = "This system bucket always absorbs the leftover portfolio budget after your named buckets.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            } else {
+                Text(
+                    text = "Tracking mode",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    BucketTrackingMode.entries.forEach { mode ->
+                        FilterChip(
+                            selected = trackingMode == mode,
+                            onClick = {
+                                trackingMode = mode
+                                errorMessage = null
+                            },
+                            label = { Text(mode.displayLabel()) }
+                        )
+                    }
+                }
+                Text(
+                    text = "Balance behavior",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    BucketBalanceBehavior.entries.forEach { behavior ->
+                        FilterChip(
+                            selected = balanceBehavior == behavior,
+                            onClick = {
+                                balanceBehavior = behavior
+                                errorMessage = null
+                            },
+                            label = { Text(behavior.displayLabel()) }
+                        )
+                    }
+                }
             }
             errorMessage?.let {
                 Text(
@@ -1082,8 +977,9 @@ private fun HomeBucketSettingsSheet(
                                     !it.isClosed &&
                                     it.name.trim().lowercase() == normalizedName
                             } -> errorMessage = "Bucket names must be unique."
-                            amountCents == null || amountCents < 0L -> errorMessage = "Enter a valid allocation."
-                            otherAllocatedCents + amountCents > portfolioBudgetCents ->
+                            !editor.isSystemDefault && (amountCents == null || amountCents < 0L) ->
+                                errorMessage = "Enter a valid allocation."
+                            !editor.isSystemDefault && otherAllocatedCents + requireNotNull(amountCents) > portfolioBudgetCents ->
                                 errorMessage = "Allocation exceeds the portfolio total."
                             else -> {
                                 onSaveSettings(
@@ -1092,9 +988,8 @@ private fun HomeBucketSettingsSheet(
                                         name = trimmedName,
                                         trackingMode = trackingMode,
                                         balanceBehavior = balanceBehavior,
-                                        defaultAllocatedAmountCents = amountCents,
+                                        defaultAllocatedAmountCents = amountCents ?: 0L,
                                         sortOrder = allBuckets.firstOrNull { it.bucketUuid == editor.bucketUuid }?.sortOrder ?: 0,
-                                        isPrimary = isPrimary,
                                         closeRequested = false
                                     )
                                 )
@@ -1111,7 +1006,7 @@ private fun HomeBucketSettingsSheet(
 }
 
 @Composable
-private fun AddBucketForm(
+internal fun AddBucketForm(
     portfolioBudgetCents: Long,
     allocatedToBucketsCents: Long,
     existingBuckets: List<BudgetBucket>,
@@ -1123,9 +1018,8 @@ private fun AddBucketForm(
     var amountText by rememberSaveable { mutableStateOf("0.00") }
     var trackingMode by rememberSaveable { mutableStateOf(BucketTrackingMode.DAILY_TARGET) }
     var balanceBehavior by rememberSaveable { mutableStateOf(BucketBalanceBehavior.RETURN_TO_PORTFOLIO) }
-    var makePrimary by rememberSaveable { mutableStateOf(false) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
-    val remainingUnassignedCents = portfolioBudgetCents - allocatedToBucketsCents
+    val computedDefaultBucketCents = (portfolioBudgetCents - allocatedToBucketsCents).coerceAtLeast(0L)
 
     LazyColumn(
         modifier = Modifier
@@ -1149,7 +1043,7 @@ private fun AddBucketForm(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "Unassigned planned: ${CurrencyFormatter.formatSigned(remainingUnassignedCents)}",
+                    text = "Default bucket remainder: ${CurrencyFormatter.format(computedDefaultBucketCents)}",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -1208,24 +1102,6 @@ private fun AddBucketForm(
                         )
                     }
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.padding(end = 16.dp)) {
-                        Text("Make primary", style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            text = "Primary opens first on Overview.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = makePrimary,
-                        onCheckedChange = { makePrimary = it }
-                    )
-                }
                 errorMessage?.let {
                     Text(
                         text = it,
@@ -1255,7 +1131,7 @@ private fun AddBucketForm(
                                 allocationCents == null || allocationCents < 0L ->
                                     errorMessage = "Enter a valid allocation."
                                 allocatedToBucketsCents + allocationCents > portfolioBudgetCents ->
-                                    errorMessage = "Allocation exceeds the unassigned planned budget."
+                                    errorMessage = "Allocation exceeds the portfolio total."
                                 else -> {
                                     onCreateBucket(
                                         BucketDraft(
@@ -1265,7 +1141,6 @@ private fun AddBucketForm(
                                             balanceBehavior = balanceBehavior,
                                             defaultAllocatedAmountCents = allocationCents,
                                             sortOrder = (existingBuckets.maxOfOrNull { it.sortOrder } ?: -1) + 1,
-                                            isPrimary = makePrimary || existingBuckets.none { !it.isClosed && it.isPrimary },
                                             closeRequested = false
                                         )
                                     )
@@ -1273,7 +1148,6 @@ private fun AddBucketForm(
                                     amountText = "0.00"
                                     trackingMode = BucketTrackingMode.DAILY_TARGET
                                     balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO
-                                    makePrimary = false
                                     errorMessage = null
                                 }
                             }
@@ -1432,7 +1306,7 @@ private fun addExpenseSheetDateLabel(selectedDate: LocalDate): String =
 private fun deletedExpenseMessage(expense: Expense): String =
     "Deleted \"${expense.displayDescription}\""
 
-private fun buildExistingHomeBucketDrafts(
+internal fun buildExistingHomeBucketDrafts(
     allBuckets: List<BudgetBucket>,
     bucketSummaries: List<BucketSummaryState>
 ): List<BucketDraft> {
@@ -1449,24 +1323,20 @@ private fun buildExistingHomeBucketDrafts(
                 balanceBehavior = bucket.balanceBehavior,
                 defaultAllocatedAmountCents = effectiveAllocation,
                 sortOrder = bucket.sortOrder,
-                isPrimary = bucket.isPrimary,
                 closeRequested = bucket.isClosed
             )
         }
 }
 
-private fun buildHomeBucketDrafts(
+internal fun buildHomeBucketDrafts(
     allBuckets: List<BudgetBucket>,
     bucketSummaries: List<BucketSummaryState>,
     newBucketDraft: BucketDraft
 ): List<BucketDraft> {
-    val existingDrafts = buildExistingHomeBucketDrafts(
+    return buildExistingHomeBucketDrafts(
         allBuckets = allBuckets,
         bucketSummaries = bucketSummaries
-    ).map { draft ->
-        if (newBucketDraft.isPrimary) draft.copy(isPrimary = false) else draft
-    }
-    return existingDrafts + newBucketDraft
+    ) + newBucketDraft
 }
 
 private fun buildUpdatedHomeBucketDrafts(
@@ -1478,11 +1348,7 @@ private fun buildUpdatedHomeBucketDrafts(
         allBuckets = allBuckets,
         bucketSummaries = bucketSummaries
     ).map { draft ->
-        when {
-            draft.bucketUuid == updatedBucketDraft.bucketUuid -> updatedBucketDraft
-            updatedBucketDraft.isPrimary -> draft.copy(isPrimary = false)
-            else -> draft
-        }
+        if (draft.bucketUuid == updatedBucketDraft.bucketUuid) updatedBucketDraft else draft
     }
 }
 

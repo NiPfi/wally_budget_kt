@@ -37,11 +37,10 @@ import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.domain.usecase.ApplyOnboardingRestoreUseCase
 import net.loeu.wallybudget.domain.usecase.AddExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.CompleteOnboardingUseCase
-import net.loeu.wallybudget.domain.usecase.CompletePortfolioMigrationUseCase
 import net.loeu.wallybudget.domain.usecase.ConcludePendingCycleUseCase
 import net.loeu.wallybudget.domain.usecase.ClearPendingSettingsUndoUseCase
 import net.loeu.wallybudget.domain.usecase.DeleteExpenseUseCase
-import net.loeu.wallybudget.domain.usecase.EnsureBucketMigrationStateUseCase
+import net.loeu.wallybudget.domain.usecase.EnsureDefaultBucketStateUseCase
 import net.loeu.wallybudget.domain.usecase.EnsureBudgetPolicyHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ExportSnapshotUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveBudgetBucketsUseCase
@@ -90,10 +89,9 @@ class BudgetViewModel(
     private val exportSnapshotUseCase: ExportSnapshotUseCase,
     private val prepareSnapshotImportUseCase: PrepareSnapshotImportUseCase,
     private val applyOnboardingRestoreUseCase: ApplyOnboardingRestoreUseCase,
-    private val ensureBucketMigrationStateUseCase: EnsureBucketMigrationStateUseCase,
+    private val ensureDefaultBucketStateUseCase: EnsureDefaultBucketStateUseCase,
     private val ensureBudgetPolicyHistoryUseCase: EnsureBudgetPolicyHistoryUseCase,
     private val rebuildMonthlyHistoryUseCase: RebuildMonthlyHistoryUseCase,
-    private val completePortfolioMigrationUseCase: CompletePortfolioMigrationUseCase,
     private val resolveMutationEffectiveDateUseCase: ResolveMutationEffectiveDateUseCase,
     private val selectBucketUseCase: SelectBucketUseCase,
     private val clearPendingSettingsUndoUseCase: ClearPendingSettingsUndoUseCase,
@@ -255,7 +253,7 @@ class BudgetViewModel(
 
     init {
         viewModelScope.launch {
-            ensureBucketMigrationStateUseCase(currentDateProvider.currentDate())
+            ensureDefaultBucketStateUseCase(currentDateProvider.currentDate())
         }
         viewModelScope.launch {
             ensureBudgetPolicyHistoryUseCase(currentDateProvider.currentDate())
@@ -449,12 +447,6 @@ class BudgetViewModel(
             } catch (exception: IllegalArgumentException) {
                 _settingsStatusMessage.value = exception.message ?: "Unable to save settings."
             }
-        }
-    }
-
-    fun completePortfolioMigration(portfolioMonthlyBudgetCents: Long) {
-        viewModelScope.launch {
-            completePortfolioMigrationUseCase(portfolioMonthlyBudgetCents)
         }
     }
 

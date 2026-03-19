@@ -27,7 +27,6 @@ data class BudgetBucketEntity(
     @ColumnInfo(defaultValue = "0")
     val defaultAllocatedAmountCents: Long,
     val sortOrder: Int,
-    val isPrimary: Boolean,
     val originInstallId: String,
     val lastModifiedByInstallId: String,
     val createdAtEpochMs: Long,
@@ -45,7 +44,6 @@ fun BudgetBucketEntity.toDomainModel(): BudgetBucket {
         balanceBehavior = balanceBehavior,
         defaultAllocatedAmountCents = defaultAllocatedAmountCents,
         sortOrder = sortOrder,
-        isPrimary = isPrimary,
         originInstallId = originInstallId,
         lastModifiedByInstallId = lastModifiedByInstallId,
         createdAtEpochMs = createdAtEpochMs,
@@ -65,7 +63,6 @@ fun BudgetBucket.toEntity(id: Long = 0L): BudgetBucketEntity {
         balanceBehavior = balanceBehavior,
         defaultAllocatedAmountCents = defaultAllocatedAmountCents,
         sortOrder = sortOrder,
-        isPrimary = isPrimary,
         originInstallId = originInstallId,
         lastModifiedByInstallId = lastModifiedByInstallId,
         createdAtEpochMs = createdAtEpochMs,

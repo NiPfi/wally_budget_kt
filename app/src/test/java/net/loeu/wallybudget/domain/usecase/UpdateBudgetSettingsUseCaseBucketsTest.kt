@@ -49,7 +49,7 @@ class UpdateBudgetSettingsUseCaseBucketsTest {
         val activePolicies = fixture.bucketAllocationPolicyDao.getAllForSnapshot()
             .filter { it.deletedAtEpochMs == null }
             .associateBy { it.bucketUuid }
-        assertEquals(100_000L, activePolicies.getValue(DEFAULT_SPENDING_BUCKET_UUID).allocatedAmountCents)
+        assertEquals(270_000L, activePolicies.getValue(DEFAULT_SPENDING_BUCKET_UUID).allocatedAmountCents)
         assertEquals(150_000L, activePolicies.getValue("bills-bucket").allocatedAmountCents)
         assertEquals(30_000L, activePolicies.getValue("travel-bucket").allocatedAmountCents)
 
@@ -120,8 +120,7 @@ class UpdateBudgetSettingsUseCaseBucketsTest {
                     bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
                     name = DEFAULT_SPENDING_BUCKET_NAME,
                     defaultAllocatedAmountCents = 100_000L,
-                    sortOrder = 0,
-                    isPrimary = true
+                    sortOrder = 0
                 )
             )
         )
@@ -232,8 +231,7 @@ class UpdateBudgetSettingsUseCaseBucketsTest {
         bucketUuid: String,
         name: String,
         defaultAllocatedAmountCents: Long,
-        sortOrder: Int,
-        isPrimary: Boolean
+        sortOrder: Int
     ): BudgetBucketEntity {
         return BudgetBucketEntity(
             id = id,
@@ -243,7 +241,6 @@ class UpdateBudgetSettingsUseCaseBucketsTest {
             balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
             defaultAllocatedAmountCents = defaultAllocatedAmountCents,
             sortOrder = sortOrder,
-            isPrimary = isPrimary,
             originInstallId = "test-install-id",
             lastModifiedByInstallId = "test-install-id",
             createdAtEpochMs = id,

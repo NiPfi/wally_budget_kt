@@ -58,7 +58,6 @@ class UserPreferencesManager(
             pendingCycleStartDate = preferences[PreferenceKeys.PENDING_CYCLE_START_DATE],
             pendingCycleEndDateExclusive = preferences[PreferenceKeys.PENDING_CYCLE_END_DATE_EXCLUSIVE],
             pendingCycleDetectedAtTimestamp = preferences[PreferenceKeys.PENDING_CYCLE_DETECTED_AT_TIMESTAMP] ?: 0L,
-            primaryBucketUuid = preferences[PreferenceKeys.PRIMARY_BUCKET_UUID],
             selectedBucketUuid = preferences[PreferenceKeys.SELECTED_BUCKET_UUID],
             installDeviceId = preferences[PreferenceKeys.INSTALL_DEVICE_ID] ?: "",
             settingsRecordUuid = preferences[PreferenceKeys.SETTINGS_RECORD_UUID] ?: "",
@@ -138,13 +137,12 @@ class UserPreferencesManager(
         }
     }
 
-    override suspend fun updateBucketSelection(primaryBucketUuid: String?, selectedBucketUuid: String?) {
+    override suspend fun updateSelectedBucket(selectedBucketUuid: String?) {
         context.dataStore.edit { preferences ->
             ensureSettingsIdentity(preferences)
-            primaryBucketUuid?.let { preferences[PreferenceKeys.PRIMARY_BUCKET_UUID] = it }
-                ?: preferences.remove(PreferenceKeys.PRIMARY_BUCKET_UUID)
             selectedBucketUuid?.let { preferences[PreferenceKeys.SELECTED_BUCKET_UUID] = it }
                 ?: preferences.remove(PreferenceKeys.SELECTED_BUCKET_UUID)
+            preferences.remove(PreferenceKeys.PRIMARY_BUCKET_UUID)
             touchSettingsMetadata(preferences)
         }
     }
@@ -230,10 +228,9 @@ class UserPreferencesManager(
             } ?: preferences.remove(PreferenceKeys.PENDING_CYCLE_END_DATE_EXCLUSIVE)
             preferences[PreferenceKeys.PENDING_CYCLE_DETECTED_AT_TIMESTAMP] =
                 settings.pendingCycleDetectedAtTimestamp
-            settings.primaryBucketUuid?.let { preferences[PreferenceKeys.PRIMARY_BUCKET_UUID] = it }
-                ?: preferences.remove(PreferenceKeys.PRIMARY_BUCKET_UUID)
             settings.selectedBucketUuid?.let { preferences[PreferenceKeys.SELECTED_BUCKET_UUID] = it }
                 ?: preferences.remove(PreferenceKeys.SELECTED_BUCKET_UUID)
+            preferences.remove(PreferenceKeys.PRIMARY_BUCKET_UUID)
             preferences[PreferenceKeys.ONBOARDING_COMPLETED] = onboardingCompleted
             preferences[PreferenceKeys.SETTINGS_RECORD_UUID] = settings.settingsRecordUuid
                 .takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString()

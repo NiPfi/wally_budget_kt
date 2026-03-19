@@ -39,7 +39,7 @@ import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
         BucketAllocationAdjustmentEntity::class,
         BucketMonthlyHistoryEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -697,6 +697,81 @@ abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
                         `endTimestamp`
                     FROM `monthly_history`
                     """.trimIndent()
+                )
+            }
+        }
+
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `budget_buckets_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `bucketUuid` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `trackingMode` TEXT NOT NULL,
+                        `balanceBehavior` TEXT NOT NULL,
+                        `defaultAllocatedAmountCents` INTEGER NOT NULL DEFAULT 0,
+                        `sortOrder` INTEGER NOT NULL,
+                        `originInstallId` TEXT NOT NULL,
+                        `lastModifiedByInstallId` TEXT NOT NULL,
+                        `createdAtEpochMs` INTEGER NOT NULL,
+                        `updatedAtEpochMs` INTEGER NOT NULL,
+                        `closedAtEpochMs` INTEGER,
+                        `deletedAtEpochMs` INTEGER,
+                        `modClock` TEXT NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `budget_buckets_new` (
+                        `id`,
+                        `bucketUuid`,
+                        `name`,
+                        `trackingMode`,
+                        `balanceBehavior`,
+                        `defaultAllocatedAmountCents`,
+                        `sortOrder`,
+                        `originInstallId`,
+                        `lastModifiedByInstallId`,
+                        `createdAtEpochMs`,
+                        `updatedAtEpochMs`,
+                        `closedAtEpochMs`,
+                        `deletedAtEpochMs`,
+                        `modClock`
+                    )
+                    SELECT
+                        `id`,
+                        `bucketUuid`,
+                        `name`,
+                        `trackingMode`,
+                        `balanceBehavior`,
+                        `defaultAllocatedAmountCents`,
+                        `sortOrder`,
+                        `originInstallId`,
+                        `lastModifiedByInstallId`,
+                        `createdAtEpochMs`,
+                        `updatedAtEpochMs`,
+                        `closedAtEpochMs`,
+                        `deletedAtEpochMs`,
+                        `modClock`
+                    FROM `budget_buckets`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `budget_buckets`")
+                db.execSQL("ALTER TABLE `budget_buckets_new` RENAME TO `budget_buckets`")
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_budget_buckets_bucketUuid` ON `budget_buckets` (`bucketUuid`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_budget_buckets_sortOrder` ON `budget_buckets` (`sortOrder`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_budget_buckets_closedAtEpochMs` ON `budget_buckets` (`closedAtEpochMs`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_budget_buckets_deletedAtEpochMs` ON `budget_buckets` (`deletedAtEpochMs`)"
                 )
             }
         }

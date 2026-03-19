@@ -24,7 +24,6 @@ import java.time.LocalDate
 
 internal data class BudgetAppState(
     val isOnboardingCompleted: Boolean?,
-    val isPortfolioMigrationRequired: Boolean,
     val userSettings: UserSettings,
     val portfolioOverviewState: PortfolioOverviewState?,
     val portfolioState: PortfolioState?,
@@ -82,8 +81,6 @@ internal fun rememberBudgetAppUiState(viewModel: BudgetViewModel): BudgetAppStat
 
     return BudgetAppState(
         isOnboardingCompleted = isOnboardingCompleted,
-        isPortfolioMigrationRequired = userSettings.isOnboardingCompleted &&
-            userSettings.portfolioMonthlyBudgetCents == null,
         userSettings = userSettings,
         portfolioOverviewState = portfolioOverviewState,
         portfolioState = portfolioState,

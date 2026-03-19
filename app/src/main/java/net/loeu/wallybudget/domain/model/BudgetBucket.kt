@@ -20,7 +20,6 @@ data class BudgetBucket(
     val balanceBehavior: BucketBalanceBehavior,
     val defaultAllocatedAmountCents: Long,
     val sortOrder: Int,
-    val isPrimary: Boolean,
     val originInstallId: String,
     val lastModifiedByInstallId: String,
     val createdAtEpochMs: Long,
@@ -29,6 +28,38 @@ data class BudgetBucket(
     val deletedAtEpochMs: Long? = null,
     val modClock: String
 ) {
+    @Suppress("UNUSED_PARAMETER")
+    constructor(
+        bucketUuid: String,
+        name: String,
+        trackingMode: BucketTrackingMode,
+        balanceBehavior: BucketBalanceBehavior,
+        defaultAllocatedAmountCents: Long,
+        sortOrder: Int,
+        isPrimary: Boolean,
+        originInstallId: String,
+        lastModifiedByInstallId: String,
+        createdAtEpochMs: Long,
+        updatedAtEpochMs: Long,
+        closedAtEpochMs: Long? = null,
+        deletedAtEpochMs: Long? = null,
+        modClock: String
+    ) : this(
+        bucketUuid = bucketUuid,
+        name = name,
+        trackingMode = trackingMode,
+        balanceBehavior = balanceBehavior,
+        defaultAllocatedAmountCents = defaultAllocatedAmountCents,
+        sortOrder = sortOrder,
+        originInstallId = originInstallId,
+        lastModifiedByInstallId = lastModifiedByInstallId,
+        createdAtEpochMs = createdAtEpochMs,
+        updatedAtEpochMs = updatedAtEpochMs,
+        closedAtEpochMs = closedAtEpochMs,
+        deletedAtEpochMs = deletedAtEpochMs,
+        modClock = modClock
+    )
+
     val isClosed: Boolean
         get() = closedAtEpochMs != null || deletedAtEpochMs != null
 }

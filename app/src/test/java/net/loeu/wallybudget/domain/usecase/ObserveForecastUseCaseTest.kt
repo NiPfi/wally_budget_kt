@@ -49,7 +49,6 @@ class ObserveForecastUseCaseTest {
             UserSettings(
                 monthlyBudgetCents = 100_000L,
                 paydayDate = 25,
-                primaryBucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
                 selectedBucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
                 lastResetTimestamp = LocalDate.of(2026, 3, 25)
                     .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
@@ -64,7 +63,6 @@ class ObserveForecastUseCaseTest {
                     balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
                     defaultAllocatedAmountCents = 100_000L,
                     sortOrder = 0,
-                    isPrimary = true,
                     originInstallId = "test-install-id",
                     lastModifiedByInstallId = "test-install-id",
                     createdAtEpochMs = 1L,

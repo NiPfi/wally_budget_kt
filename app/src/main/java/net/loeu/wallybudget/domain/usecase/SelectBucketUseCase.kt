@@ -6,10 +6,7 @@ class SelectBucketUseCase(
     private val userSettingsStore: UserSettingsStore
 ) {
     suspend operator fun invoke(bucketUuid: String) {
-        val settings = userSettingsStore.ensureIdentity()
-        userSettingsStore.updateBucketSelection(
-            primaryBucketUuid = settings.primaryBucketUuid,
-            selectedBucketUuid = bucketUuid
-        )
+        userSettingsStore.ensureIdentity()
+        userSettingsStore.updateSelectedBucket(bucketUuid)
     }
 }

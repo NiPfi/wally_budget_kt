@@ -24,9 +24,8 @@ import net.loeu.wallybudget.domain.usecase.AddExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.CompleteOnboardingUseCase
 import net.loeu.wallybudget.domain.usecase.ConcludePendingCycleUseCase
 import net.loeu.wallybudget.domain.usecase.ClearPendingSettingsUndoUseCase
-import net.loeu.wallybudget.domain.usecase.CompletePortfolioMigrationUseCase
 import net.loeu.wallybudget.domain.usecase.DeleteExpenseUseCase
-import net.loeu.wallybudget.domain.usecase.EnsureBucketMigrationStateUseCase
+import net.loeu.wallybudget.domain.usecase.EnsureDefaultBucketStateUseCase
 import net.loeu.wallybudget.domain.usecase.EnsureBudgetPolicyHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ExportSnapshotUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveBudgetBucketsUseCase
@@ -77,7 +76,8 @@ class BudgetViewModelFactory(
                 BudgetDatabase.MIGRATION_6_7,
                 BudgetDatabase.migration7To8(installId),
                 BudgetDatabase.MIGRATION_8_9,
-                BudgetDatabase.MIGRATION_9_10
+                BudgetDatabase.MIGRATION_9_10,
+                BudgetDatabase.MIGRATION_10_11
             )
             .build()
     }
@@ -265,24 +265,13 @@ class BudgetViewModelFactory(
             hybridLogicalClockService = hybridLogicalClockService
         )
     }
-    private val ensureBucketMigrationStateUseCase by lazy {
-        EnsureBucketMigrationStateUseCase(
+    private val ensureDefaultBucketStateUseCase by lazy {
+        EnsureDefaultBucketStateUseCase(
             transactionRunner = database,
             userSettingsStore = userPreferencesManager,
             budgetBucketDao = budgetBucketDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
-            budgetCalculationService = budgetCalculationService,
-            hybridLogicalClockService = hybridLogicalClockService
-        )
-    }
-    private val completePortfolioMigrationUseCase by lazy {
-        CompletePortfolioMigrationUseCase(
-            transactionRunner = database,
-            userSettingsStore = userPreferencesManager,
-            budgetPolicyDao = budgetPolicyDao,
-            budgetAdjustmentDao = budgetAdjustmentDao,
-            budgetBucketDao = budgetBucketDao,
-            currentDateProvider = currentDateProvider,
+            bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
             budgetCalculationService = budgetCalculationService,
             hybridLogicalClockService = hybridLogicalClockService
         )
@@ -388,10 +377,9 @@ class BudgetViewModelFactory(
                 exportSnapshotUseCase = exportSnapshotUseCase,
                 prepareSnapshotImportUseCase = prepareSnapshotImportUseCase,
                 applyOnboardingRestoreUseCase = applyOnboardingRestoreUseCase,
-                ensureBucketMigrationStateUseCase = ensureBucketMigrationStateUseCase,
+                ensureDefaultBucketStateUseCase = ensureDefaultBucketStateUseCase,
                 ensureBudgetPolicyHistoryUseCase = ensureBudgetPolicyHistoryUseCase,
                 rebuildMonthlyHistoryUseCase = rebuildMonthlyHistoryUseCase,
-                completePortfolioMigrationUseCase = completePortfolioMigrationUseCase,
                 resolveMutationEffectiveDateUseCase = resolveMutationEffectiveDateUseCase,
                 selectBucketUseCase = selectBucketUseCase,
                 clearPendingSettingsUndoUseCase = clearPendingSettingsUndoUseCase,

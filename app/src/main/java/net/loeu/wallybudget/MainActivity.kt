@@ -42,7 +42,6 @@ import net.loeu.wallybudget.ui.screens.closeout.CycleCloseoutScreen
 import net.loeu.wallybudget.ui.screens.history.HistoryScreen
 import net.loeu.wallybudget.ui.screens.home.AddExpenseSheet
 import net.loeu.wallybudget.ui.screens.home.HomeScreen
-import net.loeu.wallybudget.ui.screens.migration.MigrationSetupScreen
 import net.loeu.wallybudget.ui.screens.onboarding.OnboardingScreen
 import net.loeu.wallybudget.ui.screens.overview.PlaceholderShimmerProvider
 import net.loeu.wallybudget.ui.screens.settings.SettingsScreen
@@ -79,7 +78,7 @@ import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.model.recordedDate
 
-private const val OVERVIEW_NAVIGATION_LABEL = "Overview"
+private const val BUCKETS_NAVIGATION_LABEL = "Buckets"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -152,11 +151,6 @@ fun BudgetApp(
             snapshotErrorMessage = snapshotErrorMessage,
             snapshotStatusMessage = appState.snapshotStatusMessage,
             isSnapshotBusy = appState.snapshotBusy
-        )
-        appState.isPortfolioMigrationRequired -> MigrationSetupScreen(
-            defaultBucketBudgetCents = appState.userSettings.monthlyBudgetCents,
-            onCompleteMigration = viewModel::completePortfolioMigration,
-            modifier = modifier
         )
         appState.pendingCycleCloseoutState != null -> {
             PendingCycleFlow(
@@ -341,7 +335,7 @@ private fun MainNavigationItems(
     usesVerticalNavigation: Boolean,
     onNavigate: (Screen) -> Unit
 ) {
-    val primaryScreens = listOf(Screen.Home, Screen.Analysis, Screen.History)
+    val primaryScreens = listOf(Screen.Home, Screen.Portfolio, Screen.Analysis, Screen.History)
     if (usesVerticalNavigation) {
         Column {
             primaryScreens.forEach { screen ->
@@ -375,11 +369,12 @@ private fun MainTopLevelNavigationItem(
     onClick: () -> Unit
 ) {
     val (iconRes, label) = when (screen) {
-        Screen.Home -> R.drawable.ic_dashboard to OVERVIEW_NAVIGATION_LABEL
+        Screen.Home -> R.drawable.ic_money_bag to BUCKETS_NAVIGATION_LABEL
+        Screen.Portfolio -> R.drawable.ic_finance to "Portfolio"
         Screen.Analysis -> R.drawable.ic_analytics to "Analysis"
         Screen.History -> R.drawable.ic_history to "History"
         Screen.Settings -> R.drawable.ic_settings to "Settings"
-        else -> R.drawable.ic_dashboard to OVERVIEW_NAVIGATION_LABEL
+        else -> R.drawable.ic_money_bag to BUCKETS_NAVIGATION_LABEL
     }
     MainNavigationItem(
         selected = selected,
@@ -443,8 +438,6 @@ private fun MainNavigationHost(
         startDestination = Screen.Home.route
     ) {
         addHomeDestination(
-            navController = navController,
-            portfolioState = portfolioState,
             bucketSummaries = bucketSummaries,
             selectedBucketOverview = selectedBucketOverview,
             allBuckets = allBuckets,
@@ -463,6 +456,16 @@ private fun MainNavigationHost(
             onHideAddExpenseSheet = onHideAddExpenseSheet,
             settingsMessage = settingsMessage,
             onSettingsMessageConsumed = onSettingsMessageConsumed,
+            timelineLockReason = timelineLockReason,
+            usesVerticalNavigation = usesVerticalNavigation
+        )
+        addPortfolioDestination(
+            navController = navController,
+            portfolioState = portfolioState,
+            bucketSummaries = bucketSummaries,
+            allBuckets = allBuckets,
+            userSettings = userSettings,
+            onSaveSettings = onSaveSettings,
             timelineLockReason = timelineLockReason,
             usesVerticalNavigation = usesVerticalNavigation
         )
@@ -555,7 +558,6 @@ private fun loadingSelectedBucketOverview(
         balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
         defaultAllocatedAmountCents = budgetState.monthlyBudgetCents,
         sortOrder = 0,
-        isPrimary = true,
         originInstallId = "",
         lastModifiedByInstallId = "",
         createdAtEpochMs = 0L,

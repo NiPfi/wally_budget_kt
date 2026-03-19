@@ -23,12 +23,11 @@ import net.loeu.wallybudget.ui.navigation.Screen
 import net.loeu.wallybudget.ui.screens.analysis.AnalysisScreen
 import net.loeu.wallybudget.ui.screens.history.HistoryScreen
 import net.loeu.wallybudget.ui.screens.home.HomeScreen
+import net.loeu.wallybudget.ui.screens.home.PortfolioScreen
 import net.loeu.wallybudget.ui.screens.settings.SettingsScreen
 import java.time.LocalDate
 
 internal fun NavGraphBuilder.addHomeDestination(
-    navController: NavHostController,
-    portfolioState: PortfolioState,
     bucketSummaries: List<BucketSummaryState>,
     selectedBucketOverview: SelectedBucketOverview,
     allBuckets: List<BudgetBucket>,
@@ -52,7 +51,6 @@ internal fun NavGraphBuilder.addHomeDestination(
 ) {
     composable(Screen.Home.route) {
         HomeScreen(
-            portfolioState = portfolioState,
             bucketSummaries = bucketSummaries,
             selectedBucketOverview = selectedBucketOverview,
             allBuckets = allBuckets,
@@ -66,7 +64,6 @@ internal fun NavGraphBuilder.addHomeDestination(
             onRestoreExpense = onRestoreExpense,
             onUpdateExpense = onUpdateExpense,
             onDeleteExpense = onDeleteExpense,
-            onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
             showTopRightSettingsAction = !usesVerticalNavigation,
             showAddExpenseSheet = showAddExpenseSheet,
             onShowAddExpenseSheet = onShowAddExpenseSheet,
@@ -74,6 +71,30 @@ internal fun NavGraphBuilder.addHomeDestination(
             settingsMessage = settingsMessage,
             onSettingsMessageConsumed = onSettingsMessageConsumed,
             timelineLockReason = timelineLockReason
+        )
+    }
+}
+
+internal fun NavGraphBuilder.addPortfolioDestination(
+    navController: NavHostController,
+    portfolioState: PortfolioState,
+    bucketSummaries: List<BucketSummaryState>,
+    allBuckets: List<BudgetBucket>,
+    userSettings: UserSettings,
+    onSaveSettings: (Long, Int, List<BucketDraft>, BudgetChangeMode) -> Unit,
+    timelineLockReason: String?,
+    usesVerticalNavigation: Boolean
+) {
+    composable(Screen.Portfolio.route) {
+        PortfolioScreen(
+            portfolioState = portfolioState,
+            bucketSummaries = bucketSummaries,
+            allBuckets = allBuckets,
+            userSettings = userSettings,
+            onSaveSettings = onSaveSettings,
+            onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+            showTopRightSettingsAction = !usesVerticalNavigation,
+            interactionsEnabled = timelineLockReason == null
         )
     }
 }

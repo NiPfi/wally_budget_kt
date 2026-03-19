@@ -86,7 +86,7 @@ data class SnapshotBudgetBucketRecordV3(
     val balanceBehavior: String,
     val defaultAllocatedAmountCents: Long,
     val sortOrder: Int,
-    val isPrimary: Boolean,
+    val isPrimary: Boolean? = null,
     val originInstallId: String,
     val lastModifiedByInstallId: String,
     val createdAtEpochMs: Long,

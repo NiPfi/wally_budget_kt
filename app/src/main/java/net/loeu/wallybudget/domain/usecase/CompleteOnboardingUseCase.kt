@@ -91,7 +91,6 @@ class CompleteOnboardingUseCase(
                         balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
                         defaultAllocatedAmountCents = monthlyBudgetCents,
                         sortOrder = 0,
-                        isPrimary = true,
                         originInstallId = installId,
                         lastModifiedByInstallId = installId,
                         createdAtEpochMs = nowEpochMs,
@@ -137,10 +136,7 @@ class CompleteOnboardingUseCase(
         userSettingsStore.updateMonthlyBudget(monthlyBudgetCents)
         userSettingsStore.updatePortfolioMonthlyBudget(monthlyBudgetCents)
         userSettingsStore.updatePaydayDate(paydayDate)
-        userSettingsStore.updateBucketSelection(
-            primaryBucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
-            selectedBucketUuid = DEFAULT_SPENDING_BUCKET_UUID
-        )
+        userSettingsStore.updateSelectedBucket(DEFAULT_SPENDING_BUCKET_UUID)
         userSettingsStore.updateLastResetTimestamp(cycleStartDate.toStartOfDayMillis())
         userSettingsStore.updateLastSeenDate(currentDateProvider.currentDate())
         userSettingsStore.completeOnboarding()
