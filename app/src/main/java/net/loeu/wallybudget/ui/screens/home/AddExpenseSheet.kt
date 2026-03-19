@@ -1,4 +1,4 @@
-@file:Suppress("TooManyFunctions")
+@file:Suppress("CyclomaticComplexMethod", "LongMethod", "TooManyFunctions")
 
 package net.loeu.wallybudget.ui.screens.home
 
@@ -11,9 +11,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -24,6 +27,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,28 +42,35 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import java.text.DecimalFormatSymbols
 import net.loeu.wallybudget.R
+import net.loeu.wallybudget.domain.model.BudgetBucket
+import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.description
 import net.loeu.wallybudget.domain.model.iconRes
 import net.loeu.wallybudget.util.CurrencyFormatter
 import java.util.Locale
+import androidx.compose.material3.rememberModalBottomSheetState
 
 @Suppress("LongMethod")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddExpenseSheet(
     onDismiss: () -> Unit,
-    onSubmitExpense: (amountCents: Long, description: String, icon: ExpenseCategory?) -> Unit,
+    onSubmitExpense: (bucketUuid: String, amountCents: Long, description: String, icon: ExpenseCategory?) -> Unit,
     modifier: Modifier = Modifier,
     onDeleteExpense: (() -> Unit)? = null,
     title: String = "Add Expense",
     confirmButtonText: String = "Add Expense",
     dateLabel: String? = null,
+    bucketOptions: List<BudgetBucket> = emptyList(),
+    initialBucketUuid: String? = null,
+    initialBucketName: String? = null,
     initialAmountCents: Long? = null,
     initialDescription: String = "",
     initialIcon: ExpenseCategory? = null
@@ -83,12 +95,21 @@ fun AddExpenseSheet(
     }
     var description by remember(initialDescription) { mutableStateOf(initialDescription) }
     var selectedIcon by remember(initialIcon) { mutableStateOf(initialIcon) }
+    var selectedBucketUuid by remember(initialBucketUuid, bucketOptions) {
+        mutableStateOf(initialBucketUuid ?: bucketOptions.firstOrNull()?.bucketUuid ?: DEFAULT_SPENDING_BUCKET_UUID)
+    }
     var showError by remember { mutableStateOf(false) }
     var showIconPicker by remember { mutableStateOf(false) }
+    var showBucketPicker by remember { mutableStateOf(false) }
+    val resolvedBucketName = bucketOptions.firstOrNull { it.bucketUuid == selectedBucketUuid }?.name
+        ?: initialBucketName
+        ?: "Select bucket"
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        modifier = modifier
+        modifier = modifier,
+        sheetState = sheetState
     ) {
         AddExpenseSheetContent(
             title = title,
@@ -98,6 +119,7 @@ fun AddExpenseSheet(
             showError = showError,
             description = description,
             selectedIcon = selectedIcon,
+            selectedBucketName = resolvedBucketName,
             confirmButtonText = confirmButtonText,
             onDeleteExpense = onDeleteExpense,
             onDismiss = onDismiss,
@@ -129,8 +151,10 @@ fun AddExpenseSheet(
             },
             onDescriptionChange = { description = it },
             onShowIconPicker = { showIconPicker = true },
+            onShowBucketPicker = { showBucketPicker = true },
             onSubmit = {
                 showError = !submitExpense(
+                    bucketUuid = selectedBucketUuid,
                     amountText = amountFieldValue.text,
                     description = description,
                     selectedIcon = selectedIcon,
@@ -154,6 +178,18 @@ fun AddExpenseSheet(
                 }
             )
         }
+
+        if (showBucketPicker) {
+            BucketPickerDialog(
+                bucketOptions = bucketOptions,
+                selectedBucketUuid = selectedBucketUuid,
+                onDismiss = { showBucketPicker = false },
+                onBucketSelected = { bucketUuid ->
+                    selectedBucketUuid = bucketUuid
+                    showBucketPicker = false
+                }
+            )
+        }
     }
 }
 
@@ -166,6 +202,7 @@ private fun AddExpenseSheetContent(
     showError: Boolean,
     description: String,
     selectedIcon: ExpenseCategory?,
+    selectedBucketName: String,
     confirmButtonText: String,
     onDeleteExpense: (() -> Unit)?,
     onDismiss: () -> Unit,
@@ -173,11 +210,14 @@ private fun AddExpenseSheetContent(
     onAmountFocusChanged: (Boolean) -> Unit,
     onDescriptionChange: (String) -> Unit,
     onShowIconPicker: () -> Unit,
+    onShowBucketPicker: () -> Unit,
     onSubmit: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .imePadding()
+            .navigationBarsPadding()
             .padding(24.dp)
     ) {
         AddExpenseSheetHeader(
@@ -192,10 +232,12 @@ private fun AddExpenseSheetContent(
             showError = showError,
             description = description,
             selectedIcon = selectedIcon,
+            selectedBucketName = selectedBucketName,
             onAmountChange = onAmountChange,
             onAmountFocusChanged = onAmountFocusChanged,
             onDescriptionChange = onDescriptionChange,
-            onShowIconPicker = onShowIconPicker
+            onShowIconPicker = onShowIconPicker,
+            onShowBucketPicker = onShowBucketPicker
         )
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -219,12 +261,47 @@ private fun AddExpenseSheetFormFields(
     showError: Boolean,
     description: String,
     selectedIcon: ExpenseCategory?,
+    selectedBucketName: String,
     onAmountChange: (TextFieldValue) -> Unit,
     onAmountFocusChanged: (Boolean) -> Unit,
     onDescriptionChange: (String) -> Unit,
-    onShowIconPicker: () -> Unit
+    onShowIconPicker: () -> Unit,
+    onShowBucketPicker: () -> Unit
 ) {
     Spacer(modifier = Modifier.height(24.dp))
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onShowBucketPicker),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = "Bucket",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = selectedBucketName,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+            Icon(
+                painter = painterResource(R.drawable.ic_more_horiz),
+                contentDescription = "Choose bucket"
+            )
+        }
+    }
+    Spacer(modifier = Modifier.height(16.dp))
     OutlinedTextField(
         value = amountFieldValue,
         onValueChange = onAmountChange,
@@ -370,12 +447,81 @@ private fun ExpenseIconPickerDialog(
     )
 }
 
+@Composable
+private fun BucketPickerDialog(
+    bucketOptions: List<BudgetBucket>,
+    selectedBucketUuid: String,
+    onDismiss: () -> Unit,
+    onBucketSelected: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Select bucket") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                bucketOptions.filterNot { it.isClosed }.forEach { bucket ->
+                    val isSelected = bucket.bucketUuid == selectedBucketUuid
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(
+                                if (isSelected) {
+                                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
+                                } else {
+                                    MaterialTheme.colorScheme.surface
+                                }
+                            )
+                            .clickable { onBucketSelected(bucket.bucketUuid) }
+                            .padding(vertical = 10.dp, horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = bucket.name,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                            Text(
+                                text = bucket.trackingMode.name.replace('_', ' '),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (isSelected) {
+                            Surface(
+                                shape = RoundedCornerShape(999.dp),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                            ) {
+                                Text(
+                                    text = "Selected",
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
+}
+
 private fun submitExpense(
+    bucketUuid: String,
     amountText: String,
     description: String,
     selectedIcon: ExpenseCategory?,
     locale: Locale,
-    onSubmitExpense: (Long, String, ExpenseCategory?) -> Unit
+    onSubmitExpense: (String, Long, String, ExpenseCategory?) -> Unit
 ): Boolean {
     val amountCents = CurrencyFormatter.parseExpenseAmountToCents(amountText, locale)
     if (amountCents == null || amountCents <= 0L) {
@@ -383,7 +529,7 @@ private fun submitExpense(
     }
 
     val finalDescription = description.trim()
-    onSubmitExpense(amountCents, finalDescription, selectedIcon)
+    onSubmitExpense(bucketUuid, amountCents, finalDescription, selectedIcon)
     return true
 }
 

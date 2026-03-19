@@ -6,15 +6,19 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import kotlinx.coroutines.flow.StateFlow
+import net.loeu.wallybudget.domain.model.BudgetBucket
+import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import net.loeu.wallybudget.domain.model.BudgetState
+import net.loeu.wallybudget.domain.model.BucketSummaryState
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.ExpenseCycleSection
-import net.loeu.wallybudget.domain.model.ExpenseDaySection
 import net.loeu.wallybudget.domain.model.MonthlyHistory
+import net.loeu.wallybudget.domain.model.PortfolioState
+import net.loeu.wallybudget.domain.model.SelectedBucketOverview
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.UserSettings
-import net.loeu.wallybudget.domain.model.BudgetChangeMode
+import net.loeu.wallybudget.domain.usecase.BucketDraft
 import net.loeu.wallybudget.ui.navigation.Screen
 import net.loeu.wallybudget.ui.screens.analysis.AnalysisScreen
 import net.loeu.wallybudget.ui.screens.history.HistoryScreen
@@ -24,30 +28,40 @@ import java.time.LocalDate
 
 internal fun NavGraphBuilder.addHomeDestination(
     navController: NavHostController,
-    budgetState: BudgetState,
-    todayExpenses: List<Expense>,
+    portfolioState: PortfolioState,
+    bucketSummaries: List<BucketSummaryState>,
+    selectedBucketOverview: SelectedBucketOverview,
+    allBuckets: List<BudgetBucket>,
+    userSettings: UserSettings,
     effectiveCurrentDate: LocalDate,
-    activeCycleExpenseSections: List<ExpenseDaySection>,
-    spendingForecast: SpendingForecast,
+    spendingForecast: SpendingForecast?,
     isHomeDataLoading: Boolean,
-    onAddExpense: (Long, String, ExpenseCategory?, LocalDate) -> Unit,
+    onSelectBucket: (String) -> Unit,
+    onSaveSettings: (Long, Int, List<BucketDraft>, BudgetChangeMode) -> Unit,
+    onAddExpense: (String, Long, String, ExpenseCategory?, LocalDate) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
     showAddExpenseSheet: Boolean,
     onShowAddExpenseSheet: () -> Unit,
     onHideAddExpenseSheet: () -> Unit,
+    settingsMessage: String?,
+    onSettingsMessageConsumed: () -> Unit,
     timelineLockReason: String?,
     usesVerticalNavigation: Boolean
 ) {
     composable(Screen.Home.route) {
         HomeScreen(
-            budgetState = budgetState,
-            todayExpenses = todayExpenses,
+            portfolioState = portfolioState,
+            bucketSummaries = bucketSummaries,
+            selectedBucketOverview = selectedBucketOverview,
+            allBuckets = allBuckets,
+            userSettings = userSettings,
             currentDate = effectiveCurrentDate,
-            activeCycleExpenseSections = activeCycleExpenseSections,
             spendingForecast = spendingForecast,
             isLoadingData = isHomeDataLoading,
+            onSelectBucket = onSelectBucket,
+            onSaveSettings = onSaveSettings,
             onAddExpense = onAddExpense,
             onRestoreExpense = onRestoreExpense,
             onUpdateExpense = onUpdateExpense,
@@ -57,6 +71,8 @@ internal fun NavGraphBuilder.addHomeDestination(
             showAddExpenseSheet = showAddExpenseSheet,
             onShowAddExpenseSheet = onShowAddExpenseSheet,
             onHideAddExpenseSheet = onHideAddExpenseSheet,
+            settingsMessage = settingsMessage,
+            onSettingsMessageConsumed = onSettingsMessageConsumed,
             timelineLockReason = timelineLockReason
         )
     }
@@ -65,7 +81,10 @@ internal fun NavGraphBuilder.addHomeDestination(
 internal fun NavGraphBuilder.addHistoryDestination(
     navController: NavHostController,
     historySections: List<ExpenseCycleSection>,
-    onAddExpense: (Long, String, ExpenseCategory?, LocalDate) -> Unit,
+    historyBucketNameByUuid: Map<String, String>,
+    allBuckets: List<BudgetBucket>,
+    selectedBucketUuid: String?,
+    onAddExpense: (String, Long, String, ExpenseCategory?, LocalDate) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
@@ -75,6 +94,9 @@ internal fun NavGraphBuilder.addHistoryDestination(
     composable(Screen.History.route) {
         HistoryScreen(
             historySections = historySections,
+            historyBucketNameByUuid = historyBucketNameByUuid,
+            allBuckets = allBuckets,
+            selectedBucketUuid = selectedBucketUuid,
             onAddExpense = onAddExpense,
             onRestoreExpense = onRestoreExpense,
             onUpdateExpense = onUpdateExpense,
@@ -90,8 +112,9 @@ internal fun NavGraphBuilder.addHistoryDestination(
 
 internal fun NavGraphBuilder.addAnalysisDestination(
     navController: NavHostController,
-    budgetState: BudgetState,
-    spendingForecast: SpendingForecast,
+    selectedBucketOverview: SelectedBucketOverview?,
+    budgetState: BudgetState?,
+    spendingForecast: SpendingForecast?,
     monthlyHistoryState: StateFlow<List<MonthlyHistory>?>,
     isHomeDataLoading: Boolean,
     timelineLockReason: String?,
@@ -101,6 +124,7 @@ internal fun NavGraphBuilder.addAnalysisDestination(
         val monthlyHistory by monthlyHistoryState.collectAsState()
         val isAnalysisLoading = isHomeDataLoading || monthlyHistory == null
         AnalysisScreen(
+            selectedBucketOverview = selectedBucketOverview,
             budgetState = budgetState,
             spendingForecast = spendingForecast,
             monthlyHistory = monthlyHistory.orEmpty(),
@@ -108,7 +132,8 @@ internal fun NavGraphBuilder.addAnalysisDestination(
             isLoading = isAnalysisLoading,
             onNavigateToSettings = if (usesVerticalNavigation) null else {
                 { navController.navigate(Screen.Settings.route) }
-            }
+            },
+            onGoToOverview = { navController.navigate(Screen.Home.route) }
         )
     }
 }
@@ -116,9 +141,10 @@ internal fun NavGraphBuilder.addAnalysisDestination(
 internal fun NavGraphBuilder.addSettingsDestination(
     navController: NavHostController,
     userSettings: UserSettings,
-    budgetState: BudgetState,
+    allBuckets: List<BudgetBucket>,
+    bucketSummaries: List<BucketSummaryState>,
     currentDate: LocalDate,
-    onSaveSettings: (Long, Int, BudgetChangeMode) -> Unit,
+    onSaveSettings: (Long, Int, List<BucketDraft>, BudgetChangeMode) -> Unit,
     onUndoSettings: () -> Unit,
     isSettingsUndoAvailable: Boolean,
     settingsUndoExpiresAtExclusive: LocalDate?,
@@ -132,7 +158,8 @@ internal fun NavGraphBuilder.addSettingsDestination(
     composable(Screen.Settings.route) {
         SettingsScreen(
             userSettings = userSettings,
-            budgetState = budgetState,
+            allBuckets = allBuckets,
+            bucketSummaries = bucketSummaries,
             currentDate = currentDate,
             onSaveSettings = onSaveSettings,
             onUndoSettings = onUndoSettings,

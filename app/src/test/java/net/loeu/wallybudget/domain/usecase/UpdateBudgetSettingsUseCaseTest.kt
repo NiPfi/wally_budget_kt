@@ -6,6 +6,7 @@ import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
+import net.loeu.wallybudget.domain.service.BucketAllocationResolver
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import org.junit.Assert.assertEquals
@@ -480,9 +481,13 @@ class UpdateBudgetSettingsUseCaseTest {
             userSettingsStore = settingsStore,
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = budgetAdjustmentDao,
+            budgetBucketDao = FakeBudgetBucketDao(),
+            bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(),
+            bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
             currentDateProvider = FakeCurrentDateProvider(currentDate),
             cycleScheduleResolver = cycleScheduleResolver,
             budgetAdjustmentResolver = BudgetAdjustmentResolver(),
+            bucketAllocationResolver = BucketAllocationResolver(),
             hybridLogicalClockService = HybridLogicalClockService()
         )
     }

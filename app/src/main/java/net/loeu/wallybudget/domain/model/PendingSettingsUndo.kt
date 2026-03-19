@@ -5,10 +5,16 @@ import java.time.format.DateTimeParseException
 
 data class PendingSettingsUndo(
     val previousSettings: UserSettings,
+    val bucketsToRestore: List<BudgetBucket> = emptyList(),
+    val bucketsToDeactivate: List<BudgetBucket> = emptyList(),
     val policiesToRestore: List<BudgetPolicy>,
     val policiesToDeactivate: List<BudgetPolicy>,
     val adjustmentsToRestore: List<BudgetAdjustment>,
     val adjustmentsToDeactivate: List<BudgetAdjustment>,
+    val bucketPoliciesToRestore: List<BucketAllocationPolicy> = emptyList(),
+    val bucketPoliciesToDeactivate: List<BucketAllocationPolicy> = emptyList(),
+    val bucketAdjustmentsToRestore: List<BucketAllocationAdjustment> = emptyList(),
+    val bucketAdjustmentsToDeactivate: List<BucketAllocationAdjustment> = emptyList(),
     val expiresAtExclusive: String
 ) {
     private val parsedExpiryDate: LocalDate by lazy {

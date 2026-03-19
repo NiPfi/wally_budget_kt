@@ -42,6 +42,9 @@ interface BucketAllocationAdjustmentDao : BaseInsertDao<BucketAllocationAdjustme
     )
     suspend fun findByAdjustmentUuid(adjustmentUuid: String): BucketAllocationAdjustmentEntity?
 
+    @Query("DELETE FROM bucket_allocation_adjustments WHERE adjustmentUuid IN (:adjustmentUuids)")
+    suspend fun deleteByAdjustmentUuids(adjustmentUuids: List<String>)
+
     @Query("SELECT COUNT(*) FROM bucket_allocation_adjustments")
     suspend fun countAll(): Int
 

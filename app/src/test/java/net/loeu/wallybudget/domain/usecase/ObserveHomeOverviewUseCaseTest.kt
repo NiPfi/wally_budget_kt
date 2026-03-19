@@ -13,6 +13,7 @@ import net.loeu.wallybudget.domain.service.BucketAllocationResolver
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
+import net.loeu.wallybudget.domain.service.PortfolioCalculationService
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -64,11 +65,11 @@ class ObserveHomeOverviewUseCaseTest {
         val state = useCase().first()
 
         assertEquals(LocalDate.of(2026, 4, 10), state.effectiveCurrentDate)
-        assertEquals(2_000L, state.todayExpenses.single().amountCents)
-        assertEquals(LocalDate.of(2026, 3, 25), state.budgetState.cycleStartDate)
-        assertEquals(100_000L, state.budgetState.monthlyBudgetCents)
+        assertEquals(2_000L, state.selectedBucketOverview.todayExpenses.single().amountCents)
+        assertEquals(LocalDate.of(2026, 3, 25), state.selectedBucketOverview.budgetState?.cycleStartDate)
+        assertEquals(100_000L, state.selectedBucketOverview.budgetState?.monthlyBudgetCents)
         assertTrue(state.timelineLockState.isLocked)
-        assertEquals(17, state.activeCycleExpenseSections.size)
+        assertEquals(17, state.selectedBucketOverview.activeCycleExpenseSections.size)
         assertNotNull(state.pendingCycleCloseoutState)
     }
 
@@ -124,6 +125,38 @@ class ObserveHomeOverviewUseCaseTest {
         assertEquals(99_678L, pendingCloseout.surplusCents)
     }
 
+    @Test
+    fun invoke_countsExpensesFromDeletedBucketsInPortfolioTotals() = runBlocking {
+        val expenseDao = FakeExpenseDao(
+            listOf(
+                expenseEntityOn(1L, LocalDate.of(2026, 4, 10), 2_000L),
+                expenseEntityOn(2L, LocalDate.of(2026, 4, 10), 5_000L).copy(bucketUuid = "deleted-bills-bucket")
+            )
+        )
+        val useCase = createUseCase(
+            expenseDao = expenseDao,
+            settingsStore = FakeUserSettingsStore(
+                userSettings(
+                    monthlyBudgetCents = 100_000L,
+                    portfolioMonthlyBudgetCents = 400_000L,
+                    lastResetDate = LocalDate.of(2026, 3, 25),
+                    pendingCycleStartDate = "2026-03-25",
+                    pendingCycleEndDateExclusive = "2026-04-25"
+                )
+            ),
+            currentDate = LocalDate.of(2026, 4, 10),
+            budgetBucketDao = spendingBucketDao(defaultAllocatedAmountCents = 100_000L)
+        )
+
+        val state = useCase().first()
+
+        assertEquals(7_000L, state.portfolioState.totalSpentThisCycleCents)
+        assertEquals(393_000L, state.portfolioState.remainingThisCycleCents)
+        assertEquals(2_000L, state.selectedBucketOverview.todayExpenses.single().amountCents)
+        assertEquals(2_000L, state.selectedBucketOverview.summary.spentThisCycleCents)
+        assertEquals(1, state.bucketSummaries.size)
+    }
+
     private fun createUseCase(
         expenseDao: FakeExpenseDao,
         settingsStore: FakeUserSettingsStore,
@@ -150,7 +183,8 @@ class ObserveHomeOverviewUseCaseTest {
             budgetCalculationService = budgetCalculationService,
             cycleScheduleResolver = CycleScheduleResolver(budgetCalculationService),
             budgetAdjustmentResolver = BudgetAdjustmentResolver(),
-            bucketAllocationResolver = BucketAllocationResolver()
+            bucketAllocationResolver = BucketAllocationResolver(),
+            portfolioCalculationService = PortfolioCalculationService()
         )
     }
 

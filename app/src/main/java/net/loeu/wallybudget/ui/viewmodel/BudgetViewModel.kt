@@ -16,14 +16,18 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.loeu.wallybudget.domain.model.BudgetState
+import net.loeu.wallybudget.domain.model.BudgetBucket
+import net.loeu.wallybudget.domain.model.BucketSummaryState
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.ExpenseCycleSection
 import net.loeu.wallybudget.domain.model.ExpenseDaySection
 import net.loeu.wallybudget.domain.model.HistoryState
-import net.loeu.wallybudget.domain.model.HomeOverviewState
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
+import net.loeu.wallybudget.domain.model.PortfolioOverviewState
+import net.loeu.wallybudget.domain.model.PortfolioState
+import net.loeu.wallybudget.domain.model.SelectedBucketOverview
 import net.loeu.wallybudget.domain.model.SnapshotError
 import net.loeu.wallybudget.domain.model.SnapshotImportPreview
 import net.loeu.wallybudget.domain.model.SpendingForecast
@@ -40,6 +44,7 @@ import net.loeu.wallybudget.domain.usecase.DeleteExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.EnsureBucketMigrationStateUseCase
 import net.loeu.wallybudget.domain.usecase.EnsureBudgetPolicyHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ExportSnapshotUseCase
+import net.loeu.wallybudget.domain.usecase.ObserveBudgetBucketsUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveForecastUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveHomeOverviewUseCase
@@ -49,9 +54,11 @@ import net.loeu.wallybudget.domain.usecase.PreparedSnapshotImport
 import net.loeu.wallybudget.domain.usecase.RebuildMonthlyHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.ResolveMutationEffectiveDateUseCase
 import net.loeu.wallybudget.domain.usecase.RestoreDeletedExpenseUseCase
+import net.loeu.wallybudget.domain.usecase.SelectBucketUseCase
 import net.loeu.wallybudget.domain.usecase.SnapshotOperationException
 import net.loeu.wallybudget.domain.usecase.SyncObservedDateUseCase
 import net.loeu.wallybudget.domain.usecase.UndoBudgetSettingsChangeUseCase
+import net.loeu.wallybudget.domain.usecase.BucketDraft
 import net.loeu.wallybudget.domain.usecase.UpdateBudgetSettingsRequest
 import net.loeu.wallybudget.domain.usecase.UpdateBudgetSettingsUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateExpenseUseCase
@@ -68,6 +75,7 @@ data class SettingsUndoState(
 class BudgetViewModel(
     upstreamUserSettingsFlow: Flow<UserSettings>,
     observeHomeOverviewUseCase: ObserveHomeOverviewUseCase,
+    observeBudgetBucketsUseCase: ObserveBudgetBucketsUseCase,
     observeHistoryUseCase: ObserveHistoryUseCase,
     observeForecastUseCase: ObserveForecastUseCase,
     private val addExpenseUseCase: AddExpenseUseCase,
@@ -87,6 +95,7 @@ class BudgetViewModel(
     private val rebuildMonthlyHistoryUseCase: RebuildMonthlyHistoryUseCase,
     private val completePortfolioMigrationUseCase: CompletePortfolioMigrationUseCase,
     private val resolveMutationEffectiveDateUseCase: ResolveMutationEffectiveDateUseCase,
+    private val selectBucketUseCase: SelectBucketUseCase,
     private val clearPendingSettingsUndoUseCase: ClearPendingSettingsUndoUseCase,
     pendingSettingsUndoFlow: Flow<net.loeu.wallybudget.domain.model.PendingSettingsUndo?>,
     private val syncObservedDateUseCase: SyncObservedDateUseCase,
@@ -94,14 +103,20 @@ class BudgetViewModel(
 ) : ViewModel() {
 
     val userSettingsFlow: Flow<UserSettings> = upstreamUserSettingsFlow
-    private val homeOverviewState: StateFlow<HomeOverviewState?> = observeHomeOverviewUseCase()
+    val portfolioOverviewState: StateFlow<PortfolioOverviewState?> = observeHomeOverviewUseCase()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = null
         )
+    val allBuckets: StateFlow<List<BudgetBucket>> = observeBudgetBucketsUseCase()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
     private val historyState: StateFlow<HistoryState?> = observeHistoryUseCase(
-        homeOverviewState.filterNotNull()
+        portfolioOverviewState.filterNotNull()
     ).stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -116,7 +131,7 @@ class BudgetViewModel(
             initialValue = UserSettings()
         )
 
-    val effectiveCurrentDate: StateFlow<LocalDate> = homeOverviewState
+    val effectiveCurrentDate: StateFlow<LocalDate> = portfolioOverviewState
         .map { it?.effectiveCurrentDate ?: currentDateProvider.currentDate() }
         .stateIn(
             scope = viewModelScope,
@@ -124,8 +139,32 @@ class BudgetViewModel(
             initialValue = currentDateProvider.currentDate()
         )
 
-    // Budget state
-    val budgetState: StateFlow<BudgetState?> = homeOverviewState
+    val selectedBucketOverview: StateFlow<SelectedBucketOverview?> = portfolioOverviewState
+        .map { it?.selectedBucketOverview }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
+
+    val portfolioState: StateFlow<PortfolioState?> = portfolioOverviewState
+        .map { it?.portfolioState }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
+
+    val bucketSummaries: StateFlow<List<BucketSummaryState>> = portfolioOverviewState
+        .map { it?.bucketSummaries ?: emptyList() }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    // Selected bucket state
+    val budgetState: StateFlow<BudgetState?> = selectedBucketOverview
         .map { it?.budgetState }
         .stateIn(
             scope = viewModelScope,
@@ -133,8 +172,7 @@ class BudgetViewModel(
             initialValue = null
         )
 
-    // Today's expenses
-    val todayExpenses: StateFlow<List<Expense>> = homeOverviewState
+    val todayExpenses: StateFlow<List<Expense>> = selectedBucketOverview
         .map { it?.todayExpenses ?: emptyList() }
         .stateIn(
             scope = viewModelScope,
@@ -142,7 +180,7 @@ class BudgetViewModel(
             initialValue = emptyList()
         )
 
-    val activeCycleExpenseSections: StateFlow<List<ExpenseDaySection>> = homeOverviewState
+    val activeCycleExpenseSections: StateFlow<List<ExpenseDaySection>> = selectedBucketOverview
         .map { it?.activeCycleExpenseSections ?: emptyList() }
         .stateIn(
             scope = viewModelScope,
@@ -174,7 +212,15 @@ class BudgetViewModel(
             initialValue = emptyList()
         )
 
-    val pendingCycleCloseoutState: StateFlow<PendingCycleCloseoutState?> = homeOverviewState
+    val historyBucketNameByUuid: StateFlow<Map<String, String>> = historyState
+        .map { it?.bucketNameByUuid ?: emptyMap() }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyMap()
+        )
+
+    val pendingCycleCloseoutState: StateFlow<PendingCycleCloseoutState?> = portfolioOverviewState
         .map { it?.pendingCycleCloseoutState }
         .stateIn(
             scope = viewModelScope,
@@ -182,7 +228,7 @@ class BudgetViewModel(
             initialValue = null
         )
 
-    val timelineLockState: StateFlow<TimelineLockState> = homeOverviewState
+    val timelineLockState: StateFlow<TimelineLockState> = portfolioOverviewState
         .map { it?.timelineLockState ?: TimelineLockState() }
         .stateIn(
             scope = viewModelScope,
@@ -252,7 +298,13 @@ class BudgetViewModel(
     /**
      * Add a new expense
      */
-    fun addExpense(amountCents: Long, description: String, icon: ExpenseCategory? = null, date: LocalDate? = null) {
+    fun addExpense(
+        bucketUuid: String,
+        amountCents: Long,
+        description: String,
+        icon: ExpenseCategory? = null,
+        date: LocalDate? = null
+    ) {
         viewModelScope.launch {
             val effectiveDate = currentEffectiveDateForMutation(
                 resolveMutationEffectiveDateUseCase = resolveMutationEffectiveDateUseCase,
@@ -273,7 +325,8 @@ class BudgetViewModel(
                 description = description,
                 icon = icon,
                 timestamp = timestamp,
-                expenseDate = resolvedDate.toString()
+                expenseDate = resolvedDate.toString(),
+                bucketUuid = bucketUuid
             )
             addExpenseUseCase(expense)
             _isAddExpenseSheetVisible.value = false
@@ -344,6 +397,12 @@ class BudgetViewModel(
         _isAddExpenseSheetVisible.value = true
     }
 
+    fun selectBucket(bucketUuid: String) {
+        viewModelScope.launch {
+            selectBucketUseCase(bucketUuid)
+        }
+    }
+
     /**
      * Hide add expense sheet
      */
@@ -371,19 +430,25 @@ class BudgetViewModel(
     }
 
     fun updateBudgetSettings(
-        amountCents: Long,
+        portfolioMonthlyBudgetCents: Long,
         paydayDate: Int,
+        buckets: List<BucketDraft>,
         budgetChangeMode: BudgetChangeMode
     ) {
         viewModelScope.launch {
-            val result = updateBudgetSettingsUseCase(
-                UpdateBudgetSettingsRequest(
-                    monthlyBudgetCents = amountCents,
-                    paydayDate = paydayDate,
-                    budgetChangeMode = budgetChangeMode
+            try {
+                val result = updateBudgetSettingsUseCase(
+                    UpdateBudgetSettingsRequest(
+                        portfolioMonthlyBudgetCents = portfolioMonthlyBudgetCents,
+                        paydayDate = paydayDate,
+                        buckets = buckets,
+                        budgetChangeMode = budgetChangeMode
+                    )
                 )
-            )
-            _settingsStatusMessage.value = result.summaryMessage
+                _settingsStatusMessage.value = result.summaryMessage
+            } catch (exception: IllegalArgumentException) {
+                _settingsStatusMessage.value = exception.message ?: "Unable to save settings."
+            }
         }
     }
 

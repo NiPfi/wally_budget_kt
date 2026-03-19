@@ -628,6 +628,11 @@ internal class FakeBucketAllocationAdjustmentDao(
         .filter { it.adjustmentUuid == adjustmentUuid }
         .maxByOrNull { it.updatedAtEpochMs }
 
+    override suspend fun deleteByAdjustmentUuids(adjustmentUuids: List<String>) {
+        adjustments.removeAll { it.adjustmentUuid in adjustmentUuids }
+        refresh()
+    }
+
     override suspend fun countAll(): Int = adjustments.size
 
     override suspend fun deleteAll() {

@@ -1,3 +1,5 @@
+@file:Suppress("LongMethod")
+
 package net.loeu.wallybudget.ui.screens.history
 
 import androidx.compose.animation.AnimatedVisibility
@@ -55,11 +57,13 @@ import androidx.window.core.layout.WindowSizeClass.Companion.WIDTH_DP_MEDIUM_LOW
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import net.loeu.wallybudget.R
+import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.ExpenseCycleSection
 import net.loeu.wallybudget.domain.model.recordedDate
 import net.loeu.wallybudget.domain.model.ExpenseDaySection
+import net.loeu.wallybudget.ui.components.PagerDots
 import net.loeu.wallybudget.ui.components.TimelineLockBanner
 import net.loeu.wallybudget.ui.screens.expenses.ExpenseItem
 import net.loeu.wallybudget.ui.screens.home.AddExpenseSheet
@@ -76,7 +80,10 @@ import kotlin.math.abs
 @Composable
 fun HistoryScreen(
     historySections: List<ExpenseCycleSection>,
-    onAddExpense: (Long, String, ExpenseCategory?, LocalDate) -> Unit,
+    historyBucketNameByUuid: Map<String, String>,
+    allBuckets: List<BudgetBucket>,
+    selectedBucketUuid: String?,
+    onAddExpense: (String, Long, String, ExpenseCategory?, LocalDate) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
@@ -126,13 +133,16 @@ fun HistoryScreen(
         onAddExpenseForDate = { date ->
             selectedDateEpochDay.longValue = date.toEpochDay()
             isAddSheetVisible = true
-        }
+        },
+        historyBucketNameByUuid = historyBucketNameByUuid
     )
 
     HistoryAddExpenseSheet(
         isAddSheetVisible = isAddSheetVisible,
         interactionsEnabled = interactionsEnabled,
         selectedDateEpochDay = selectedDateEpochDay.longValue,
+        allBuckets = allBuckets,
+        selectedBucketUuid = selectedBucketUuid,
         onDismiss = { isAddSheetVisible = false },
         onAddExpense = onAddExpense
     )
@@ -140,6 +150,7 @@ fun HistoryScreen(
     HistoryEditExpenseSheet(
         editingExpense = expenseBeingEdited,
         interactionsEnabled = interactionsEnabled,
+        allBuckets = allBuckets,
         snackbarHostState = snackbarHostState,
         scope = scope,
         onDismiss = { expenseBeingEdited = null },
@@ -185,6 +196,7 @@ private fun HistoryScreenEffects(
 fun CycleLedgerScreen(
     section: ExpenseCycleSection,
     title: String,
+    historyBucketNameByUuid: Map<String, String>,
     onEditExpense: (Expense) -> Unit,
     onAddExpenseForDate: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
@@ -215,6 +227,7 @@ fun CycleLedgerScreen(
         ) {
             CycleLedgerPage(
                 section = section,
+                historyBucketNameByUuid = historyBucketNameByUuid,
                 onEditExpense = onEditExpense,
                 onAddExpenseForDate = onAddExpenseForDate,
                 modifier = Modifier
@@ -236,6 +249,7 @@ fun CycleLedgerScreen(
 @Composable
 internal fun CycleLedgerPage(
     section: ExpenseCycleSection,
+    historyBucketNameByUuid: Map<String, String>,
     onEditExpense: (Expense) -> Unit,
     onAddExpenseForDate: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
@@ -254,6 +268,7 @@ internal fun CycleLedgerPage(
         items(section.daySections, key = { it.date.toEpochDay() }) { daySection ->
             LedgerDaySection(
                 daySection = daySection,
+                historyBucketNameByUuid = historyBucketNameByUuid,
                 onEditExpense = onEditExpense,
                 onAddExpenseForDate = onAddExpenseForDate
             )
@@ -277,7 +292,7 @@ internal fun CompactHistoryHeader(
                 modifier = Modifier.weight(1f),
                 contentAlignment = Alignment.Center
             ) {
-                CyclePagerDots(
+                PagerDots(
                     pageCount = pageCount,
                     currentPage = currentPage
                 )
@@ -335,36 +350,6 @@ internal fun CyclePagerHint(
 }
 
 @Composable
-private fun CyclePagerDots(
-    pageCount: Int,
-    currentPage: Int,
-    modifier: Modifier = Modifier
-) {
-    if (pageCount <= 1) return
-
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.Center
-    ) {
-        repeat(pageCount) { page ->
-            Box(
-                modifier = Modifier
-                    .padding(horizontal = 4.dp)
-                    .size(if (page == currentPage) 8.dp else 6.dp)
-                    .background(
-                        color = if (page == currentPage) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.outlineVariant
-                        },
-                        shape = CircleShape
-                    )
-            )
-        }
-    }
-}
-
-@Composable
 internal fun CycleHeader(
     section: ExpenseCycleSection,
     modifier: Modifier = Modifier
@@ -399,6 +384,25 @@ internal fun CycleHeader(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            section.bucketSummaries.forEach { bucketSummary ->
+                Text(
+                    text = buildString {
+                        append(bucketSummary.bucketName)
+                        append(" · ")
+                        append(CurrencyFormatter.format(bucketSummary.spentCents))
+                        append(" spent · ")
+                        append(
+                            if (bucketSummary.overspentCents > 0L) {
+                                "${CurrencyFormatter.format(bucketSummary.overspentCents)} over"
+                            } else {
+                                "${CurrencyFormatter.formatSigned(bucketSummary.remainingCents)} left"
+                            }
+                        )
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
@@ -407,6 +411,7 @@ internal fun CycleHeader(
 @Composable
 internal fun LedgerDaySection(
     daySection: ExpenseDaySection,
+    historyBucketNameByUuid: Map<String, String>,
     onEditExpense: (Expense) -> Unit,
     onAddExpenseForDate: (LocalDate) -> Unit
 ) {
@@ -456,6 +461,7 @@ internal fun LedgerDaySection(
             daySection.expenses.forEach { expense ->
                 ExpenseItem(
                     expense = expense,
+                    secondaryText = historyBucketNameByUuid[expense.bucketUuid],
                     onEdit = if (daySection.isEditable) {
                         { onEditExpense(expense) }
                     } else {

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -16,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
@@ -32,6 +34,8 @@ import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.util.CurrencyFormatter
 import kotlin.math.roundToInt
+
+private val FlatSummaryCardShape = RoundedCornerShape(0.dp)
 
 @Composable
 fun SummaryCard(
@@ -62,10 +66,12 @@ fun SummaryCard(
     val colors = summaryCardColors(useWarningTint)
 
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(14.dp, FlatSummaryCardShape),
         color = colors.container,
         tonalElevation = lerp(2.dp, 0.dp, progress),
-        shape = MaterialTheme.shapes.extraLarge
+        shape = FlatSummaryCardShape
     ) {
         Column(
             modifier = Modifier
@@ -102,13 +108,13 @@ fun SummaryCard(
     }
 }
 
-private data class SummaryCardColors(
+internal data class SummaryCardColors(
     val container: Color,
     val content: Color
 )
 
 @Composable
-private fun summaryCardColors(useWarningTint: Boolean): SummaryCardColors {
+internal fun summaryCardColors(useWarningTint: Boolean): SummaryCardColors {
     return SummaryCardColors(
         container = if (useWarningTint) {
             blendedAlertContainer()
@@ -408,7 +414,7 @@ private fun Modifier.collapseHeight(progress: Float): Modifier = this
     }
 
 @Composable
-private fun blendedAlertContainer(): Color {
+internal fun blendedAlertContainer(): Color {
     return lerp(
         MaterialTheme.colorScheme.primaryContainer,
         MaterialTheme.colorScheme.tertiaryContainer,
@@ -417,7 +423,7 @@ private fun blendedAlertContainer(): Color {
 }
 
 @Composable
-private fun blendedAlertContent(): Color {
+internal fun blendedAlertContent(): Color {
     return lerp(
         MaterialTheme.colorScheme.onPrimaryContainer,
         MaterialTheme.colorScheme.onTertiaryContainer,

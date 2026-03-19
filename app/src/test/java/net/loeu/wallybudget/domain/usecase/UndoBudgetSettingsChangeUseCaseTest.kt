@@ -6,6 +6,7 @@ import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
+import net.loeu.wallybudget.domain.service.BucketAllocationResolver
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import org.junit.Assert.assertEquals
@@ -39,15 +40,11 @@ class UndoBudgetSettingsChangeUseCaseTest {
                 )
             )
         )
-        val saveUseCase = UpdateBudgetSettingsUseCase(
-            transactionRunner = FakeTransactionRunner(),
-            userSettingsStore = settingsStore,
+        val saveUseCase = saveUseCase(
+            settingsStore = settingsStore,
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = FakeBudgetAdjustmentDao(),
-            currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
-            cycleScheduleResolver = cycleScheduleResolver,
-            budgetAdjustmentResolver = BudgetAdjustmentResolver(),
-            hybridLogicalClockService = HybridLogicalClockService()
+            currentDate = LocalDate.of(2026, 4, 10)
         )
 
         saveUseCase(
@@ -58,12 +55,11 @@ class UndoBudgetSettingsChangeUseCaseTest {
             )
         )
 
-        val undoUseCase = UndoBudgetSettingsChangeUseCase(
-            transactionRunner = FakeTransactionRunner(),
-            userSettingsStore = settingsStore,
+        val undoUseCase = undoUseCase(
+            settingsStore = settingsStore,
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = FakeBudgetAdjustmentDao(),
-            currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10))
+            currentDate = LocalDate.of(2026, 4, 10)
         )
 
         val result = undoUseCase()
@@ -102,15 +98,11 @@ class UndoBudgetSettingsChangeUseCaseTest {
             )
         )
         val budgetAdjustmentDao = FakeBudgetAdjustmentDao()
-        val saveUseCase = UpdateBudgetSettingsUseCase(
-            transactionRunner = FakeTransactionRunner(),
-            userSettingsStore = settingsStore,
+        val saveUseCase = saveUseCase(
+            settingsStore = settingsStore,
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = budgetAdjustmentDao,
-            currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
-            cycleScheduleResolver = cycleScheduleResolver,
-            budgetAdjustmentResolver = BudgetAdjustmentResolver(),
-            hybridLogicalClockService = HybridLogicalClockService()
+            currentDate = LocalDate.of(2026, 4, 10)
         )
 
         saveUseCase(
@@ -121,12 +113,11 @@ class UndoBudgetSettingsChangeUseCaseTest {
             )
         )
 
-        val undoUseCase = UndoBudgetSettingsChangeUseCase(
-            transactionRunner = FakeTransactionRunner(),
-            userSettingsStore = settingsStore,
+        val undoUseCase = undoUseCase(
+            settingsStore = settingsStore,
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = budgetAdjustmentDao,
-            currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 25))
+            currentDate = LocalDate.of(2026, 4, 25)
         )
 
         val result = undoUseCase()
@@ -157,15 +148,11 @@ class UndoBudgetSettingsChangeUseCaseTest {
             )
         )
         val budgetAdjustmentDao = FakeBudgetAdjustmentDao()
-        val saveUseCase = UpdateBudgetSettingsUseCase(
-            transactionRunner = FakeTransactionRunner(),
-            userSettingsStore = settingsStore,
+        val saveUseCase = saveUseCase(
+            settingsStore = settingsStore,
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = budgetAdjustmentDao,
-            currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
-            cycleScheduleResolver = cycleScheduleResolver,
-            budgetAdjustmentResolver = BudgetAdjustmentResolver(),
-            hybridLogicalClockService = HybridLogicalClockService()
+            currentDate = LocalDate.of(2026, 4, 10)
         )
 
         saveUseCase(
@@ -183,12 +170,11 @@ class UndoBudgetSettingsChangeUseCaseTest {
             )
         )
 
-        val undoUseCase = UndoBudgetSettingsChangeUseCase(
-            transactionRunner = FakeTransactionRunner(),
-            userSettingsStore = settingsStore,
+        val undoUseCase = undoUseCase(
+            settingsStore = settingsStore,
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = budgetAdjustmentDao,
-            currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10))
+            currentDate = LocalDate.of(2026, 4, 10)
         )
 
         val result = undoUseCase()
@@ -198,4 +184,44 @@ class UndoBudgetSettingsChangeUseCaseTest {
         val activeAdjustments = budgetAdjustmentDao.getActiveForCycle("2026-03-25")
         assertEquals(0, activeAdjustments.size)
     }
+}
+
+private fun saveUseCase(
+    settingsStore: FakeUserSettingsStore,
+    budgetPolicyDao: FakeBudgetPolicyDao,
+    budgetAdjustmentDao: FakeBudgetAdjustmentDao,
+    currentDate: LocalDate
+): UpdateBudgetSettingsUseCase {
+    return UpdateBudgetSettingsUseCase(
+        transactionRunner = FakeTransactionRunner(),
+        userSettingsStore = settingsStore,
+        budgetPolicyDao = budgetPolicyDao,
+        budgetAdjustmentDao = budgetAdjustmentDao,
+        budgetBucketDao = FakeBudgetBucketDao(),
+        bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(),
+        bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
+        currentDateProvider = FakeCurrentDateProvider(currentDate),
+        cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService()),
+        budgetAdjustmentResolver = BudgetAdjustmentResolver(),
+        bucketAllocationResolver = BucketAllocationResolver(),
+        hybridLogicalClockService = HybridLogicalClockService()
+    )
+}
+
+private fun undoUseCase(
+    settingsStore: FakeUserSettingsStore,
+    budgetPolicyDao: FakeBudgetPolicyDao,
+    budgetAdjustmentDao: FakeBudgetAdjustmentDao,
+    currentDate: LocalDate
+): UndoBudgetSettingsChangeUseCase {
+    return UndoBudgetSettingsChangeUseCase(
+        transactionRunner = FakeTransactionRunner(),
+        userSettingsStore = settingsStore,
+        budgetPolicyDao = budgetPolicyDao,
+        budgetAdjustmentDao = budgetAdjustmentDao,
+        budgetBucketDao = FakeBudgetBucketDao(),
+        bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(),
+        bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
+        currentDateProvider = FakeCurrentDateProvider(currentDate)
+    )
 }

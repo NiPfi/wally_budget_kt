@@ -9,12 +9,12 @@ class PortfolioCalculationService {
     fun calculatePortfolioState(
         portfolioTotalBudgetCents: Long,
         bucketSummaries: List<BucketSummaryState>,
+        totalSpentThisCycleCents: Long,
         bucketHistory: List<BucketMonthlyHistory>,
         cycleStartDate: LocalDate,
         cycleEndDateExclusive: LocalDate
     ): PortfolioState {
         val allocatedToBucketsCents = bucketSummaries.sumOf { it.allocatedThisCycleCents }
-        val totalSpentThisCycleCents = bucketSummaries.sumOf { it.spentThisCycleCents }
         val completedCycleReserveCents = bucketHistory
             .filter { it.getCycleEnd() <= cycleStartDate }
             .sumOf { it.surplusCents }
