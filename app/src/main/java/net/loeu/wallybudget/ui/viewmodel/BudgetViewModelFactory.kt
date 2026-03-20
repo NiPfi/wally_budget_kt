@@ -165,6 +165,7 @@ class BudgetViewModelFactory(
 
     private val observeForecastUseCase by lazy {
         ObserveForecastUseCase(
+            budgetPolicyDao = budgetPolicyDao,
             budgetBucketDao = budgetBucketDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
@@ -238,6 +239,8 @@ class BudgetViewModelFactory(
             userSettingsStore = userPreferencesManager,
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = budgetAdjustmentDao,
+            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
             currentDateProvider = currentDateProvider,
             cycleScheduleResolver = cycleScheduleResolver,
             hybridLogicalClockService = hybridLogicalClockService

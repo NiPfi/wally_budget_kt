@@ -5,6 +5,7 @@ import kotlinx.coroutines.runBlocking
 import net.loeu.wallybudget.data.local.entity.BucketAllocationPolicyEntity
 import net.loeu.wallybudget.data.local.entity.BucketMonthlyHistoryEntity
 import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
+import net.loeu.wallybudget.data.local.entity.BudgetPolicyEntity
 import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
@@ -91,6 +92,7 @@ class ObserveForecastUseCaseTest {
         val bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao()
         val budgetCalculationService = BudgetCalculationService()
         val useCase = ObserveForecastUseCase(
+            budgetPolicyDao = FakeBudgetPolicyDao(),
             budgetBucketDao = budgetBucketDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
@@ -134,6 +136,15 @@ class ObserveForecastUseCaseTest {
         )
         val budgetCalculationService = BudgetCalculationService()
         val useCase = ObserveForecastUseCase(
+            budgetPolicyDao = FakeBudgetPolicyDao(
+                listOf(
+                    budgetPolicyEntity(
+                        cycleStartDate = "2026-03-25",
+                        cycleEndDateExclusive = "2026-04-20",
+                        budgetAmountCents = 100_000L
+                    )
+                )
+            ),
             budgetBucketDao = budgetBucketDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
@@ -148,7 +159,7 @@ class ObserveForecastUseCaseTest {
 
         val forecast = requireNotNull(useCase().first())
 
-        assertEquals(90_640L, forecast.estimatedEndCycleRemainingCents)
+        assertEquals(69_353L, forecast.estimatedEndCycleRemainingCents)
     }
 
     private fun defaultBucketEntity() = BudgetBucketEntity(
@@ -172,6 +183,7 @@ class ObserveForecastUseCaseTest {
         allocatedAmountCents: Long,
         createdAtEpochMs: Long
     ) = BucketAllocationPolicyEntity(
+        id = createdAtEpochMs,
         allocationUuid = allocationUuid,
         bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
         cycleStartDate = cycleStartDate,
@@ -182,5 +194,23 @@ class ObserveForecastUseCaseTest {
         createdAtEpochMs = createdAtEpochMs,
         updatedAtEpochMs = createdAtEpochMs,
         modClock = "000000000000$createdAtEpochMs-0000-test-install-id"
+    )
+
+    private fun budgetPolicyEntity(
+        cycleStartDate: String,
+        cycleEndDateExclusive: String,
+        budgetAmountCents: Long
+    ) = BudgetPolicyEntity(
+        id = 1L,
+        policyUuid = "budget-$cycleStartDate",
+        cycleStartDate = cycleStartDate,
+        cycleEndDateExclusive = cycleEndDateExclusive,
+        budgetAmountCents = budgetAmountCents,
+        paydayDayOfMonth = 20,
+        originInstallId = "test-install-id",
+        lastModifiedByInstallId = "test-install-id",
+        createdAtEpochMs = 1L,
+        updatedAtEpochMs = 1L,
+        modClock = "0000000000001-0000-test-install-id"
     )
 }

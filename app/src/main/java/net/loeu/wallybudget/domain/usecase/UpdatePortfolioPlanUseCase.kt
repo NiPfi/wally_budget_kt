@@ -286,7 +286,9 @@ class UpdatePortfolioPlanUseCase(
                 )
             }
             clearCurrentCycleAdjustments(draft.bucketUuid, context)
-            softDeleteFutureBucketPoliciesAndAdjustments(draft.bucketUuid, context, settings, nowEpochMs)
+            if (draft.closeRequested) {
+                softDeleteFutureBucketPoliciesAndAdjustments(draft.bucketUuid, context, settings, nowEpochMs)
+            }
         }
 
         return PortfolioPlanMutationResult(finalSelectedBucketUuid)

@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
 import net.loeu.wallybudget.data.local.dao.BucketMonthlyHistoryDao
@@ -15,6 +16,7 @@ import net.loeu.wallybudget.data.local.entity.toDomainModel as bucketAdjustmentT
 import net.loeu.wallybudget.data.local.entity.toDomainModel as bucketHistoryToDomainModel
 import net.loeu.wallybudget.data.local.entity.toDomainModel as bucketPolicyToDomainModel
 import net.loeu.wallybudget.data.local.entity.toDomainModel as bucketToDomainModel
+import net.loeu.wallybudget.data.local.entity.toDomainModel as policyToDomainModel
 import net.loeu.wallybudget.data.local.entity.toDomainModel
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.time.CurrentDateProvider
@@ -22,6 +24,7 @@ import net.loeu.wallybudget.domain.config.ForecastConfig
 import net.loeu.wallybudget.domain.model.BucketAllocationAdjustment
 import net.loeu.wallybudget.domain.model.BucketAllocationPolicy
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
+import net.loeu.wallybudget.domain.model.BudgetPolicy
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.MonthlyHistory
@@ -50,6 +53,7 @@ private data class ForecastComposedInputs(
 )
 
 class ObserveForecastUseCase(
+    private val budgetPolicyDao: BudgetPolicyDao,
     private val budgetBucketDao: BudgetBucketDao,
     private val bucketAllocationPolicyDao: BucketAllocationPolicyDao,
     private val bucketAllocationAdjustmentDao: BucketAllocationAdjustmentDao,
@@ -94,10 +98,13 @@ class ObserveForecastUseCase(
                 }
             }
         }
+        val budgetPolicies = budgetPolicyDao.observeActivePolicies().map { entries ->
+            entries.map { it.policyToDomainModel() }
+        }
         val bucketPolicies = bucketAllocationPolicyDao.observeActivePolicies().map { entries ->
             entries.map { it.bucketPolicyToDomainModel() }
         }
-        val currentPolicy = observeCurrentPolicy(effectiveInputs, selectedBucket, bucketPolicies)
+        val currentPolicy = observeCurrentPolicy(effectiveInputs, selectedBucket, budgetPolicies, bucketPolicies)
         val currentAdjustments = combine(selectedBucketUuid, currentPolicy) { bucketUuid, policy ->
             bucketUuid to policy.cycleStart.toString()
         }
@@ -155,13 +162,19 @@ class ObserveForecastUseCase(
     private fun observeCurrentPolicy(
         effectiveInputs: Flow<EffectiveForecastInputs>,
         selectedBucket: Flow<net.loeu.wallybudget.domain.model.BudgetBucket?>,
+        budgetPolicies: Flow<List<BudgetPolicy>>,
         bucketPolicies: Flow<List<BucketAllocationPolicy>>
     ): Flow<ResolvedCyclePolicy> {
-        return combine(effectiveInputs, selectedBucket, bucketPolicies) { inputs, bucket, policies ->
+        return combine(
+            effectiveInputs,
+            selectedBucket,
+            budgetPolicies,
+            bucketPolicies
+        ) { inputs, bucket, portfolioPolicies, policies ->
             val portfolioPolicy = cycleScheduleResolver.resolvePolicyForDate(
                 date = inputs.today,
                 settings = inputs.settings,
-                policies = emptyList()
+                policies = portfolioPolicies
             )
             val selectedBucketValue = bucket ?: return@combine portfolioPolicy.copy(budgetAmountCents = 0L)
             val persistedPolicy = policies
