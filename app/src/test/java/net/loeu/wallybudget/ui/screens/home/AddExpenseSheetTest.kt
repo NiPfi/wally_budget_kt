@@ -32,6 +32,20 @@ class AddExpenseSheetTest {
         assertEquals(DEFAULT_SPENDING_BUCKET_UUID, resolved)
     }
 
+    @Test
+    fun resolveInitialBucketUuid_preservesClosedBucketSelectionWhenEditing() {
+        val resolved = resolveInitialBucketUuid(
+            initialBucketUuid = "closed-bucket",
+            bucketOptions = listOf(
+                bucket("open-bucket", "Open"),
+                bucket("other-bucket", "Other")
+            ),
+            preserveInitialSelection = true
+        )
+
+        assertEquals("closed-bucket", resolved)
+    }
+
     private fun bucket(bucketUuid: String, name: String) = BudgetBucket(
         bucketUuid = bucketUuid,
         name = name,

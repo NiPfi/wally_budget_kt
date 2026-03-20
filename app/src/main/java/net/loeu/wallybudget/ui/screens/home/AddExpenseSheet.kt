@@ -95,8 +95,14 @@ fun AddExpenseSheet(
     }
     var description by remember(initialDescription) { mutableStateOf(initialDescription) }
     var selectedIcon by remember(initialIcon) { mutableStateOf(initialIcon) }
-    var selectedBucketUuid by remember(initialBucketUuid, bucketOptions) {
-        mutableStateOf(resolveInitialBucketUuid(initialBucketUuid, bucketOptions))
+    var selectedBucketUuid by remember(initialBucketUuid, initialBucketName, bucketOptions) {
+        mutableStateOf(
+            resolveInitialBucketUuid(
+                initialBucketUuid = initialBucketUuid,
+                bucketOptions = bucketOptions,
+                preserveInitialSelection = initialBucketName != null
+            )
+        )
     }
     var showError by remember { mutableStateOf(false) }
     var showIconPicker by remember { mutableStateOf(false) }
@@ -360,9 +366,11 @@ private fun AddExpenseSheetFormFields(
 
 internal fun resolveInitialBucketUuid(
     initialBucketUuid: String?,
-    bucketOptions: List<BudgetBucket>
+    bucketOptions: List<BudgetBucket>,
+    preserveInitialSelection: Boolean = false
 ): String {
     return when {
+        preserveInitialSelection && initialBucketUuid != null -> initialBucketUuid
         initialBucketUuid != null && bucketOptions.any { it.bucketUuid == initialBucketUuid } -> initialBucketUuid
         else -> bucketOptions.firstOrNull()?.bucketUuid ?: DEFAULT_SPENDING_BUCKET_UUID
     }

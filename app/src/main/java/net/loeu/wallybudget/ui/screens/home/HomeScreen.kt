@@ -959,12 +959,11 @@ private fun HomeBucketSettingsSheet(
                         val trimmedName = name.trim()
                         val normalizedName = trimmedName.lowercase()
                         val amountCents = CurrencyFormatter.parseAmountToCents(amountText)
-                        val otherAllocatedCents = buildExistingHomeBucketDrafts(
+                        val otherAllocatedCents = sumOtherNamedBucketAllocationsForValidation(
                             allBuckets = allBuckets,
-                            bucketSummaries = bucketSummaries
+                            bucketSummaries = bucketSummaries,
+                            editedBucketUuid = editor.bucketUuid
                         )
-                            .filterNot { it.bucketUuid == editor.bucketUuid || it.closeRequested }
-                            .sumOf { it.defaultAllocatedAmountCents }
                         when {
                             trimmedName.isBlank() -> errorMessage = "Enter a bucket name."
                             allBuckets.any {
@@ -1323,6 +1322,23 @@ internal fun buildExistingHomeBucketDrafts(
                 closeRequested = bucket.isClosed
             )
         }
+}
+
+internal fun sumOtherNamedBucketAllocationsForValidation(
+    allBuckets: List<BudgetBucket>,
+    bucketSummaries: List<BucketSummaryState>,
+    editedBucketUuid: String
+): Long {
+    return buildExistingHomeBucketDrafts(
+        allBuckets = allBuckets,
+        bucketSummaries = bucketSummaries
+    )
+        .filterNot { draft ->
+            draft.bucketUuid == editedBucketUuid ||
+                draft.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID ||
+                draft.closeRequested
+        }
+        .sumOf { it.defaultAllocatedAmountCents }
 }
 
 internal fun buildHomeBucketDrafts(
