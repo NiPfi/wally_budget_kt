@@ -5,6 +5,7 @@ import net.loeu.wallybudget.data.local.dao.BucketMonthlyHistoryDao
 import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
+import net.loeu.wallybudget.data.local.entity.toDomainModel as bucketToDomainModel
 import net.loeu.wallybudget.data.local.entity.toEntity as budgetPolicyToEntity
 import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.data.local.db.TransactionRunner
@@ -110,7 +111,8 @@ class CompleteOnboardingUseCase(
         }
 
         transactionRunner.inTransaction {
-            if (budgetBucketDao.findByBucketUuid(DEFAULT_SPENDING_BUCKET_UUID) == null) {
+            val existingDefaultBucketEntity = budgetBucketDao.findByBucketUuid(DEFAULT_SPENDING_BUCKET_UUID)
+            if (existingDefaultBucketEntity == null) {
                 budgetBucketDao.insert(
                     BudgetBucket(
                         bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
@@ -126,9 +128,30 @@ class CompleteOnboardingUseCase(
                         modClock = hybridLogicalClockService.format(nowEpochMs, 0, installId)
                     ).toEntity()
                 )
+            } else {
+                val existingDefaultBucket = existingDefaultBucketEntity.bucketToDomainModel()
+                budgetBucketDao.update(
+                    existingDefaultBucket.copy(
+                        name = DEFAULT_SPENDING_BUCKET_NAME,
+                        trackingMode = BucketTrackingMode.DAILY_TARGET,
+                        balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
+                        defaultAllocatedAmountCents = monthlyBudgetCents,
+                        sortOrder = 0,
+                        updatedAtEpochMs = nowEpochMs,
+                        lastModifiedByInstallId = installId,
+                        closedAtEpochMs = null,
+                        deletedAtEpochMs = null,
+                        modClock = hybridLogicalClockService.next(
+                            previousClock = existingDefaultBucket.modClock,
+                            nowEpochMs = nowEpochMs,
+                            installId = installId
+                        )
+                    ).toEntity(id = existingDefaultBucketEntity.id)
+                )
             }
             val currentCycleEnd = budgetCalculationService.getNextCycleStartDate(cycleStartDate, paydayDate)
-            if (budgetPolicyDao.findActivePolicyForCycle(cycleStartDate.toString()) == null) {
+            val existingCurrentPolicy = budgetPolicyDao.findActivePolicyForCycle(cycleStartDate.toString())
+            if (existingCurrentPolicy == null) {
                 budgetPolicyDao.insert(
                     newBudgetPolicy(
                         cycleStart = cycleStartDate,
@@ -140,13 +163,27 @@ class CompleteOnboardingUseCase(
                         hybridLogicalClockService = hybridLogicalClockService
                     ).budgetPolicyToEntity()
                 )
+            } else {
+                budgetPolicyDao.update(
+                    existingCurrentPolicy.copy(
+                        cycleEndDateExclusive = currentCycleEnd.toString(),
+                        budgetAmountCents = monthlyBudgetCents,
+                        paydayDayOfMonth = paydayDate,
+                        updatedAtEpochMs = nowEpochMs,
+                        lastModifiedByInstallId = installId,
+                        modClock = hybridLogicalClockService.next(
+                            previousClock = existingCurrentPolicy.modClock,
+                            nowEpochMs = nowEpochMs,
+                            installId = installId
+                        )
+                    )
+                )
             }
-            if (
-                bucketAllocationPolicyDao.findActivePolicyForCycle(
-                    bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
-                    cycleStartDate = cycleStartDate.toString()
-                ) == null
-            ) {
+            val existingCurrentBucketPolicy = bucketAllocationPolicyDao.findActivePolicyForCycle(
+                bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                cycleStartDate = cycleStartDate.toString()
+            )
+            if (existingCurrentBucketPolicy == null) {
                 bucketAllocationPolicyDao.insert(
                     newBucketAllocationPolicy(
                         bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
@@ -157,6 +194,20 @@ class CompleteOnboardingUseCase(
                         nowEpochMs = nowEpochMs,
                         hybridLogicalClockService = hybridLogicalClockService
                     ).toEntity()
+                )
+            } else {
+                bucketAllocationPolicyDao.update(
+                    existingCurrentBucketPolicy.copy(
+                        cycleEndDateExclusive = currentCycleEnd.toString(),
+                        allocatedAmountCents = monthlyBudgetCents,
+                        updatedAtEpochMs = nowEpochMs,
+                        lastModifiedByInstallId = installId,
+                        modClock = hybridLogicalClockService.next(
+                            previousClock = existingCurrentBucketPolicy.modClock,
+                            nowEpochMs = nowEpochMs,
+                            installId = installId
+                        )
+                    )
                 )
             }
         }

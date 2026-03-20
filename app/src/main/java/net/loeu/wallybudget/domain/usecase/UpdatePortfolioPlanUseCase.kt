@@ -78,13 +78,17 @@ class UpdatePortfolioPlanUseCase(
         }
 
         val mutation = transactionRunner.inTransaction {
-            applyBucketDraftsDirect(context, bucketDrafts)
+            applyBucketDraftsDirect(
+                context = context,
+                bucketDrafts = bucketDrafts,
+                portfolioMonthlyBudgetCents = request.portfolioMonthlyBudgetCents
+            )
         }
 
         userSettingsStore.updateMonthlyBudget(request.portfolioMonthlyBudgetCents)
         userSettingsStore.updatePortfolioMonthlyBudget(request.portfolioMonthlyBudgetCents)
         userSettingsStore.updateSelectedBucket(mutation.finalSelectedBucketUuid)
-        preservePendingPaydayUndo(
+        clearOrExpirePendingPaydayUndo(
             updatedSettings = context.settings.copy(
                 monthlyBudgetCents = request.portfolioMonthlyBudgetCents,
                 portfolioMonthlyBudgetCents = request.portfolioMonthlyBudgetCents,
@@ -237,7 +241,8 @@ class UpdatePortfolioPlanUseCase(
 
     private suspend fun applyBucketDraftsDirect(
         context: UpdatePortfolioPlanContext,
-        bucketDrafts: List<BucketDraft>
+        bucketDrafts: List<BucketDraft>,
+        portfolioMonthlyBudgetCents: Long
     ): PortfolioPlanMutationResult {
         val nowEpochMs = context.today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val settings = context.settings
@@ -290,6 +295,12 @@ class UpdatePortfolioPlanUseCase(
                 softDeleteFutureBucketPoliciesAndAdjustments(draft.bucketUuid, context, settings, nowEpochMs)
             }
         }
+        upsertFutureDefaultBucketPolicies(
+            context = context,
+            bucketDrafts = bucketDrafts,
+            portfolioMonthlyBudgetCents = portfolioMonthlyBudgetCents,
+            nowEpochMs = nowEpochMs
+        )
 
         return PortfolioPlanMutationResult(finalSelectedBucketUuid)
     }
@@ -441,16 +452,70 @@ class UpdatePortfolioPlanUseCase(
         }
     }
 
-    private suspend fun preservePendingPaydayUndo(updatedSettings: UserSettings) {
+    private suspend fun upsertFutureDefaultBucketPolicies(
+        context: UpdatePortfolioPlanContext,
+        bucketDrafts: List<BucketDraft>,
+        portfolioMonthlyBudgetCents: Long,
+        nowEpochMs: Long
+    ) {
+        val openDraftsByUuid = bucketDrafts
+            .filterNot { it.closeRequested }
+            .associateBy { it.bucketUuid }
+        val futureCycles = context.futureBucketPolicies
+            .groupBy { it.cycleStart() }
+            .toSortedMap()
+        futureCycles.forEach { (cycleStart, cyclePolicies) ->
+            val cycleEndExclusive = cyclePolicies.first().cycleEndExclusive()
+            val namedAllocationTotal = openDraftsByUuid.values
+                .filterNot { it.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
+                .sumOf { draft ->
+                    cyclePolicies.firstOrNull { it.bucketUuid == draft.bucketUuid }?.allocatedAmountCents
+                        ?: draft.defaultAllocatedAmountCents
+                }
+            val defaultAllocation = (portfolioMonthlyBudgetCents - namedAllocationTotal).coerceAtLeast(0L)
+            val existingDefaultPolicy = cyclePolicies.firstOrNull { it.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
+            if (existingDefaultPolicy == null) {
+                bucketAllocationPolicyDao.insert(
+                    newBucketAllocationPolicy(
+                        bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                        cycleStart = cycleStart,
+                        cycleEndExclusive = cycleEndExclusive,
+                        allocatedAmountCents = defaultAllocation,
+                        installId = context.settings.installDeviceId,
+                        nowEpochMs = nowEpochMs,
+                        hybridLogicalClockService = hybridLogicalClockService
+                    ).toEntity()
+                )
+            } else {
+                val entity = bucketAllocationPolicyDao.findByAllocationUuid(
+                    existingDefaultPolicy.allocationUuid
+                ) ?: return@forEach
+                if (entity.allocatedAmountCents != defaultAllocation) {
+                    bucketAllocationPolicyDao.update(
+                        entity.copy(
+                            allocatedAmountCents = defaultAllocation,
+                            updatedAtEpochMs = nowEpochMs,
+                            lastModifiedByInstallId = context.settings.installDeviceId,
+                            modClock = hybridLogicalClockService.next(
+                                previousClock = entity.modClock,
+                                nowEpochMs = nowEpochMs,
+                                installId = context.settings.installDeviceId
+                            )
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun clearOrExpirePendingPaydayUndo(updatedSettings: UserSettings) {
         val today = syncObservedDateUseCase(updatedSettings, currentDateProvider.currentDate())
         val pendingUndo = userSettingsStore.pendingSettingsUndo.first() ?: return
         if (!today.isBefore(pendingUndo.expiresAtExclusiveDate())) {
             userSettingsStore.clearPendingSettingsUndo()
             return
         }
-        userSettingsStore.savePendingSettingsUndo(
-            pendingUndo.copy(previousSettings = updatedSettings)
-        )
+        userSettingsStore.clearPendingSettingsUndo()
     }
 
     private fun normalizeBucketDrafts(
