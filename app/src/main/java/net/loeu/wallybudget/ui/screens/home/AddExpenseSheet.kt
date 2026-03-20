@@ -96,7 +96,7 @@ fun AddExpenseSheet(
     var description by remember(initialDescription) { mutableStateOf(initialDescription) }
     var selectedIcon by remember(initialIcon) { mutableStateOf(initialIcon) }
     var selectedBucketUuid by remember(initialBucketUuid, bucketOptions) {
-        mutableStateOf(initialBucketUuid ?: bucketOptions.firstOrNull()?.bucketUuid ?: DEFAULT_SPENDING_BUCKET_UUID)
+        mutableStateOf(resolveInitialBucketUuid(initialBucketUuid, bucketOptions))
     }
     var showError by remember { mutableStateOf(false) }
     var showIconPicker by remember { mutableStateOf(false) }
@@ -356,6 +356,16 @@ private fun AddExpenseSheetFormFields(
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
+}
+
+internal fun resolveInitialBucketUuid(
+    initialBucketUuid: String?,
+    bucketOptions: List<BudgetBucket>
+): String {
+    return when {
+        initialBucketUuid != null && bucketOptions.any { it.bucketUuid == initialBucketUuid } -> initialBucketUuid
+        else -> bucketOptions.firstOrNull()?.bucketUuid ?: DEFAULT_SPENDING_BUCKET_UUID
+    }
 }
 
 @Composable

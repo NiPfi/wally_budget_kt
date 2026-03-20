@@ -162,6 +162,128 @@ class ObserveForecastUseCaseTest {
         assertEquals(69_353L, forecast.estimatedEndCycleRemainingCents)
     }
 
+    @Test
+    @Suppress("LongMethod")
+    fun invoke_usesResolvedOpenBucketForHistoryAndAdjustmentsWhenSelectionIsStale() = runBlocking {
+        val settingsStore = FakeUserSettingsStore(
+            UserSettings(
+                monthlyBudgetCents = 100_000L,
+                portfolioMonthlyBudgetCents = 100_000L,
+                paydayDate = 25,
+                selectedBucketUuid = "closed-bucket"
+            )
+        )
+        val budgetBucketDao = FakeBudgetBucketDao(
+            listOf(
+                defaultBucketEntity()
+            )
+        )
+        val bucketHistoryDao = FakeBucketMonthlyHistoryDao(
+            listOf(
+                BucketMonthlyHistoryEntity(
+                    bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                    cycleStartDate = "2026-02-25",
+                    budgetAmountCents = 100_000L,
+                    totalSpentCents = 80_000L,
+                    surplusCents = 20_000L,
+                    cycleEndDate = "2026-03-25",
+                    endTimestamp = LocalDate.of(2026, 3, 25)
+                        .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                ),
+                BucketMonthlyHistoryEntity(
+                    bucketUuid = "closed-bucket",
+                    cycleStartDate = "2026-02-25",
+                    budgetAmountCents = 100_000L,
+                    totalSpentCents = 100_000L,
+                    surplusCents = 0L,
+                    cycleEndDate = "2026-03-25",
+                    endTimestamp = LocalDate.of(2026, 3, 25)
+                        .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                )
+            )
+        )
+        val bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(
+            listOf(
+                bucketPolicyEntity("default-policy", "2026-03-25", "2026-04-25", 100_000L, 1L)
+            )
+        )
+        val bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao()
+        bucketAllocationAdjustmentDao.insert(
+            net.loeu.wallybudget.data.local.entity.BucketAllocationAdjustmentEntity(
+                id = 1L,
+                adjustmentUuid = "default-adjustment",
+                bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                cycleStartDate = "2026-03-25",
+                effectiveDate = "2026-04-10",
+                previousAllocatedAmountCents = 100_000L,
+                newAllocatedAmountCents = 80_000L,
+                originInstallId = "test-install-id",
+                lastModifiedByInstallId = "test-install-id",
+                createdAtEpochMs = 1L,
+                updatedAtEpochMs = 1L,
+                modClock = "0000000000001-0000-test-install-id"
+            )
+        )
+        bucketAllocationAdjustmentDao.insert(
+            net.loeu.wallybudget.data.local.entity.BucketAllocationAdjustmentEntity(
+                id = 2L,
+                adjustmentUuid = "closed-adjustment",
+                bucketUuid = "closed-bucket",
+                cycleStartDate = "2026-03-25",
+                effectiveDate = "2026-04-10",
+                previousAllocatedAmountCents = 100_000L,
+                newAllocatedAmountCents = 10_000L,
+                originInstallId = "test-install-id",
+                lastModifiedByInstallId = "test-install-id",
+                createdAtEpochMs = 1L,
+                updatedAtEpochMs = 1L,
+                modClock = "0000000000001-0000-test-install-id"
+            )
+        )
+        val budgetPolicyDao = FakeBudgetPolicyDao(
+            listOf(
+                budgetPolicyEntity(
+                    cycleStartDate = "2026-03-25",
+                    cycleEndDateExclusive = "2026-04-25",
+                    budgetAmountCents = 100_000L
+                )
+            )
+        )
+        val useCase = ObserveForecastUseCase(
+            budgetPolicyDao = budgetPolicyDao,
+            budgetBucketDao = budgetBucketDao,
+            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+            bucketMonthlyHistoryDao = bucketHistoryDao,
+            expenseDao = FakeExpenseDao(),
+            userSettingsStore = settingsStore,
+            currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
+            budgetCalculationService = BudgetCalculationService(),
+            cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService()),
+            bucketAllocationResolver = BucketAllocationResolver()
+        )
+        val fallbackSelectedUseCase = ObserveForecastUseCase(
+            budgetPolicyDao = budgetPolicyDao,
+            budgetBucketDao = budgetBucketDao,
+            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+            bucketMonthlyHistoryDao = bucketHistoryDao,
+            expenseDao = FakeExpenseDao(),
+            userSettingsStore = FakeUserSettingsStore(
+                settingsStore.currentSettings.copy(selectedBucketUuid = DEFAULT_SPENDING_BUCKET_UUID)
+            ),
+            currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
+            budgetCalculationService = BudgetCalculationService(),
+            cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService()),
+            bucketAllocationResolver = BucketAllocationResolver()
+        )
+
+        val forecast = requireNotNull(useCase().first())
+        val expectedForecast = requireNotNull(fallbackSelectedUseCase().first())
+
+        assertEquals(expectedForecast, forecast)
+    }
+
     private fun defaultBucketEntity() = BudgetBucketEntity(
         bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
         name = DEFAULT_SPENDING_BUCKET_NAME,

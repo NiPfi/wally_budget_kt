@@ -84,7 +84,10 @@ class ObserveForecastUseCase(
         val selectedBucket = combine(selectedBucketUuid, buckets) { bucketUuid, bucketEntries ->
             resolveSelectedOpenBucket(bucketUuid, bucketEntries)
         }.distinctUntilChanged()
-        val history = selectedBucketUuid.flatMapLatest { bucketUuid ->
+        val resolvedSelectedBucketUuid = selectedBucket
+            .map { bucket -> bucket?.bucketUuid ?: DEFAULT_SPENDING_BUCKET_UUID }
+            .distinctUntilChanged()
+        val history = resolvedSelectedBucketUuid.flatMapLatest { bucketUuid ->
             bucketMonthlyHistoryDao.observeForBucket(bucketUuid).map { entries ->
                 entries.map { it.bucketHistoryToDomainModel() }.map { entry ->
                     MonthlyHistory(
@@ -105,7 +108,7 @@ class ObserveForecastUseCase(
             entries.map { it.bucketPolicyToDomainModel() }
         }
         val currentPolicy = observeCurrentPolicy(effectiveInputs, selectedBucket, budgetPolicies, bucketPolicies)
-        val currentAdjustments = combine(selectedBucketUuid, currentPolicy) { bucketUuid, policy ->
+        val currentAdjustments = combine(resolvedSelectedBucketUuid, currentPolicy) { bucketUuid, policy ->
             bucketUuid to policy.cycleStart.toString()
         }
             .distinctUntilChanged()
