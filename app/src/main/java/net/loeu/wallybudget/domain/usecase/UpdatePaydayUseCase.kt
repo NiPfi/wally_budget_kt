@@ -25,11 +25,13 @@ import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import net.loeu.wallybudget.domain.service.ImmediatePaydayChangePlan
 import net.loeu.wallybudget.domain.service.ResolvedCyclePolicy
+import net.loeu.wallybudget.domain.usecase.internal.newBudgetAdjustment
 import net.loeu.wallybudget.domain.usecase.internal.newBucketAllocationAdjustment
 import net.loeu.wallybudget.domain.usecase.internal.newBucketAllocationPolicy
 import net.loeu.wallybudget.domain.usecase.internal.newBudgetPolicy
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 
 data class UpdatePaydayRequest(
     val paydayDate: Int
@@ -86,6 +88,11 @@ class UpdatePaydayUseCase(
 
         val mutation = transactionRunner.inTransaction {
             val insertedPolicies = regeneratePolicies(context)
+            val rewrittenAdjustments = rewriteBudgetAdjustments(
+                context = context,
+                targetPaydayDate = request.paydayDate,
+                insertedPolicies = insertedPolicies
+            )
             val rewrittenBucketSchedules = rewriteBucketSchedules(
                 context = context,
                 targetPaydayDate = request.paydayDate,
@@ -93,8 +100,7 @@ class UpdatePaydayUseCase(
             )
             UpdatePaydayMutation(
                 insertedPolicies = insertedPolicies,
-                activeAdjustments = budgetAdjustmentDao.getActiveForCycle(context.currentPolicy.cycleStart.toString())
-                    .map { it.adjustmentToDomainModel() },
+                activeAdjustments = rewrittenAdjustments,
                 insertedBucketPolicies = rewrittenBucketSchedules.insertedPolicies,
                 insertedBucketAdjustments = rewrittenBucketSchedules.insertedAdjustments
             )
@@ -152,8 +158,9 @@ class UpdatePaydayUseCase(
             policies = policies,
             currentPolicy = currentPolicy,
             currentPolicyRecord = currentPolicyRecord,
-            currentAdjustments = budgetAdjustmentDao.getActiveForCycle(currentPolicy.cycleStart.toString())
-                .map { it.adjustmentToDomainModel() },
+            currentAdjustments = budgetAdjustmentDao.getAllForSnapshot()
+                .map { it.adjustmentToDomainModel() }
+                .filter { it.deletedAtEpochMs == null && !it.cycleStart().isBefore(currentPolicy.cycleStart) },
             bucketPolicies = bucketAllocationPolicyDao.getAllForSnapshot()
                 .map { it.bucketPolicyToDomainModel() }
                 .filter { it.deletedAtEpochMs == null && !it.cycleStart().isBefore(currentPolicy.cycleStart) },
@@ -247,6 +254,26 @@ class UpdatePaydayUseCase(
         )
     }
 
+    private suspend fun softDeleteAdjustment(
+        adjustment: BudgetAdjustment,
+        settings: UserSettings,
+        nowEpochMs: Long
+    ) {
+        val entity = budgetAdjustmentDao.findByAdjustmentUuid(adjustment.adjustmentUuid) ?: return
+        budgetAdjustmentDao.update(
+            entity.copy(
+                deletedAtEpochMs = nowEpochMs,
+                updatedAtEpochMs = nowEpochMs,
+                lastModifiedByInstallId = settings.installDeviceId,
+                modClock = hybridLogicalClockService.next(
+                    previousClock = entity.modClock,
+                    nowEpochMs = nowEpochMs,
+                    installId = settings.installDeviceId
+                )
+            )
+        )
+    }
+
     private suspend fun insertBudgetPolicy(
         settings: UserSettings,
         cycleStart: LocalDate,
@@ -273,6 +300,40 @@ class UpdatePaydayUseCase(
         val insertedAdjustments: List<BucketAllocationAdjustment>
     )
 
+    private suspend fun rewriteBudgetAdjustments(
+        context: UpdatePaydayContext,
+        targetPaydayDate: Int,
+        insertedPolicies: List<BudgetPolicy>
+    ): List<BudgetAdjustment> {
+        if (context.currentAdjustments.isEmpty()) return emptyList()
+
+        val nowEpochMs = context.today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val targetSettings = context.settings.copy(paydayDate = targetPaydayDate)
+        val rewrittenAdjustments = mutableListOf<BudgetAdjustment>()
+
+        context.currentAdjustments.forEach { adjustment ->
+            val targetCycle = cycleScheduleResolver.resolvePolicyForDate(
+                date = adjustment.effectiveDate(),
+                settings = targetSettings,
+                policies = insertedPolicies
+            )
+            softDeleteAdjustment(adjustment, context.settings, nowEpochMs)
+            val rewrittenAdjustment = newBudgetAdjustment(
+                cycleStart = targetCycle.cycleStart,
+                effectiveDate = adjustment.effectiveDate(),
+                previousMonthlyBudgetCents = adjustment.previousMonthlyBudgetCents,
+                newMonthlyBudgetCents = adjustment.newMonthlyBudgetCents,
+                installId = context.settings.installDeviceId,
+                nowEpochMs = nowEpochMs,
+                hybridLogicalClockService = hybridLogicalClockService
+            )
+            budgetAdjustmentDao.insert(rewrittenAdjustment.toEntity())
+            rewrittenAdjustments += rewrittenAdjustment
+        }
+
+        return rewrittenAdjustments
+    }
+
     private suspend fun rewriteBucketSchedules(
         context: UpdatePaydayContext,
         targetPaydayDate: Int,
@@ -284,11 +345,14 @@ class UpdatePaydayUseCase(
 
         val nowEpochMs = context.today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val targetSettings = context.settings.copy(paydayDate = targetPaydayDate)
-        val cycleMap = buildRewrittenCycleMap(context, targetSettings, insertedPolicies)
 
         val insertedBucketPolicies = mutableListOf<BucketAllocationPolicy>()
         context.bucketPolicies.forEach { policy ->
-            val targetCycle = cycleMap[policy.cycleStart()] ?: return@forEach
+            val targetCycle = cycleScheduleResolver.resolvePolicyForDate(
+                date = anchorDateForPolicy(policy),
+                settings = targetSettings,
+                policies = insertedPolicies
+            )
             softDeleteBucketPolicy(policy, context.settings, nowEpochMs)
             val rewrittenPolicy = newBucketAllocationPolicy(
                 bucketUuid = policy.bucketUuid,
@@ -328,30 +392,10 @@ class UpdatePaydayUseCase(
         return RewrittenBucketSchedules(insertedBucketPolicies, insertedBucketAdjustments)
     }
 
-    private fun buildRewrittenCycleMap(
-        context: UpdatePaydayContext,
-        targetSettings: UserSettings,
-        insertedPolicies: List<BudgetPolicy>
-    ): Map<LocalDate, ResolvedCyclePolicy> {
-        val oldCycleStarts = context.bucketPolicies
-            .map { it.cycleStart() }
-            .distinct()
-            .sorted()
-        if (oldCycleStarts.isEmpty()) return emptyMap()
-
-        val rewrittenCycles = mutableListOf(context.paydayPlan.rewrittenCurrentCycle)
-        if (oldCycleStarts.size > 1) {
-            rewrittenCycles += context.paydayPlan.firstRegularCycle
-        }
-        while (rewrittenCycles.size < oldCycleStarts.size) {
-            val nextCycleStart = rewrittenCycles.last().cycleEndExclusive
-            rewrittenCycles += cycleScheduleResolver.policyForCycleStart(
-                cycleStart = nextCycleStart,
-                settings = targetSettings,
-                policies = insertedPolicies
-            )
-        }
-        return oldCycleStarts.zip(rewrittenCycles).toMap()
+    private fun anchorDateForPolicy(policy: BucketAllocationPolicy): LocalDate {
+        val cycleLengthDays = ChronoUnit.DAYS.between(policy.cycleStart(), policy.cycleEndExclusive())
+            .coerceAtLeast(1L)
+        return policy.cycleStart().plusDays(cycleLengthDays / 2L)
     }
 
     private fun buildPendingSettingsUndo(

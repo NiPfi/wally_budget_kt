@@ -353,6 +353,7 @@ private fun buildBucketSummaryState(
 private fun buildSelectedBucketOverview(
     selectedBucket: BudgetBucket,
     selectedBucketSummary: BucketSummaryState,
+    currentCycleStart: LocalDate,
     today: LocalDate,
     currentExpenses: List<Expense>
 ): SelectedBucketOverview {
@@ -360,7 +361,7 @@ private fun buildSelectedBucketOverview(
     val todayExpenses = bucketExpenses.filterByRange(today, today.plusDays(1))
     val dayTotals = bucketExpenses.sumByDate()
     val activeCycleExpenseSections = buildContinuousDaySections(
-        start = selectedBucketSummary.budgetState?.cycleStartDate ?: today,
+        start = selectedBucketSummary.budgetState?.cycleStartDate ?: currentCycleStart,
         endInclusive = today,
         expensesByDate = bucketExpenses.groupByDate(),
         dayTotals = dayTotals,
@@ -553,6 +554,7 @@ class ObserveHomeOverviewUseCase(
         val selectedBucketOverview = buildSelectedBucketOverview(
             selectedBucket = selectedBucket,
             selectedBucketSummary = selectedBucketSummary,
+            currentCycleStart = inputs.portfolioPolicy.cycleStart,
             today = inputs.today,
             currentExpenses = inputs.currentExpenses
         )

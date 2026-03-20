@@ -157,6 +157,40 @@ class ObserveHomeOverviewUseCaseTest {
         assertEquals(1, state.bucketSummaries.size)
     }
 
+    @Test
+    fun invoke_buildsReserveBucketExpenseSectionsFromCycleStart() = runBlocking {
+        val expenseDao = FakeExpenseDao(
+            listOf(
+                expenseEntityOn(1L, LocalDate.of(2026, 4, 9), 3_000L).copy(bucketUuid = "reserve"),
+                expenseEntityOn(2L, LocalDate.of(2026, 4, 10), 2_000L).copy(bucketUuid = "reserve")
+            )
+        )
+        val useCase = createUseCase(
+            expenseDao = expenseDao,
+            settingsStore = FakeUserSettingsStore(
+                userSettings(
+                    monthlyBudgetCents = 100_000L,
+                    portfolioMonthlyBudgetCents = 100_000L,
+                    lastResetDate = LocalDate.of(2026, 3, 25),
+                    pendingCycleStartDate = "2026-03-25",
+                    pendingCycleEndDateExclusive = "2026-04-25"
+                ).copy(selectedBucketUuid = "reserve")
+            ),
+            currentDate = LocalDate.of(2026, 4, 10),
+            budgetBucketDao = FakeBudgetBucketDao(listOf(reserveBucketEntity()))
+        )
+
+        val state = useCase().first()
+
+        assertEquals(17, state.selectedBucketOverview.activeCycleExpenseSections.size)
+        assertEquals(
+            listOf(LocalDate.of(2026, 4, 10), LocalDate.of(2026, 4, 9)),
+            state.selectedBucketOverview.activeCycleExpenseSections
+                .filter { it.expenses.isNotEmpty() }
+                .map { it.date }
+        )
+    }
+
     private fun createUseCase(
         expenseDao: FakeExpenseDao,
         settingsStore: FakeUserSettingsStore,
@@ -200,6 +234,22 @@ class ObserveHomeOverviewUseCaseTest {
             balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
             defaultAllocatedAmountCents = defaultAllocatedAmountCents,
             sortOrder = 0,
+            originInstallId = "test-install-id",
+            lastModifiedByInstallId = "test-install-id",
+            createdAtEpochMs = 1L,
+            updatedAtEpochMs = 1L,
+            modClock = "0000000000001-0000-test-install-id"
+        )
+    }
+
+    private fun reserveBucketEntity(): BudgetBucketEntity {
+        return BudgetBucketEntity(
+            bucketUuid = "reserve",
+            name = "Reserve",
+            trackingMode = BucketTrackingMode.CYCLE_RESERVE,
+            balanceBehavior = BucketBalanceBehavior.RETAIN_IN_BUCKET,
+            defaultAllocatedAmountCents = 100_000L,
+            sortOrder = 1,
             originInstallId = "test-install-id",
             lastModifiedByInstallId = "test-install-id",
             createdAtEpochMs = 1L,
