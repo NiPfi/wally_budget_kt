@@ -71,7 +71,6 @@ fun PortfolioScreen(
     AddBucketSheet(
         showSheet = showAddBucketDialog,
         portfolioBudgetCents = userSettings.resolvedPortfolioMonthlyBudgetCents,
-        allocatedToBucketsCents = portfolioState.allocatedToBucketsCents,
         existingBuckets = allBuckets,
         bucketSummaries = bucketSummaries,
         onDismiss = { showAddBucketDialog = false },

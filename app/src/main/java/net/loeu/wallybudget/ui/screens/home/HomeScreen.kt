@@ -815,7 +815,6 @@ private fun PlainMetricRow(label: String, value: String) {
 internal fun AddBucketSheet(
     showSheet: Boolean,
     portfolioBudgetCents: Long,
-    allocatedToBucketsCents: Long,
     existingBuckets: List<BudgetBucket>,
     bucketSummaries: List<BucketSummaryState>,
     onDismiss: () -> Unit,
@@ -830,7 +829,6 @@ internal fun AddBucketSheet(
     ) {
         AddBucketForm(
             portfolioBudgetCents = portfolioBudgetCents,
-            allocatedToBucketsCents = allocatedToBucketsCents,
             existingBuckets = existingBuckets,
             bucketSummaries = bucketSummaries,
             onDismiss = onDismiss,
@@ -1005,7 +1003,6 @@ private fun HomeBucketSettingsSheet(
 @Composable
 internal fun AddBucketForm(
     portfolioBudgetCents: Long,
-    allocatedToBucketsCents: Long,
     existingBuckets: List<BudgetBucket>,
     bucketSummaries: List<BucketSummaryState>,
     onDismiss: () -> Unit,
@@ -1016,7 +1013,10 @@ internal fun AddBucketForm(
     var trackingMode by rememberSaveable { mutableStateOf(BucketTrackingMode.DAILY_TARGET) }
     var balanceBehavior by rememberSaveable { mutableStateOf(BucketBalanceBehavior.RETURN_TO_PORTFOLIO) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
-    val computedDefaultBucketCents = (portfolioBudgetCents - allocatedToBucketsCents).coerceAtLeast(0L)
+    val allocatedToNamedBucketsCents = bucketSummaries
+        .filterNot { it.bucket.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID || it.bucket.isClosed }
+        .sumOf { it.allocatedThisCycleCents }
+    val computedDefaultBucketCents = (portfolioBudgetCents - allocatedToNamedBucketsCents).coerceAtLeast(0L)
 
     LazyColumn(
         modifier = Modifier
@@ -1127,7 +1127,7 @@ internal fun AddBucketForm(
                                     errorMessage = "Bucket names must be unique."
                                 allocationCents == null || allocationCents < 0L ->
                                     errorMessage = "Enter a valid allocation."
-                                allocatedToBucketsCents + allocationCents > portfolioBudgetCents ->
+                                allocatedToNamedBucketsCents + allocationCents > portfolioBudgetCents ->
                                     errorMessage = "Allocation exceeds the portfolio total."
                                 else -> {
                                     onCreateBucket(
