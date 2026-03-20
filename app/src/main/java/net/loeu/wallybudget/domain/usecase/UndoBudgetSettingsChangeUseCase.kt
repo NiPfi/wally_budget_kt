@@ -40,10 +40,10 @@ class UndoBudgetSettingsChangeUseCase(
         val today = syncObservedDateUseCase(settings, currentDateProvider.currentDate())
         val pendingUndo = userSettingsStore.pendingSettingsUndo.first()
         val earlyResult = when {
-            pendingUndo == null -> UndoBudgetSettingsChangeResult("No cycle default to restore.")
+            pendingUndo == null -> UndoBudgetSettingsChangeResult("No payday change to undo.")
             !today.isBefore(pendingUndo.expiresAtExclusiveDate()) -> {
                 userSettingsStore.clearPendingSettingsUndo()
-                UndoBudgetSettingsChangeResult("Cycle default restore expired.")
+                UndoBudgetSettingsChangeResult("Payday change undo expired.")
             }
             else -> null
         }
@@ -69,7 +69,7 @@ class UndoBudgetSettingsChangeUseCase(
             onboardingCompleted = pendingUndo.previousSettings.isOnboardingCompleted
         )
         userSettingsStore.clearPendingSettingsUndo()
-        return UndoBudgetSettingsChangeResult("Restored this cycle's default settings.")
+        return UndoBudgetSettingsChangeResult("Restored the previous payday and cycle timing.")
     }
 
     private suspend fun deactivateInsertedPolicy(policy: BudgetPolicy) {

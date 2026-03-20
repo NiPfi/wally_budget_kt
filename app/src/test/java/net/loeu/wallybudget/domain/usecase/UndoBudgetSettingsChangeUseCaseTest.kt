@@ -73,7 +73,7 @@ class UndoBudgetSettingsChangeUseCaseTest {
         assertEquals("2026-03-25", activePolicies.single().cycleStartDate)
         assertEquals("2026-04-25", activePolicies.single().cycleEndDateExclusive)
         assertEquals(25, activePolicies.single().paydayDayOfMonth)
-        assertTrue(result.summaryMessage.contains("Restored this cycle's default settings"))
+        assertTrue(result.summaryMessage.contains("Restored the previous payday and cycle timing"))
         assertNull(settingsStore.pendingSettingsUndo.first())
     }
 
@@ -122,7 +122,7 @@ class UndoBudgetSettingsChangeUseCaseTest {
 
         val result = undoUseCase()
 
-        assertEquals("Cycle default restore expired.", result.summaryMessage)
+        assertEquals("Payday change undo expired.", result.summaryMessage)
         assertEquals(1, settingsStore.currentSettings.paydayDate)
         assertNull(settingsStore.pendingSettingsUndo.first())
     }
@@ -179,7 +179,7 @@ class UndoBudgetSettingsChangeUseCaseTest {
 
         val result = undoUseCase()
 
-        assertTrue(result.summaryMessage.contains("Restored this cycle's default settings"))
+        assertTrue(result.summaryMessage.contains("Restored the previous payday and cycle timing"))
         assertEquals(100_000L, settingsStore.currentSettings.monthlyBudgetCents)
         val activeAdjustments = budgetAdjustmentDao.getActiveForCycle("2026-03-25")
         assertEquals(0, activeAdjustments.size)

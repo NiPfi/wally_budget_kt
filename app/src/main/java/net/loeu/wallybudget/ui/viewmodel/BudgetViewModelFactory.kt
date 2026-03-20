@@ -41,7 +41,8 @@ import net.loeu.wallybudget.domain.usecase.RebuildMonthlyHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.SelectBucketUseCase
 import net.loeu.wallybudget.domain.usecase.SyncObservedDateUseCase
 import net.loeu.wallybudget.domain.usecase.UndoBudgetSettingsChangeUseCase
-import net.loeu.wallybudget.domain.usecase.UpdateBudgetSettingsUseCase
+import net.loeu.wallybudget.domain.usecase.UpdatePaydayUseCase
+import net.loeu.wallybudget.domain.usecase.UpdatePortfolioPlanUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateExpenseUseCase
 
 class BudgetViewModelFactory(
@@ -218,19 +219,27 @@ class BudgetViewModelFactory(
             bucketAllocationResolver = bucketAllocationResolver
         )
     }
-    private val updateBudgetSettingsUseCase by lazy {
-        UpdateBudgetSettingsUseCase(
+    private val updatePortfolioPlanUseCase by lazy {
+        UpdatePortfolioPlanUseCase(
             transactionRunner = database,
             userSettingsStore = userPreferencesManager,
             budgetPolicyDao = budgetPolicyDao,
-            budgetAdjustmentDao = budgetAdjustmentDao,
             budgetBucketDao = budgetBucketDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
             currentDateProvider = currentDateProvider,
             cycleScheduleResolver = cycleScheduleResolver,
-            budgetAdjustmentResolver = budgetAdjustmentResolver,
-            bucketAllocationResolver = bucketAllocationResolver,
+            hybridLogicalClockService = hybridLogicalClockService
+        )
+    }
+    private val updatePaydayUseCase by lazy {
+        UpdatePaydayUseCase(
+            transactionRunner = database,
+            userSettingsStore = userPreferencesManager,
+            budgetPolicyDao = budgetPolicyDao,
+            budgetAdjustmentDao = budgetAdjustmentDao,
+            currentDateProvider = currentDateProvider,
+            cycleScheduleResolver = cycleScheduleResolver,
             hybridLogicalClockService = hybridLogicalClockService
         )
     }
@@ -369,7 +378,8 @@ class BudgetViewModelFactory(
                 updateExpenseUseCase = updateExpenseUseCase,
                 deleteExpenseUseCase = deleteExpenseUseCase,
                 restoreDeletedExpenseUseCase = restoreDeletedExpenseUseCase,
-                updateBudgetSettingsUseCase = updateBudgetSettingsUseCase,
+                updatePortfolioPlanUseCase = updatePortfolioPlanUseCase,
+                updatePaydayUseCase = updatePaydayUseCase,
                 undoBudgetSettingsChangeUseCase = undoBudgetSettingsChangeUseCase,
                 completeOnboardingUseCase = completeOnboardingUseCase,
                 performMonthlyResetUseCase = performMonthlyResetUseCase,

@@ -57,7 +57,6 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.window.core.layout.WindowSizeClass.Companion.HEIGHT_DP_MEDIUM_LOWER_BOUND
-import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
@@ -192,8 +191,9 @@ fun BudgetApp(
                     onUpdateExpense = viewModel::updateExpense,
                     onDeleteExpense = viewModel::deleteExpense,
                     onRestoreExpense = viewModel::restoreDeletedExpense,
-                    onSaveSettings = viewModel::updateBudgetSettings,
-                    onUndoSettings = viewModel::undoBudgetSettingsChange,
+                    onSavePortfolioPlan = viewModel::updatePortfolioPlan,
+                    onSavePayday = viewModel::updatePayday,
+                    onUndoPaydayChange = viewModel::undoPaydayChange,
                     isSettingsUndoAvailable = appState.isSettingsUndoAvailable,
                     settingsUndoExpiresAtExclusive = appState.settingsUndoExpiresAtExclusive,
                     onSettingsMessageConsumed = viewModel::clearSettingsFeedback,
@@ -237,8 +237,9 @@ private fun MainNavigationShell(
     onUpdateExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
-    onSaveSettings: (Long, Int, List<net.loeu.wallybudget.domain.usecase.BucketDraft>, BudgetChangeMode) -> Unit,
-    onUndoSettings: () -> Unit,
+    onSavePortfolioPlan: (Long, List<net.loeu.wallybudget.domain.usecase.BucketDraft>) -> Unit,
+    onSavePayday: (Int) -> Unit,
+    onUndoPaydayChange: () -> Unit,
     isSettingsUndoAvailable: Boolean,
     settingsUndoExpiresAtExclusive: LocalDate?,
     onSettingsMessageConsumed: () -> Unit,
@@ -300,8 +301,9 @@ private fun MainNavigationShell(
             onUpdateExpense = onUpdateExpense,
             onDeleteExpense = onDeleteExpense,
             onRestoreExpense = onRestoreExpense,
-            onSaveSettings = onSaveSettings,
-            onUndoSettings = onUndoSettings,
+            onSavePortfolioPlan = onSavePortfolioPlan,
+            onSavePayday = onSavePayday,
+            onUndoPaydayChange = onUndoPaydayChange,
             isSettingsUndoAvailable = isSettingsUndoAvailable,
             settingsUndoExpiresAtExclusive = settingsUndoExpiresAtExclusive,
             onSettingsMessageConsumed = onSettingsMessageConsumed,
@@ -420,8 +422,9 @@ private fun MainNavigationHost(
     onUpdateExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
-    onSaveSettings: (Long, Int, List<net.loeu.wallybudget.domain.usecase.BucketDraft>, BudgetChangeMode) -> Unit,
-    onUndoSettings: () -> Unit,
+    onSavePortfolioPlan: (Long, List<net.loeu.wallybudget.domain.usecase.BucketDraft>) -> Unit,
+    onSavePayday: (Int) -> Unit,
+    onUndoPaydayChange: () -> Unit,
     isSettingsUndoAvailable: Boolean,
     settingsUndoExpiresAtExclusive: LocalDate?,
     onSettingsMessageConsumed: () -> Unit,
@@ -446,7 +449,7 @@ private fun MainNavigationHost(
             spendingForecast = spendingForecast,
             isHomeDataLoading = isHomeDataLoading,
             onSelectBucket = onSelectBucket,
-            onSaveSettings = onSaveSettings,
+            onSavePortfolioPlan = onSavePortfolioPlan,
             onAddExpense = onAddExpense,
             onRestoreExpense = onRestoreExpense,
             onUpdateExpense = onUpdateExpense,
@@ -465,7 +468,7 @@ private fun MainNavigationHost(
             bucketSummaries = bucketSummaries,
             allBuckets = allBuckets,
             userSettings = userSettings,
-            onSaveSettings = onSaveSettings,
+            onSavePortfolioPlan = onSavePortfolioPlan,
             timelineLockReason = timelineLockReason,
             usesVerticalNavigation = usesVerticalNavigation
         )
@@ -498,8 +501,9 @@ private fun MainNavigationHost(
             allBuckets = allBuckets,
             bucketSummaries = bucketSummaries,
             currentDate = effectiveCurrentDate,
-            onSaveSettings = onSaveSettings,
-            onUndoSettings = onUndoSettings,
+            onSavePortfolioPlan = onSavePortfolioPlan,
+            onSavePayday = onSavePayday,
+            onUndoPaydayChange = onUndoPaydayChange,
             isSettingsUndoAvailable = isSettingsUndoAvailable,
             settingsUndoExpiresAtExclusive = settingsUndoExpiresAtExclusive,
             onSettingsMessageConsumed = onSettingsMessageConsumed,

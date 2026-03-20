@@ -66,7 +66,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.BudgetBucket
-import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketSummaryState
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
@@ -120,7 +119,7 @@ fun HomeScreen(
     currentDate: LocalDate,
     spendingForecast: SpendingForecast?,
     onSelectBucket: (String) -> Unit,
-    onSaveSettings: (Long, Int, List<BucketDraft>, BudgetChangeMode) -> Unit,
+    onSavePortfolioPlan: (Long, List<BucketDraft>) -> Unit,
     onAddExpense: (String, Long, String, ExpenseCategory?, LocalDate) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
@@ -285,15 +284,13 @@ fun HomeScreen(
         portfolioBudgetCents = userSettings.resolvedPortfolioMonthlyBudgetCents,
         onDismiss = { bucketEditorState = null },
         onSaveSettings = { updatedBucketDraft ->
-            onSaveSettings(
+            onSavePortfolioPlan(
                 userSettings.resolvedPortfolioMonthlyBudgetCents,
-                userSettings.paydayDate,
                 buildUpdatedHomeBucketDrafts(
                     allBuckets = allBuckets,
                     bucketSummaries = bucketSummaries,
                     updatedBucketDraft = updatedBucketDraft
-                ),
-                BudgetChangeMode.PRORATE_CURRENT_CYCLE
+                )
             )
             bucketEditorState = null
         }

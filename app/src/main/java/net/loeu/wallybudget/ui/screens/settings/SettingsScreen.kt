@@ -44,7 +44,6 @@ import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
-import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import net.loeu.wallybudget.domain.model.BucketSummaryState
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.usecase.BucketDraft
@@ -69,8 +68,9 @@ fun SettingsScreen(
     allBuckets: List<BudgetBucket>,
     bucketSummaries: List<BucketSummaryState>,
     currentDate: LocalDate,
-    onSaveSettings: (Long, Int, List<BucketDraft>, BudgetChangeMode) -> Unit,
-    onUndoSettings: () -> Unit,
+    onSavePortfolioPlan: (Long, List<BucketDraft>) -> Unit,
+    onSavePayday: (Int) -> Unit,
+    onUndoPaydayChange: () -> Unit,
     isSettingsUndoAvailable: Boolean,
     settingsUndoExpiresAtExclusive: LocalDate?,
     onSettingsMessageConsumed: () -> Unit,
@@ -94,31 +94,26 @@ fun SettingsScreen(
     val externalBucketDrafts = allBuckets
         .sortedWith(compareBy<BudgetBucket> { it.sortOrder }.thenBy { it.createdAtEpochMs })
         .map { bucket -> bucket.toEditableUi(summaryByBucketUuid[bucket.bucketUuid]) }
-    val hasChanges = bucketDrafts.isNotEmpty() && !settingsDraftsMatch(
+    val portfolioPlanHasChanges = bucketDrafts.isNotEmpty() && !settingsDraftsMatch(
         currentBudgetText = portfolioBudgetText,
-        currentPaydayText = paydayText,
+        currentPaydayText = externalPaydayText,
         currentBucketDrafts = bucketDrafts,
         externalBudgetText = externalBudgetText,
         externalPaydayText = externalPaydayText,
         externalBucketDrafts = externalBucketDrafts
     )
+    val paydayHasChanges = paydayText != externalPaydayText
 
-    LaunchedEffect(externalBudgetText, externalPaydayText, externalBucketDrafts) {
-        if (
-            shouldSyncSettingsDrafts(
-                currentBudgetText = portfolioBudgetText,
-                currentPaydayText = paydayText,
-                currentBucketDrafts = bucketDrafts,
-                externalBudgetText = externalBudgetText,
-                externalPaydayText = externalPaydayText,
-                externalBucketDrafts = externalBucketDrafts,
-                isEditorOpen = false
-            )
-        ) {
+    LaunchedEffect(externalBudgetText, externalBucketDrafts) {
+        if (!portfolioPlanHasChanges) {
             portfolioBudgetText = externalBudgetText
-            paydayText = externalPaydayText
             bucketDrafts.clear()
             bucketDrafts += externalBucketDrafts
+        }
+    }
+    LaunchedEffect(externalPaydayText) {
+        if (!paydayHasChanges) {
+            paydayText = externalPaydayText
         }
     }
 
@@ -140,31 +135,21 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            PortfolioSection(
+            PortfolioPlanSection(
                 portfolioBudgetText = portfolioBudgetText,
-                paydayText = paydayText,
                 showBudgetError = showBudgetError,
-                showPaydayError = showPaydayError,
                 onBudgetChange = {
                     portfolioBudgetText = it
                     showBudgetError = false
-                },
-                onPaydayChange = {
-                    paydayText = it.filter(Char::isDigit)
-                    showPaydayError = false
                 }
             )
 
-            SaveSection(
-                hasChanges = hasChanges,
-                isSettingsUndoAvailable = isSettingsUndoAvailable,
-                settingsUndoExpiresAtExclusive = settingsUndoExpiresAtExclusive,
+            PlanningSaveSection(
+                hasChanges = portfolioPlanHasChanges,
                 onSave = {
                     val portfolioBudgetCents = CurrencyFormatter.parseAmountToCents(portfolioBudgetText)
-                    val payday = paydayText.toIntOrNull()
                     showBudgetError = portfolioBudgetCents == null || portfolioBudgetCents <= 0L
-                    showPaydayError = payday == null || payday !in 1..31
-                    if (showBudgetError || showPaydayError) return@SaveSection
+                    if (showBudgetError) return@PlanningSaveSection
 
                     val saveDrafts = bucketDrafts.mapNotNull { bucket ->
                         val amount = CurrencyFormatter.parseAmountToCents(bucket.amountText) ?: return@mapNotNull null
@@ -181,17 +166,33 @@ fun SettingsScreen(
                     if (saveDrafts.size != bucketDrafts.size) {
                         snackbarHostState.currentSnackbarData?.dismiss()
                         showBudgetError = false
-                        showPaydayError = false
-                        return@SaveSection
+                        return@PlanningSaveSection
                     }
-                    onSaveSettings(
-                        requireNotNull(portfolioBudgetCents),
-                        requireNotNull(payday),
-                        saveDrafts,
-                        BudgetChangeMode.PRORATE_CURRENT_CYCLE
-                    )
+                    onSavePortfolioPlan(requireNotNull(portfolioBudgetCents), saveDrafts)
+                }
+            )
+
+            PaydaySection(
+                currentDate = currentDate,
+                paydayText = paydayText,
+                showPaydayError = showPaydayError,
+                onPaydayChange = {
+                    paydayText = it.filter(Char::isDigit)
+                    showPaydayError = false
+                }
+            )
+
+            PaydaySaveSection(
+                hasChanges = paydayHasChanges,
+                isSettingsUndoAvailable = isSettingsUndoAvailable,
+                settingsUndoExpiresAtExclusive = settingsUndoExpiresAtExclusive,
+                onSave = {
+                    val payday = paydayText.toIntOrNull()
+                    showPaydayError = payday == null || payday !in 1..31
+                    if (showPaydayError) return@PaydaySaveSection
+                    onSavePayday(requireNotNull(payday))
                 },
-                onUndoSettings = onUndoSettings
+                onUndoPaydayChange = onUndoPaydayChange
             )
 
             SnapshotExportCard(
@@ -221,22 +222,19 @@ private fun SettingsTopBar(onNavigateBack: () -> Unit) {
 }
 
 @Composable
-private fun PortfolioSection(
+private fun PortfolioPlanSection(
     portfolioBudgetText: String,
-    paydayText: String,
     showBudgetError: Boolean,
-    showPaydayError: Boolean,
-    onBudgetChange: (String) -> Unit,
-    onPaydayChange: (String) -> Unit
+    onBudgetChange: (String) -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(text = "Portfolio", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(text = "Portfolio Plan", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(
-                text = "Changes apply immediately when you save. Any amount not allocated to named buckets stays in the default bucket automatically.",
+                text = "Budget and bucket planning changes apply directly. Any amount not allocated to named buckets stays in the default bucket automatically.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -255,6 +253,28 @@ private fun PortfolioSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("settings_budget_input")
+            )
+        }
+    }
+}
+
+@Composable
+private fun PaydaySection(
+    currentDate: LocalDate,
+    paydayText: String,
+    showPaydayError: Boolean,
+    onPaydayChange: (String) -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(text = "Payday And Cycle", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(
+                text = "Changing payday rewrites cycle timing from $currentDate onward and can be undone for a limited time.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             OutlinedTextField(
                 value = paydayText,
@@ -275,12 +295,29 @@ private fun PortfolioSection(
 }
 
 @Composable
-private fun SaveSection(
+private fun PlanningSaveSection(
+    hasChanges: Boolean,
+    onSave: () -> Unit
+) {
+    Button(
+        onClick = onSave,
+        enabled = hasChanges,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .testTag("settings_plan_save_button")
+    ) {
+        Text("Save portfolio plan")
+    }
+}
+
+@Composable
+private fun PaydaySaveSection(
     hasChanges: Boolean,
     isSettingsUndoAvailable: Boolean,
     settingsUndoExpiresAtExclusive: LocalDate?,
     onSave: () -> Unit,
-    onUndoSettings: () -> Unit
+    onUndoPaydayChange: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Button(
@@ -289,14 +326,14 @@ private fun SaveSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp)
-                .testTag("settings_save_button")
+                .testTag("settings_payday_save_button")
         ) {
-            Text("Save changes")
+            Text("Save payday")
         }
         if (isSettingsUndoAvailable) {
             UndoSettingsCard(
                 expiresAtExclusive = settingsUndoExpiresAtExclusive,
-                onUndoSettings = onUndoSettings
+                onUndoSettings = onUndoPaydayChange
             )
         }
     }

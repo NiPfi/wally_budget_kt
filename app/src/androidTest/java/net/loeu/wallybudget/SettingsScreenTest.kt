@@ -8,12 +8,12 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketSummaryState
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.UserSettings
+import net.loeu.wallybudget.domain.usecase.BucketDraft
 import net.loeu.wallybudget.ui.screens.settings.SettingsScreen
 import net.loeu.wallybudget.ui.theme.WallyBudgetTheme
 import org.junit.Assert.assertEquals
@@ -29,59 +29,60 @@ class SettingsScreenTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun settings_screen_budget_change_saves_immediately_with_proration() {
-        val saveCalls = mutableListOf<Triple<Long, Int, BudgetChangeMode>>()
+    fun settings_screen_portfolio_plan_save_updates_budget_only() {
+        val saveCalls = mutableListOf<Pair<Long, List<BucketDraft>>>()
 
         setSettingsScreenContent(
-            onSaveSettings = { budgetCents, paydayDate, _, mode ->
-                saveCalls += Triple(budgetCents, paydayDate, mode)
+            onSavePortfolioPlan = { budgetCents, buckets ->
+                saveCalls += budgetCents to buckets
             }
         )
 
         composeRule.onNodeWithTag("settings_budget_input").performTextReplacement("1200.00")
-        composeRule.onNodeWithTag("settings_save_button").performClick()
+        composeRule.onNodeWithTag("settings_plan_save_button").performClick()
 
         assertEquals(1, saveCalls.size)
-        assertEquals(Triple(120_000L, 25, BudgetChangeMode.PRORATE_CURRENT_CYCLE), saveCalls.single())
+        assertEquals(120_000L, saveCalls.single().first)
     }
 
     @Test
-    fun settings_screen_payday_only_change_saves_immediately() {
-        val saveCalls = mutableListOf<Triple<Long, Int, BudgetChangeMode>>()
+    fun settings_screen_payday_only_change_saves_separately() {
+        val saveCalls = mutableListOf<Int>()
 
         setSettingsScreenContent(
-            onSaveSettings = { budgetCents, paydayDate, _, mode ->
-                saveCalls += Triple(budgetCents, paydayDate, mode)
+            onSavePayday = { paydayDate ->
+                saveCalls += paydayDate
             }
         )
 
         composeRule.onNodeWithTag("settings_payday_input").performTextReplacement("1")
-        composeRule.onNodeWithTag("settings_save_button").performClick()
+        composeRule.onNodeWithTag("settings_payday_save_button").performClick()
 
         assertEquals(1, saveCalls.size)
-        assertEquals(Triple(100_000L, 1, BudgetChangeMode.PRORATE_CURRENT_CYCLE), saveCalls.single())
+        assertEquals(1, saveCalls.single())
     }
 
     @Test
-    fun settings_screen_shows_undo_action_when_available() {
+    fun settings_screen_shows_payday_undo_action_when_available() {
         var undoCalls = 0
 
         setSettingsScreenContent(
-            onSaveSettings = { _, _, _, _ -> },
-            onUndoSettings = { undoCalls += 1 },
+            onSavePortfolioPlan = { _, _ -> },
+            onUndoPaydayChange = { undoCalls += 1 },
             isSettingsUndoAvailable = true,
             settingsUndoExpiresAtExclusive = LocalDate.of(2026, 12, 25)
         )
 
-        composeRule.onNodeWithText("Cycle default available").assertIsDisplayed()
+        composeRule.onNodeWithText("Payday change undo").assertIsDisplayed()
         composeRule.onNodeWithTag("settings_undo_button").performClick()
 
         assertEquals(1, undoCalls)
     }
 
     private fun setSettingsScreenContent(
-        onSaveSettings: (Long, Int, List<net.loeu.wallybudget.domain.usecase.BucketDraft>, BudgetChangeMode) -> Unit,
-        onUndoSettings: () -> Unit = {},
+        onSavePortfolioPlan: (Long, List<BucketDraft>) -> Unit = { _, _ -> },
+        onSavePayday: (Int) -> Unit = {},
+        onUndoPaydayChange: () -> Unit = {},
         isSettingsUndoAvailable: Boolean = false,
         settingsUndoExpiresAtExclusive: LocalDate? = null
     ) {
@@ -122,8 +123,9 @@ class SettingsScreenTest {
                     allBuckets = allBuckets,
                     bucketSummaries = bucketSummaries,
                     currentDate = LocalDate.of(2026, 12, 4),
-                    onSaveSettings = onSaveSettings,
-                    onUndoSettings = onUndoSettings,
+                    onSavePortfolioPlan = onSavePortfolioPlan,
+                    onSavePayday = onSavePayday,
+                    onUndoPaydayChange = onUndoPaydayChange,
                     isSettingsUndoAvailable = isSettingsUndoAvailable,
                     settingsUndoExpiresAtExclusive = settingsUndoExpiresAtExclusive,
                     onSettingsMessageConsumed = {},

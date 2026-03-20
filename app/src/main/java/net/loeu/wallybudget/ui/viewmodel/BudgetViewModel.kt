@@ -58,10 +58,11 @@ import net.loeu.wallybudget.domain.usecase.SnapshotOperationException
 import net.loeu.wallybudget.domain.usecase.SyncObservedDateUseCase
 import net.loeu.wallybudget.domain.usecase.UndoBudgetSettingsChangeUseCase
 import net.loeu.wallybudget.domain.usecase.BucketDraft
-import net.loeu.wallybudget.domain.usecase.UpdateBudgetSettingsRequest
-import net.loeu.wallybudget.domain.usecase.UpdateBudgetSettingsUseCase
+import net.loeu.wallybudget.domain.usecase.UpdatePaydayRequest
+import net.loeu.wallybudget.domain.usecase.UpdatePaydayUseCase
+import net.loeu.wallybudget.domain.usecase.UpdatePortfolioPlanRequest
+import net.loeu.wallybudget.domain.usecase.UpdatePortfolioPlanUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateExpenseUseCase
-import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -81,7 +82,8 @@ class BudgetViewModel(
     private val updateExpenseUseCase: UpdateExpenseUseCase,
     private val deleteExpenseUseCase: DeleteExpenseUseCase,
     private val restoreDeletedExpenseUseCase: RestoreDeletedExpenseUseCase,
-    private val updateBudgetSettingsUseCase: UpdateBudgetSettingsUseCase,
+    private val updatePortfolioPlanUseCase: UpdatePortfolioPlanUseCase,
+    private val updatePaydayUseCase: UpdatePaydayUseCase,
     private val undoBudgetSettingsChangeUseCase: UndoBudgetSettingsChangeUseCase,
     private val completeOnboardingUseCase: CompleteOnboardingUseCase,
     private val performMonthlyResetUseCase: PerformMonthlyResetUseCase,
@@ -427,30 +429,39 @@ class BudgetViewModel(
         }
     }
 
-    fun updateBudgetSettings(
+    fun updatePortfolioPlan(
         portfolioMonthlyBudgetCents: Long,
-        paydayDate: Int,
-        buckets: List<BucketDraft>,
-        budgetChangeMode: BudgetChangeMode
+        buckets: List<BucketDraft>
     ) {
         viewModelScope.launch {
             try {
-                val result = updateBudgetSettingsUseCase(
-                    UpdateBudgetSettingsRequest(
+                val result = updatePortfolioPlanUseCase(
+                    UpdatePortfolioPlanRequest(
                         portfolioMonthlyBudgetCents = portfolioMonthlyBudgetCents,
-                        paydayDate = paydayDate,
-                        buckets = buckets,
-                        budgetChangeMode = budgetChangeMode
+                        buckets = buckets
                     )
                 )
                 _settingsStatusMessage.value = result.summaryMessage
             } catch (exception: IllegalArgumentException) {
-                _settingsStatusMessage.value = exception.message ?: "Unable to save settings."
+                _settingsStatusMessage.value = exception.message ?: "Unable to save portfolio plan."
             }
         }
     }
 
-    fun undoBudgetSettingsChange() {
+    fun updatePayday(paydayDate: Int) {
+        viewModelScope.launch {
+            try {
+                val result = updatePaydayUseCase(
+                    UpdatePaydayRequest(paydayDate = paydayDate)
+                )
+                _settingsStatusMessage.value = result.summaryMessage
+            } catch (exception: IllegalArgumentException) {
+                _settingsStatusMessage.value = exception.message ?: "Unable to update payday."
+            }
+        }
+    }
+
+    fun undoPaydayChange() {
         viewModelScope.launch {
             val result = undoBudgetSettingsChangeUseCase()
             _settingsStatusMessage.value = result.summaryMessage

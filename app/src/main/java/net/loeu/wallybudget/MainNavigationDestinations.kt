@@ -7,7 +7,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import kotlinx.coroutines.flow.StateFlow
 import net.loeu.wallybudget.domain.model.BudgetBucket
-import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.BucketSummaryState
 import net.loeu.wallybudget.domain.model.Expense
@@ -36,7 +35,7 @@ internal fun NavGraphBuilder.addHomeDestination(
     spendingForecast: SpendingForecast?,
     isHomeDataLoading: Boolean,
     onSelectBucket: (String) -> Unit,
-    onSaveSettings: (Long, Int, List<BucketDraft>, BudgetChangeMode) -> Unit,
+    onSavePortfolioPlan: (Long, List<BucketDraft>) -> Unit,
     onAddExpense: (String, Long, String, ExpenseCategory?, LocalDate) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
@@ -59,7 +58,7 @@ internal fun NavGraphBuilder.addHomeDestination(
             spendingForecast = spendingForecast,
             isLoadingData = isHomeDataLoading,
             onSelectBucket = onSelectBucket,
-            onSaveSettings = onSaveSettings,
+            onSavePortfolioPlan = onSavePortfolioPlan,
             onAddExpense = onAddExpense,
             onRestoreExpense = onRestoreExpense,
             onUpdateExpense = onUpdateExpense,
@@ -81,7 +80,7 @@ internal fun NavGraphBuilder.addPortfolioDestination(
     bucketSummaries: List<BucketSummaryState>,
     allBuckets: List<BudgetBucket>,
     userSettings: UserSettings,
-    onSaveSettings: (Long, Int, List<BucketDraft>, BudgetChangeMode) -> Unit,
+    onSavePortfolioPlan: (Long, List<BucketDraft>) -> Unit,
     timelineLockReason: String?,
     usesVerticalNavigation: Boolean
 ) {
@@ -91,7 +90,7 @@ internal fun NavGraphBuilder.addPortfolioDestination(
             bucketSummaries = bucketSummaries,
             allBuckets = allBuckets,
             userSettings = userSettings,
-            onSaveSettings = onSaveSettings,
+            onSavePortfolioPlan = onSavePortfolioPlan,
             onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
             showTopRightSettingsAction = !usesVerticalNavigation,
             interactionsEnabled = timelineLockReason == null
@@ -165,8 +164,9 @@ internal fun NavGraphBuilder.addSettingsDestination(
     allBuckets: List<BudgetBucket>,
     bucketSummaries: List<BucketSummaryState>,
     currentDate: LocalDate,
-    onSaveSettings: (Long, Int, List<BucketDraft>, BudgetChangeMode) -> Unit,
-    onUndoSettings: () -> Unit,
+    onSavePortfolioPlan: (Long, List<BucketDraft>) -> Unit,
+    onSavePayday: (Int) -> Unit,
+    onUndoPaydayChange: () -> Unit,
     isSettingsUndoAvailable: Boolean,
     settingsUndoExpiresAtExclusive: LocalDate?,
     onSettingsMessageConsumed: () -> Unit,
@@ -182,8 +182,9 @@ internal fun NavGraphBuilder.addSettingsDestination(
             allBuckets = allBuckets,
             bucketSummaries = bucketSummaries,
             currentDate = currentDate,
-            onSaveSettings = onSaveSettings,
-            onUndoSettings = onUndoSettings,
+            onSavePortfolioPlan = onSavePortfolioPlan,
+            onSavePayday = onSavePayday,
+            onUndoPaydayChange = onUndoPaydayChange,
             isSettingsUndoAvailable = isSettingsUndoAvailable,
             settingsUndoExpiresAtExclusive = settingsUndoExpiresAtExclusive,
             onSettingsMessageConsumed = onSettingsMessageConsumed,

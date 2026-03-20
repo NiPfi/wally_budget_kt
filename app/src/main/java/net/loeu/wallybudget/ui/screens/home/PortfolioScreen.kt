@@ -17,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.BudgetBucket
-import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import net.loeu.wallybudget.domain.model.BucketSummaryState
 import net.loeu.wallybudget.domain.model.PortfolioState
 import net.loeu.wallybudget.domain.model.UserSettings
@@ -29,7 +28,7 @@ fun PortfolioScreen(
     bucketSummaries: List<BucketSummaryState>,
     allBuckets: List<BudgetBucket>,
     userSettings: UserSettings,
-    onSaveSettings: (Long, Int, List<BucketDraft>, BudgetChangeMode) -> Unit,
+    onSavePortfolioPlan: (Long, List<BucketDraft>) -> Unit,
     onNavigateToSettings: () -> Unit,
     showTopRightSettingsAction: Boolean,
     modifier: Modifier = Modifier,
@@ -77,15 +76,13 @@ fun PortfolioScreen(
         bucketSummaries = bucketSummaries,
         onDismiss = { showAddBucketDialog = false },
         onCreateBucket = { newBucketDraft ->
-            onSaveSettings(
+            onSavePortfolioPlan(
                 userSettings.resolvedPortfolioMonthlyBudgetCents,
-                userSettings.paydayDate,
                 buildHomeBucketDrafts(
                     allBuckets = allBuckets,
                     bucketSummaries = bucketSummaries,
                     newBucketDraft = newBucketDraft
-                ),
-                BudgetChangeMode.PRORATE_CURRENT_CYCLE
+                )
             )
             showAddBucketDialog = false
         }

@@ -57,7 +57,7 @@ class HomeScreenHeaderIntegrationTest {
                     currentDate = LocalDate.of(2026, 3, 7),
                     spendingForecast = null,
                     onSelectBucket = { selectedBucketUuid = it },
-                    onSaveSettings = { _, _, _, _ -> },
+                    onSavePortfolioPlan = { _, _ -> },
                     onAddExpense = { _, _, _, _, _ -> },
                     onRestoreExpense = {},
                     onUpdateExpense = {},
