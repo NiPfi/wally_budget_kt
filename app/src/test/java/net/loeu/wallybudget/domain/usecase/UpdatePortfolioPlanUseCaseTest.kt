@@ -280,6 +280,102 @@ class UpdatePortfolioPlanUseCaseTest {
         assertTrue(futureTravelPolicy.deletedAtEpochMs != null)
     }
 
+    @Test
+    @Suppress("LongMethod")
+    fun invoke_bucketPlanSaveRewritesChangedFutureNamedBucketPolicies() = runBlocking {
+        val settingsStore = FakeUserSettingsStore(
+            UserSettings(
+                monthlyBudgetCents = 100_000L,
+                portfolioMonthlyBudgetCents = 100_000L,
+                paydayDate = 25,
+                selectedBucketUuid = DEFAULT_SPENDING_BUCKET_UUID
+            )
+        )
+        val bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(
+            listOf(
+                bucketPolicyEntity(
+                    "default-current",
+                    DEFAULT_SPENDING_BUCKET_UUID,
+                    "2026-03-25",
+                    "2026-04-25",
+                    70_000L
+                ),
+                bucketPolicyEntity("travel-current", "travel", "2026-03-25", "2026-04-25", 30_000L),
+                bucketPolicyEntity(
+                    "default-future",
+                    DEFAULT_SPENDING_BUCKET_UUID,
+                    "2026-04-25",
+                    "2026-05-25",
+                    70_000L
+                ),
+                bucketPolicyEntity("travel-future", "travel", "2026-04-25", "2026-05-25", 30_000L)
+            )
+        )
+        val useCase = UpdatePortfolioPlanUseCase(
+            transactionRunner = FakeTransactionRunner(),
+            userSettingsStore = settingsStore,
+            budgetPolicyDao = FakeBudgetPolicyDao(
+                listOf(
+                    BudgetPolicyEntity(
+                        id = 1L,
+                        policyUuid = "current-policy",
+                        cycleStartDate = "2026-03-25",
+                        cycleEndDateExclusive = "2026-04-25",
+                        budgetAmountCents = 100_000L,
+                        paydayDayOfMonth = 25,
+                        originInstallId = "test-install-id",
+                        lastModifiedByInstallId = "test-install-id",
+                        createdAtEpochMs = 1L,
+                        updatedAtEpochMs = 1L,
+                        modClock = "0000000000001-0000-test-install-id"
+                    )
+                )
+            ),
+            budgetBucketDao = FakeBudgetBucketDao(
+                listOf(
+                    bucketEntity(DEFAULT_SPENDING_BUCKET_UUID, DEFAULT_SPENDING_BUCKET_NAME, 70_000L, 0),
+                    bucketEntity("travel", "Travel", 30_000L, 1)
+                )
+            ),
+            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
+            currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
+            cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService()),
+            hybridLogicalClockService = HybridLogicalClockService()
+        )
+
+        useCase(
+            UpdatePortfolioPlanRequest(
+                portfolioMonthlyBudgetCents = 100_000L,
+                buckets = listOf(
+                    BucketDraft(
+                        bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                        name = DEFAULT_SPENDING_BUCKET_NAME,
+                        trackingMode = BucketTrackingMode.DAILY_TARGET,
+                        balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
+                        defaultAllocatedAmountCents = 60_000L,
+                        sortOrder = 0
+                    ),
+                    BucketDraft(
+                        bucketUuid = "travel",
+                        name = "Travel",
+                        trackingMode = BucketTrackingMode.DAILY_TARGET,
+                        balanceBehavior = BucketBalanceBehavior.RETAIN_IN_BUCKET,
+                        defaultAllocatedAmountCents = 40_000L,
+                        sortOrder = 1
+                    )
+                )
+            )
+        )
+
+        val futureDefaultPolicy = bucketAllocationPolicyDao.getAllForSnapshot()
+            .first { it.allocationUuid == "default-future" }
+        val futureTravelPolicy = bucketAllocationPolicyDao.getAllForSnapshot()
+            .first { it.allocationUuid == "travel-future" }
+        assertEquals(60_000L, futureDefaultPolicy.allocatedAmountCents)
+        assertEquals(40_000L, futureTravelPolicy.allocatedAmountCents)
+    }
+
     private fun bucketEntity(
         bucketUuid: String,
         name: String,

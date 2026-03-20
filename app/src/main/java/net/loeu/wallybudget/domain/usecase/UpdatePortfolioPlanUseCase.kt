@@ -295,7 +295,7 @@ class UpdatePortfolioPlanUseCase(
                 softDeleteFutureBucketPoliciesAndAdjustments(draft.bucketUuid, context, settings, nowEpochMs)
             }
         }
-        upsertFutureDefaultBucketPolicies(
+        upsertFutureBucketPolicies(
             context = context,
             bucketDrafts = bucketDrafts,
             portfolioMonthlyBudgetCents = portfolioMonthlyBudgetCents,
@@ -452,12 +452,13 @@ class UpdatePortfolioPlanUseCase(
         }
     }
 
-    private suspend fun upsertFutureDefaultBucketPolicies(
+    private suspend fun upsertFutureBucketPolicies(
         context: UpdatePortfolioPlanContext,
         bucketDrafts: List<BucketDraft>,
         portfolioMonthlyBudgetCents: Long,
         nowEpochMs: Long
     ) {
+        val existingByUuid = context.buckets.associateBy { it.bucketUuid }
         val openDraftsByUuid = bucketDrafts
             .filterNot { it.closeRequested }
             .associateBy { it.bucketUuid }
@@ -466,11 +467,21 @@ class UpdatePortfolioPlanUseCase(
             .toSortedMap()
         futureCycles.forEach { (cycleStart, cyclePolicies) ->
             val cycleEndExclusive = cyclePolicies.first().cycleEndExclusive()
+            updateChangedFutureNamedBucketPolicies(
+                context = context,
+                cyclePolicies = cyclePolicies,
+                openDraftsByUuid = openDraftsByUuid,
+                existingByUuid = existingByUuid,
+                nowEpochMs = nowEpochMs
+            )
             val namedAllocationTotal = openDraftsByUuid.values
                 .filterNot { it.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
                 .sumOf { draft ->
-                    cyclePolicies.firstOrNull { it.bucketUuid == draft.bucketUuid }?.allocatedAmountCents
-                        ?: draft.defaultAllocatedAmountCents
+                    resolveFutureNamedBucketAllocation(
+                        draft = draft,
+                        cyclePolicies = cyclePolicies,
+                        existingByUuid = existingByUuid
+                    )
                 }
             val defaultAllocation = (portfolioMonthlyBudgetCents - namedAllocationTotal).coerceAtLeast(0L)
             val existingDefaultPolicy = cyclePolicies.firstOrNull { it.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
@@ -506,6 +517,61 @@ class UpdatePortfolioPlanUseCase(
                 }
             }
         }
+    }
+
+    private suspend fun updateChangedFutureNamedBucketPolicies(
+        context: UpdatePortfolioPlanContext,
+        cyclePolicies: List<BucketAllocationPolicy>,
+        openDraftsByUuid: Map<String, BucketDraft>,
+        existingByUuid: Map<String, BudgetBucket>,
+        nowEpochMs: Long
+    ) {
+        openDraftsByUuid.values
+            .filterNot { it.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
+            .forEach { draft ->
+                if (!hasFutureNamedBucketAllocationChanged(draft, existingByUuid)) return@forEach
+
+                val existingPolicy = cyclePolicies.firstOrNull { it.bucketUuid == draft.bucketUuid }
+                    ?: return@forEach
+                val entity = bucketAllocationPolicyDao.findByAllocationUuid(existingPolicy.allocationUuid)
+                    ?: return@forEach
+                if (entity.allocatedAmountCents == draft.defaultAllocatedAmountCents) return@forEach
+
+                bucketAllocationPolicyDao.update(
+                    entity.copy(
+                        allocatedAmountCents = draft.defaultAllocatedAmountCents,
+                        updatedAtEpochMs = nowEpochMs,
+                        lastModifiedByInstallId = context.settings.installDeviceId,
+                        modClock = hybridLogicalClockService.next(
+                            previousClock = entity.modClock,
+                            nowEpochMs = nowEpochMs,
+                            installId = context.settings.installDeviceId
+                        )
+                    )
+                )
+            }
+    }
+
+    private fun resolveFutureNamedBucketAllocation(
+        draft: BucketDraft,
+        cyclePolicies: List<BucketAllocationPolicy>,
+        existingByUuid: Map<String, BudgetBucket>
+    ): Long {
+        return if (hasFutureNamedBucketAllocationChanged(draft, existingByUuid)) {
+            draft.defaultAllocatedAmountCents
+        } else {
+            cyclePolicies.firstOrNull { it.bucketUuid == draft.bucketUuid }?.allocatedAmountCents
+                ?: draft.defaultAllocatedAmountCents
+        }
+    }
+
+    private fun hasFutureNamedBucketAllocationChanged(
+        draft: BucketDraft,
+        existingByUuid: Map<String, BudgetBucket>
+    ): Boolean {
+        val existingBucket = existingByUuid[draft.bucketUuid]
+        return existingBucket == null ||
+            existingBucket.defaultAllocatedAmountCents != draft.defaultAllocatedAmountCents
     }
 
     private suspend fun clearOrExpirePendingPaydayUndo(updatedSettings: UserSettings) {

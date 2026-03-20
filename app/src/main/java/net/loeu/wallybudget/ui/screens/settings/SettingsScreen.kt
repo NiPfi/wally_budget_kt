@@ -90,10 +90,9 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val externalBudgetText = CurrencyFormatter.centsToDecimalString(userSettings.resolvedPortfolioMonthlyBudgetCents)
     val externalPaydayText = userSettings.paydayDate.toString()
-    val summaryByBucketUuid = bucketSummaries.associateBy { it.bucket.bucketUuid }
     val externalBucketDrafts = allBuckets
         .sortedWith(compareBy<BudgetBucket> { it.sortOrder }.thenBy { it.createdAtEpochMs })
-        .map { bucket -> bucket.toEditableUi(summaryByBucketUuid[bucket.bucketUuid]) }
+        .map { bucket -> bucket.toEditableUi() }
     val portfolioPlanHasChanges = bucketDrafts.isNotEmpty() && !settingsDraftsMatch(
         currentBudgetText = portfolioBudgetText,
         currentPaydayText = externalPaydayText,
@@ -339,15 +338,13 @@ private fun PaydaySaveSection(
     }
 }
 
-private fun BudgetBucket.toEditableUi(summary: BucketSummaryState?): EditableBucketUi {
+private fun BudgetBucket.toEditableUi(): EditableBucketUi {
     return EditableBucketUi(
         bucketUuid = bucketUuid,
         name = name,
         trackingMode = trackingMode,
         balanceBehavior = balanceBehavior,
-        amountText = CurrencyFormatter.centsToDecimalString(
-            summary?.allocatedThisCycleCents ?: defaultAllocatedAmountCents
-        ),
+        amountText = CurrencyFormatter.centsToDecimalString(defaultAllocatedAmountCents),
         sortOrder = sortOrder,
         closeRequested = isClosed,
         existingClosed = isClosed
