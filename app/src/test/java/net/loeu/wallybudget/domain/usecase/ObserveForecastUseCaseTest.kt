@@ -13,6 +13,7 @@ import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.BucketAllocationResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
@@ -107,4 +108,79 @@ class ObserveForecastUseCaseTest {
         assertTrue(forecast.projectedTotalSpentCents > 0L)
         assertTrue(forecast.usedDataPoints > 0)
     }
+
+    @Test
+    fun invoke_matchesBucketPolicyToRewrittenPortfolioCycleAfterPaydayChange() = runBlocking {
+        val settingsStore = FakeUserSettingsStore(
+            UserSettings(
+                monthlyBudgetCents = 100_000L,
+                portfolioMonthlyBudgetCents = 100_000L,
+                paydayDate = 20,
+                selectedBucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                lastResetTimestamp = LocalDate.of(2026, 3, 25)
+                    .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            )
+        )
+        val budgetBucketDao = FakeBudgetBucketDao(
+            listOf(
+                defaultBucketEntity()
+            )
+        )
+        val bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(
+            listOf(
+                bucketPolicyEntity("stale-policy", "2026-03-25", "2026-04-25", 100_000L, 1L),
+                bucketPolicyEntity("rewritten-policy", "2026-03-25", "2026-04-20", 80_000L, 2L)
+            )
+        )
+        val budgetCalculationService = BudgetCalculationService()
+        val useCase = ObserveForecastUseCase(
+            budgetBucketDao = budgetBucketDao,
+            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
+            bucketMonthlyHistoryDao = FakeBucketMonthlyHistoryDao(),
+            expenseDao = FakeExpenseDao(),
+            userSettingsStore = settingsStore,
+            currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
+            budgetCalculationService = budgetCalculationService,
+            cycleScheduleResolver = CycleScheduleResolver(budgetCalculationService),
+            bucketAllocationResolver = BucketAllocationResolver()
+        )
+
+        val forecast = requireNotNull(useCase().first())
+
+        assertEquals(90_640L, forecast.estimatedEndCycleRemainingCents)
+    }
+
+    private fun defaultBucketEntity() = BudgetBucketEntity(
+        bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+        name = DEFAULT_SPENDING_BUCKET_NAME,
+        trackingMode = BucketTrackingMode.DAILY_TARGET,
+        balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
+        defaultAllocatedAmountCents = 100_000L,
+        sortOrder = 0,
+        originInstallId = "test-install-id",
+        lastModifiedByInstallId = "test-install-id",
+        createdAtEpochMs = 1L,
+        updatedAtEpochMs = 1L,
+        modClock = "0000000000001-0000-test-install-id"
+    )
+
+    private fun bucketPolicyEntity(
+        allocationUuid: String,
+        cycleStartDate: String,
+        cycleEndDateExclusive: String,
+        allocatedAmountCents: Long,
+        createdAtEpochMs: Long
+    ) = BucketAllocationPolicyEntity(
+        allocationUuid = allocationUuid,
+        bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+        cycleStartDate = cycleStartDate,
+        cycleEndDateExclusive = cycleEndDateExclusive,
+        allocatedAmountCents = allocatedAmountCents,
+        originInstallId = "test-install-id",
+        lastModifiedByInstallId = "test-install-id",
+        createdAtEpochMs = createdAtEpochMs,
+        updatedAtEpochMs = createdAtEpochMs,
+        modClock = "000000000000$createdAtEpochMs-0000-test-install-id"
+    )
 }

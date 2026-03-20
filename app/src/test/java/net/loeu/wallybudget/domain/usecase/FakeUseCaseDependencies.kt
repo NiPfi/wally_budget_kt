@@ -470,13 +470,13 @@ internal class FakeBudgetBucketDao(
     }
 
     override fun observeAllActive(): Flow<List<BudgetBucketEntity>> = bucketFlow.map { current ->
-        current.filter { it.deletedAtEpochMs == null }
+        current.filter { it.deletedAtEpochMs == null && it.closedAtEpochMs == null }
     }
 
     override fun observeAll(): Flow<List<BudgetBucketEntity>> = bucketFlow
 
     override suspend fun getAllActive(): List<BudgetBucketEntity> = buckets
-        .filter { it.deletedAtEpochMs == null }
+        .filter { it.deletedAtEpochMs == null && it.closedAtEpochMs == null }
         .sortedWith(compareBy<BudgetBucketEntity> { it.sortOrder }.thenBy { it.createdAtEpochMs })
 
     override suspend fun getAllForSnapshot(): List<BudgetBucketEntity> = sortedBuckets()

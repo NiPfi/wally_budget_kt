@@ -1,6 +1,7 @@
 package net.loeu.wallybudget.domain.usecase
 
 import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
+import net.loeu.wallybudget.data.local.dao.BucketMonthlyHistoryDao
 import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
@@ -11,6 +12,7 @@ import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
+import net.loeu.wallybudget.domain.model.BucketMonthlyHistory
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
@@ -28,6 +30,7 @@ class CompleteOnboardingUseCase(
     private val transactionRunner: TransactionRunner,
     private val budgetBucketDao: BudgetBucketDao,
     private val bucketAllocationPolicyDao: BucketAllocationPolicyDao,
+    private val bucketMonthlyHistoryDao: BucketMonthlyHistoryDao,
     private val budgetPolicyDao: BudgetPolicyDao,
     private val monthlyHistoryDao: MonthlyHistoryDao,
     private val userSettingsStore: UserSettingsStore,
@@ -65,8 +68,33 @@ class CompleteOnboardingUseCase(
                         hybridLogicalClockService = hybridLogicalClockService
                     ).budgetPolicyToEntity()
                 )
+                bucketAllocationPolicyDao.insert(
+                    newBucketAllocationPolicy(
+                        bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                        cycleStart = previousCycleStart,
+                        cycleEndExclusive = cycleStartDate,
+                        allocatedAmountCents = monthlyBudgetCents,
+                        installId = installId,
+                        nowEpochMs = nowEpochMs,
+                        hybridLogicalClockService = hybridLogicalClockService
+                    ).toEntity()
+                )
                 monthlyHistoryDao.insert(
                     MonthlyHistory(
+                        cycleStartDate = previousCycleStart.toString(),
+                        budgetAmountCents = monthlyBudgetCents,
+                        totalSpentCents = previousExpensesCents,
+                        surplusCents = budgetCalculationService.calculateSurplus(
+                            monthlyBudgetCents = monthlyBudgetCents,
+                            totalSpentCents = previousExpensesCents
+                        ),
+                        cycleEndDate = cycleStartDate.toString(),
+                        endTimestamp = cycleStartDate.toStartOfDayMillis()
+                    ).toEntity()
+                )
+                bucketMonthlyHistoryDao.insert(
+                    BucketMonthlyHistory(
+                        bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
                         cycleStartDate = previousCycleStart.toString(),
                         budgetAmountCents = monthlyBudgetCents,
                         totalSpentCents = previousExpensesCents,

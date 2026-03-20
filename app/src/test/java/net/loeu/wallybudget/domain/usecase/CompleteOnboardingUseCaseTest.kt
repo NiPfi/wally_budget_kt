@@ -16,6 +16,7 @@ class CompleteOnboardingUseCaseTest {
         val transactionRunner = FakeTransactionRunner()
         val budgetBucketDao = FakeBudgetBucketDao()
         val bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao()
+        val bucketMonthlyHistoryDao = FakeBucketMonthlyHistoryDao()
         val budgetPolicyDao = FakeBudgetPolicyDao()
         val historyDao = FakeMonthlyHistoryDao()
         val settingsStore = FakeUserSettingsStore()
@@ -24,6 +25,7 @@ class CompleteOnboardingUseCaseTest {
             transactionRunner = transactionRunner,
             budgetBucketDao = budgetBucketDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketMonthlyHistoryDao = bucketMonthlyHistoryDao,
             budgetPolicyDao = budgetPolicyDao,
             monthlyHistoryDao = historyDao,
             userSettingsStore = settingsStore,
@@ -42,12 +44,13 @@ class CompleteOnboardingUseCaseTest {
         assertEquals(2, transactionRunner.transactionCount)
         assertEquals(1, historyDao.currentHistory.size)
         assertEquals(2, budgetPolicyDao.currentPolicies.size)
+        assertEquals(1, bucketMonthlyHistoryDao.getAll().size)
         assertEquals(100_000L, settingsStore.currentSettings.monthlyBudgetCents)
         assertEquals(100_000L, settingsStore.currentSettings.portfolioMonthlyBudgetCents)
         assertEquals(25, settingsStore.currentSettings.paydayDate)
         assertEquals(DEFAULT_SPENDING_BUCKET_UUID, settingsStore.currentSettings.selectedBucketUuid)
         assertEquals(1, budgetBucketDao.countAll())
-        assertEquals(1, bucketAllocationPolicyDao.countAll())
+        assertEquals(2, bucketAllocationPolicyDao.countAll())
         assertTrue(settingsStore.currentSettings.isOnboardingCompleted)
         assertTrue(settingsStore.completedOnboarding)
     }

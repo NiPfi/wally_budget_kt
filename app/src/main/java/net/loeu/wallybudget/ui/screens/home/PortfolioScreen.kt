@@ -18,13 +18,11 @@ import androidx.compose.ui.res.painterResource
 import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BucketSummaryState
-import net.loeu.wallybudget.domain.model.PortfolioState
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.usecase.BucketDraft
 
 @Composable
 fun PortfolioScreen(
-    portfolioState: PortfolioState,
     bucketSummaries: List<BucketSummaryState>,
     allBuckets: List<BudgetBucket>,
     userSettings: UserSettings,

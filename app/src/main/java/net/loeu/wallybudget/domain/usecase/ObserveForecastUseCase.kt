@@ -168,8 +168,8 @@ class ObserveForecastUseCase(
                 .filter { it.deletedAtEpochMs == null }
                 .firstOrNull { policy ->
                     policy.bucketUuid == selectedBucketValue.bucketUuid &&
-                        !inputs.today.isBefore(policy.cycleStart()) &&
-                        inputs.today.isBefore(policy.cycleEndExclusive())
+                        policy.cycleStart() == portfolioPolicy.cycleStart &&
+                        policy.cycleEndExclusive() == portfolioPolicy.cycleEndExclusive
                 }
             if (persistedPolicy != null) {
                 ResolvedCyclePolicy(

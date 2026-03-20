@@ -13,7 +13,7 @@ interface BudgetBucketDao : BaseInsertDao<BudgetBucketEntity> {
 
     @Query(
         "SELECT * FROM budget_buckets " +
-            "WHERE deletedAtEpochMs IS NULL " +
+            "WHERE deletedAtEpochMs IS NULL AND closedAtEpochMs IS NULL " +
             "ORDER BY sortOrder ASC, createdAtEpochMs ASC"
     )
     fun observeAllActive(): Flow<List<BudgetBucketEntity>>
@@ -23,7 +23,7 @@ interface BudgetBucketDao : BaseInsertDao<BudgetBucketEntity> {
 
     @Query(
         "SELECT * FROM budget_buckets " +
-            "WHERE deletedAtEpochMs IS NULL " +
+            "WHERE deletedAtEpochMs IS NULL AND closedAtEpochMs IS NULL " +
             "ORDER BY sortOrder ASC, createdAtEpochMs ASC"
     )
     suspend fun getAllActive(): List<BudgetBucketEntity>

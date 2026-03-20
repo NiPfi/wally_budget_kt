@@ -171,7 +171,6 @@ fun BudgetApp(
         else -> {
             val shellContent: @Composable () -> Unit = {
                 MainNavigationShell(
-                    portfolioState = displayPortfolioState,
                     bucketSummaries = displayBucketSummaries,
                     selectedBucketOverview = displaySelectedBucketOverview,
                     allBuckets = displayAllBuckets,
@@ -217,7 +216,6 @@ fun BudgetApp(
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 private fun MainNavigationShell(
-    portfolioState: PortfolioState,
     bucketSummaries: List<BucketSummaryState>,
     selectedBucketOverview: SelectedBucketOverview,
     allBuckets: List<BudgetBucket>,
@@ -281,7 +279,6 @@ private fun MainNavigationShell(
     ) {
         MainNavigationHost(
             navController = navController,
-            portfolioState = portfolioState,
             bucketSummaries = bucketSummaries,
             selectedBucketOverview = selectedBucketOverview,
             allBuckets = allBuckets,
@@ -402,7 +399,6 @@ private fun NavHostController.navigateToTopLevel(screen: Screen) {
 @Composable
 private fun MainNavigationHost(
     navController: NavHostController,
-    portfolioState: PortfolioState,
     bucketSummaries: List<BucketSummaryState>,
     selectedBucketOverview: SelectedBucketOverview,
     allBuckets: List<BudgetBucket>,
@@ -464,7 +460,6 @@ private fun MainNavigationHost(
         )
         addPortfolioDestination(
             navController = navController,
-            portfolioState = portfolioState,
             bucketSummaries = bucketSummaries,
             allBuckets = allBuckets,
             userSettings = userSettings,

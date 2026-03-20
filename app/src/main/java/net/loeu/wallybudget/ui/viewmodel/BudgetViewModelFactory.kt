@@ -266,6 +266,7 @@ class BudgetViewModelFactory(
             transactionRunner = database,
             budgetBucketDao = budgetBucketDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketMonthlyHistoryDao = bucketMonthlyHistoryDao,
             budgetPolicyDao = budgetPolicyDao,
             monthlyHistoryDao = monthlyHistoryDao,
             userSettingsStore = userPreferencesManager,
