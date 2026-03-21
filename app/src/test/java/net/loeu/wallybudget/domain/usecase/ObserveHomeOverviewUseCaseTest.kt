@@ -158,7 +158,7 @@ class ObserveHomeOverviewUseCaseTest {
     }
 
     @Test
-    fun invoke_buildsReserveBucketExpenseSectionsFromCycleStart() = runBlocking {
+    fun invoke_buildsReserveBucketExpenseSectionsOnlyForExpenseDates() = runBlocking {
         val expenseDao = FakeExpenseDao(
             listOf(
                 expenseEntityOn(1L, LocalDate.of(2026, 4, 9), 3_000L).copy(bucketUuid = "reserve"),
@@ -182,12 +182,9 @@ class ObserveHomeOverviewUseCaseTest {
 
         val state = useCase().first()
 
-        assertEquals(17, state.selectedBucketOverview.activeCycleExpenseSections.size)
         assertEquals(
             listOf(LocalDate.of(2026, 4, 10), LocalDate.of(2026, 4, 9)),
-            state.selectedBucketOverview.activeCycleExpenseSections
-                .filter { it.expenses.isNotEmpty() }
-                .map { it.date }
+            state.selectedBucketOverview.activeCycleExpenseSections.map { it.date }
         )
     }
 

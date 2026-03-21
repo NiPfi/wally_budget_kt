@@ -30,12 +30,14 @@ import net.loeu.wallybudget.domain.model.BucketAllocationAdjustment
 import net.loeu.wallybudget.domain.model.BucketAllocationPolicy
 import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketMonthlyHistory
+import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.BucketSummaryState
 import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BudgetPolicy
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.Expense
+import net.loeu.wallybudget.domain.model.ExpenseDaySection
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.PortfolioOverviewState
 import net.loeu.wallybudget.domain.model.SelectedBucketOverview
@@ -360,17 +362,23 @@ private fun buildSelectedBucketOverview(
     val bucketExpenses = currentExpenses.filter { it.bucketUuid == selectedBucket.bucketUuid }
     val todayExpenses = bucketExpenses.filterByRange(today, today.plusDays(1))
     val dayTotals = bucketExpenses.sumByDate()
-    val activeCycleExpenseSections = buildContinuousDaySections(
-        start = selectedBucketSummary.budgetState?.cycleStartDate ?: currentCycleStart,
-        endInclusive = today,
-        expensesByDate = bucketExpenses.groupByDate(),
-        dayTotals = dayTotals,
-        remainingBudgetForDay = { totalSpent ->
-            selectedBucketSummary.budgetState?.let { budgetState -> budgetState.dailyBudgetCents - totalSpent }
-        },
-        isEditable = true,
-        today = today
-    )
+    val activeCycleExpenseSections = when (selectedBucket.trackingMode) {
+        BucketTrackingMode.CYCLE_RESERVE -> buildExpenseOnlyDaySections(
+            expensesByDate = bucketExpenses.groupByDate(),
+            dayTotals = dayTotals
+        )
+        BucketTrackingMode.DAILY_TARGET -> buildContinuousDaySections(
+            start = selectedBucketSummary.budgetState?.cycleStartDate ?: currentCycleStart,
+            endInclusive = today,
+            expensesByDate = bucketExpenses.groupByDate(),
+            dayTotals = dayTotals,
+            remainingBudgetForDay = { totalSpent ->
+                selectedBucketSummary.budgetState?.let { budgetState -> budgetState.dailyBudgetCents - totalSpent }
+            },
+            isEditable = true,
+            today = today
+        )
+    }
     return SelectedBucketOverview(
         bucket = selectedBucket,
         summary = selectedBucketSummary,
@@ -379,6 +387,23 @@ private fun buildSelectedBucketOverview(
         activeCycleExpenseSections = activeCycleExpenseSections,
         spendingForecast = null
     )
+}
+
+private fun buildExpenseOnlyDaySections(
+    expensesByDate: Map<LocalDate, List<Expense>>,
+    dayTotals: Map<LocalDate, Long>
+): List<ExpenseDaySection> {
+    return expensesByDate
+        .toSortedMap(compareByDescending { it })
+        .map { (date, expenses) ->
+            ExpenseDaySection(
+                date = date,
+                expenses = expenses,
+                totalSpentCents = dayTotals[date] ?: expenses.sumOf { it.amountCents },
+                remainingForDayCents = null,
+                isEditable = true
+            )
+        }
 }
 
 class ObserveHomeOverviewUseCase(
