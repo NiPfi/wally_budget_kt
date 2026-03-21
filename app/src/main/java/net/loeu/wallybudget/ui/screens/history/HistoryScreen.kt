@@ -320,7 +320,7 @@ internal fun CyclePagerHint(
     modifier: Modifier = Modifier
 ) {
     AnimatedVisibility(
-        visible = showSwipeHint && currentPage == pageCount - 1,
+        visible = showSwipeHint && pageCount > 1 && currentPage == pageCount - 1,
         modifier = modifier.fillMaxWidth()
     ) {
         Row(
@@ -354,6 +354,7 @@ internal fun CycleHeader(
     section: ExpenseCycleSection,
     modifier: Modifier = Modifier
 ) {
+    val netRemainingCents = cycleHeaderNetRemainingCents(section)
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.background
@@ -368,19 +369,7 @@ internal fun CycleHeader(
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = if (section.isCompletedCycle) {
-                    if (section.surplusCents >= 0L) {
-                        "Finished ${CurrencyFormatter.format(abs(section.surplusCents))} under budget"
-                    } else {
-                        "Finished ${CurrencyFormatter.format(abs(section.surplusCents))} over budget"
-                    }
-                } else {
-                    if (section.surplusCents >= 0L) {
-                        "Net ${CurrencyFormatter.format(abs(section.surplusCents))} available"
-                    } else {
-                        "Net ${CurrencyFormatter.format(abs(section.surplusCents))} over budget"
-                    }
-                },
+                text = cycleHeaderSummaryText(section = section, netRemainingCents = netRemainingCents),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
