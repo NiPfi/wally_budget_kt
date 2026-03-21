@@ -1,14 +1,14 @@
 package net.loeu.wallybudget.data.local.preferences
 
 import kotlinx.coroutines.flow.Flow
-import net.loeu.wallybudget.domain.model.PendingSettingsUndo
+import net.loeu.wallybudget.domain.model.PendingPaydayUndo
 import net.loeu.wallybudget.domain.model.UserSettings
 import java.time.LocalDate
 
 @Suppress("TooManyFunctions")
 interface UserSettingsStore {
     val userSettings: Flow<UserSettings>
-    val pendingSettingsUndo: Flow<PendingSettingsUndo?>
+    val pendingPaydayUndo: Flow<PendingPaydayUndo?>
 
     suspend fun ensureIdentity(): UserSettings
 
@@ -36,9 +36,9 @@ interface UserSettingsStore {
 
     suspend fun clearPendingCycle()
 
-    suspend fun savePendingSettingsUndo(pendingSettingsUndo: PendingSettingsUndo)
+    suspend fun savePendingPaydayUndo(pendingPaydayUndo: PendingPaydayUndo)
 
-    suspend fun clearPendingSettingsUndo()
+    suspend fun clearPendingPaydayUndo()
 
     suspend fun restoreFromSnapshot(settings: UserSettings, onboardingCompleted: Boolean)
 }

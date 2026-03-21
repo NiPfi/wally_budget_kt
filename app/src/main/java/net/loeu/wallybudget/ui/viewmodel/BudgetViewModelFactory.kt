@@ -23,7 +23,7 @@ import net.loeu.wallybudget.domain.usecase.ApplyOnboardingRestoreUseCase
 import net.loeu.wallybudget.domain.usecase.AddExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.CompleteOnboardingUseCase
 import net.loeu.wallybudget.domain.usecase.ConcludePendingCycleUseCase
-import net.loeu.wallybudget.domain.usecase.ClearPendingSettingsUndoUseCase
+import net.loeu.wallybudget.domain.usecase.ClearPendingPaydayUndoUseCase
 import net.loeu.wallybudget.domain.usecase.DeleteExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.EnsureDefaultBucketStateUseCase
 import net.loeu.wallybudget.domain.usecase.EnsureBudgetPolicyHistoryUseCase
@@ -40,7 +40,7 @@ import net.loeu.wallybudget.domain.usecase.RebuildBucketMonthlyHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.RebuildMonthlyHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.SelectBucketUseCase
 import net.loeu.wallybudget.domain.usecase.SyncObservedDateUseCase
-import net.loeu.wallybudget.domain.usecase.UndoBudgetSettingsChangeUseCase
+import net.loeu.wallybudget.domain.usecase.UndoPaydayChangeUseCase
 import net.loeu.wallybudget.domain.usecase.UpdatePaydayUseCase
 import net.loeu.wallybudget.domain.usecase.UpdatePortfolioPlanUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateExpenseUseCase
@@ -246,20 +246,19 @@ class BudgetViewModelFactory(
             hybridLogicalClockService = hybridLogicalClockService
         )
     }
-    private val undoBudgetSettingsChangeUseCase by lazy {
-        UndoBudgetSettingsChangeUseCase(
+    private val undoPaydayChangeUseCase by lazy {
+        UndoPaydayChangeUseCase(
             transactionRunner = database,
             userSettingsStore = userPreferencesManager,
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = budgetAdjustmentDao,
-            budgetBucketDao = budgetBucketDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
             currentDateProvider = currentDateProvider
         )
     }
-    private val clearPendingSettingsUndoUseCase by lazy {
-        ClearPendingSettingsUndoUseCase(userPreferencesManager)
+    private val clearPendingPaydayUndoUseCase by lazy {
+        ClearPendingPaydayUndoUseCase(userPreferencesManager)
     }
     private val selectBucketUseCase by lazy {
         SelectBucketUseCase(userPreferencesManager)
@@ -384,7 +383,7 @@ class BudgetViewModelFactory(
                 restoreDeletedExpenseUseCase = restoreDeletedExpenseUseCase,
                 updatePortfolioPlanUseCase = updatePortfolioPlanUseCase,
                 updatePaydayUseCase = updatePaydayUseCase,
-                undoBudgetSettingsChangeUseCase = undoBudgetSettingsChangeUseCase,
+                undoPaydayChangeUseCase = undoPaydayChangeUseCase,
                 completeOnboardingUseCase = completeOnboardingUseCase,
                 performMonthlyResetUseCase = performMonthlyResetUseCase,
                 concludePendingCycleUseCase = concludePendingCycleUseCase,
@@ -396,8 +395,8 @@ class BudgetViewModelFactory(
                 rebuildMonthlyHistoryUseCase = rebuildMonthlyHistoryUseCase,
                 resolveMutationEffectiveDateUseCase = resolveMutationEffectiveDateUseCase,
                 selectBucketUseCase = selectBucketUseCase,
-                clearPendingSettingsUndoUseCase = clearPendingSettingsUndoUseCase,
-                pendingSettingsUndoFlow = userPreferencesManager.pendingSettingsUndo,
+                clearPendingPaydayUndoUseCase = clearPendingPaydayUndoUseCase,
+                pendingPaydayUndoFlow = userPreferencesManager.pendingPaydayUndo,
                 syncObservedDateUseCase = syncObservedDateUseCase,
                 currentDateProvider = currentDateProvider
             ) as T

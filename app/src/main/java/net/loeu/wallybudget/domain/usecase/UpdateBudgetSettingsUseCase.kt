@@ -28,7 +28,7 @@ import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import net.loeu.wallybudget.domain.model.BudgetPolicy
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
-import net.loeu.wallybudget.domain.model.PendingSettingsUndo
+import net.loeu.wallybudget.domain.model.PendingPaydayUndo
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BucketAllocationResolver
@@ -265,23 +265,23 @@ class UpdateBudgetSettingsUseCase(
         }
         userSettingsStore.updateSelectedBucket(mutation.finalSelectedBucketUuid)
         if ((budgetChanged || paydayChanged) && !bucketChanged) {
-            userSettingsStore.savePendingSettingsUndo(
-                buildPendingSettingsUndo(
+            userSettingsStore.savePendingPaydayUndo(
+                buildPendingPaydayUndo(
                     context = context,
                     mutation = mutation
                 )
             )
         } else {
-            userSettingsStore.clearPendingSettingsUndo()
+            userSettingsStore.clearPendingPaydayUndo()
         }
     }
 
     private suspend fun restorePendingUndoBeforeApplyingNewSave(): Boolean {
         val settings = userSettingsStore.ensureIdentity()
         val today = syncObservedDateUseCase(settings, currentDateProvider.currentDate())
-        val pendingUndo = userSettingsStore.pendingSettingsUndo.first() ?: return false
+        val pendingUndo = userSettingsStore.pendingPaydayUndo.first() ?: return false
         if (!today.isBefore(pendingUndo.expiresAtExclusiveDate())) {
-            userSettingsStore.clearPendingSettingsUndo()
+            userSettingsStore.clearPendingPaydayUndo()
             return false
         }
 
@@ -291,8 +291,6 @@ class UpdateBudgetSettingsUseCase(
             pendingUndo.policiesToRestore.forEach { restorePolicy(it) }
             pendingUndo.adjustmentsToDeactivate.forEach { deactivateInsertedAdjustment(it, settings, nowEpochMs) }
             pendingUndo.adjustmentsToRestore.forEach { restoreAdjustment(it) }
-            pendingUndo.bucketsToDeactivate.forEach { deactivateInsertedBucket(it, settings, nowEpochMs) }
-            pendingUndo.bucketsToRestore.forEach { restoreBucket(it) }
             pendingUndo.bucketPoliciesToDeactivate.forEach {
                 deactivateInsertedBucketPolicy(it, settings, nowEpochMs)
             }
@@ -306,7 +304,7 @@ class UpdateBudgetSettingsUseCase(
             settings = pendingUndo.previousSettings,
             onboardingCompleted = pendingUndo.previousSettings.isOnboardingCompleted
         )
-        userSettingsStore.clearPendingSettingsUndo()
+        userSettingsStore.clearPendingPaydayUndo()
         return true
     }
 
@@ -1231,13 +1229,13 @@ class UpdateBudgetSettingsUseCase(
         return policy
     }
 
-    private fun buildPendingSettingsUndo(
+    private fun buildPendingPaydayUndo(
         context: UpdateBudgetSettingsContext,
         mutation: UpdateBudgetSettingsMutation
-    ): PendingSettingsUndo {
+    ): PendingPaydayUndo {
         val policiesToRestore = context.policies.filter { it.deletedAtEpochMs == null }
         val adjustmentsToRestore = context.currentAdjustments
-        return PendingSettingsUndo(
+        return PendingPaydayUndo(
             previousSettings = context.settings,
             policiesToRestore = policiesToRestore,
             policiesToDeactivate = mutation.insertedPolicies,

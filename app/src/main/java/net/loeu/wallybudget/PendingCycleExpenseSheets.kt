@@ -28,6 +28,7 @@ internal fun PendingCycleExpenseSheets(
             bucketOptions = allBuckets.filterNot { it.isClosed },
             initialBucketUuid = selectedBucketUuid,
             initialBucketName = allBuckets.firstOrNull { it.bucketUuid == selectedBucketUuid }?.name,
+            preserveInitialBucketSelection = false,
             onSubmitExpense = { bucketUuid, amountCents, description, icon ->
                 onAddExpense(bucketUuid, amountCents, description, icon, selectedDate)
             },
@@ -44,6 +45,7 @@ internal fun PendingCycleExpenseSheets(
             bucketOptions = openBuckets,
             initialBucketUuid = editingExpense.bucketUuid,
             initialBucketName = allBuckets.firstOrNull { it.bucketUuid == editingExpense.bucketUuid }?.name,
+            preserveInitialBucketSelection = true,
             onSubmitExpense = { bucketUuid, amountCents, description, icon ->
                 onUpdateExpense(
                     editingExpense.copy(

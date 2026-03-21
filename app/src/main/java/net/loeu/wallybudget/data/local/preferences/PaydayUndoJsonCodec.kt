@@ -8,20 +8,19 @@ import com.google.gson.JsonSyntaxException
 import net.loeu.wallybudget.domain.model.BudgetAdjustment
 import net.loeu.wallybudget.domain.model.BucketAllocationAdjustment
 import net.loeu.wallybudget.domain.model.BucketAllocationPolicy
-import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BudgetPolicy
-import net.loeu.wallybudget.domain.model.PendingSettingsUndo
+import net.loeu.wallybudget.domain.model.PendingPaydayUndo
 import net.loeu.wallybudget.domain.model.UserSettings
 
-class SettingsUndoJsonCodec(
+class PaydayUndoJsonCodec(
     private val gson: Gson = GsonBuilder().disableHtmlEscaping().create()
 ) {
-    fun encode(pendingSettingsUndo: PendingSettingsUndo): String =
-        gson.toJson(PendingSettingsUndoPayload.fromDomain(pendingSettingsUndo))
+    fun encode(pendingPaydayUndo: PendingPaydayUndo): String =
+        gson.toJson(PendingPaydayUndoPayload.fromDomain(pendingPaydayUndo))
 
-    fun decodeOrNull(input: String): PendingSettingsUndo? {
+    fun decodeOrNull(input: String): PendingPaydayUndo? {
         return try {
-            gson.fromJson(input, PendingSettingsUndoPayload::class.java)?.toDomain()
+            gson.fromJson(input, PendingPaydayUndoPayload::class.java)?.toDomain()
         } catch (_: JsonSyntaxException) {
             null
         } catch (_: JsonParseException) {
@@ -34,10 +33,8 @@ class SettingsUndoJsonCodec(
     }
 }
 
-private data class PendingSettingsUndoPayload(
+private data class PendingPaydayUndoPayload(
     val previousSettings: UserSettingsPayload? = null,
-    val bucketsToRestore: List<BudgetBucketPayload> = emptyList(),
-    val bucketsToDeactivate: List<BudgetBucketPayload> = emptyList(),
     val policiesToRestore: List<BudgetPolicyPayload> = emptyList(),
     val policiesToDeactivate: List<BudgetPolicyPayload> = emptyList(),
     val adjustmentsToRestore: List<BudgetAdjustmentPayload> = emptyList(),
@@ -48,13 +45,11 @@ private data class PendingSettingsUndoPayload(
     val bucketAdjustmentsToDeactivate: List<BucketAllocationAdjustmentPayload> = emptyList(),
     val expiresAtExclusive: String? = null
 ) {
-    fun toDomain(): PendingSettingsUndo {
+    fun toDomain(): PendingPaydayUndo {
         val previousSettingsValue = requireNotNull(previousSettings) { "Missing previousSettings" }
         val expiresAtExclusiveValue = requireNotNull(expiresAtExclusive) { "Missing expiresAtExclusive" }
-        return PendingSettingsUndo(
+        return PendingPaydayUndo(
             previousSettings = previousSettingsValue.toDomain(),
-            bucketsToRestore = bucketsToRestore.map(BudgetBucketPayload::toDomain),
-            bucketsToDeactivate = bucketsToDeactivate.map(BudgetBucketPayload::toDomain),
             policiesToRestore = policiesToRestore.map(BudgetPolicyPayload::toDomain),
             policiesToDeactivate = policiesToDeactivate.map(BudgetPolicyPayload::toDomain),
             adjustmentsToRestore = adjustmentsToRestore.map(BudgetAdjustmentPayload::toDomain),
@@ -70,26 +65,24 @@ private data class PendingSettingsUndoPayload(
     }
 
     companion object {
-        fun fromDomain(pendingSettingsUndo: PendingSettingsUndo): PendingSettingsUndoPayload {
-            return PendingSettingsUndoPayload(
-                previousSettings = UserSettingsPayload.fromDomain(pendingSettingsUndo.previousSettings),
-                bucketsToRestore = pendingSettingsUndo.bucketsToRestore.map(BudgetBucketPayload::fromDomain),
-                bucketsToDeactivate = pendingSettingsUndo.bucketsToDeactivate.map(BudgetBucketPayload::fromDomain),
-                policiesToRestore = pendingSettingsUndo.policiesToRestore.map(BudgetPolicyPayload::fromDomain),
-                policiesToDeactivate = pendingSettingsUndo.policiesToDeactivate.map(BudgetPolicyPayload::fromDomain),
-                adjustmentsToRestore = pendingSettingsUndo.adjustmentsToRestore
+        fun fromDomain(pendingPaydayUndo: PendingPaydayUndo): PendingPaydayUndoPayload {
+            return PendingPaydayUndoPayload(
+                previousSettings = UserSettingsPayload.fromDomain(pendingPaydayUndo.previousSettings),
+                policiesToRestore = pendingPaydayUndo.policiesToRestore.map(BudgetPolicyPayload::fromDomain),
+                policiesToDeactivate = pendingPaydayUndo.policiesToDeactivate.map(BudgetPolicyPayload::fromDomain),
+                adjustmentsToRestore = pendingPaydayUndo.adjustmentsToRestore
                     .map(BudgetAdjustmentPayload::fromDomain),
-                adjustmentsToDeactivate = pendingSettingsUndo.adjustmentsToDeactivate
+                adjustmentsToDeactivate = pendingPaydayUndo.adjustmentsToDeactivate
                     .map(BudgetAdjustmentPayload::fromDomain),
-                bucketPoliciesToRestore = pendingSettingsUndo.bucketPoliciesToRestore
+                bucketPoliciesToRestore = pendingPaydayUndo.bucketPoliciesToRestore
                     .map(BucketAllocationPolicyPayload::fromDomain),
-                bucketPoliciesToDeactivate = pendingSettingsUndo.bucketPoliciesToDeactivate
+                bucketPoliciesToDeactivate = pendingPaydayUndo.bucketPoliciesToDeactivate
                     .map(BucketAllocationPolicyPayload::fromDomain),
-                bucketAdjustmentsToRestore = pendingSettingsUndo.bucketAdjustmentsToRestore
+                bucketAdjustmentsToRestore = pendingPaydayUndo.bucketAdjustmentsToRestore
                     .map(BucketAllocationAdjustmentPayload::fromDomain),
-                bucketAdjustmentsToDeactivate = pendingSettingsUndo.bucketAdjustmentsToDeactivate
+                bucketAdjustmentsToDeactivate = pendingPaydayUndo.bucketAdjustmentsToDeactivate
                     .map(BucketAllocationAdjustmentPayload::fromDomain),
-                expiresAtExclusive = pendingSettingsUndo.expiresAtExclusive
+                expiresAtExclusive = pendingPaydayUndo.expiresAtExclusive
             )
         }
     }
@@ -150,64 +143,6 @@ private data class UserSettingsPayload(
                 settingsUpdatedAtEpochMs = userSettings.settingsUpdatedAtEpochMs,
                 settingsModClock = userSettings.settingsModClock,
                 settingsLastModifiedByInstallId = userSettings.settingsLastModifiedByInstallId
-            )
-        }
-    }
-}
-
-private data class BudgetBucketPayload(
-    val bucketUuid: String? = null,
-    val name: String? = null,
-    val trackingMode: String? = null,
-    val balanceBehavior: String? = null,
-    val defaultAllocatedAmountCents: Long = 0L,
-    val sortOrder: Int = 0,
-    val originInstallId: String = "",
-    val lastModifiedByInstallId: String = "",
-    val createdAtEpochMs: Long = 0L,
-    val updatedAtEpochMs: Long = 0L,
-    val closedAtEpochMs: Long? = null,
-    val deletedAtEpochMs: Long? = null,
-    val modClock: String = ""
-) {
-    fun toDomain(): BudgetBucket {
-        return BudgetBucket(
-            bucketUuid = requireNotNull(bucketUuid) { "Missing bucketUuid" },
-            name = requireNotNull(name) { "Missing name" },
-            trackingMode = net.loeu.wallybudget.domain.model.BucketTrackingMode.valueOf(
-                requireNotNull(trackingMode) { "Missing trackingMode" }
-            ),
-            balanceBehavior = net.loeu.wallybudget.domain.model.BucketBalanceBehavior.valueOf(
-                requireNotNull(balanceBehavior) { "Missing balanceBehavior" }
-            ),
-            defaultAllocatedAmountCents = defaultAllocatedAmountCents,
-            sortOrder = sortOrder,
-            originInstallId = originInstallId,
-            lastModifiedByInstallId = lastModifiedByInstallId,
-            createdAtEpochMs = createdAtEpochMs,
-            updatedAtEpochMs = updatedAtEpochMs,
-            closedAtEpochMs = closedAtEpochMs,
-            deletedAtEpochMs = deletedAtEpochMs,
-            modClock = modClock
-        )
-    }
-
-    companion object {
-        fun fromDomain(bucket: BudgetBucket): BudgetBucketPayload {
-            return BudgetBucketPayload(
-                bucketUuid = bucket.bucketUuid,
-                name = bucket.name,
-                trackingMode = bucket.trackingMode.name,
-                balanceBehavior = bucket.balanceBehavior.name,
-                defaultAllocatedAmountCents = bucket.defaultAllocatedAmountCents,
-                sortOrder = bucket.sortOrder,
-                originInstallId = bucket.originInstallId,
-                lastModifiedByInstallId = bucket.lastModifiedByInstallId,
-                createdAtEpochMs = bucket.createdAtEpochMs,
-                updatedAtEpochMs = bucket.updatedAtEpochMs,
-                closedAtEpochMs = bucket.closedAtEpochMs,
-                deletedAtEpochMs = bucket.deletedAtEpochMs,
-                modClock = bucket.modClock
             )
         }
     }

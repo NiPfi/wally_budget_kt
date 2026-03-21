@@ -12,7 +12,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import net.loeu.wallybudget.domain.model.PendingSettingsUndo
+import net.loeu.wallybudget.domain.model.PendingPaydayUndo
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import java.time.LocalDate
@@ -24,7 +24,7 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 class UserPreferencesManager(
     private val context: Context,
     private val hybridLogicalClockService: HybridLogicalClockService = HybridLogicalClockService(),
-    private val settingsUndoJsonCodec: SettingsUndoJsonCodec = SettingsUndoJsonCodec()
+    private val paydayUndoJsonCodec: PaydayUndoJsonCodec = PaydayUndoJsonCodec()
 ) : UserSettingsStore {
 
     private object PreferenceKeys {
@@ -68,9 +68,9 @@ class UserPreferencesManager(
         )
     }
 
-    override val pendingSettingsUndo: Flow<PendingSettingsUndo?> = context.dataStore.data.map { preferences ->
+    override val pendingPaydayUndo: Flow<PendingPaydayUndo?> = context.dataStore.data.map { preferences ->
         preferences[PreferenceKeys.PENDING_SETTINGS_UNDO_JSON]
-            ?.let(settingsUndoJsonCodec::decodeOrNull)
+            ?.let(paydayUndoJsonCodec::decodeOrNull)
     }
 
     override suspend fun ensureIdentity(): UserSettings {
@@ -193,13 +193,13 @@ class UserPreferencesManager(
         }
     }
 
-    override suspend fun savePendingSettingsUndo(pendingSettingsUndo: PendingSettingsUndo) {
+    override suspend fun savePendingPaydayUndo(pendingPaydayUndo: PendingPaydayUndo) {
         context.dataStore.edit { preferences ->
-            preferences[PreferenceKeys.PENDING_SETTINGS_UNDO_JSON] = settingsUndoJsonCodec.encode(pendingSettingsUndo)
+            preferences[PreferenceKeys.PENDING_SETTINGS_UNDO_JSON] = paydayUndoJsonCodec.encode(pendingPaydayUndo)
         }
     }
 
-    override suspend fun clearPendingSettingsUndo() {
+    override suspend fun clearPendingPaydayUndo() {
         context.dataStore.edit { preferences ->
             preferences.remove(PreferenceKeys.PENDING_SETTINGS_UNDO_JSON)
         }

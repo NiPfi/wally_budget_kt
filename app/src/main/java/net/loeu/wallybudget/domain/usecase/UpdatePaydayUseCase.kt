@@ -19,7 +19,7 @@ import net.loeu.wallybudget.domain.model.BudgetAdjustment
 import net.loeu.wallybudget.domain.model.BudgetPolicy
 import net.loeu.wallybudget.domain.model.BucketAllocationAdjustment
 import net.loeu.wallybudget.domain.model.BucketAllocationPolicy
-import net.loeu.wallybudget.domain.model.PendingSettingsUndo
+import net.loeu.wallybudget.domain.model.PendingPaydayUndo
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
@@ -107,7 +107,7 @@ class UpdatePaydayUseCase(
         }
 
         userSettingsStore.updatePaydayDate(request.paydayDate)
-        userSettingsStore.savePendingSettingsUndo(buildPendingSettingsUndo(context, mutation))
+        userSettingsStore.savePendingPaydayUndo(buildPendingPaydayUndo(context, mutation))
 
         val rewrittenCurrentCycleEnd = context.paydayPlan.rewrittenCurrentCycle.cycleEndExclusive
         val originalCurrentCycleEnd = context.currentPolicy.cycleEndExclusive
@@ -175,9 +175,9 @@ class UpdatePaydayUseCase(
     private suspend fun restorePendingUndoBeforeApplyingNewSave(): Boolean {
         val settings = userSettingsStore.ensureIdentity()
         val today = syncObservedDateUseCase(settings, currentDateProvider.currentDate())
-        val pendingUndo = userSettingsStore.pendingSettingsUndo.first() ?: return false
+        val pendingUndo = userSettingsStore.pendingPaydayUndo.first() ?: return false
         if (!today.isBefore(pendingUndo.expiresAtExclusiveDate())) {
-            userSettingsStore.clearPendingSettingsUndo()
+            userSettingsStore.clearPendingPaydayUndo()
             return false
         }
 
@@ -198,7 +198,7 @@ class UpdatePaydayUseCase(
             settings = pendingUndo.previousSettings,
             onboardingCompleted = pendingUndo.previousSettings.isOnboardingCompleted
         )
-        userSettingsStore.clearPendingSettingsUndo()
+        userSettingsStore.clearPendingPaydayUndo()
         return true
     }
 
@@ -398,11 +398,11 @@ class UpdatePaydayUseCase(
         return policy.cycleStart().plusDays(cycleLengthDays / 2L)
     }
 
-    private fun buildPendingSettingsUndo(
+    private fun buildPendingPaydayUndo(
         context: UpdatePaydayContext,
         mutation: UpdatePaydayMutation
-    ): PendingSettingsUndo {
-        return PendingSettingsUndo(
+    ): PendingPaydayUndo {
+        return PendingPaydayUndo(
             previousSettings = context.settings,
             policiesToRestore = context.policies.filter { it.deletedAtEpochMs == null },
             policiesToDeactivate = mutation.insertedPolicies,

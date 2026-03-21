@@ -243,6 +243,7 @@ internal fun HistoryAddExpenseSheet(
         bucketOptions = allBuckets.filterNot { it.isClosed },
         initialBucketUuid = selectedBucketUuid,
         initialBucketName = allBuckets.firstOrNull { it.bucketUuid == selectedBucketUuid }?.name,
+        preserveInitialBucketSelection = false,
         onSubmitExpense = { bucketUuid, amountCents, description, icon ->
             onAddExpense(bucketUuid, amountCents, description, icon, selectedDate)
             onDismiss()
@@ -275,6 +276,7 @@ internal fun HistoryEditExpenseSheet(
         bucketOptions = openBuckets,
         initialBucketUuid = editableExpense.bucketUuid,
         initialBucketName = currentBucketName,
+        preserveInitialBucketSelection = true,
         onSubmitExpense = { bucketUuid, amountCents, description, icon ->
             onUpdateExpense(
                 editableExpense.copy(

@@ -16,7 +16,7 @@ import org.junit.Test
 import java.time.LocalDate
 import java.time.ZoneId
 
-class UndoBudgetSettingsChangeUseCaseTest {
+class UndoPaydayChangeUseCaseTest {
 
     private val cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService())
 
@@ -74,7 +74,7 @@ class UndoBudgetSettingsChangeUseCaseTest {
         assertEquals("2026-04-25", activePolicies.single().cycleEndDateExclusive)
         assertEquals(25, activePolicies.single().paydayDayOfMonth)
         assertTrue(result.summaryMessage.contains("Restored the previous payday and cycle timing"))
-        assertNull(settingsStore.pendingSettingsUndo.first())
+        assertNull(settingsStore.pendingPaydayUndo.first())
     }
 
     @Test
@@ -124,7 +124,7 @@ class UndoBudgetSettingsChangeUseCaseTest {
 
         assertEquals("Payday change undo expired.", result.summaryMessage)
         assertEquals(1, settingsStore.currentSettings.paydayDate)
-        assertNull(settingsStore.pendingSettingsUndo.first())
+        assertNull(settingsStore.pendingPaydayUndo.first())
     }
 
     @Test
@@ -213,13 +213,12 @@ private fun undoUseCase(
     budgetPolicyDao: FakeBudgetPolicyDao,
     budgetAdjustmentDao: FakeBudgetAdjustmentDao,
     currentDate: LocalDate
-): UndoBudgetSettingsChangeUseCase {
-    return UndoBudgetSettingsChangeUseCase(
+): UndoPaydayChangeUseCase {
+    return UndoPaydayChangeUseCase(
         transactionRunner = FakeTransactionRunner(),
         userSettingsStore = settingsStore,
         budgetPolicyDao = budgetPolicyDao,
         budgetAdjustmentDao = budgetAdjustmentDao,
-        budgetBucketDao = FakeBudgetBucketDao(),
         bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(),
         bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
         currentDateProvider = FakeCurrentDateProvider(currentDate)

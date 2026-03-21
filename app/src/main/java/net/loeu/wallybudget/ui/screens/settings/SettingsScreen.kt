@@ -71,8 +71,8 @@ fun SettingsScreen(
     onSavePortfolioPlan: (Long, List<BucketDraft>) -> Unit,
     onSavePayday: (Int) -> Unit,
     onUndoPaydayChange: () -> Unit,
-    isSettingsUndoAvailable: Boolean,
-    settingsUndoExpiresAtExclusive: LocalDate?,
+    isPaydayUndoAvailable: Boolean,
+    paydayUndoExpiresAtExclusive: LocalDate?,
     onSettingsMessageConsumed: () -> Unit,
     onRequestExportSnapshot: () -> Unit,
     settingsMessage: String?,
@@ -183,8 +183,8 @@ fun SettingsScreen(
 
             PaydaySaveSection(
                 hasChanges = paydayHasChanges,
-                isSettingsUndoAvailable = isSettingsUndoAvailable,
-                settingsUndoExpiresAtExclusive = settingsUndoExpiresAtExclusive,
+                isPaydayUndoAvailable = isPaydayUndoAvailable,
+                paydayUndoExpiresAtExclusive = paydayUndoExpiresAtExclusive,
                 onSave = {
                     val payday = paydayText.toIntOrNull()
                     showPaydayError = payday == null || payday !in 1..31
@@ -313,8 +313,8 @@ private fun PlanningSaveSection(
 @Composable
 private fun PaydaySaveSection(
     hasChanges: Boolean,
-    isSettingsUndoAvailable: Boolean,
-    settingsUndoExpiresAtExclusive: LocalDate?,
+    isPaydayUndoAvailable: Boolean,
+    paydayUndoExpiresAtExclusive: LocalDate?,
     onSave: () -> Unit,
     onUndoPaydayChange: () -> Unit
 ) {
@@ -329,9 +329,9 @@ private fun PaydaySaveSection(
         ) {
             Text("Save payday")
         }
-        if (isSettingsUndoAvailable) {
-            UndoSettingsCard(
-                expiresAtExclusive = settingsUndoExpiresAtExclusive,
+        if (isPaydayUndoAvailable) {
+            UndoPaydayCard(
+                expiresAtExclusive = paydayUndoExpiresAtExclusive,
                 onUndoSettings = onUndoPaydayChange
             )
         }

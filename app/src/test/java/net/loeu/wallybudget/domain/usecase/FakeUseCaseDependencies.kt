@@ -24,7 +24,7 @@ import net.loeu.wallybudget.data.local.entity.MonthlyHistoryEntity
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.local.querymodel.ExpenseDayTotalRow
 import net.loeu.wallybudget.data.time.CurrentDateProvider
-import net.loeu.wallybudget.domain.model.PendingSettingsUndo
+import net.loeu.wallybudget.domain.model.PendingPaydayUndo
 import net.loeu.wallybudget.domain.model.UserSettings
 import java.time.LocalDate
 import java.time.ZoneId
@@ -34,10 +34,10 @@ internal class FakeUserSettingsStore(
     initialSettings: UserSettings = UserSettings()
 ) : UserSettingsStore {
     private val mutableUserSettings = MutableStateFlow(initialSettings)
-    private val mutablePendingSettingsUndo = MutableStateFlow<PendingSettingsUndo?>(null)
+    private val mutablePendingPaydayUndo = MutableStateFlow<PendingPaydayUndo?>(null)
 
     override val userSettings: Flow<UserSettings> = mutableUserSettings
-    override val pendingSettingsUndo: Flow<PendingSettingsUndo?> = mutablePendingSettingsUndo
+    override val pendingPaydayUndo: Flow<PendingPaydayUndo?> = mutablePendingPaydayUndo
 
     var completedOnboarding = false
     var clearPendingCount = 0
@@ -121,17 +121,17 @@ internal class FakeUserSettingsStore(
         )
     }
 
-    override suspend fun savePendingSettingsUndo(pendingSettingsUndo: PendingSettingsUndo) {
-        mutablePendingSettingsUndo.value = pendingSettingsUndo
+    override suspend fun savePendingPaydayUndo(pendingPaydayUndo: PendingPaydayUndo) {
+        mutablePendingPaydayUndo.value = pendingPaydayUndo
     }
 
-    override suspend fun clearPendingSettingsUndo() {
-        mutablePendingSettingsUndo.value = null
+    override suspend fun clearPendingPaydayUndo() {
+        mutablePendingPaydayUndo.value = null
     }
 
     override suspend fun restoreFromSnapshot(settings: UserSettings, onboardingCompleted: Boolean) {
         mutableUserSettings.value = settings.copy(isOnboardingCompleted = onboardingCompleted)
-        mutablePendingSettingsUndo.value = null
+        mutablePendingPaydayUndo.value = null
     }
 }
 

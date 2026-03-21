@@ -3,10 +3,8 @@ package net.loeu.wallybudget.domain.model
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
 
-data class PendingSettingsUndo(
+data class PendingPaydayUndo(
     val previousSettings: UserSettings,
-    val bucketsToRestore: List<BudgetBucket> = emptyList(),
-    val bucketsToDeactivate: List<BudgetBucket> = emptyList(),
     val policiesToRestore: List<BudgetPolicy>,
     val policiesToDeactivate: List<BudgetPolicy>,
     val adjustmentsToRestore: List<BudgetAdjustment>,

@@ -71,6 +71,7 @@ fun AddExpenseSheet(
     bucketOptions: List<BudgetBucket> = emptyList(),
     initialBucketUuid: String? = null,
     initialBucketName: String? = null,
+    preserveInitialBucketSelection: Boolean = false,
     initialAmountCents: Long? = null,
     initialDescription: String = "",
     initialIcon: ExpenseCategory? = null
@@ -100,7 +101,7 @@ fun AddExpenseSheet(
             resolveInitialBucketUuid(
                 initialBucketUuid = initialBucketUuid,
                 bucketOptions = bucketOptions,
-                preserveInitialSelection = initialBucketName != null
+                preserveInitialSelection = preserveInitialBucketSelection
             )
         )
     }
@@ -108,7 +109,7 @@ fun AddExpenseSheet(
     var showIconPicker by remember { mutableStateOf(false) }
     var showBucketPicker by remember { mutableStateOf(false) }
     val resolvedBucketName = bucketOptions.firstOrNull { it.bucketUuid == selectedBucketUuid }?.name
-        ?: initialBucketName
+        ?: initialBucketName?.takeIf { preserveInitialBucketSelection }
         ?: "Select bucket"
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 

@@ -82,7 +82,7 @@ class UpdatePaydayUseCaseTest {
         assertEquals(listOf("2026-03-25", "2026-04-20"), activeBudgetAdjustments.map { it.cycleStartDate })
         assertEquals(listOf("2026-04-15", "2026-04-27"), activeBudgetAdjustments.map { it.effectiveDate })
 
-        val pendingUndo = settingsStore.pendingSettingsUndo.first()
+        val pendingUndo = settingsStore.pendingPaydayUndo.first()
         assertNotNull(pendingUndo)
         assertEquals(2, pendingUndo?.bucketPoliciesToDeactivate?.size)
         assertEquals(2, pendingUndo?.bucketAdjustmentsToDeactivate?.size)

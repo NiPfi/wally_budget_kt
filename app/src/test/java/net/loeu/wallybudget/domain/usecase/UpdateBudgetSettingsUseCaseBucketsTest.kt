@@ -59,7 +59,7 @@ class UpdateBudgetSettingsUseCaseBucketsTest {
                 adjustment.deletedAtEpochMs == null
         }
         assertTrue(!billsWasZeroed)
-        assertNull(fixture.settingsStore.pendingSettingsUndo.first())
+        assertNull(fixture.settingsStore.pendingPaydayUndo.first())
     }
 
     private fun createFixture(): BucketSaveFixture {

@@ -101,7 +101,7 @@ internal fun SnapshotExportCard(
 }
 
 @Composable
-internal fun UndoSettingsCard(
+internal fun UndoPaydayCard(
     expiresAtExclusive: LocalDate?,
     onUndoSettings: () -> Unit
 ) {
@@ -120,7 +120,7 @@ internal fun UndoSettingsCard(
             Text(
                 text = expiresAtExclusive?.let {
                     "You can restore the previous payday and cycle timing until $it."
-                } ?: "You can restore the previous payday for the rest of this cycle.",
+                } ?: "You can restore the previous payday and cycle timing for the rest of this cycle.",
                 style = MaterialTheme.typography.bodyMedium
             )
             Spacer(modifier = Modifier.height(12.dp))

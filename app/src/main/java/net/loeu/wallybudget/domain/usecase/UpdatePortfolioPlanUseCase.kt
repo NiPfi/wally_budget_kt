@@ -20,7 +20,6 @@ import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
-import net.loeu.wallybudget.domain.model.PendingSettingsUndo
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
@@ -88,13 +87,7 @@ class UpdatePortfolioPlanUseCase(
         userSettingsStore.updateMonthlyBudget(request.portfolioMonthlyBudgetCents)
         userSettingsStore.updatePortfolioMonthlyBudget(request.portfolioMonthlyBudgetCents)
         userSettingsStore.updateSelectedBucket(mutation.finalSelectedBucketUuid)
-        clearOrExpirePendingPaydayUndo(
-            updatedSettings = context.settings.copy(
-                monthlyBudgetCents = request.portfolioMonthlyBudgetCents,
-                portfolioMonthlyBudgetCents = request.portfolioMonthlyBudgetCents,
-                selectedBucketUuid = mutation.finalSelectedBucketUuid
-            )
-        )
+        invalidateOrExpirePendingPaydayUndo()
 
         val parts = buildList {
             if (budgetChanged) add("Portfolio budget updated.")
@@ -574,14 +567,15 @@ class UpdatePortfolioPlanUseCase(
             existingBucket.defaultAllocatedAmountCents != draft.defaultAllocatedAmountCents
     }
 
-    private suspend fun clearOrExpirePendingPaydayUndo(updatedSettings: UserSettings) {
-        val today = syncObservedDateUseCase(updatedSettings, currentDateProvider.currentDate())
-        val pendingUndo = userSettingsStore.pendingSettingsUndo.first() ?: return
+    private suspend fun invalidateOrExpirePendingPaydayUndo() {
+        val settings = userSettingsStore.ensureIdentity()
+        val today = syncObservedDateUseCase(settings, currentDateProvider.currentDate())
+        val pendingUndo = userSettingsStore.pendingPaydayUndo.first() ?: return
         if (!today.isBefore(pendingUndo.expiresAtExclusiveDate())) {
-            userSettingsStore.clearPendingSettingsUndo()
+            userSettingsStore.clearPendingPaydayUndo()
             return
         }
-        userSettingsStore.clearPendingSettingsUndo()
+        userSettingsStore.clearPendingPaydayUndo()
     }
 
     private fun normalizeBucketDrafts(

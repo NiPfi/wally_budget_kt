@@ -46,8 +46,8 @@ internal data class BudgetAppState(
     val snapshotStatusMessage: String?,
     val snapshotBusy: Boolean,
     val settingsStatusMessage: String?,
-    val isSettingsUndoAvailable: Boolean,
-    val settingsUndoExpiresAtExclusive: LocalDate?
+    val isPaydayUndoAvailable: Boolean,
+    val paydayUndoExpiresAtExclusive: LocalDate?
 )
 
 @Composable
@@ -77,7 +77,7 @@ internal fun rememberBudgetAppUiState(viewModel: BudgetViewModel): BudgetAppStat
     val snapshotStatusMessage by viewModel.snapshotStatusMessage.collectAsState()
     val snapshotBusy by viewModel.snapshotBusy.collectAsState()
     val settingsStatusMessage by viewModel.settingsStatusMessage.collectAsState()
-    val settingsUndoState by viewModel.settingsUndoState.collectAsState()
+    val paydayUndoState by viewModel.paydayUndoState.collectAsState()
 
     return BudgetAppState(
         isOnboardingCompleted = isOnboardingCompleted,
@@ -103,7 +103,7 @@ internal fun rememberBudgetAppUiState(viewModel: BudgetViewModel): BudgetAppStat
         snapshotStatusMessage = snapshotStatusMessage,
         snapshotBusy = snapshotBusy,
         settingsStatusMessage = settingsStatusMessage,
-        isSettingsUndoAvailable = settingsUndoState != null,
-        settingsUndoExpiresAtExclusive = settingsUndoState?.expiresAtExclusive
+        isPaydayUndoAvailable = paydayUndoState != null,
+        paydayUndoExpiresAtExclusive = paydayUndoState?.expiresAtExclusive
     )
 }

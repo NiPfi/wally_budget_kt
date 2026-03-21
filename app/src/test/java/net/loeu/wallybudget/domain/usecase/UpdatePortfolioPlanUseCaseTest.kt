@@ -5,7 +5,7 @@ import kotlinx.coroutines.runBlocking
 import net.loeu.wallybudget.data.local.entity.BucketAllocationPolicyEntity
 import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
 import net.loeu.wallybudget.data.local.entity.BudgetPolicyEntity
-import net.loeu.wallybudget.domain.model.PendingSettingsUndo
+import net.loeu.wallybudget.domain.model.PendingPaydayUndo
 import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
@@ -101,8 +101,8 @@ class UpdatePortfolioPlanUseCaseTest {
                 selectedBucketUuid = DEFAULT_SPENDING_BUCKET_UUID
             )
         )
-        settingsStore.savePendingSettingsUndo(
-            PendingSettingsUndo(
+        settingsStore.savePendingPaydayUndo(
+            PendingPaydayUndo(
                 previousSettings = settingsStore.currentSettings,
                 policiesToRestore = emptyList(),
                 policiesToDeactivate = emptyList(),
@@ -178,7 +178,7 @@ class UpdatePortfolioPlanUseCaseTest {
 
         useCase(UpdatePortfolioPlanRequest(portfolioMonthlyBudgetCents = 120_000L))
 
-        assertNull(settingsStore.pendingSettingsUndo.first())
+        assertNull(settingsStore.pendingPaydayUndo.first())
     }
 
     @Test

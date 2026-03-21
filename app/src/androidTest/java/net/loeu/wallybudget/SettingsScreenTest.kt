@@ -69,11 +69,13 @@ class SettingsScreenTest {
         setSettingsScreenContent(
             onSavePortfolioPlan = { _, _ -> },
             onUndoPaydayChange = { undoCalls += 1 },
-            isSettingsUndoAvailable = true,
-            settingsUndoExpiresAtExclusive = LocalDate.of(2026, 12, 25)
+            isPaydayUndoAvailable = true,
+            paydayUndoExpiresAtExclusive = LocalDate.of(2026, 12, 25)
         )
 
         composeRule.onNodeWithText("Payday change undo").assertIsDisplayed()
+        composeRule.onNodeWithText("You can restore the previous payday and cycle timing until 2026-12-25.")
+            .assertIsDisplayed()
         composeRule.onNodeWithTag("settings_undo_button").performClick()
 
         assertEquals(1, undoCalls)
@@ -83,8 +85,8 @@ class SettingsScreenTest {
         onSavePortfolioPlan: (Long, List<BucketDraft>) -> Unit = { _, _ -> },
         onSavePayday: (Int) -> Unit = {},
         onUndoPaydayChange: () -> Unit = {},
-        isSettingsUndoAvailable: Boolean = false,
-        settingsUndoExpiresAtExclusive: LocalDate? = null
+        isPaydayUndoAvailable: Boolean = false,
+        paydayUndoExpiresAtExclusive: LocalDate? = null
     ) {
         val allBuckets = listOf(
             BudgetBucket(
@@ -126,8 +128,8 @@ class SettingsScreenTest {
                     onSavePortfolioPlan = onSavePortfolioPlan,
                     onSavePayday = onSavePayday,
                     onUndoPaydayChange = onUndoPaydayChange,
-                    isSettingsUndoAvailable = isSettingsUndoAvailable,
-                    settingsUndoExpiresAtExclusive = settingsUndoExpiresAtExclusive,
+                    isPaydayUndoAvailable = isPaydayUndoAvailable,
+                    paydayUndoExpiresAtExclusive = paydayUndoExpiresAtExclusive,
                     onSettingsMessageConsumed = {},
                     onRequestExportSnapshot = {},
                     settingsMessage = null,

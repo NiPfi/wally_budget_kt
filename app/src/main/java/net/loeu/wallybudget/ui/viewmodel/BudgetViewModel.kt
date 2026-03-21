@@ -38,7 +38,7 @@ import net.loeu.wallybudget.domain.usecase.ApplyOnboardingRestoreUseCase
 import net.loeu.wallybudget.domain.usecase.AddExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.CompleteOnboardingUseCase
 import net.loeu.wallybudget.domain.usecase.ConcludePendingCycleUseCase
-import net.loeu.wallybudget.domain.usecase.ClearPendingSettingsUndoUseCase
+import net.loeu.wallybudget.domain.usecase.ClearPendingPaydayUndoUseCase
 import net.loeu.wallybudget.domain.usecase.DeleteExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.EnsureDefaultBucketStateUseCase
 import net.loeu.wallybudget.domain.usecase.EnsureBudgetPolicyHistoryUseCase
@@ -56,7 +56,7 @@ import net.loeu.wallybudget.domain.usecase.RestoreDeletedExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.SelectBucketUseCase
 import net.loeu.wallybudget.domain.usecase.SnapshotOperationException
 import net.loeu.wallybudget.domain.usecase.SyncObservedDateUseCase
-import net.loeu.wallybudget.domain.usecase.UndoBudgetSettingsChangeUseCase
+import net.loeu.wallybudget.domain.usecase.UndoPaydayChangeUseCase
 import net.loeu.wallybudget.domain.usecase.BucketDraft
 import net.loeu.wallybudget.domain.usecase.UpdatePaydayRequest
 import net.loeu.wallybudget.domain.usecase.UpdatePaydayUseCase
@@ -67,7 +67,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
-data class SettingsUndoState(
+data class PaydayUndoState(
     val expiresAtExclusive: LocalDate
 )
 
@@ -84,7 +84,7 @@ class BudgetViewModel(
     private val restoreDeletedExpenseUseCase: RestoreDeletedExpenseUseCase,
     private val updatePortfolioPlanUseCase: UpdatePortfolioPlanUseCase,
     private val updatePaydayUseCase: UpdatePaydayUseCase,
-    private val undoBudgetSettingsChangeUseCase: UndoBudgetSettingsChangeUseCase,
+    private val undoPaydayChangeUseCase: UndoPaydayChangeUseCase,
     private val completeOnboardingUseCase: CompleteOnboardingUseCase,
     private val performMonthlyResetUseCase: PerformMonthlyResetUseCase,
     private val concludePendingCycleUseCase: ConcludePendingCycleUseCase,
@@ -96,8 +96,8 @@ class BudgetViewModel(
     private val rebuildMonthlyHistoryUseCase: RebuildMonthlyHistoryUseCase,
     private val resolveMutationEffectiveDateUseCase: ResolveMutationEffectiveDateUseCase,
     private val selectBucketUseCase: SelectBucketUseCase,
-    private val clearPendingSettingsUndoUseCase: ClearPendingSettingsUndoUseCase,
-    pendingSettingsUndoFlow: Flow<net.loeu.wallybudget.domain.model.PendingSettingsUndo?>,
+    private val clearPendingPaydayUndoUseCase: ClearPendingPaydayUndoUseCase,
+    pendingPaydayUndoFlow: Flow<net.loeu.wallybudget.domain.model.PendingPaydayUndo?>,
     private val syncObservedDateUseCase: SyncObservedDateUseCase,
     private val currentDateProvider: CurrentDateProvider
 ) : ViewModel() {
@@ -249,8 +249,8 @@ class BudgetViewModel(
     val snapshotBusy = _snapshotBusy.asStateFlow()
     private val _settingsStatusMessage = MutableStateFlow<String?>(null)
     val settingsStatusMessage = _settingsStatusMessage.asStateFlow()
-    private val _settingsUndoState = MutableStateFlow<SettingsUndoState?>(null)
-    val settingsUndoState = _settingsUndoState.asStateFlow()
+    private val _paydayUndoState = MutableStateFlow<PaydayUndoState?>(null)
+    val paydayUndoState = _paydayUndoState.asStateFlow()
     private var preparedSnapshotImport: PreparedSnapshotImport? = null
 
     init {
@@ -270,16 +270,16 @@ class BudgetViewModel(
             }
         }
         viewModelScope.launch {
-            combine(pendingSettingsUndoFlow, effectiveCurrentDate) { pendingUndo, effectiveDate ->
+            combine(pendingPaydayUndoFlow, effectiveCurrentDate) { pendingUndo, effectiveDate ->
                 pendingUndo to effectiveDate
             }.collect { (pendingUndo, effectiveDate) ->
                 if (pendingUndo == null) {
-                    _settingsUndoState.value = null
+                    _paydayUndoState.value = null
                 } else if (!effectiveDate.isBefore(pendingUndo.expiresAtExclusiveDate())) {
-                    clearPendingSettingsUndoUseCase()
-                    _settingsUndoState.value = null
+                    clearPendingPaydayUndoUseCase()
+                    _paydayUndoState.value = null
                 } else {
-                    _settingsUndoState.value = SettingsUndoState(
+                    _paydayUndoState.value = PaydayUndoState(
                         expiresAtExclusive = pendingUndo.expiresAtExclusiveDate()
                     )
                 }
@@ -463,7 +463,7 @@ class BudgetViewModel(
 
     fun undoPaydayChange() {
         viewModelScope.launch {
-            val result = undoBudgetSettingsChangeUseCase()
+            val result = undoPaydayChangeUseCase()
             _settingsStatusMessage.value = result.summaryMessage
         }
     }

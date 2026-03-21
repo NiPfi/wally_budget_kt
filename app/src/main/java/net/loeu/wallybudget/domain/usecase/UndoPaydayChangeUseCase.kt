@@ -4,7 +4,6 @@ package net.loeu.wallybudget.domain.usecase
 
 import kotlinx.coroutines.flow.first
 import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
-import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
@@ -13,37 +12,35 @@ import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.domain.model.BudgetAdjustment
-import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BudgetPolicy
 import net.loeu.wallybudget.domain.model.BucketAllocationAdjustment
 import net.loeu.wallybudget.domain.model.BucketAllocationPolicy
 import java.time.LocalDate
 
-data class UndoBudgetSettingsChangeResult(
+data class UndoPaydayChangeResult(
     val summaryMessage: String
 )
 
-class UndoBudgetSettingsChangeUseCase(
+class UndoPaydayChangeUseCase(
     private val transactionRunner: TransactionRunner,
     private val userSettingsStore: UserSettingsStore,
     private val budgetPolicyDao: BudgetPolicyDao,
     private val budgetAdjustmentDao: BudgetAdjustmentDao,
-    private val budgetBucketDao: BudgetBucketDao,
     private val bucketAllocationPolicyDao: BucketAllocationPolicyDao,
     private val bucketAllocationAdjustmentDao: BucketAllocationAdjustmentDao,
     private val currentDateProvider: CurrentDateProvider
 ) {
     private val syncObservedDateUseCase = SyncObservedDateUseCase(userSettingsStore)
 
-    suspend operator fun invoke(): UndoBudgetSettingsChangeResult {
+    suspend operator fun invoke(): UndoPaydayChangeResult {
         val settings = userSettingsStore.ensureIdentity()
         val today = syncObservedDateUseCase(settings, currentDateProvider.currentDate())
-        val pendingUndo = userSettingsStore.pendingSettingsUndo.first()
+        val pendingUndo = userSettingsStore.pendingPaydayUndo.first()
         val earlyResult = when {
-            pendingUndo == null -> UndoBudgetSettingsChangeResult("No payday change to undo.")
+            pendingUndo == null -> UndoPaydayChangeResult("No payday change to undo.")
             !today.isBefore(pendingUndo.expiresAtExclusiveDate()) -> {
-                userSettingsStore.clearPendingSettingsUndo()
-                UndoBudgetSettingsChangeResult("Payday change undo expired.")
+                userSettingsStore.clearPendingPaydayUndo()
+                UndoPaydayChangeResult("Payday change undo expired.")
             }
             else -> null
         }
@@ -57,8 +54,6 @@ class UndoBudgetSettingsChangeUseCase(
             pendingUndo.policiesToRestore.forEach { restorePolicy(it) }
             pendingUndo.adjustmentsToDeactivate.forEach { deactivateInsertedAdjustment(it) }
             pendingUndo.adjustmentsToRestore.forEach { restoreAdjustment(it) }
-            pendingUndo.bucketsToDeactivate.forEach { deactivateInsertedBucket(it) }
-            pendingUndo.bucketsToRestore.forEach { restoreBucket(it) }
             pendingUndo.bucketPoliciesToDeactivate.forEach { deactivateInsertedBucketPolicy(it) }
             pendingUndo.bucketPoliciesToRestore.forEach { restoreBucketPolicy(it) }
             pendingUndo.bucketAdjustmentsToDeactivate.forEach { deactivateInsertedBucketAdjustment(it) }
@@ -68,8 +63,8 @@ class UndoBudgetSettingsChangeUseCase(
             settings = pendingUndo.previousSettings,
             onboardingCompleted = pendingUndo.previousSettings.isOnboardingCompleted
         )
-        userSettingsStore.clearPendingSettingsUndo()
-        return UndoBudgetSettingsChangeResult("Restored the previous payday and cycle timing.")
+        userSettingsStore.clearPendingPaydayUndo()
+        return UndoPaydayChangeResult("Restored the previous payday and cycle timing.")
     }
 
     private suspend fun deactivateInsertedPolicy(policy: BudgetPolicy) {
@@ -107,21 +102,6 @@ class UndoBudgetSettingsChangeUseCase(
             budgetAdjustmentDao.insert(adjustment.toEntity())
         } else {
             budgetAdjustmentDao.update(adjustment.toEntity(id = entity.id))
-        }
-    }
-
-    private suspend fun deactivateInsertedBucket(bucket: BudgetBucket) {
-        val entity = budgetBucketDao.findByBucketUuid(bucket.bucketUuid) ?: return
-        if (entity.deletedAtEpochMs != null) return
-        budgetBucketDao.update(entity.copy(deletedAtEpochMs = entity.updatedAtEpochMs))
-    }
-
-    private suspend fun restoreBucket(bucket: BudgetBucket) {
-        val entity = budgetBucketDao.findByBucketUuid(bucket.bucketUuid)
-        if (entity == null) {
-            budgetBucketDao.insert(bucket.toEntity())
-        } else {
-            budgetBucketDao.update(bucket.toEntity(id = entity.id))
         }
     }
 
