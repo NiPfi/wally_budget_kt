@@ -424,29 +424,39 @@ private fun PortfolioSummaryCard(
 
     TopSummaryCard(
         title = "Portfolio",
-        amountText = CurrencyFormatter.formatSigned(activeBucketRemainingCents),
-        subtitleText = "Left in this cycle • $cycleLabel",
+        amountText = CurrencyFormatter.formatSigned(portfolioState.remainingThisCycleCents),
+        subtitleText = "Portfolio remaining this cycle • $cycleLabel",
         collapseProgress = collapseProgress,
-        useWarningTint = activeBucketRemainingCents < 0L,
+        useWarningTint = portfolioState.remainingThisCycleCents < 0L,
         onNavigateToAnalysis = null,
         onNavigateToSettings = onNavigateToSettings
     ) { contentColor, progress ->
-        CollapsingMetricsRow(visibilityProgress = (1f - progress * 1.15f).coerceIn(0f, 1f)) {
-            SummaryMetricColumn(
-                label = "Allocated",
-                value = CurrencyFormatter.format(portfolioState.allocatedToBucketsCents),
-                contentColor = contentColor
-            )
-            SummaryMetricColumn(
-                label = "Spent",
-                value = CurrencyFormatter.format(portfolioState.totalSpentThisCycleCents),
-                contentColor = contentColor
-            )
-            SummaryMetricColumn(
-                label = "Unassigned",
-                value = CurrencyFormatter.format(portfolioState.unassignedPlannedBudgetCents),
-                contentColor = contentColor
-            )
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            CollapsingMetricsRow(visibilityProgress = (1f - progress * 1.15f).coerceIn(0f, 1f)) {
+                SummaryMetricColumn(
+                    label = "Allocated",
+                    value = CurrencyFormatter.format(portfolioState.allocatedToBucketsCents),
+                    contentColor = contentColor
+                )
+                SummaryMetricColumn(
+                    label = "Spent",
+                    value = CurrencyFormatter.format(portfolioState.totalSpentThisCycleCents),
+                    contentColor = contentColor
+                )
+                SummaryMetricColumn(
+                    label = "Buckets left",
+                    value = CurrencyFormatter.formatSigned(activeBucketRemainingCents),
+                    contentColor = contentColor
+                )
+            }
+            if (portfolioState.unassignedPlannedBudgetCents > 0L) {
+                Text(
+                    text = "Includes ${CurrencyFormatter.format(portfolioState.unassignedPlannedBudgetCents)} " +
+                        "unassigned plan",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = contentColor.copy(alpha = 0.72f)
+                )
+            }
         }
     }
 }
@@ -495,7 +505,7 @@ private fun PortfolioReserveSection(
     ) {
         SectionHeading("Portfolio reserve")
         Text(
-            text = "Accumulated reserve across completed cycles plus this cycle's overall portfolio budget delta.",
+            text = "Reserve carried across completed cycles, plus the portfolio-wide result for the current cycle.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
