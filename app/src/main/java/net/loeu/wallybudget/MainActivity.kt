@@ -172,6 +172,7 @@ fun BudgetApp(
             val shellContent: @Composable () -> Unit = {
                 MainNavigationShell(
                     bucketSummaries = displayBucketSummaries,
+                    portfolioState = displayPortfolioState,
                     selectedBucketOverview = displaySelectedBucketOverview,
                     allBuckets = displayAllBuckets,
                     effectiveCurrentDate = appState.effectiveCurrentDate,
@@ -217,6 +218,7 @@ fun BudgetApp(
 @Composable
 private fun MainNavigationShell(
     bucketSummaries: List<BucketSummaryState>,
+    portfolioState: PortfolioState,
     selectedBucketOverview: SelectedBucketOverview,
     allBuckets: List<BudgetBucket>,
     effectiveCurrentDate: LocalDate,
@@ -266,6 +268,7 @@ private fun MainNavigationShell(
         MainNavigationHost(
             navController = navController,
             bucketSummaries = bucketSummaries,
+            portfolioState = portfolioState,
             selectedBucketOverview = selectedBucketOverview,
             allBuckets = allBuckets,
             effectiveCurrentDate = effectiveCurrentDate,
@@ -410,6 +413,7 @@ private fun NavHostController.navigateToTopLevel(screen: Screen) {
 private fun MainNavigationHost(
     navController: NavHostController,
     bucketSummaries: List<BucketSummaryState>,
+    portfolioState: PortfolioState,
     selectedBucketOverview: SelectedBucketOverview,
     allBuckets: List<BudgetBucket>,
     effectiveCurrentDate: LocalDate,
@@ -471,6 +475,7 @@ private fun MainNavigationHost(
         )
         addPortfolioDestination(
             navController = navController,
+            portfolioState = portfolioState,
             bucketSummaries = bucketSummaries,
             allBuckets = allBuckets,
             userSettings = userSettings,

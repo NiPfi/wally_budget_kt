@@ -167,14 +167,16 @@ internal fun SummaryCardBody(
 }
 
 @Composable
-internal fun MergedSummaryHeaderSurface(
+internal fun SummaryHeaderSurface(
     title: String,
     summaryColors: SummaryCardColors,
     modifier: Modifier = Modifier,
     headerHorizontalPadding: androidx.compose.ui.unit.Dp = 14.dp,
+    headerTopPadding: androidx.compose.ui.unit.Dp = 7.dp,
     headerBottomPadding: androidx.compose.ui.unit.Dp = 2.dp,
     onNavigateToAnalysis: (() -> Unit)? = null,
     onNavigateToSettings: (() -> Unit)? = null,
+    applyStatusBarsPadding: Boolean = true,
     headerRowTestTag: String? = null,
     titleTestTag: String? = null,
     analysisTestTag: String? = null,
@@ -189,13 +191,15 @@ internal fun MergedSummaryHeaderSurface(
         shape = FlatSummaryCardShape
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            MergedSummaryHeaderRow(
+            SummaryHeaderRow(
                 title = title,
                 contentColor = summaryColors.content,
                 horizontalPadding = headerHorizontalPadding,
+                topPadding = headerTopPadding,
                 bottomPadding = headerBottomPadding,
                 onNavigateToAnalysis = onNavigateToAnalysis,
                 onNavigateToSettings = onNavigateToSettings,
+                applyStatusBarsPadding = applyStatusBarsPadding,
                 modifier = Modifier.fillMaxWidth(),
                 rowTestTag = headerRowTestTag,
                 titleTestTag = titleTestTag,
@@ -208,13 +212,49 @@ internal fun MergedSummaryHeaderSurface(
 }
 
 @Composable
-internal fun MergedSummaryHeaderRow(
+internal fun MergedSummaryHeaderSurface(
+    title: String,
+    summaryColors: SummaryCardColors,
+    modifier: Modifier = Modifier,
+    headerHorizontalPadding: androidx.compose.ui.unit.Dp = 14.dp,
+    headerTopPadding: androidx.compose.ui.unit.Dp = 7.dp,
+    headerBottomPadding: androidx.compose.ui.unit.Dp = 2.dp,
+    onNavigateToAnalysis: (() -> Unit)? = null,
+    onNavigateToSettings: (() -> Unit)? = null,
+    headerRowTestTag: String? = null,
+    titleTestTag: String? = null,
+    analysisTestTag: String? = null,
+    settingsTestTag: String? = null,
+    body: @Composable () -> Unit
+) {
+    SummaryHeaderSurface(
+        title = title,
+        summaryColors = summaryColors,
+        modifier = modifier,
+        headerHorizontalPadding = headerHorizontalPadding,
+        headerTopPadding = headerTopPadding,
+        headerBottomPadding = headerBottomPadding,
+        onNavigateToAnalysis = onNavigateToAnalysis,
+        onNavigateToSettings = onNavigateToSettings,
+        applyStatusBarsPadding = true,
+        headerRowTestTag = headerRowTestTag,
+        titleTestTag = titleTestTag,
+        analysisTestTag = analysisTestTag,
+        settingsTestTag = settingsTestTag,
+        body = body
+    )
+}
+
+@Composable
+internal fun SummaryHeaderRow(
     title: String,
     contentColor: Color,
     horizontalPadding: androidx.compose.ui.unit.Dp,
+    topPadding: androidx.compose.ui.unit.Dp,
     bottomPadding: androidx.compose.ui.unit.Dp,
     onNavigateToAnalysis: (() -> Unit)?,
     onNavigateToSettings: (() -> Unit)?,
+    applyStatusBarsPadding: Boolean,
     modifier: Modifier = Modifier,
     rowTestTag: String? = null,
     titleTestTag: String? = null,
@@ -224,8 +264,8 @@ internal fun MergedSummaryHeaderRow(
     Box(
         modifier = modifier
             .then(if (rowTestTag != null) Modifier.testTag(rowTestTag) else Modifier)
-            .statusBarsPadding()
-            .padding(start = horizontalPadding, top = 7.dp, end = horizontalPadding, bottom = bottomPadding)
+            .then(if (applyStatusBarsPadding) Modifier.statusBarsPadding() else Modifier)
+            .padding(start = horizontalPadding, top = topPadding, end = horizontalPadding, bottom = bottomPadding)
     ) {
         Text(
             text = title,
