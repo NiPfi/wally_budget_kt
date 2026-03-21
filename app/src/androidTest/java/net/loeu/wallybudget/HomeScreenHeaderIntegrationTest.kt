@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -19,6 +20,7 @@ import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketSummaryState
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.SelectedBucketOverview
+import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.ui.screens.home.HomeScreen
 import net.loeu.wallybudget.ui.theme.WallyBudgetTheme
@@ -92,6 +94,58 @@ class HomeScreenHeaderIntegrationTest {
         composeRule.onNodeWithText("Bucket settings").assertIsDisplayed()
     }
 
+    @Test
+    fun home_screen_bucket_switch_loading_uses_placeholders_instead_of_loading_text() {
+        composeRule.setContent {
+            val bucketSummaries = remember {
+                listOf(
+                    testBucketSummary("bucket-1", "Groceries", trackingMode = BucketTrackingMode.DAILY_TARGET),
+                    testBucketSummary("bucket-2", "Travel", trackingMode = BucketTrackingMode.DAILY_TARGET)
+                )
+            }
+
+            WallyBudgetTheme {
+                HomeScreen(
+                    bucketSummaries = bucketSummaries,
+                    selectedBucketOverview = selectedBucketOverview(
+                        bucketSummaries = bucketSummaries,
+                        bucketUuid = "bucket-1"
+                    ),
+                    allBuckets = bucketSummaries.map { it.bucket },
+                    userSettings = UserSettings(
+                        monthlyBudgetCents = 250_000L,
+                        portfolioMonthlyBudgetCents = 250_000L,
+                        paydayDate = 1,
+                        selectedBucketUuid = "bucket-1"
+                    ),
+                    currentDate = LocalDate.of(2026, 3, 7),
+                    spendingForecast = SpendingForecast(),
+                    onSelectBucket = {},
+                    onSavePortfolioPlan = { _, _ -> },
+                    onAddExpense = { _, _, _, _, _ -> },
+                    onRestoreExpense = {},
+                    onUpdateExpense = {},
+                    onDeleteExpense = {},
+                    onNavigateToAnalysis = {},
+                    showTopRightSettingsAction = true,
+                    showAddExpenseSheet = false,
+                    onShowAddExpenseSheet = {},
+                    onHideAddExpenseSheet = {},
+                    settingsMessage = null,
+                    onSettingsMessageConsumed = {}
+                )
+            }
+        }
+
+        composeRule.onRoot().performTouchInput {
+            swipeLeft()
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Loading Travel…").assertDoesNotExist()
+        composeRule.onNodeWithTag("home_today_expenses_section").assertIsDisplayed()
+    }
+
     private fun selectedBucketOverview(
         bucketSummaries: List<BucketSummaryState>,
         bucketUuid: String
@@ -107,11 +161,15 @@ class HomeScreenHeaderIntegrationTest {
         )
     }
 
-    private fun testBucketSummary(bucketUuid: String, name: String) = BucketSummaryState(
+    private fun testBucketSummary(
+        bucketUuid: String,
+        name: String,
+        trackingMode: BucketTrackingMode = BucketTrackingMode.CYCLE_RESERVE
+    ) = BucketSummaryState(
         bucket = BudgetBucket(
             bucketUuid = bucketUuid,
             name = name,
-            trackingMode = BucketTrackingMode.CYCLE_RESERVE,
+            trackingMode = trackingMode,
             balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
             defaultAllocatedAmountCents = 50_000L,
             sortOrder = if (bucketUuid == "bucket-1") 1 else 2,
@@ -126,6 +184,18 @@ class HomeScreenHeaderIntegrationTest {
         remainingThisCycleCents = 37_500L,
         overspentCents = 0L,
         earmarkedBalanceCents = 0L,
-        budgetState = null
+        budgetState = testBudgetState()
+    )
+
+    private fun testBudgetState() = net.loeu.wallybudget.domain.model.BudgetState(
+        monthlyBudgetCents = 50_000L,
+        totalSpentThisCycleCents = 12_500L,
+        dailyBudgetCents = 2_500L,
+        spentTodayCents = 500L,
+        remainingTodayCents = 2_000L,
+        daysRemainingInCycle = 12,
+        cumulativeSavingsCents = 0L,
+        paydayDate = 1,
+        cycleStartDate = LocalDate.of(2026, 3, 1)
     )
 }

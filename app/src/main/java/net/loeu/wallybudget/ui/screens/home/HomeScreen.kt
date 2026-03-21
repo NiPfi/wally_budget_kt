@@ -53,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -85,9 +86,11 @@ import net.loeu.wallybudget.ui.components.TimelineLockBanner
 import net.loeu.wallybudget.ui.screens.expenses.ExpenseItem
 import net.loeu.wallybudget.ui.screens.overview.CollapsingSummaryLayout
 import net.loeu.wallybudget.ui.screens.overview.CollapsingSummaryLayoutConfig
+import net.loeu.wallybudget.ui.screens.overview.LoadingValuePlaceholder
 import net.loeu.wallybudget.ui.screens.overview.LocalCollapsingHeaderIsForMeasurement
 import net.loeu.wallybudget.ui.screens.overview.MergedSummaryHeaderSurface
 import net.loeu.wallybudget.ui.screens.overview.OverviewPage
+import net.loeu.wallybudget.ui.screens.overview.PlaceholderShimmerProvider
 import net.loeu.wallybudget.ui.screens.overview.rememberOverviewPageLayoutState
 import net.loeu.wallybudget.ui.screens.overview.summaryCardColors
 import net.loeu.wallybudget.ui.screens.settings.SettingsSaveEffect
@@ -552,32 +555,51 @@ private fun BucketHomePage(
     modifier: Modifier = Modifier
 ) {
     if (selectedBucketOverview.bucket.bucketUuid != bucketUuid) {
-        Column(modifier = modifier.fillMaxSize()) {
-            pageSummary?.let { summary ->
-                ReserveSummaryCard(
-                    selectedBucketOverview = SelectedBucketOverview(
-                        bucket = summary.bucket,
-                        summary = summary,
-                        budgetState = summary.budgetState,
-                        todayExpenses = emptyList(),
-                        activeCycleExpenseSections = emptyList(),
-                        spendingForecast = null
-                    ),
-                    collapseProgress = 0f,
-                    onNavigateToAnalysis = onNavigateToAnalysis,
-                    onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
-                contentAlignment = Alignment.TopStart
+        val placeholderOverview = pageSummary?.let { summary ->
+            SelectedBucketOverview(
+                bucket = summary.bucket,
+                summary = summary,
+                budgetState = summary.budgetState,
+                todayExpenses = emptyList(),
+                activeCycleExpenseSections = emptyList(),
+                spendingForecast = null
+            )
+        }
+        val placeholderBudgetState = placeholderOverview?.budgetState
+            ?: placeholderOverview?.summary?.budgetState
+            ?: selectedBucketOverview.budgetState
+            ?: selectedBucketOverview.summary.budgetState
+
+        PlaceholderShimmerProvider {
+            if (
+                placeholderOverview != null &&
+                placeholderOverview.bucket.trackingMode == BucketTrackingMode.DAILY_TARGET &&
+                placeholderBudgetState != null
             ) {
-                Text(
-                    text = "Loading $pageTitle…",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                OverviewPage(
+                    modifier = modifier.fillMaxSize(),
+                    budgetState = placeholderBudgetState,
+                    todayExpenses = emptyList(),
+                    activeCycleExpenseSections = emptyList(),
+                    spendingForecast = SpendingForecast(),
+                    onEditTodayExpense = null,
+                    isLoading = true,
+                    headerTitle = pageTitle,
+                    headerAnalysisAction = onNavigateToAnalysis,
+                    headerSettingsAction = if (showTopRightSettingsAction) onNavigateToSettings else null,
+                    onNavigateToSettings = null,
+                    enableHeaderCollapse = true,
+                    defaultCollapsedHeader = false,
+                    bottomContentPadding = HomeFabSize + HomeFabListClearance + 16.dp
+                )
+            } else {
+                ReserveBucketLoadingPage(
+                    selectedBucketOverview = placeholderOverview ?: selectedBucketOverview,
+                    pageTitle = pageTitle,
+                    onNavigateToAnalysis = onNavigateToAnalysis,
+                    showTopRightSettingsAction = showTopRightSettingsAction,
+                    onNavigateToSettings = onNavigateToSettings,
+                    modifier = modifier
                 )
             }
         }
@@ -648,6 +670,73 @@ private fun BucketHomePage(
                             onEditExpense = onEditExpense
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReserveBucketLoadingPage(
+    selectedBucketOverview: SelectedBucketOverview,
+    pageTitle: String,
+    onNavigateToAnalysis: (() -> Unit)?,
+    showTopRightSettingsAction: Boolean,
+    onNavigateToSettings: (() -> Unit)?,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxSize()) {
+        ReserveSummaryCard(
+            selectedBucketOverview = selectedBucketOverview,
+            collapseProgress = 0f,
+            onNavigateToAnalysis = onNavigateToAnalysis,
+            onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            ReserveLoadingSection(
+                title = "$pageTitle details",
+                rows = listOf("$8,888", "$888", "$88")
+            )
+            ReserveLoadingSection(
+                title = "Recent activity",
+                rows = listOf("Groceries", "Lunch with team", "Coffee")
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReserveLoadingSection(
+    title: String,
+    rows: List<String>
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        LoadingValuePlaceholder(
+            sampleText = title,
+            textStyle = MaterialTheme.typography.titleLarge,
+            textAlign = TextAlign.Start
+        )
+        rows.forEachIndexed { index, sampleText ->
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                LoadingValuePlaceholder(
+                    sampleText = sampleText,
+                    textStyle = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Start,
+                    fillWidth = index == rows.lastIndex
+                )
+                if (index != rows.lastIndex) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
         }
