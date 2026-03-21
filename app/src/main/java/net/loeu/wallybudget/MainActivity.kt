@@ -79,6 +79,17 @@ import net.loeu.wallybudget.domain.model.recordedDate
 
 private const val BUCKETS_NAVIGATION_LABEL = "Buckets"
 
+internal fun shouldShowNavigationChrome(
+    currentRoute: String?,
+    usesVerticalNavigation: Boolean
+): Boolean {
+    return when (currentRoute) {
+        Screen.Analysis.route -> false
+        Screen.Settings.route -> usesVerticalNavigation
+        else -> true
+    }
+}
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -252,7 +263,6 @@ private fun MainNavigationShell(
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val showNavigationChrome = currentRoute != Screen.Analysis.route
     val navigationLayoutType = mainNavigationLayoutType()
     val usesVerticalNavigation = when (navigationLayoutType) {
         NavigationSuiteType.NavigationRail,
@@ -261,6 +271,10 @@ private fun MainNavigationShell(
         NavigationSuiteType.WideNavigationRailExpanded -> true
         else -> false
     }
+    val showNavigationChrome = shouldShowNavigationChrome(
+        currentRoute = currentRoute,
+        usesVerticalNavigation = usesVerticalNavigation
+    )
 
     val content: @Composable () -> Unit = {
         MainNavigationHost(
