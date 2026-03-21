@@ -8,9 +8,12 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import net.loeu.wallybudget.domain.model.BudgetChangeMode
-import net.loeu.wallybudget.domain.model.BudgetState
+import net.loeu.wallybudget.domain.model.BudgetBucket
+import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
+import net.loeu.wallybudget.domain.model.BucketSummaryState
+import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.UserSettings
+import net.loeu.wallybudget.domain.usecase.BucketDraft
 import net.loeu.wallybudget.ui.screens.settings.SettingsScreen
 import net.loeu.wallybudget.ui.theme.WallyBudgetTheme
 import org.junit.Assert.assertEquals
@@ -26,62 +29,91 @@ class SettingsScreenTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun settings_screen_budget_change_saves_immediately_with_proration() {
-        val saveCalls = mutableListOf<Triple<Long, Int, BudgetChangeMode>>()
+    fun settings_screen_portfolio_plan_save_updates_budget_only() {
+        val saveCalls = mutableListOf<Pair<Long, List<BucketDraft>>>()
 
         setSettingsScreenContent(
-            onSaveSettings = { budgetCents, paydayDate, mode ->
-                saveCalls += Triple(budgetCents, paydayDate, mode)
+            onSavePortfolioPlan = { budgetCents, buckets ->
+                saveCalls += budgetCents to buckets
             }
         )
 
         composeRule.onNodeWithTag("settings_budget_input").performTextReplacement("1200.00")
-        composeRule.onNodeWithTag("settings_save_button").performClick()
+        composeRule.onNodeWithTag("settings_plan_save_button").performClick()
 
         assertEquals(1, saveCalls.size)
-        assertEquals(Triple(120_000L, 25, BudgetChangeMode.PRORATE_CURRENT_CYCLE), saveCalls.single())
+        assertEquals(120_000L, saveCalls.single().first)
     }
 
     @Test
-    fun settings_screen_payday_only_change_saves_immediately() {
-        val saveCalls = mutableListOf<Triple<Long, Int, BudgetChangeMode>>()
+    fun settings_screen_payday_only_change_saves_separately() {
+        val saveCalls = mutableListOf<Int>()
 
         setSettingsScreenContent(
-            onSaveSettings = { budgetCents, paydayDate, mode ->
-                saveCalls += Triple(budgetCents, paydayDate, mode)
+            onSavePayday = { paydayDate ->
+                saveCalls += paydayDate
             }
         )
 
         composeRule.onNodeWithTag("settings_payday_input").performTextReplacement("1")
-        composeRule.onNodeWithTag("settings_save_button").performClick()
+        composeRule.onNodeWithTag("settings_payday_save_button").performClick()
 
         assertEquals(1, saveCalls.size)
-        assertEquals(Triple(100_000L, 1, BudgetChangeMode.PRORATE_CURRENT_CYCLE), saveCalls.single())
+        assertEquals(1, saveCalls.single())
     }
 
     @Test
-    fun settings_screen_shows_undo_action_when_available() {
+    fun settings_screen_shows_payday_undo_action_when_available() {
         var undoCalls = 0
 
         setSettingsScreenContent(
-            onSaveSettings = { _, _, _ -> },
-            onUndoSettings = { undoCalls += 1 },
-            isSettingsUndoAvailable = true,
-            settingsUndoExpiresAtExclusive = LocalDate.of(2026, 12, 25)
+            onSavePortfolioPlan = { _, _ -> },
+            onUndoPaydayChange = { undoCalls += 1 },
+            isPaydayUndoAvailable = true,
+            paydayUndoExpiresAtExclusive = LocalDate.of(2026, 12, 25)
         )
 
-        composeRule.onNodeWithText("Cycle default available").assertIsDisplayed()
+        composeRule.onNodeWithText("Payday change undo").assertIsDisplayed()
+        composeRule.onNodeWithText("You can restore the previous payday and cycle timing until 2026-12-25.")
+            .assertIsDisplayed()
         composeRule.onNodeWithTag("settings_undo_button").performClick()
 
         assertEquals(1, undoCalls)
     }
 
     private fun setSettingsScreenContent(
-        onSaveSettings: (Long, Int, BudgetChangeMode) -> Unit,
-        onUndoSettings: () -> Unit = {},
-        isSettingsUndoAvailable: Boolean = false,
-        settingsUndoExpiresAtExclusive: LocalDate? = null
+        onSavePortfolioPlan: (Long, List<BucketDraft>) -> Unit = { _, _ -> },
+        onSavePayday: (Int) -> Unit = {},
+        onUndoPaydayChange: () -> Unit = {},
+        isPaydayUndoAvailable: Boolean = false,
+        paydayUndoExpiresAtExclusive: LocalDate? = null
     ) {
+        val allBuckets = listOf(
+            BudgetBucket(
+                bucketUuid = "bucket-1",
+                name = "Groceries",
+                trackingMode = BucketTrackingMode.CYCLE_RESERVE,
+                balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
+                defaultAllocatedAmountCents = 100_000L,
+                sortOrder = 0,
+                isPrimary = true,
+                originInstallId = "test-install",
+                lastModifiedByInstallId = "test-install",
+                createdAtEpochMs = 1L,
+                updatedAtEpochMs = 1L,
+                modClock = "clock-1"
+            )
+        )
+        val bucketSummaries = listOf(
+            BucketSummaryState(
+                bucket = allBuckets.single(),
+                allocatedThisCycleCents = 100_000L,
+                spentThisCycleCents = 40_000L,
+                remainingThisCycleCents = 60_000L,
+                overspentCents = 0L,
+                earmarkedBalanceCents = 0L
+            )
+        )
         composeRule.setContent {
             WallyBudgetTheme {
                 SettingsScreen(
@@ -90,22 +122,14 @@ class SettingsScreenTest {
                         paydayDate = 25,
                         isOnboardingCompleted = true
                     ),
-                    budgetState = BudgetState(
-                        monthlyBudgetCents = 100_000L,
-                        totalSpentThisCycleCents = 40_000L,
-                        dailyBudgetCents = 3_750L,
-                        spentTodayCents = 1_250L,
-                        remainingTodayCents = 2_500L,
-                        daysRemainingInCycle = 21,
-                        cumulativeSavingsCents = 8_000L,
-                        paydayDate = 25,
-                        cycleStartDate = LocalDate.of(2026, 11, 25)
-                    ),
+                    allBuckets = allBuckets,
+                    bucketSummaries = bucketSummaries,
                     currentDate = LocalDate.of(2026, 12, 4),
-                    onSaveSettings = onSaveSettings,
-                    onUndoSettings = onUndoSettings,
-                    isSettingsUndoAvailable = isSettingsUndoAvailable,
-                    settingsUndoExpiresAtExclusive = settingsUndoExpiresAtExclusive,
+                    onSavePortfolioPlan = onSavePortfolioPlan,
+                    onSavePayday = onSavePayday,
+                    onUndoPaydayChange = onUndoPaydayChange,
+                    isPaydayUndoAvailable = isPaydayUndoAvailable,
+                    paydayUndoExpiresAtExclusive = paydayUndoExpiresAtExclusive,
                     onSettingsMessageConsumed = {},
                     onRequestExportSnapshot = {},
                     settingsMessage = null,

@@ -1,3 +1,5 @@
+@file:Suppress("LongMethod", "MaxLineLength")
+
 package net.loeu.wallybudget.ui.screens.analysis
 
 import androidx.compose.foundation.background
@@ -6,10 +8,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,12 +45,13 @@ import net.loeu.wallybudget.ui.screens.overview.LoadingValuePlaceholder
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun AnalysisScreen(
-    budgetState: BudgetState,
-    spendingForecast: SpendingForecast,
+    budgetState: BudgetState?,
+    spendingForecast: SpendingForecast?,
     monthlyHistory: List<MonthlyHistory>,
     timelineLockReason: String?,
     isLoading: Boolean,
     modifier: Modifier = Modifier,
+    onNavigateBack: (() -> Unit)? = null,
     onNavigateToSettings: (() -> Unit)? = null
 ) {
     val isWideLayout = currentWindowAdaptiveInfo()
@@ -62,8 +67,8 @@ fun AnalysisScreen(
     ) {
         if (!isLoading) {
             AnalysisSnapshotFactory.create(
-                budgetState = budgetState,
-                spendingForecast = spendingForecast,
+                budgetState = requireNotNull(budgetState),
+                spendingForecast = requireNotNull(spendingForecast),
                 monthlyHistory = monthlyHistory,
                 timelineLockReason = timelineLockReason
             )
@@ -80,7 +85,7 @@ fun AnalysisScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            HeaderRow(onNavigateToSettings = onNavigateToSettings)
+            HeaderRow(onNavigateBack = onNavigateBack, onNavigateToSettings = onNavigateToSettings)
         }
 
         timelineLockReason?.let { reason ->
@@ -109,33 +114,51 @@ fun AnalysisScreen(
 
 @Composable
 private fun HeaderRow(
+    onNavigateBack: (() -> Unit)?,
     onNavigateToSettings: (() -> Unit)?
 ) {
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = "Analysis",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Black
-            )
-            Text(
-                text = "Verdict, evidence, and next steps from your current budget signals.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        if (onNavigateToSettings != null) {
-            IconButton(onClick = onNavigateToSettings) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_settings),
-                    contentDescription = "Open settings"
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (onNavigateBack != null) {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_arrow_back),
+                            contentDescription = "Go back"
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+                Text(
+                    text = "Analysis",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Black
                 )
             }
+            if (onNavigateToSettings != null) {
+                IconButton(onClick = onNavigateToSettings) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_settings),
+                        contentDescription = "Open settings"
+                    )
+                }
+            }
         }
+        Text(
+            text = "Verdict, evidence, and next steps from your current budget signals.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

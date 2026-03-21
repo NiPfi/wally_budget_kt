@@ -2,6 +2,9 @@ package net.loeu.wallybudget.domain.usecase
 
 import android.net.Uri
 import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
+import net.loeu.wallybudget.data.local.dao.BucketAllocationAdjustmentDao
+import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
+import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
@@ -12,6 +15,9 @@ import net.loeu.wallybudget.data.snapshot.SnapshotHasher
 import net.loeu.wallybudget.data.snapshot.SnapshotJsonCodec
 import net.loeu.wallybudget.data.snapshot.model.SnapshotBudgetPolicyRecordV1
 import net.loeu.wallybudget.data.snapshot.model.SnapshotBudgetAdjustmentRecordV2
+import net.loeu.wallybudget.data.snapshot.model.SnapshotBudgetBucketRecordV3
+import net.loeu.wallybudget.data.snapshot.model.SnapshotBucketAllocationAdjustmentRecordV3
+import net.loeu.wallybudget.data.snapshot.model.SnapshotBucketAllocationPolicyRecordV3
 import net.loeu.wallybudget.data.snapshot.model.SnapshotEnvelopeV1
 import net.loeu.wallybudget.data.snapshot.model.SnapshotExpenseRecordV1
 import net.loeu.wallybudget.data.snapshot.model.SnapshotSettingsRecordV1
@@ -27,6 +33,9 @@ class ExportSnapshotUseCase(
     private val expenseDao: ExpenseDao,
     private val budgetPolicyDao: BudgetPolicyDao,
     private val budgetAdjustmentDao: BudgetAdjustmentDao,
+    private val budgetBucketDao: BudgetBucketDao,
+    private val bucketAllocationPolicyDao: BucketAllocationPolicyDao,
+    private val bucketAllocationAdjustmentDao: BucketAllocationAdjustmentDao,
     private val userSettingsStore: UserSettingsStore,
     private val hybridLogicalClockService: HybridLogicalClockService,
     private val appVersionName: String
@@ -50,7 +59,10 @@ class ExportSnapshotUseCase(
             settings = SnapshotSettingsRecordV1(
                 recordUuid = settings.settingsRecordUuid,
                 defaultMonthlyBudgetCents = settings.monthlyBudgetCents,
+                portfolioMonthlyBudgetCents = settings.portfolioMonthlyBudgetCents,
+                legacyDefaultBucketBudgetCents = settings.monthlyBudgetCents,
                 paydayDate = settings.paydayDate,
+                selectedBucketUuid = settings.selectedBucketUuid,
                 lastResetTimestamp = settings.lastResetTimestamp,
                 pendingCycleStartDate = settings.pendingCycleStartDate,
                 pendingCycleEndDateExclusive = settings.pendingCycleEndDateExclusive,
@@ -109,6 +121,7 @@ class ExportSnapshotUseCase(
                         description = expense.description,
                         timestampEpochMs = expense.timestamp,
                         expenseDate = expense.expenseDate,
+                        bucketUuid = expense.bucketUuid,
                         icon = expense.icon?.name,
                         originInstallId = expense.originInstallId,
                         lastModifiedByInstallId = expense.lastModifiedByInstallId,
@@ -116,6 +129,67 @@ class ExportSnapshotUseCase(
                         updatedAtEpochMs = expense.updatedAtEpochMs,
                         deletedAtEpochMs = expense.deletedAtEpochMs,
                         modClock = expense.modClock
+                    )
+                },
+            budgetBuckets = budgetBucketDao.getAllForSnapshot()
+                .sortedWith(compareBy({ it.sortOrder }, { it.createdAtEpochMs }, { it.bucketUuid }))
+                .map { bucket ->
+                    SnapshotBudgetBucketRecordV3(
+                        bucketUuid = bucket.bucketUuid,
+                        name = bucket.name,
+                        trackingMode = bucket.trackingMode.name,
+                        balanceBehavior = bucket.balanceBehavior.name,
+                        defaultAllocatedAmountCents = bucket.defaultAllocatedAmountCents,
+                        sortOrder = bucket.sortOrder,
+                        originInstallId = bucket.originInstallId,
+                        lastModifiedByInstallId = bucket.lastModifiedByInstallId,
+                        createdAtEpochMs = bucket.createdAtEpochMs,
+                        updatedAtEpochMs = bucket.updatedAtEpochMs,
+                        closedAtEpochMs = bucket.closedAtEpochMs,
+                        deletedAtEpochMs = bucket.deletedAtEpochMs,
+                        modClock = bucket.modClock
+                    )
+                },
+            bucketAllocationPolicies = bucketAllocationPolicyDao.getAllForSnapshot()
+                .sortedWith(compareBy({ it.bucketUuid }, { it.cycleStartDate }, { it.updatedAtEpochMs }))
+                .map { policy ->
+                    SnapshotBucketAllocationPolicyRecordV3(
+                        allocationUuid = policy.allocationUuid,
+                        bucketUuid = policy.bucketUuid,
+                        cycleStartDate = policy.cycleStartDate,
+                        cycleEndDateExclusive = policy.cycleEndDateExclusive,
+                        allocatedAmountCents = policy.allocatedAmountCents,
+                        originInstallId = policy.originInstallId,
+                        lastModifiedByInstallId = policy.lastModifiedByInstallId,
+                        createdAtEpochMs = policy.createdAtEpochMs,
+                        updatedAtEpochMs = policy.updatedAtEpochMs,
+                        deletedAtEpochMs = policy.deletedAtEpochMs,
+                        modClock = policy.modClock
+                    )
+                },
+            bucketAllocationAdjustments = bucketAllocationAdjustmentDao.getAllForSnapshot()
+                .sortedWith(
+                    compareBy(
+                        { it.bucketUuid },
+                        { it.cycleStartDate },
+                        { it.effectiveDate },
+                        { it.updatedAtEpochMs }
+                    )
+                )
+                .map { adjustment ->
+                    SnapshotBucketAllocationAdjustmentRecordV3(
+                        adjustmentUuid = adjustment.adjustmentUuid,
+                        bucketUuid = adjustment.bucketUuid,
+                        cycleStartDate = adjustment.cycleStartDate,
+                        effectiveDate = adjustment.effectiveDate,
+                        previousAllocatedAmountCents = adjustment.previousAllocatedAmountCents,
+                        newAllocatedAmountCents = adjustment.newAllocatedAmountCents,
+                        originInstallId = adjustment.originInstallId,
+                        lastModifiedByInstallId = adjustment.lastModifiedByInstallId,
+                        createdAtEpochMs = adjustment.createdAtEpochMs,
+                        updatedAtEpochMs = adjustment.updatedAtEpochMs,
+                        deletedAtEpochMs = adjustment.deletedAtEpochMs,
+                        modClock = adjustment.modClock
                     )
                 }
         )

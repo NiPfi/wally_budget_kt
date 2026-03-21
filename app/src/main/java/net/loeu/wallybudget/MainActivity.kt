@@ -1,4 +1,4 @@
-@file:Suppress("TooManyFunctions")
+@file:Suppress("LongMethod", "TooManyFunctions")
 
 package net.loeu.wallybudget
 
@@ -57,20 +57,38 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.window.core.layout.WindowSizeClass.Companion.HEIGHT_DP_MEDIUM_LOWER_BOUND
-import net.loeu.wallybudget.domain.model.BudgetChangeMode
+import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BudgetState
+import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
+import net.loeu.wallybudget.domain.model.BucketSummaryState
+import net.loeu.wallybudget.domain.model.BucketTrackingMode
+import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
+import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.ExpenseCycleSection
 import net.loeu.wallybudget.domain.model.ExpenseDaySection
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
+import net.loeu.wallybudget.domain.model.PortfolioState
+import net.loeu.wallybudget.domain.model.SelectedBucketOverview
 import net.loeu.wallybudget.domain.model.SnapshotError
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.model.recordedDate
 
-private const val OVERVIEW_NAVIGATION_LABEL = "Overview"
+private const val BUCKETS_NAVIGATION_LABEL = "Buckets"
+
+internal fun shouldShowNavigationChrome(
+    currentRoute: String?,
+    usesVerticalNavigation: Boolean
+): Boolean {
+    return when (currentRoute) {
+        Screen.Analysis.route -> false
+        Screen.Settings.route -> usesVerticalNavigation
+        else -> true
+    }
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -119,7 +137,20 @@ fun BudgetApp(
         return
     }
     val displayBudgetState = appState.budgetState ?: loadingBudgetState(appState.effectiveCurrentDate)
-    val displaySpendingForecast = appState.spendingForecast ?: SpendingForecast()
+    val displaySelectedBucketOverview = appState.selectedBucketOverview
+        ?: loadingSelectedBucketOverview(appState.effectiveCurrentDate, displayBudgetState)
+    val displayPortfolioState = appState.portfolioState
+        ?: loadingPortfolioState(appState.effectiveCurrentDate, displayBudgetState)
+    val displayBucketSummaries = if (appState.bucketSummaries.isNotEmpty()) {
+        appState.bucketSummaries
+    } else {
+        listOf(displaySelectedBucketOverview.summary)
+    }
+    val displayAllBuckets = if (appState.allBuckets.isNotEmpty()) {
+        appState.allBuckets
+    } else {
+        listOf(displaySelectedBucketOverview.bucket)
+    }
     when {
         appState.isOnboardingCompleted != true -> OnboardingScreen(
             onComplete = viewModel::completeOnboarding,
@@ -141,6 +172,9 @@ fun BudgetApp(
                 onAddExpense = viewModel::addExpense,
                 onUpdateExpense = viewModel::updateExpense,
                 onDeleteExpense = viewModel::deleteExpense,
+                allBuckets = displayAllBuckets,
+                selectedBucketUuid = appState.userSettings.selectedBucketUuid
+                    ?: displaySelectedBucketOverview.bucket.bucketUuid,
                 modifier = modifier
             )
         }
@@ -148,26 +182,31 @@ fun BudgetApp(
         else -> {
             val shellContent: @Composable () -> Unit = {
                 MainNavigationShell(
-                    budgetState = displayBudgetState,
-                    todayExpenses = appState.todayExpenses,
+                    bucketSummaries = displayBucketSummaries,
+                    portfolioState = displayPortfolioState,
+                    selectedBucketOverview = displaySelectedBucketOverview,
+                    allBuckets = displayAllBuckets,
                     effectiveCurrentDate = appState.effectiveCurrentDate,
-                    activeCycleExpenseSections = appState.activeCycleExpenseSections,
-                    spendingForecast = displaySpendingForecast,
+                    budgetState = displayBudgetState,
+                    spendingForecast = appState.spendingForecast,
                     monthlyHistoryState = viewModel.monthlyHistory,
                     isHomeDataLoading = appState.isHomeDataLoading,
                     historySections = appState.historySections,
+                    historyBucketNameByUuid = appState.historyBucketNameByUuid,
                     userSettings = appState.userSettings,
                     showAddExpenseSheet = appState.isAddExpenseSheetVisible,
                     onShowAddExpenseSheet = viewModel::showAddExpenseSheet,
                     onHideAddExpenseSheet = viewModel::hideAddExpenseSheet,
+                    onSelectBucket = viewModel::selectBucket,
                     onAddExpense = viewModel::addExpense,
                     onUpdateExpense = viewModel::updateExpense,
                     onDeleteExpense = viewModel::deleteExpense,
                     onRestoreExpense = viewModel::restoreDeletedExpense,
-                    onSaveSettings = viewModel::updateBudgetSettings,
-                    onUndoSettings = viewModel::undoBudgetSettingsChange,
-                    isSettingsUndoAvailable = appState.isSettingsUndoAvailable,
-                    settingsUndoExpiresAtExclusive = appState.settingsUndoExpiresAtExclusive,
+                    onSavePortfolioPlan = viewModel::updatePortfolioPlan,
+                    onSavePayday = viewModel::updatePayday,
+                    onUndoPaydayChange = viewModel::undoPaydayChange,
+                    isPaydayUndoAvailable = appState.isPaydayUndoAvailable,
+                    paydayUndoExpiresAtExclusive = appState.paydayUndoExpiresAtExclusive,
                     onSettingsMessageConsumed = viewModel::clearSettingsFeedback,
                     onRequestExportSnapshot = {
                         createSnapshotDocument.launch(defaultSnapshotFilename(appState.effectiveCurrentDate))
@@ -189,26 +228,31 @@ fun BudgetApp(
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 private fun MainNavigationShell(
-    budgetState: BudgetState,
-    todayExpenses: List<Expense>,
+    bucketSummaries: List<BucketSummaryState>,
+    portfolioState: PortfolioState,
+    selectedBucketOverview: SelectedBucketOverview,
+    allBuckets: List<BudgetBucket>,
     effectiveCurrentDate: LocalDate,
-    activeCycleExpenseSections: List<ExpenseDaySection>,
-    spendingForecast: SpendingForecast,
+    budgetState: BudgetState?,
+    spendingForecast: SpendingForecast?,
     monthlyHistoryState: StateFlow<List<MonthlyHistory>?>,
     isHomeDataLoading: Boolean,
     historySections: List<ExpenseCycleSection>,
+    historyBucketNameByUuid: Map<String, String>,
     userSettings: UserSettings,
     showAddExpenseSheet: Boolean,
     onShowAddExpenseSheet: () -> Unit,
     onHideAddExpenseSheet: () -> Unit,
-    onAddExpense: (Long, String, ExpenseCategory?, LocalDate) -> Unit,
+    onSelectBucket: (String) -> Unit,
+    onAddExpense: (String, Long, String, ExpenseCategory?, LocalDate) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
-    onSaveSettings: (Long, Int, BudgetChangeMode) -> Unit,
-    onUndoSettings: () -> Unit,
-    isSettingsUndoAvailable: Boolean,
-    settingsUndoExpiresAtExclusive: LocalDate?,
+    onSavePortfolioPlan: (Long, List<net.loeu.wallybudget.domain.usecase.BucketDraft>) -> Unit,
+    onSavePayday: (Int) -> Unit,
+    onUndoPaydayChange: () -> Unit,
+    isPaydayUndoAvailable: Boolean,
+    paydayUndoExpiresAtExclusive: LocalDate?,
     onSettingsMessageConsumed: () -> Unit,
     onRequestExportSnapshot: () -> Unit,
     settingsMessage: String?,
@@ -229,45 +273,39 @@ private fun MainNavigationShell(
         NavigationSuiteType.WideNavigationRailExpanded -> true
         else -> false
     }
+    val showNavigationChrome = shouldShowNavigationChrome(
+        currentRoute = currentRoute,
+        usesVerticalNavigation = usesVerticalNavigation
+    )
 
-    NavigationSuiteScaffold(
-        modifier = modifier.fillMaxSize(),
-        navigationSuiteType = navigationLayoutType,
-        navigationItemVerticalArrangement = if (usesVerticalNavigation) {
-            Arrangement.SpaceBetween
-        } else {
-            Arrangement.Top
-        },
-        navigationItems = {
-            MainNavigationItems(
-                currentRoute = currentRoute,
-                usesVerticalNavigation = usesVerticalNavigation,
-                onNavigate = navController::navigateToTopLevel
-            )
-        }
-    ) {
+    val content: @Composable () -> Unit = {
         MainNavigationHost(
             navController = navController,
-            budgetState = budgetState,
-            todayExpenses = todayExpenses,
+            bucketSummaries = bucketSummaries,
+            portfolioState = portfolioState,
+            selectedBucketOverview = selectedBucketOverview,
+            allBuckets = allBuckets,
             effectiveCurrentDate = effectiveCurrentDate,
-            activeCycleExpenseSections = activeCycleExpenseSections,
             spendingForecast = spendingForecast,
+            budgetState = budgetState,
             monthlyHistoryState = monthlyHistoryState,
             isHomeDataLoading = isHomeDataLoading,
             historySections = historySections,
+            historyBucketNameByUuid = historyBucketNameByUuid,
             userSettings = userSettings,
             showAddExpenseSheet = showAddExpenseSheet,
             onShowAddExpenseSheet = onShowAddExpenseSheet,
             onHideAddExpenseSheet = onHideAddExpenseSheet,
+            onSelectBucket = onSelectBucket,
             onAddExpense = onAddExpense,
             onUpdateExpense = onUpdateExpense,
             onDeleteExpense = onDeleteExpense,
             onRestoreExpense = onRestoreExpense,
-            onSaveSettings = onSaveSettings,
-            onUndoSettings = onUndoSettings,
-            isSettingsUndoAvailable = isSettingsUndoAvailable,
-            settingsUndoExpiresAtExclusive = settingsUndoExpiresAtExclusive,
+            onSavePortfolioPlan = onSavePortfolioPlan,
+            onSavePayday = onSavePayday,
+            onUndoPaydayChange = onUndoPaydayChange,
+            isPaydayUndoAvailable = isPaydayUndoAvailable,
+            paydayUndoExpiresAtExclusive = paydayUndoExpiresAtExclusive,
             onSettingsMessageConsumed = onSettingsMessageConsumed,
             onRequestExportSnapshot = onRequestExportSnapshot,
             settingsMessage = settingsMessage,
@@ -277,6 +315,30 @@ private fun MainNavigationShell(
             timelineLockReason = timelineLockReason,
             usesVerticalNavigation = usesVerticalNavigation
         )
+    }
+    if (showNavigationChrome) {
+        NavigationSuiteScaffold(
+            modifier = modifier.fillMaxSize(),
+            navigationSuiteType = navigationLayoutType,
+            navigationItemVerticalArrangement = if (usesVerticalNavigation) {
+                Arrangement.SpaceBetween
+            } else {
+                Arrangement.Top
+            },
+            navigationItems = {
+                MainNavigationItems(
+                    currentRoute = currentRoute,
+                    usesVerticalNavigation = usesVerticalNavigation,
+                    onNavigate = navController::navigateToTopLevel
+                )
+            }
+        ) {
+            content()
+        }
+    } else {
+        Box(modifier = modifier.fillMaxSize()) {
+            content()
+        }
     }
 }
 
@@ -299,7 +361,7 @@ private fun MainNavigationItems(
     usesVerticalNavigation: Boolean,
     onNavigate: (Screen) -> Unit
 ) {
-    val primaryScreens = listOf(Screen.Home, Screen.Analysis, Screen.History)
+    val primaryScreens = listOf(Screen.Home, Screen.Portfolio, Screen.History)
     if (usesVerticalNavigation) {
         Column {
             primaryScreens.forEach { screen ->
@@ -333,11 +395,12 @@ private fun MainTopLevelNavigationItem(
     onClick: () -> Unit
 ) {
     val (iconRes, label) = when (screen) {
-        Screen.Home -> R.drawable.ic_dashboard to OVERVIEW_NAVIGATION_LABEL
+        Screen.Home -> R.drawable.ic_money_bag to BUCKETS_NAVIGATION_LABEL
+        Screen.Portfolio -> R.drawable.ic_finance to "Portfolio"
         Screen.Analysis -> R.drawable.ic_analytics to "Analysis"
         Screen.History -> R.drawable.ic_history to "History"
         Screen.Settings -> R.drawable.ic_settings to "Settings"
-        else -> R.drawable.ic_dashboard to OVERVIEW_NAVIGATION_LABEL
+        else -> R.drawable.ic_money_bag to BUCKETS_NAVIGATION_LABEL
     }
     MainNavigationItem(
         selected = selected,
@@ -363,26 +426,31 @@ private fun NavHostController.navigateToTopLevel(screen: Screen) {
 @Composable
 private fun MainNavigationHost(
     navController: NavHostController,
-    budgetState: BudgetState,
-    todayExpenses: List<Expense>,
+    bucketSummaries: List<BucketSummaryState>,
+    portfolioState: PortfolioState,
+    selectedBucketOverview: SelectedBucketOverview,
+    allBuckets: List<BudgetBucket>,
     effectiveCurrentDate: LocalDate,
-    activeCycleExpenseSections: List<ExpenseDaySection>,
-    spendingForecast: SpendingForecast,
+    spendingForecast: SpendingForecast?,
+    budgetState: BudgetState?,
     monthlyHistoryState: StateFlow<List<MonthlyHistory>?>,
     isHomeDataLoading: Boolean,
     historySections: List<ExpenseCycleSection>,
+    historyBucketNameByUuid: Map<String, String>,
     userSettings: UserSettings,
     showAddExpenseSheet: Boolean,
     onShowAddExpenseSheet: () -> Unit,
     onHideAddExpenseSheet: () -> Unit,
-    onAddExpense: (Long, String, ExpenseCategory?, LocalDate) -> Unit,
+    onSelectBucket: (String) -> Unit,
+    onAddExpense: (String, Long, String, ExpenseCategory?, LocalDate) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
-    onSaveSettings: (Long, Int, BudgetChangeMode) -> Unit,
-    onUndoSettings: () -> Unit,
-    isSettingsUndoAvailable: Boolean,
-    settingsUndoExpiresAtExclusive: LocalDate?,
+    onSavePortfolioPlan: (Long, List<net.loeu.wallybudget.domain.usecase.BucketDraft>) -> Unit,
+    onSavePayday: (Int) -> Unit,
+    onUndoPaydayChange: () -> Unit,
+    isPaydayUndoAvailable: Boolean,
+    paydayUndoExpiresAtExclusive: LocalDate?,
     onSettingsMessageConsumed: () -> Unit,
     onRequestExportSnapshot: () -> Unit,
     settingsMessage: String?,
@@ -398,12 +466,15 @@ private fun MainNavigationHost(
     ) {
         addHomeDestination(
             navController = navController,
-            budgetState = budgetState,
-            todayExpenses = todayExpenses,
+            bucketSummaries = bucketSummaries,
+            selectedBucketOverview = selectedBucketOverview,
+            allBuckets = allBuckets,
+            userSettings = userSettings,
             effectiveCurrentDate = effectiveCurrentDate,
-            activeCycleExpenseSections = activeCycleExpenseSections,
             spendingForecast = spendingForecast,
             isHomeDataLoading = isHomeDataLoading,
+            onSelectBucket = onSelectBucket,
+            onSavePortfolioPlan = onSavePortfolioPlan,
             onAddExpense = onAddExpense,
             onRestoreExpense = onRestoreExpense,
             onUpdateExpense = onUpdateExpense,
@@ -411,12 +482,27 @@ private fun MainNavigationHost(
             showAddExpenseSheet = showAddExpenseSheet,
             onShowAddExpenseSheet = onShowAddExpenseSheet,
             onHideAddExpenseSheet = onHideAddExpenseSheet,
+            settingsMessage = settingsMessage,
+            onSettingsMessageConsumed = onSettingsMessageConsumed,
+            timelineLockReason = timelineLockReason,
+            usesVerticalNavigation = usesVerticalNavigation
+        )
+        addPortfolioDestination(
+            navController = navController,
+            portfolioState = portfolioState,
+            bucketSummaries = bucketSummaries,
+            allBuckets = allBuckets,
+            userSettings = userSettings,
+            onSavePortfolioPlan = onSavePortfolioPlan,
             timelineLockReason = timelineLockReason,
             usesVerticalNavigation = usesVerticalNavigation
         )
         addHistoryDestination(
             navController = navController,
             historySections = historySections,
+            historyBucketNameByUuid = historyBucketNameByUuid,
+            allBuckets = allBuckets,
+            selectedBucketUuid = selectedBucketOverview.bucket.bucketUuid,
             onAddExpense = onAddExpense,
             onRestoreExpense = onRestoreExpense,
             onUpdateExpense = onUpdateExpense,
@@ -426,6 +512,7 @@ private fun MainNavigationHost(
         )
         addAnalysisDestination(
             navController = navController,
+            selectedBucketOverview = selectedBucketOverview,
             budgetState = budgetState,
             spendingForecast = spendingForecast,
             monthlyHistoryState = monthlyHistoryState,
@@ -436,12 +523,14 @@ private fun MainNavigationHost(
         addSettingsDestination(
             navController = navController,
             userSettings = userSettings,
-            budgetState = budgetState,
+            allBuckets = allBuckets,
+            bucketSummaries = bucketSummaries,
             currentDate = effectiveCurrentDate,
-            onSaveSettings = onSaveSettings,
-            onUndoSettings = onUndoSettings,
-            isSettingsUndoAvailable = isSettingsUndoAvailable,
-            settingsUndoExpiresAtExclusive = settingsUndoExpiresAtExclusive,
+            onSavePortfolioPlan = onSavePortfolioPlan,
+            onSavePayday = onSavePayday,
+            onUndoPaydayChange = onUndoPaydayChange,
+            isPaydayUndoAvailable = isPaydayUndoAvailable,
+            paydayUndoExpiresAtExclusive = paydayUndoExpiresAtExclusive,
             onSettingsMessageConsumed = onSettingsMessageConsumed,
             onRequestExportSnapshot = onRequestExportSnapshot,
             settingsMessage = settingsMessage,
@@ -463,6 +552,72 @@ private fun loadingBudgetState(currentDate: LocalDate): BudgetState {
         cumulativeSavingsCents = 0L,
         paydayDate = currentDate.dayOfMonth.coerceAtLeast(1),
         cycleStartDate = currentDate.minusDays(18)
+    )
+}
+
+private fun loadingPortfolioState(
+    currentDate: LocalDate,
+    budgetState: BudgetState
+): PortfolioState {
+    val remainingThisCycle = budgetState.monthlyBudgetCents - budgetState.totalSpentThisCycleCents
+    val netReserve = budgetState.cumulativeSavingsCents + remainingThisCycle
+    return PortfolioState(
+        portfolioTotalBudgetCents = budgetState.monthlyBudgetCents,
+        allocatedToBucketsCents = budgetState.monthlyBudgetCents,
+        unassignedPlannedBudgetCents = 0L,
+        totalSpentThisCycleCents = budgetState.totalSpentThisCycleCents,
+        remainingThisCycleCents = remainingThisCycle,
+        completedCycleReserveCents = budgetState.cumulativeSavingsCents,
+        netReserveCents = netReserve,
+        earmarkedReserveCents = 0L,
+        unassignedReserveCents = netReserve,
+        cycleStartDate = budgetState.cycleStartDate,
+        cycleEndDateExclusive = currentDate.plusDays(budgetState.daysRemainingInCycle.toLong() + 1L)
+    )
+}
+
+private fun loadingSelectedBucketOverview(
+    currentDate: LocalDate,
+    budgetState: BudgetState
+): SelectedBucketOverview {
+    val bucket = BudgetBucket(
+        bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+        name = DEFAULT_SPENDING_BUCKET_NAME,
+        trackingMode = BucketTrackingMode.DAILY_TARGET,
+        balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
+        defaultAllocatedAmountCents = budgetState.monthlyBudgetCents,
+        sortOrder = 0,
+        originInstallId = "",
+        lastModifiedByInstallId = "",
+        createdAtEpochMs = 0L,
+        updatedAtEpochMs = 0L,
+        modClock = ""
+    )
+    val summary = BucketSummaryState(
+        bucket = bucket,
+        allocatedThisCycleCents = budgetState.monthlyBudgetCents,
+        spentThisCycleCents = budgetState.totalSpentThisCycleCents,
+        remainingThisCycleCents = budgetState.monthlyBudgetCents - budgetState.totalSpentThisCycleCents,
+        overspentCents = 0L,
+        earmarkedBalanceCents = 0L,
+        budgetState = budgetState
+    )
+    return SelectedBucketOverview(
+        bucket = bucket,
+        summary = summary,
+        budgetState = budgetState,
+        todayExpenses = emptyList(),
+        activeCycleExpenseSections = listOf(
+            ExpenseDaySection(
+                date = currentDate,
+                expenses = emptyList(),
+                totalSpentCents = 0L,
+                remainingForDayCents = budgetState.remainingTodayCents,
+                isToday = true,
+                isEditable = true
+            )
+        ),
+        spendingForecast = null
     )
 }
 
@@ -488,9 +643,11 @@ private fun PendingCycleFlow(
     onShowAddExpenseSheet: () -> Unit,
     onHideAddExpenseSheet: () -> Unit,
     onConcludeCycle: () -> Unit,
-    onAddExpense: (Long, String, ExpenseCategory?, LocalDate) -> Unit,
+    onAddExpense: (String, Long, String, ExpenseCategory?, LocalDate) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
+    allBuckets: List<BudgetBucket>,
+    selectedBucketUuid: String?,
     modifier: Modifier = Modifier
 ) {
     val navController = rememberNavController()
@@ -528,7 +685,9 @@ private fun PendingCycleFlow(
         expenseBeingEdited = expenseBeingEdited,
         onDismissExpenseEditor = { expenseBeingEdited = null },
         onUpdateExpense = onUpdateExpense,
-        onDeleteExpense = onDeleteExpense
+        onDeleteExpense = onDeleteExpense,
+        allBuckets = allBuckets,
+        selectedBucketUuid = selectedBucketUuid
     )
 }
 

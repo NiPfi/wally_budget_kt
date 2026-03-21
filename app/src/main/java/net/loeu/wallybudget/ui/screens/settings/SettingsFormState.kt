@@ -41,4 +41,4 @@ internal fun rememberSettingsFormState(userSettings: UserSettings): SettingsForm
 }
 
 internal fun initialBudgetText(userSettings: UserSettings): String =
-    CurrencyFormatter.centsToDecimalString(userSettings.monthlyBudgetCents)
+    CurrencyFormatter.centsToDecimalString(userSettings.resolvedPortfolioMonthlyBudgetCents)

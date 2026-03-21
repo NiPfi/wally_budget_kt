@@ -101,7 +101,7 @@ internal fun SnapshotExportCard(
 }
 
 @Composable
-internal fun UndoSettingsCard(
+internal fun UndoPaydayCard(
     expiresAtExclusive: LocalDate?,
     onUndoSettings: () -> Unit
 ) {
@@ -113,14 +113,14 @@ internal fun UndoSettingsCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Cycle default available",
+                text = "Payday change undo",
                 style = MaterialTheme.typography.titleMedium
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = expiresAtExclusive?.let {
-                    "You can restore this cycle's default settings until $it."
-                } ?: "You can restore this cycle's default settings for the rest of this cycle.",
+                    "You can restore the previous payday and cycle timing until $it."
+                } ?: "You can restore the previous payday and cycle timing for the rest of this cycle.",
                 style = MaterialTheme.typography.bodyMedium
             )
             Spacer(modifier = Modifier.height(12.dp))
@@ -130,7 +130,7 @@ internal fun UndoSettingsCard(
                     .fillMaxWidth()
                     .testTag("settings_undo_button")
             ) {
-                Text("Restore Cycle Default")
+                Text("Undo Payday Change")
             }
         }
     }

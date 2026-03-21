@@ -34,6 +34,7 @@ fun ExpenseItem(
     modifier: Modifier = Modifier,
     animateAmount: Boolean = false,
     showDivider: Boolean = true,
+    secondaryText: String? = null,
     onEdit: (() -> Unit)? = null
 ) {
     Column(
@@ -66,7 +67,7 @@ fun ExpenseItem(
                     style = MaterialTheme.typography.bodyLarge
                 )
                 Text(
-                    text = formatTime(expense.timestamp),
+                    text = secondaryText ?: formatTime(expense.timestamp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
