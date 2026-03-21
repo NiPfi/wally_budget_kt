@@ -2,7 +2,6 @@
 .gradle
 /local.properties
 /.idea/*
-/.vscode/*
 .DS_Store
 /build
 /captures
@@ -10,3 +9,4 @@
 .cxx
 local.properties
 /release-signing/
+.vscode/.tmp/android-debug.env

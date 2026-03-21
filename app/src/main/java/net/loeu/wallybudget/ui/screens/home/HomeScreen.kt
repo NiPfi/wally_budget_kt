@@ -505,7 +505,8 @@ private fun PortfolioReserveSection(
     ) {
         SectionHeading("Portfolio reserve")
         Text(
-            text = "Reserve carried across completed cycles, plus the portfolio-wide result for the current cycle.",
+            text = "Net reserve combines carryover from completed cycles with what's left in the current cycle. " +
+                "Reserve kept in buckets stays earmarked; the rest is leftover reserve outside buckets.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -514,7 +515,7 @@ private fun PortfolioReserveSection(
             CurrencyFormatter.formatSigned(portfolioState.completedCycleReserveCents)
         )
         PlainMetricRow(
-            "This cycle portfolio delta",
+            "Left in current cycle",
             CurrencyFormatter.formatSigned(portfolioState.remainingThisCycleCents)
         )
         PlainMetricRow(
@@ -527,7 +528,7 @@ private fun PortfolioReserveSection(
                 CurrencyFormatter.format(portfolioState.earmarkedReserveCents)
             )
             PlainMetricRow(
-                "Unassigned reserve",
+                "Cycle leftover reserve",
                 CurrencyFormatter.formatSigned(portfolioState.unassignedReserveCents)
             )
         }

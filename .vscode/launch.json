@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Android Debug",
+            "type": "java",
+            "request": "attach",
+            "hostName": "localhost",
+            "port": 8700,
+            "preLaunchTask": "android-debug-prepare",
+            "postDebugTask": "android-debug-cleanup"
+        },
+        {
+            "name": "Android Run",
+            "type": "node-terminal",
+            "request": "launch",
+            "command": "bash .vscode/android-run-attached.sh",
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
