@@ -251,7 +251,15 @@ fun HomeScreen(
                         canEditExpenses = canEditExpenses,
                         isLoadingData = isLoadingData,
                         onEditExpense = { expenseBeingEdited = it },
-                        onNavigateToAnalysis = onNavigateToAnalysis,
+                        onNavigateToAnalysis = if (
+                            orderedOpenSummaries.firstOrNull { it.bucket.bucketUuid == pageBucketUuid }
+                                ?.bucket
+                                ?.trackingMode == BucketTrackingMode.DAILY_TARGET
+                        ) {
+                            onNavigateToAnalysis
+                        } else {
+                            null
+                        },
                         showTopRightSettingsAction = showTopRightSettingsAction,
                         onNavigateToSettings = if (showTopRightSettingsAction) {
                             { openBucketSettings(pageBucketUuid) }

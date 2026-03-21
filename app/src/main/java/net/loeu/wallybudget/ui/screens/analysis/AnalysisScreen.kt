@@ -20,7 +20,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
@@ -39,16 +38,13 @@ import androidx.window.core.layout.WindowSizeClass.Companion.WIDTH_DP_MEDIUM_LOW
 import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.MonthlyHistory
-import net.loeu.wallybudget.domain.model.SelectedBucketOverview
 import net.loeu.wallybudget.domain.model.SpendingForecast
-import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.ui.components.TimelineLockBanner
 import net.loeu.wallybudget.ui.screens.overview.LoadingValuePlaceholder
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun AnalysisScreen(
-    selectedBucketOverview: SelectedBucketOverview?,
     budgetState: BudgetState?,
     spendingForecast: SpendingForecast?,
     monthlyHistory: List<MonthlyHistory>,
@@ -56,54 +52,8 @@ fun AnalysisScreen(
     isLoading: Boolean,
     modifier: Modifier = Modifier,
     onNavigateBack: (() -> Unit)? = null,
-    onNavigateToSettings: (() -> Unit)? = null,
-    onGoToOverview: (() -> Unit)? = null
+    onNavigateToSettings: (() -> Unit)? = null
 ) {
-    val selectedBucket = selectedBucketOverview?.bucket
-    if (!isLoading && selectedBucket?.trackingMode == BucketTrackingMode.CYCLE_RESERVE) {
-        LazyColumn(
-            modifier = modifier
-                .statusBarsPadding()
-                .testTag("analysis_list"),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item { HeaderRow(onNavigateBack = onNavigateBack, onNavigateToSettings = onNavigateToSettings) }
-            timelineLockReason?.let { reason ->
-                item { TimelineLockBanner(reason = reason) }
-            }
-            item {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.extraLarge,
-                    tonalElevation = 1.dp
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "Forecasting is only available for daily-target buckets.",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "${selectedBucket.name} is configured as a cycle reserve bucket. Switch back to a daily bucket to see forecast analysis.",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (onGoToOverview != null) {
-                            TextButton(onClick = onGoToOverview) {
-                                Text("Go to Overview")
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return
-    }
-
     val isWideLayout = currentWindowAdaptiveInfo()
         .windowSizeClass
         .isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND)

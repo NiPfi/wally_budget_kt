@@ -1,5 +1,6 @@
 package net.loeu.wallybudget
 
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.navigation.NavGraphBuilder
@@ -9,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.BucketSummaryState
+import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.ExpenseCycleSection
@@ -142,8 +144,20 @@ internal fun NavGraphBuilder.addAnalysisDestination(
     composable(Screen.Analysis.route) {
         val monthlyHistory by monthlyHistoryState.collectAsState()
         val isAnalysisLoading = isHomeDataLoading || monthlyHistory == null
+        val isReserveBucket = selectedBucketOverview?.bucket?.trackingMode == BucketTrackingMode.CYCLE_RESERVE
+        if (!isAnalysisLoading && isReserveBucket) {
+            LaunchedEffect(selectedBucketOverview.bucket.bucketUuid) {
+                val popped = navController.popBackStack()
+                if (!popped) {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Home.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
+            }
+            return@composable
+        }
         AnalysisScreen(
-            selectedBucketOverview = selectedBucketOverview,
             budgetState = budgetState,
             spendingForecast = spendingForecast,
             monthlyHistory = monthlyHistory.orEmpty(),
@@ -152,8 +166,7 @@ internal fun NavGraphBuilder.addAnalysisDestination(
             onNavigateBack = { navController.popBackStack() },
             onNavigateToSettings = if (usesVerticalNavigation) null else {
                 { navController.navigate(Screen.Settings.route) }
-            },
-            onGoToOverview = { navController.navigate(Screen.Home.route) }
+            }
         )
     }
 }
