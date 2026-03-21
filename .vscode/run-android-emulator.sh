@@ -29,8 +29,12 @@ if [[ -z "${sdk_dir}" && -n "${ANDROID_HOME:-}" ]]; then
     sdk_dir="${ANDROID_HOME}"
 fi
 
+if [[ -z "${sdk_dir}" && -d "${HOME}/Android/Sdk" ]]; then
+    sdk_dir="${HOME}/Android/Sdk"
+fi
+
 if [[ -z "${sdk_dir}" ]]; then
-    echo "Unable to locate Android SDK. Set sdk.dir in local.properties or ANDROID_SDK_ROOT." >&2
+    echo "Unable to locate Android SDK. Set sdk.dir in local.properties, ANDROID_SDK_ROOT, or use ${HOME}/Android/Sdk." >&2
     exit 1
 fi
 
