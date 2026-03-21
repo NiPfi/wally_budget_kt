@@ -19,7 +19,7 @@ import net.loeu.wallybudget.domain.model.PortfolioState
 import net.loeu.wallybudget.domain.model.SelectedBucketOverview
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.UserSettings
-import net.loeu.wallybudget.domain.usecase.BucketDraft
+import net.loeu.wallybudget.domain.planning.SavePlanningRequest
 import net.loeu.wallybudget.ui.navigation.Screen
 import net.loeu.wallybudget.ui.screens.analysis.AnalysisScreen
 import net.loeu.wallybudget.ui.screens.history.HistoryScreen
@@ -38,7 +38,7 @@ internal fun NavGraphBuilder.addHomeDestination(
     spendingForecast: SpendingForecast?,
     isHomeDataLoading: Boolean,
     onSelectBucket: (String) -> Unit,
-    onSavePortfolioPlan: (Long, String?, List<BucketDraft>) -> Unit,
+    onSavePortfolioPlan: (SavePlanningRequest) -> Unit,
     onAddExpense: (String, Long, String, ExpenseCategory?, LocalDate) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
@@ -84,7 +84,7 @@ internal fun NavGraphBuilder.addPortfolioDestination(
     bucketSummaries: List<BucketSummaryState>,
     allBuckets: List<BudgetBucket>,
     userSettings: UserSettings,
-    onSavePortfolioPlan: (Long, String?, List<BucketDraft>) -> Unit,
+    onSavePortfolioPlan: (SavePlanningRequest) -> Unit,
     timelineLockReason: String?,
     usesVerticalNavigation: Boolean
 ) {
@@ -180,7 +180,7 @@ internal fun NavGraphBuilder.addSettingsDestination(
     allBuckets: List<BudgetBucket>,
     bucketSummaries: List<BucketSummaryState>,
     currentDate: LocalDate,
-    onSavePortfolioPlan: (Long, String?, List<BucketDraft>) -> Unit,
+    onSavePortfolioPlan: (SavePlanningRequest) -> Unit,
     onSavePayday: (Int) -> Unit,
     onUndoPaydayChange: () -> Unit,
     isPaydayUndoAvailable: Boolean,

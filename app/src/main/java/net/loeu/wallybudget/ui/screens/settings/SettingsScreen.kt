@@ -43,26 +43,17 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.BudgetBucket
-import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
-import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.BucketSummaryState
-import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.UserSettings
-import net.loeu.wallybudget.domain.usecase.BucketDraft
-import net.loeu.wallybudget.domain.usecase.internal.resolveLeftoverReceiverDraftUuid
+import net.loeu.wallybudget.domain.planning.SavePlanningRequest
+import net.loeu.wallybudget.ui.planning.PlanningBucketEditorRow
+import net.loeu.wallybudget.ui.planning.PlanningEditorState
+import net.loeu.wallybudget.ui.planning.buildExistingPlanningRequest
+import net.loeu.wallybudget.ui.planning.buildPlanningEditorState
+import net.loeu.wallybudget.ui.planning.planningDraftsMatch
+import net.loeu.wallybudget.ui.planning.planningEditorRowsToDrafts
 import net.loeu.wallybudget.util.CurrencyFormatter
 import java.time.LocalDate
-
-internal data class EditableBucketUi(
-    val bucketUuid: String,
-    val name: String,
-    val trackingMode: BucketTrackingMode,
-    val balanceBehavior: BucketBalanceBehavior,
-    val amountText: String,
-    val sortOrder: Int,
-    val closeRequested: Boolean,
-    val existingClosed: Boolean
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,7 +62,7 @@ fun SettingsScreen(
     allBuckets: List<BudgetBucket>,
     bucketSummaries: List<BucketSummaryState>,
     currentDate: LocalDate,
-    onSavePortfolioPlan: (Long, String?, List<BucketDraft>) -> Unit,
+    onSavePortfolioPlan: (SavePlanningRequest) -> Unit,
     onSavePayday: (Int) -> Unit,
     onUndoPaydayChange: () -> Unit,
     isPaydayUndoAvailable: Boolean,
@@ -88,34 +79,40 @@ fun SettingsScreen(
     var portfolioBudgetText by remember { mutableStateOf("") }
     var paydayText by remember { mutableStateOf("") }
     var leftoverReceiverBucketUuid by remember { mutableStateOf<String?>(null) }
-    val bucketDrafts = remember { mutableStateListOf<EditableBucketUi>() }
+    val bucketDrafts = remember { mutableStateListOf<PlanningBucketEditorRow>() }
     var showBudgetError by remember { mutableStateOf(false) }
     var showPaydayError by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
-    val externalBudgetText = CurrencyFormatter.centsToDecimalString(userSettings.resolvedPortfolioMonthlyBudgetCents)
+    val externalRequest = buildExistingPlanningRequest(
+        userSettings = userSettings,
+        allBuckets = allBuckets,
+        bucketSummaries = bucketSummaries
+    )
+    val externalEditorState = buildPlanningEditorState(
+        userSettings = userSettings,
+        allBuckets = allBuckets,
+        request = externalRequest
+    )
+    val externalBudgetText = externalEditorState.budgetText
     val externalPaydayText = userSettings.paydayDate.toString()
-    val externalBucketDrafts = allBuckets
-        .sortedWith(compareBy<BudgetBucket> { it.sortOrder }.thenBy { it.createdAtEpochMs })
-        .map { bucket -> bucket.toEditableUi() }
-    val externalLeftoverReceiverBucketUuid = userSettings.leftoverReceiverBucketUuid ?: DEFAULT_SPENDING_BUCKET_UUID
-    val portfolioPlanHasChanges = bucketDrafts.isNotEmpty() && !settingsDraftsMatch(
-        currentBudgetText = portfolioBudgetText,
+    val portfolioPlanHasChanges = bucketDrafts.isNotEmpty() && !planningDraftsMatch(
+        current = PlanningEditorState(
+            budgetText = portfolioBudgetText,
+            leftoverReceiverBucketUuid = leftoverReceiverBucketUuid,
+            bucketRows = bucketDrafts.toList()
+        ),
+        external = externalEditorState,
         currentPaydayText = externalPaydayText,
-        currentBucketDrafts = bucketDrafts,
-        externalBudgetText = externalBudgetText,
         externalPaydayText = externalPaydayText,
-        externalBucketDrafts = externalBucketDrafts,
-        currentLeftoverReceiverBucketUuid = leftoverReceiverBucketUuid,
-        externalLeftoverReceiverBucketUuid = externalLeftoverReceiverBucketUuid
     )
     val paydayHasChanges = paydayText != externalPaydayText
 
-    LaunchedEffect(externalBudgetText, externalBucketDrafts) {
+    LaunchedEffect(externalEditorState) {
         if (!portfolioPlanHasChanges) {
-            portfolioBudgetText = externalBudgetText
-            leftoverReceiverBucketUuid = externalLeftoverReceiverBucketUuid
+            portfolioBudgetText = externalEditorState.budgetText
+            leftoverReceiverBucketUuid = externalEditorState.leftoverReceiverBucketUuid
             bucketDrafts.clear()
-            bucketDrafts += externalBucketDrafts
+            bucketDrafts += externalEditorState.bucketRows
         }
     }
     LaunchedEffect(externalPaydayText) {
@@ -161,24 +158,19 @@ fun SettingsScreen(
                     showBudgetError = portfolioBudgetCents == null || portfolioBudgetCents <= 0L
                     if (showBudgetError) return@PlanningSaveSection
 
-                    val saveDrafts = bucketDrafts.mapNotNull { bucket ->
-                        val amount = CurrencyFormatter.parseAmountToCents(bucket.amountText) ?: return@mapNotNull null
-                        BucketDraft(
-                            bucketUuid = bucket.bucketUuid,
-                            name = bucket.name.trim(),
-                            trackingMode = bucket.trackingMode,
-                            balanceBehavior = bucket.balanceBehavior,
-                            defaultAllocatedAmountCents = amount,
-                            sortOrder = bucket.sortOrder,
-                            closeRequested = bucket.closeRequested
-                        )
-                    }
-                    if (saveDrafts.size != bucketDrafts.size) {
+                    val saveDrafts = planningEditorRowsToDrafts(bucketDrafts.toList())
+                    if (saveDrafts == null) {
                         snackbarHostState.currentSnackbarData?.dismiss()
                         showBudgetError = false
                         return@PlanningSaveSection
                     }
-                    onSavePortfolioPlan(requireNotNull(portfolioBudgetCents), leftoverReceiverBucketUuid, saveDrafts)
+                    onSavePortfolioPlan(
+                        SavePlanningRequest(
+                            portfolioMonthlyBudgetCents = requireNotNull(portfolioBudgetCents),
+                            leftoverReceiverBucketUuid = leftoverReceiverBucketUuid,
+                            buckets = saveDrafts
+                        )
+                    )
                 }
             )
 
@@ -369,17 +361,4 @@ private fun PaydaySaveSection(
             )
         }
     }
-}
-
-private fun BudgetBucket.toEditableUi(): EditableBucketUi {
-    return EditableBucketUi(
-        bucketUuid = bucketUuid,
-        name = name,
-        trackingMode = trackingMode,
-        balanceBehavior = balanceBehavior,
-        amountText = CurrencyFormatter.centsToDecimalString(defaultAllocatedAmountCents),
-        sortOrder = sortOrder,
-        closeRequested = isClosed,
-        existingClosed = isClosed
-    )
 }

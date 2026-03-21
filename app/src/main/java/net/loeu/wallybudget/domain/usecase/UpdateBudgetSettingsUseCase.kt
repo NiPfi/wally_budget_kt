@@ -3,6 +3,7 @@
 package net.loeu.wallybudget.domain.usecase
 
 import kotlinx.coroutines.flow.first
+import net.loeu.wallybudget.data.planning.DefaultPlanningRepository
 import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
@@ -30,13 +31,18 @@ import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.PendingPaydayUndo
 import net.loeu.wallybudget.domain.model.UserSettings
+import net.loeu.wallybudget.domain.planning.PlanningConfig
+import net.loeu.wallybudget.domain.planning.PlanningContext
+import net.loeu.wallybudget.domain.planning.PlanningEngine
+import net.loeu.wallybudget.domain.planning.SavePlanningRequest
+import net.loeu.wallybudget.domain.planning.toDraft
+import net.loeu.wallybudget.domain.planning.toPlanningBucket
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BucketAllocationResolver
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import net.loeu.wallybudget.domain.service.ImmediatePaydayChangePlan
 import net.loeu.wallybudget.domain.service.ResolvedCyclePolicy
-import net.loeu.wallybudget.domain.usecase.internal.resolveLeftoverReceiverDraftUuid
 import net.loeu.wallybudget.domain.usecase.internal.newBudgetAdjustment
 import net.loeu.wallybudget.domain.usecase.internal.newBudgetPolicy
 import net.loeu.wallybudget.domain.usecase.internal.newBucketAllocationAdjustment
@@ -44,38 +50,7 @@ import net.loeu.wallybudget.domain.usecase.internal.newBucketAllocationPolicy
 import net.loeu.wallybudget.domain.usecase.internal.resolveSelectedOpenBucketUuid
 import java.time.LocalDate
 import java.time.ZoneId
-import java.util.Locale
 import java.util.UUID
-
-data class BucketDraft(
-    val bucketUuid: String,
-    val name: String,
-    val trackingMode: BucketTrackingMode,
-    val balanceBehavior: BucketBalanceBehavior,
-    val defaultAllocatedAmountCents: Long,
-    val sortOrder: Int,
-    val closeRequested: Boolean = false
-) {
-    @Suppress("UNUSED_PARAMETER")
-    constructor(
-        bucketUuid: String,
-        name: String,
-        trackingMode: BucketTrackingMode,
-        balanceBehavior: BucketBalanceBehavior,
-        defaultAllocatedAmountCents: Long,
-        sortOrder: Int,
-        isPrimary: Boolean,
-        closeRequested: Boolean = false
-    ) : this(
-        bucketUuid = bucketUuid,
-        name = name,
-        trackingMode = trackingMode,
-        balanceBehavior = balanceBehavior,
-        defaultAllocatedAmountCents = defaultAllocatedAmountCents,
-        sortOrder = sortOrder,
-        closeRequested = closeRequested
-    )
-}
 
 data class UpdateBudgetSettingsRequest(
     val portfolioMonthlyBudgetCents: Long,
@@ -146,11 +121,19 @@ class UpdateBudgetSettingsUseCase(
     private val hybridLogicalClockService: HybridLogicalClockService
 ) {
     private val syncObservedDateUseCase = SyncObservedDateUseCase(userSettingsStore)
+    private val planningEngine = PlanningEngine()
+    private val planningRepository = DefaultPlanningRepository(userSettingsStore)
 
     @Suppress("CyclomaticComplexMethod")
     suspend operator fun invoke(request: UpdateBudgetSettingsRequest): UpdateBudgetSettingsResult {
         val (context, bucketDrafts) = prepareUpdateContext(request)
-        validateRequest(request, bucketDrafts, context)
+        val planningChangeSet = planningEngine.buildChangeSet(
+            context = context.toPlanningContext(),
+            request = request.toPlanningRequest(bucketDrafts)
+        )
+        require(planningChangeSet.state.isValid) {
+            planningChangeSet.state.validationErrors.first()
+        }
 
         val settings = context.settings
         val shouldApplyBucketDrafts = request.buckets.isNotEmpty() || context.buckets.any { it.deletedAtEpochMs == null }
@@ -158,39 +141,14 @@ class UpdateBudgetSettingsUseCase(
         val paydayChanged = request.paydayDate != settings.paydayDate
         val bucketChanged = when {
             request.buckets.isEmpty() && context.buckets.none { it.deletedAtEpochMs == null } -> false
-            else -> hasBucketChanges(bucketDrafts, context)
+            else -> planningChangeSet.bucketChanged
         }
         val resolvedLeftoverReceiverBucketUuid = if (shouldApplyBucketDrafts) {
-            resolveLeftoverReceiverDraftUuid(
-                preferredBucketUuid = request.leftoverReceiverBucketUuid ?: settings.leftoverReceiverBucketUuid,
-                openDrafts = bucketDrafts.filterNot { it.closeRequested },
-                existingBucketsByUuid = context.buckets.associateBy { it.bucketUuid }
-            )
+            planningChangeSet.state.resolvedLeftoverReceiverBucketUuid
         } else {
             settings.leftoverReceiverBucketUuid
         }
-        val currentLeftoverReceiverBucketUuid = if (context.buckets.any { it.deletedAtEpochMs == null }) {
-            resolveLeftoverReceiverDraftUuid(
-                preferredBucketUuid = settings.leftoverReceiverBucketUuid,
-                openDrafts = context.buckets
-                    .filterNot { it.isClosed }
-                    .sortedWith(compareBy<BudgetBucket> { it.sortOrder }.thenBy { it.createdAtEpochMs })
-                    .map {
-                        BucketDraft(
-                            bucketUuid = it.bucketUuid,
-                            name = it.name,
-                            trackingMode = it.trackingMode,
-                            balanceBehavior = it.balanceBehavior,
-                            defaultAllocatedAmountCents = it.defaultAllocatedAmountCents,
-                            sortOrder = it.sortOrder
-                        )
-                    },
-                existingBucketsByUuid = context.buckets.associateBy { it.bucketUuid }
-            )
-        } else {
-            settings.leftoverReceiverBucketUuid
-        }
-        val leftoverReceiverChanged = resolvedLeftoverReceiverBucketUuid != currentLeftoverReceiverBucketUuid
+        val leftoverReceiverChanged = planningChangeSet.leftoverReceiverChanged
         if (hasNoSettingsChanges(budgetChanged, paydayChanged, bucketChanged, leftoverReceiverChanged)) {
             return UpdateBudgetSettingsResult(summaryMessage = "No settings changed.")
         }
@@ -218,7 +176,7 @@ class UpdateBudgetSettingsUseCase(
             val bucketMutation = if (shouldApplyBucketDrafts) {
                 applyBucketDrafts(
                     context = context,
-                    bucketDrafts = bucketDrafts
+                    bucketDrafts = planningChangeSet.state.normalizedDrafts
                 )
             } else {
                 BucketMutationResult(finalSelectedBucketUuid = settings.selectedBucketUuid)
@@ -274,14 +232,20 @@ class UpdateBudgetSettingsUseCase(
         request: UpdateBudgetSettingsRequest
     ): Pair<UpdateBudgetSettingsContext, List<BucketDraft>> {
         var context = buildUpdateContext(request)
-        var bucketDrafts = resolveBucketDrafts(request, context)
+        var bucketDrafts = planningEngine.normalize(
+            context = context.toPlanningContext(),
+            request = request.toPlanningRequest()
+        ).normalizedDrafts
         val requestIncludesBucketChanges = when {
             request.buckets.isEmpty() && context.buckets.none { it.deletedAtEpochMs == null } -> false
-            else -> hasBucketChanges(bucketDrafts, context)
+            else -> planningEngine.hasBucketChanges(bucketDrafts, context.toPlanningContext().buckets)
         }
         if (!requestIncludesBucketChanges && restorePendingUndoBeforeApplyingNewSave()) {
             context = buildUpdateContext(request)
-            bucketDrafts = resolveBucketDrafts(request, context)
+            bucketDrafts = planningEngine.normalize(
+                context = context.toPlanningContext(),
+                request = request.toPlanningRequest()
+            ).normalizedDrafts
         }
         return context to bucketDrafts
     }
@@ -301,8 +265,10 @@ class UpdateBudgetSettingsUseCase(
         if (paydayChanged) {
             userSettingsStore.updatePaydayDate(request.paydayDate)
         }
-        userSettingsStore.updateLeftoverReceiverBucket(leftoverReceiverBucketUuid)
-        userSettingsStore.updateSelectedBucket(mutation.finalSelectedBucketUuid)
+        planningRepository.persistPlanningSettings(
+            leftoverReceiverBucketUuid = leftoverReceiverBucketUuid,
+            selectedBucketUuid = mutation.finalSelectedBucketUuid
+        )
         if ((budgetChanged || paydayChanged) && !bucketChanged) {
             userSettingsStore.savePendingPaydayUndo(
                 buildPendingPaydayUndo(
@@ -401,122 +367,6 @@ class UpdateBudgetSettingsUseCase(
         )
     }
 
-    private fun resolveBucketDrafts(
-        request: UpdateBudgetSettingsRequest,
-        context: UpdateBudgetSettingsContext
-    ): List<BucketDraft> {
-        if (request.buckets.isNotEmpty()) {
-            return normalizeBucketDrafts(
-                drafts = request.buckets.sortedBy { it.sortOrder },
-                context = context,
-                portfolioMonthlyBudgetCents = request.portfolioMonthlyBudgetCents,
-                preferredLeftoverReceiverBucketUuid = request.leftoverReceiverBucketUuid
-            )
-        }
-        if (context.buckets.none { it.deletedAtEpochMs == null }) {
-            return normalizeBucketDrafts(
-                drafts = listOf(
-                BucketDraft(
-                    bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
-                    name = DEFAULT_SPENDING_BUCKET_NAME,
-                    trackingMode = BucketTrackingMode.DAILY_TARGET,
-                    balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
-                    defaultAllocatedAmountCents = context.settings.monthlyBudgetCents,
-                    sortOrder = 0,
-                    closeRequested = false
-                )
-                ),
-                context = context,
-                portfolioMonthlyBudgetCents = request.portfolioMonthlyBudgetCents,
-                preferredLeftoverReceiverBucketUuid = request.leftoverReceiverBucketUuid
-            )
-        }
-        return normalizeBucketDrafts(
-            drafts = context.buckets
-                .filter { it.deletedAtEpochMs == null }
-                .sortedWith(compareBy<BudgetBucket> { it.sortOrder }.thenBy { it.createdAtEpochMs })
-                .map { bucket ->
-                    BucketDraft(
-                        bucketUuid = bucket.bucketUuid,
-                        name = bucket.name,
-                        trackingMode = bucket.trackingMode,
-                        balanceBehavior = bucket.balanceBehavior,
-                        defaultAllocatedAmountCents = bucket.defaultAllocatedAmountCents,
-                        sortOrder = bucket.sortOrder,
-                        closeRequested = bucket.isClosed
-                    )
-            },
-            context = context,
-            portfolioMonthlyBudgetCents = request.portfolioMonthlyBudgetCents,
-            preferredLeftoverReceiverBucketUuid = request.leftoverReceiverBucketUuid
-        )
-    }
-
-    private fun validateRequest(
-        request: UpdateBudgetSettingsRequest,
-        bucketDrafts: List<BucketDraft>,
-        context: UpdateBudgetSettingsContext
-    ) {
-        require(request.portfolioMonthlyBudgetCents > 0L) {
-            "Portfolio budget must be greater than zero."
-        }
-        require(request.paydayDate in 1..31) {
-            "Payday must be between 1 and 31."
-        }
-
-        val existingByUuid = context.buckets.associateBy { it.bucketUuid }
-        bucketDrafts.forEach { draft ->
-            require(draft.name.isNotBlank()) { "Bucket name cannot be blank." }
-            require(draft.defaultAllocatedAmountCents >= 0L) { "Bucket allocation cannot be negative." }
-            val existing = existingByUuid[draft.bucketUuid]
-            require(existing == null || existing.deletedAtEpochMs != null || !existing.isClosed || draft.closeRequested) {
-                "Closed buckets cannot be reopened."
-            }
-        }
-
-        val openBuckets = bucketDrafts.filterNot { it.closeRequested }
-        require(openBuckets.isNotEmpty()) { "At least one bucket must remain open." }
-
-        val duplicateName = openBuckets
-            .groupBy { it.name.trim().lowercase(Locale.getDefault()) }
-            .values
-            .firstOrNull { it.size > 1 }
-        require(duplicateName == null) { "Bucket names must be unique." }
-        val receiverBucketUuid = resolveLeftoverReceiverDraftUuid(
-            preferredBucketUuid = request.leftoverReceiverBucketUuid ?: context.settings.leftoverReceiverBucketUuid,
-            openDrafts = openBuckets,
-            existingBucketsByUuid = existingByUuid
-        )
-
-        require(
-            openBuckets
-                .filterNot { it.bucketUuid == receiverBucketUuid }
-                .sumOf { it.defaultAllocatedAmountCents } <= request.portfolioMonthlyBudgetCents
-        ) {
-            "Bucket allocations cannot exceed the portfolio budget."
-        }
-    }
-
-    private fun hasBucketChanges(
-        bucketDrafts: List<BucketDraft>,
-        context: UpdateBudgetSettingsContext
-    ): Boolean {
-        val existingByUuid = context.buckets.associateBy { it.bucketUuid }
-        val existingActiveCount = context.buckets.count { it.deletedAtEpochMs == null }
-        if (bucketDrafts.size != existingActiveCount) {
-            return true
-        }
-        return bucketDrafts.any { draft ->
-            val existing = existingByUuid[draft.bucketUuid] ?: return@any true
-            existing.name != draft.name ||
-            existing.trackingMode != draft.trackingMode ||
-            existing.balanceBehavior != draft.balanceBehavior ||
-            existing.defaultAllocatedAmountCents != draft.defaultAllocatedAmountCents ||
-            existing.sortOrder != draft.sortOrder ||
-            draft.closeRequested != existing.isClosed
-        }
-    }
-
     private suspend fun insertCurrentCycleAdjustment(
         context: UpdateBudgetSettingsContext,
         request: UpdateBudgetSettingsRequest
@@ -595,10 +445,9 @@ class UpdateBudgetSettingsUseCase(
         val nowEpochMs = context.today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val existingByUuid = context.buckets.associateBy { it.bucketUuid }
         val openDrafts = bucketDrafts.filterNot { it.closeRequested }
-        val receiverBucketUuid = resolveLeftoverReceiverDraftUuid(
+        val receiverBucketUuid = planningEngine.resolveLeftoverReceiverBucketUuid(
             preferredBucketUuid = context.settings.leftoverReceiverBucketUuid,
-            openDrafts = openDrafts,
-            existingBucketsByUuid = existingByUuid
+            openDrafts = openDrafts
         )
         val selectedBucketUuid = resolveSelectedOpenBucketUuid(
             selectedBucketUuid = settings.selectedBucketUuid,
@@ -1340,34 +1189,25 @@ class UpdateBudgetSettingsUseCase(
         val finalSelectedBucketUuid: String?
     )
 
-    private fun normalizeBucketDrafts(
-        drafts: List<BucketDraft>,
-        context: UpdateBudgetSettingsContext,
-        portfolioMonthlyBudgetCents: Long,
-        preferredLeftoverReceiverBucketUuid: String?
-    ): List<BucketDraft> {
-        val existingByUuid = context.buckets.associateBy { it.bucketUuid }
-        val trimmedDrafts = drafts.map { it.copy(name = it.name.trim()) }
-        val openDrafts = trimmedDrafts.filterNot { it.closeRequested }
-        val receiverBucketUuid = resolveLeftoverReceiverDraftUuid(
-            preferredBucketUuid = preferredLeftoverReceiverBucketUuid ?: context.settings.leftoverReceiverBucketUuid,
-            openDrafts = openDrafts,
-            existingBucketsByUuid = existingByUuid
+    private fun UpdateBudgetSettingsContext.toPlanningContext(): PlanningContext {
+        return PlanningContext(
+            config = PlanningConfig(
+                portfolioMonthlyBudgetCents = settings.resolvedPortfolioMonthlyBudgetCents,
+                leftoverReceiverBucketUuid = settings.leftoverReceiverBucketUuid
+            ),
+            buckets = buckets.map { it.toPlanningBucket() },
+            selectedBucketUuid = settings.selectedBucketUuid
         )
-        val namedOpenAllocationTotal = trimmedDrafts
-            .filterNot { it.closeRequested || it.bucketUuid == receiverBucketUuid }
-            .sumOf { it.defaultAllocatedAmountCents }
-        return trimmedDrafts
-            .map { draft ->
-                if (draft.bucketUuid == receiverBucketUuid && !draft.closeRequested) {
-                    draft.copy(
-                        defaultAllocatedAmountCents = (portfolioMonthlyBudgetCents - namedOpenAllocationTotal)
-                            .coerceAtLeast(0L)
-                    )
-                } else {
-                    draft
-                }
-            }
-            .sortedBy { it.sortOrder }
     }
+
+    private fun UpdateBudgetSettingsRequest.toPlanningRequest(
+        bucketDrafts: List<BucketDraft> = buckets
+    ): SavePlanningRequest {
+        return SavePlanningRequest(
+            portfolioMonthlyBudgetCents = portfolioMonthlyBudgetCents,
+            leftoverReceiverBucketUuid = leftoverReceiverBucketUuid,
+            buckets = bucketDrafts
+        )
+    }
+
 }

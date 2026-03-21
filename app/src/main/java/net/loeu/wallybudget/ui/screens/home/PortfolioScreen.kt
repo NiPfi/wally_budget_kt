@@ -20,6 +20,7 @@ import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BucketSummaryState
 import net.loeu.wallybudget.domain.model.PortfolioState
 import net.loeu.wallybudget.domain.model.UserSettings
+import net.loeu.wallybudget.domain.planning.SavePlanningRequest
 import net.loeu.wallybudget.domain.usecase.BucketDraft
 
 @Composable
@@ -28,7 +29,7 @@ fun PortfolioScreen(
     bucketSummaries: List<BucketSummaryState>,
     allBuckets: List<BudgetBucket>,
     userSettings: UserSettings,
-    onSavePortfolioPlan: (Long, String?, List<BucketDraft>) -> Unit,
+    onSavePortfolioPlan: (SavePlanningRequest) -> Unit,
     onNavigateToSettings: () -> Unit,
     showTopRightSettingsAction: Boolean,
     modifier: Modifier = Modifier,
@@ -78,12 +79,14 @@ fun PortfolioScreen(
         onDismiss = { showAddBucketDialog = false },
         onCreateBucket = { newBucketDraft ->
             onSavePortfolioPlan(
-                userSettings.resolvedPortfolioMonthlyBudgetCents,
-                userSettings.leftoverReceiverBucketUuid,
-                buildHomeBucketDrafts(
+                SavePlanningRequest(
+                    portfolioMonthlyBudgetCents = userSettings.resolvedPortfolioMonthlyBudgetCents,
+                    leftoverReceiverBucketUuid = userSettings.leftoverReceiverBucketUuid,
+                    buckets = buildHomeBucketDrafts(
                     allBuckets = allBuckets,
                     bucketSummaries = bucketSummaries,
                     newBucketDraft = newBucketDraft
+                    )
                 )
             )
             showAddBucketDialog = false

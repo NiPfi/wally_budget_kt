@@ -1,5 +1,7 @@
 package net.loeu.wallybudget.ui.screens.settings
 
+import net.loeu.wallybudget.ui.planning.PlanningBucketEditorRow
+import net.loeu.wallybudget.ui.planning.PlanningEditorState
 import net.loeu.wallybudget.util.CurrencyFormatter
 
 internal data class SettingsFormValidation(
@@ -32,10 +34,10 @@ internal fun validateSettingsForm(
 internal fun settingsDraftsMatch(
     currentBudgetText: String,
     currentPaydayText: String,
-    currentBucketDrafts: List<EditableBucketUi>,
+    currentBucketDrafts: List<PlanningBucketEditorRow>,
     externalBudgetText: String,
     externalPaydayText: String,
-    externalBucketDrafts: List<EditableBucketUi>,
+    externalBucketDrafts: List<PlanningBucketEditorRow>,
     currentLeftoverReceiverBucketUuid: String? = null,
     externalLeftoverReceiverBucketUuid: String? = null
 ): Boolean {
@@ -48,10 +50,10 @@ internal fun settingsDraftsMatch(
 internal fun shouldSyncSettingsDrafts(
     currentBudgetText: String,
     currentPaydayText: String,
-    currentBucketDrafts: List<EditableBucketUi>,
+    currentBucketDrafts: List<PlanningBucketEditorRow>,
     externalBudgetText: String,
     externalPaydayText: String,
-    externalBucketDrafts: List<EditableBucketUi>,
+    externalBucketDrafts: List<PlanningBucketEditorRow>,
     currentLeftoverReceiverBucketUuid: String? = null,
     externalLeftoverReceiverBucketUuid: String? = null,
     isEditorOpen: Boolean
@@ -68,4 +70,13 @@ internal fun shouldSyncSettingsDrafts(
             externalLeftoverReceiverBucketUuid = externalLeftoverReceiverBucketUuid
         )
     )
+}
+
+internal fun planningEditorStatesMatch(
+    current: PlanningEditorState,
+    external: PlanningEditorState,
+    currentPaydayText: String,
+    externalPaydayText: String
+): Boolean {
+    return current == external && currentPaydayText == externalPaydayText
 }

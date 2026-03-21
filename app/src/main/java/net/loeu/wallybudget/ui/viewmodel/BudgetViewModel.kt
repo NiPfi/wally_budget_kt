@@ -34,6 +34,7 @@ import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.TimelineLockState
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.data.time.CurrentDateProvider
+import net.loeu.wallybudget.domain.planning.SavePlanningRequest
 import net.loeu.wallybudget.domain.usecase.ApplyOnboardingRestoreUseCase
 import net.loeu.wallybudget.domain.usecase.AddExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.CompleteOnboardingUseCase
@@ -57,10 +58,8 @@ import net.loeu.wallybudget.domain.usecase.SelectBucketUseCase
 import net.loeu.wallybudget.domain.usecase.SnapshotOperationException
 import net.loeu.wallybudget.domain.usecase.SyncObservedDateUseCase
 import net.loeu.wallybudget.domain.usecase.UndoPaydayChangeUseCase
-import net.loeu.wallybudget.domain.usecase.BucketDraft
 import net.loeu.wallybudget.domain.usecase.UpdatePaydayRequest
 import net.loeu.wallybudget.domain.usecase.UpdatePaydayUseCase
-import net.loeu.wallybudget.domain.usecase.UpdatePortfolioPlanRequest
 import net.loeu.wallybudget.domain.usecase.UpdatePortfolioPlanUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateExpenseUseCase
 import java.time.Instant
@@ -429,20 +428,10 @@ class BudgetViewModel(
         }
     }
 
-    fun updatePortfolioPlan(
-        portfolioMonthlyBudgetCents: Long,
-        leftoverReceiverBucketUuid: String?,
-        buckets: List<BucketDraft>
-    ) {
+    fun updatePortfolioPlan(request: SavePlanningRequest) {
         viewModelScope.launch {
             try {
-                val result = updatePortfolioPlanUseCase(
-                    UpdatePortfolioPlanRequest(
-                        portfolioMonthlyBudgetCents = portfolioMonthlyBudgetCents,
-                        leftoverReceiverBucketUuid = leftoverReceiverBucketUuid,
-                        buckets = buckets
-                    )
-                )
+                val result = updatePortfolioPlanUseCase(request)
                 _settingsStatusMessage.value = result.summaryMessage
             } catch (exception: IllegalArgumentException) {
                 _settingsStatusMessage.value = exception.message ?: "Unable to save portfolio plan."

@@ -78,6 +78,7 @@ import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.model.displayDescription
 import net.loeu.wallybudget.domain.model.recordedDate
+import net.loeu.wallybudget.domain.planning.SavePlanningRequest
 import net.loeu.wallybudget.domain.usecase.BucketDraft
 import net.loeu.wallybudget.domain.usecase.internal.resolveSelectedOpenBucketUuid
 import net.loeu.wallybudget.ui.components.PagerDots
@@ -121,7 +122,7 @@ fun HomeScreen(
     currentDate: LocalDate,
     spendingForecast: SpendingForecast?,
     onSelectBucket: (String) -> Unit,
-    onSavePortfolioPlan: (Long, String?, List<BucketDraft>) -> Unit,
+    onSavePortfolioPlan: (SavePlanningRequest) -> Unit,
     onAddExpense: (String, Long, String, ExpenseCategory?, LocalDate) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
@@ -299,12 +300,14 @@ fun HomeScreen(
         onDismiss = { bucketEditorState = null },
         onSaveSettings = { updatedBucketDraft ->
             onSavePortfolioPlan(
-                userSettings.resolvedPortfolioMonthlyBudgetCents,
-                userSettings.leftoverReceiverBucketUuid,
-                buildUpdatedHomeBucketDrafts(
+                SavePlanningRequest(
+                    portfolioMonthlyBudgetCents = userSettings.resolvedPortfolioMonthlyBudgetCents,
+                    leftoverReceiverBucketUuid = userSettings.leftoverReceiverBucketUuid,
+                    buckets = buildUpdatedHomeBucketDrafts(
                     allBuckets = allBuckets,
                     bucketSummaries = bucketSummaries,
                     updatedBucketDraft = updatedBucketDraft
+                    )
                 )
             )
             bucketEditorState = null
