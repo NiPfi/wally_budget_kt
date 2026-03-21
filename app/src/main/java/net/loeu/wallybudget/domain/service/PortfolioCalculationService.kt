@@ -15,10 +15,13 @@ class PortfolioCalculationService {
         cycleEndDateExclusive: LocalDate
     ): PortfolioState {
         val allocatedToBucketsCents = bucketSummaries.sumOf { it.allocatedThisCycleCents }
+        // Use one effective baseline for current-cycle portfolio math so reserve and plan
+        // calculations cannot diverge when the portfolio plan was increased mid-cycle.
+        val effectiveCycleBaselineCents = maxOf(portfolioTotalBudgetCents, allocatedToBucketsCents)
         val completedCycleReserveCents = bucketHistory
             .filter { it.getCycleEnd() <= cycleStartDate }
             .sumOf { it.surplusCents }
-        val remainingThisCycleCents = portfolioTotalBudgetCents - totalSpentThisCycleCents
+        val remainingThisCycleCents = effectiveCycleBaselineCents - totalSpentThisCycleCents
         val netReserveCents = completedCycleReserveCents + remainingThisCycleCents
         val earmarkedReserveCents = bucketSummaries
             .filter {
@@ -30,9 +33,9 @@ class PortfolioCalculationService {
         val unassignedReserveCents = netReserveCents - earmarkedReserveCents
 
         return PortfolioState(
-            portfolioTotalBudgetCents = portfolioTotalBudgetCents,
+            portfolioTotalBudgetCents = effectiveCycleBaselineCents,
             allocatedToBucketsCents = allocatedToBucketsCents,
-            unassignedPlannedBudgetCents = (portfolioTotalBudgetCents - allocatedToBucketsCents).coerceAtLeast(0L),
+            unassignedPlannedBudgetCents = (effectiveCycleBaselineCents - allocatedToBucketsCents).coerceAtLeast(0L),
             totalSpentThisCycleCents = totalSpentThisCycleCents,
             remainingThisCycleCents = remainingThisCycleCents,
             completedCycleReserveCents = completedCycleReserveCents,

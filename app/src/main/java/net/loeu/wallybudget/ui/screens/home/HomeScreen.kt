@@ -356,95 +356,98 @@ private fun HomeScreenEffects(
 
 @Composable
 internal fun PortfolioOverviewPage(
+    portfolioState: PortfolioState,
     bucketSummaries: List<BucketSummaryState>,
     showTopRightSettingsAction: Boolean,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val defaultBucketSummary = bucketSummaries.firstOrNull { it.bucket.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
-    val namedBucketAllocationCents = bucketSummaries
-        .filterNot { it.bucket.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
-        .sumOf { it.allocatedThisCycleCents }
-    val portfolioTotalBudgetCents = namedBucketAllocationCents + (defaultBucketSummary?.allocatedThisCycleCents ?: 0L)
+    val activeBucketRemainingCents = bucketSummaries.sumOf { it.remainingThisCycleCents }
+    val layoutState = rememberOverviewPageLayoutState(
+        defaultCollapsedHeader = false,
+        enableHeaderCollapse = true
+    )
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .statusBarsPadding(),
-        contentPadding = PaddingValues(
-            start = 16.dp,
-            end = 16.dp,
-            top = 16.dp,
-            bottom = HomeFabSize + HomeFabListClearance + 16.dp
+    CollapsingSummaryLayout(
+        layoutState = layoutState,
+        config = CollapsingSummaryLayoutConfig(
+            modifier = modifier.fillMaxSize(),
+            enableHeaderCollapse = true,
+            bottomContentPadding = HomeFabSize + HomeFabListClearance + 16.dp,
+            headerHorizontalPadding = 0.dp,
+            headerTopPadding = 0.dp,
+            headerBottomSpacing = 16.dp
         ),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item {
-            PortfolioHeaderRow(
+        header = { collapseProgress ->
+            PortfolioSummaryCard(
+                portfolioState = portfolioState,
+                activeBucketRemainingCents = activeBucketRemainingCents,
+                collapseProgress = collapseProgress,
                 onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null
             )
         }
-        item {
-            PortfolioDetailsSection(
-                portfolioTotalBudgetCents = portfolioTotalBudgetCents,
-                namedBucketAllocationCents = namedBucketAllocationCents,
-                defaultBucketAllocationCents = defaultBucketSummary?.allocatedThisCycleCents ?: 0L
-            )
-        }
-        item {
-            ActiveBucketsSection(bucketSummaries = bucketSummaries)
-        }
-    }
-}
-
-@Composable
-private fun PortfolioHeaderRow(
-    onNavigateToSettings: (() -> Unit)?
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = "Portfolio",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Black
-            )
-            Text(
-                text = "Planning totals and bucket allocations for this cycle.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        if (onNavigateToSettings != null) {
-            IconButton(
-                onClick = onNavigateToSettings,
-                modifier = Modifier.padding(8.dp)
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_settings),
-                    contentDescription = "Open settings"
-                )
+    ) { listState, contentPadding ->
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = contentPadding.calculateTopPadding(),
+                bottom = contentPadding.calculateBottomPadding()
+            ),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            item {
+                ActiveBucketsSection(bucketSummaries = bucketSummaries)
+            }
+            item {
+                PortfolioReserveSection(portfolioState = portfolioState)
             }
         }
     }
 }
 
 @Composable
-private fun PortfolioDetailsSection(
-    portfolioTotalBudgetCents: Long,
-    namedBucketAllocationCents: Long,
-    defaultBucketAllocationCents: Long
+private fun PortfolioSummaryCard(
+    portfolioState: PortfolioState,
+    activeBucketRemainingCents: Long,
+    collapseProgress: Float,
+    onNavigateToSettings: (() -> Unit)?
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        PlainMetricRow("Portfolio total", CurrencyFormatter.format(portfolioTotalBudgetCents))
-        PlainMetricRow("Outside default bucket", CurrencyFormatter.format(namedBucketAllocationCents))
-        PlainMetricRow("Default bucket", CurrencyFormatter.format(defaultBucketAllocationCents))
+    val cycleDateFormatter = remember { DateTimeFormatter.ofPattern("MMM d") }
+    val cycleLabel = remember(portfolioState.cycleStartDate, portfolioState.cycleEndDateExclusive) {
+        val cycleEndInclusive = portfolioState.cycleEndDateExclusive.minusDays(1)
+        "${portfolioState.cycleStartDate.format(cycleDateFormatter)} - " +
+            cycleEndInclusive.format(cycleDateFormatter)
+    }
+
+    TopSummaryCard(
+        title = "Portfolio",
+        amountText = CurrencyFormatter.formatSigned(activeBucketRemainingCents),
+        subtitleText = "Left in this cycle • $cycleLabel",
+        collapseProgress = collapseProgress,
+        useWarningTint = activeBucketRemainingCents < 0L,
+        onNavigateToAnalysis = null,
+        onNavigateToSettings = onNavigateToSettings
+    ) { contentColor, progress ->
+        CollapsingMetricsRow(visibilityProgress = (1f - progress * 1.15f).coerceIn(0f, 1f)) {
+            SummaryMetricColumn(
+                label = "Allocated",
+                value = CurrencyFormatter.format(portfolioState.allocatedToBucketsCents),
+                contentColor = contentColor
+            )
+            SummaryMetricColumn(
+                label = "Spent",
+                value = CurrencyFormatter.format(portfolioState.totalSpentThisCycleCents),
+                contentColor = contentColor
+            )
+            SummaryMetricColumn(
+                label = "Unassigned",
+                value = CurrencyFormatter.format(portfolioState.unassignedPlannedBudgetCents),
+                contentColor = contentColor
+            )
+        }
     }
 }
 
@@ -478,6 +481,45 @@ private fun ActiveBucketsSection(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun PortfolioReserveSection(
+    portfolioState: PortfolioState
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        SectionHeading("Portfolio reserve")
+        Text(
+            text = "Accumulated reserve across completed cycles plus this cycle's overall portfolio budget delta.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        PlainMetricRow(
+            "Completed cycles",
+            CurrencyFormatter.formatSigned(portfolioState.completedCycleReserveCents)
+        )
+        PlainMetricRow(
+            "This cycle portfolio delta",
+            CurrencyFormatter.formatSigned(portfolioState.remainingThisCycleCents)
+        )
+        PlainMetricRow(
+            "Net reserve",
+            CurrencyFormatter.formatSigned(portfolioState.netReserveCents)
+        )
+        if (portfolioState.earmarkedReserveCents > 0L) {
+            PlainMetricRow(
+                "Earmarked reserve",
+                CurrencyFormatter.format(portfolioState.earmarkedReserveCents)
+            )
+            PlainMetricRow(
+                "Unassigned reserve",
+                CurrencyFormatter.formatSigned(portfolioState.unassignedReserveCents)
+            )
         }
     }
 }
@@ -752,34 +794,83 @@ private fun ReserveSummaryCard(
 ) {
     val showTestTags = !LocalCollapsingHeaderIsForMeasurement.current
     val summary = selectedBucketOverview.summary
-    val colors = summaryCardColors(
-        useWarningTint = summary.remainingThisCycleCents < 0L || summary.overspentCents > 0L
-    )
-    val progress = collapseProgress.coerceIn(0f, 1f)
-    val horizontalPadding = lerp(20.dp, 16.dp, progress)
-    val verticalPadding = lerp(18.dp, 10.dp, progress)
-    val mergedHeaderTopPadding = 0.dp
-    val mergedHeaderBodyOffset = lerp(0.dp, (-6).dp, progress)
-    val contentSpacing = lerp(12.dp, 6.dp, progress)
-    val amountFontSize = lerp(34.sp, 24.sp, progress)
-    MergedSummaryHeaderSurface(
+
+    TopSummaryCard(
         title = selectedBucketOverview.bucket.name,
-        summaryColors = colors,
-        modifier = Modifier.fillMaxWidth(),
-        headerHorizontalPadding = horizontalPadding,
-        headerBottomPadding = 0.dp,
+        amountText = CurrencyFormatter.formatSigned(summary.remainingThisCycleCents),
+        subtitleText = null,
+        collapseProgress = collapseProgress,
+        useWarningTint = summary.remainingThisCycleCents < 0L || summary.overspentCents > 0L,
         onNavigateToAnalysis = onNavigateToAnalysis,
         onNavigateToSettings = onNavigateToSettings,
         headerRowTestTag = if (showTestTags) "home_page_header_row" else null,
         titleTestTag = if (showTestTags) "home_page_header_title" else null,
         analysisTestTag = if (showTestTags) "home_page_header_analysis" else null,
         settingsTestTag = if (showTestTags) "home_page_header_settings" else null
+    ) { contentColor, progress ->
+        CollapsingMetricsRow(visibilityProgress = (1f - progress * 1.15f).coerceIn(0f, 1f)) {
+            SummaryMetricColumn(
+                label = "Allocated",
+                value = CurrencyFormatter.format(summary.allocatedThisCycleCents),
+                contentColor = contentColor
+            )
+            SummaryMetricColumn(
+                label = "Spent",
+                value = CurrencyFormatter.format(summary.spentThisCycleCents),
+                contentColor = contentColor
+            )
+            if (summary.earmarkedBalanceCents > 0L) {
+                SummaryMetricColumn(
+                    label = "Earmarked",
+                    value = CurrencyFormatter.format(summary.earmarkedBalanceCents),
+                    contentColor = contentColor
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TopSummaryCard(
+    title: String,
+    amountText: String,
+    subtitleText: String?,
+    collapseProgress: Float,
+    useWarningTint: Boolean,
+    onNavigateToAnalysis: (() -> Unit)?,
+    onNavigateToSettings: (() -> Unit)?,
+    headerRowTestTag: String? = null,
+    titleTestTag: String? = null,
+    analysisTestTag: String? = null,
+    settingsTestTag: String? = null,
+    metrics: @Composable RowScope.(contentColor: androidx.compose.ui.graphics.Color, progress: Float) -> Unit
+) {
+    val colors = summaryCardColors(useWarningTint = useWarningTint)
+    val progress = collapseProgress.coerceIn(0f, 1f)
+    val horizontalPadding = lerp(20.dp, 16.dp, progress)
+    val verticalPadding = lerp(18.dp, 10.dp, progress)
+    val mergedHeaderBodyOffset = lerp(0.dp, (-6).dp, progress)
+    val contentSpacing = lerp(12.dp, 6.dp, progress)
+    val amountFontSize = lerp(34.sp, 24.sp, progress)
+
+    MergedSummaryHeaderSurface(
+        title = title,
+        summaryColors = colors,
+        modifier = Modifier.fillMaxWidth(),
+        headerHorizontalPadding = horizontalPadding,
+        headerBottomPadding = 0.dp,
+        onNavigateToAnalysis = onNavigateToAnalysis,
+        onNavigateToSettings = onNavigateToSettings,
+        headerRowTestTag = headerRowTestTag,
+        titleTestTag = titleTestTag,
+        analysisTestTag = analysisTestTag,
+        settingsTestTag = settingsTestTag
     ) {
         Column(
             modifier = Modifier
                 .padding(
                     start = horizontalPadding,
-                    top = mergedHeaderTopPadding,
+                    top = 0.dp,
                     end = horizontalPadding,
                     bottom = verticalPadding
                 )
@@ -787,7 +878,7 @@ private fun ReserveSummaryCard(
             verticalArrangement = Arrangement.spacedBy(contentSpacing)
         ) {
             Text(
-                text = CurrencyFormatter.formatSigned(summary.remainingThisCycleCents),
+                text = amountText,
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontSize = amountFontSize,
                     fontWeight = FontWeight.Black
@@ -795,30 +886,19 @@ private fun ReserveSummaryCard(
                 fontWeight = FontWeight.Black,
                 color = colors.content
             )
+            if (subtitleText != null) {
+                Text(
+                    text = subtitleText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.content.copy(alpha = 0.72f)
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                CollapsingMetricsRow(visibilityProgress = (1f - progress * 1.15f).coerceIn(0f, 1f)) {
-                    SummaryMetricColumn(
-                        label = "Allocated",
-                        value = CurrencyFormatter.format(summary.allocatedThisCycleCents),
-                        contentColor = colors.content
-                    )
-                    SummaryMetricColumn(
-                        label = "Spent",
-                        value = CurrencyFormatter.format(summary.spentThisCycleCents),
-                        contentColor = colors.content
-                    )
-                    if (summary.earmarkedBalanceCents > 0L) {
-                        SummaryMetricColumn(
-                            label = "Earmarked",
-                            value = CurrencyFormatter.format(summary.earmarkedBalanceCents),
-                            contentColor = colors.content
-                        )
-                    }
-                }
+                metrics(colors.content, progress)
             }
         }
     }

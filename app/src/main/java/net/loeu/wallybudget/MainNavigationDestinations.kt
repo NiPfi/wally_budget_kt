@@ -15,6 +15,7 @@ import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.ExpenseCycleSection
 import net.loeu.wallybudget.domain.model.MonthlyHistory
+import net.loeu.wallybudget.domain.model.PortfolioState
 import net.loeu.wallybudget.domain.model.SelectedBucketOverview
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.UserSettings
@@ -79,6 +80,7 @@ internal fun NavGraphBuilder.addHomeDestination(
 
 internal fun NavGraphBuilder.addPortfolioDestination(
     navController: NavHostController,
+    portfolioState: PortfolioState,
     bucketSummaries: List<BucketSummaryState>,
     allBuckets: List<BudgetBucket>,
     userSettings: UserSettings,
@@ -88,6 +90,7 @@ internal fun NavGraphBuilder.addPortfolioDestination(
 ) {
     composable(Screen.Portfolio.route) {
         PortfolioScreen(
+            portfolioState = portfolioState,
             bucketSummaries = bucketSummaries,
             allBuckets = allBuckets,
             userSettings = userSettings,
