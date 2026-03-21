@@ -72,6 +72,7 @@ class SnapshotUseCasesTest {
         assertEquals(1, preparedEnvelope.budgetPolicies.size)
         assertEquals("expense-1", preparedEnvelope.expenses.single().recordUuid)
         assertEquals(100_000L, preparedEnvelope.settings.defaultMonthlyBudgetCents)
+        assertEquals(DEFAULT_SPENDING_BUCKET_UUID, preparedEnvelope.settings.primaryBucketUuid)
     }
 
     @Test
@@ -407,6 +408,7 @@ private fun sampleEnvelope(): SnapshotEnvelopeV1 {
             recordUuid = "settings-1",
             defaultMonthlyBudgetCents = 100_000L,
             paydayDate = 25,
+            primaryBucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
             lastResetTimestamp = 0L,
             pendingCycleStartDate = null,
             pendingCycleEndDateExclusive = null,

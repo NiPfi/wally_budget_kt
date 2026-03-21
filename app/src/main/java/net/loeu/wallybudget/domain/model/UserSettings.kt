@@ -6,6 +6,7 @@ package net.loeu.wallybudget.domain.model
 data class UserSettings(
     val monthlyBudgetCents: Long = 0L,
     val portfolioMonthlyBudgetCents: Long? = null,
+    val leftoverReceiverBucketUuid: String? = null,
     val paydayDate: Int = 1, // Day of month (1-31)
     val lastResetTimestamp: Long = 0L,
     val lastSeenDate: String? = null,
@@ -24,6 +25,7 @@ data class UserSettings(
     constructor(
         monthlyBudgetCents: Long = 0L,
         portfolioMonthlyBudgetCents: Long? = null,
+        leftoverReceiverBucketUuid: String? = null,
         paydayDate: Int = 1,
         lastResetTimestamp: Long = 0L,
         lastSeenDate: String? = null,
@@ -41,6 +43,7 @@ data class UserSettings(
     ) : this(
         monthlyBudgetCents = monthlyBudgetCents,
         portfolioMonthlyBudgetCents = portfolioMonthlyBudgetCents,
+        leftoverReceiverBucketUuid = leftoverReceiverBucketUuid ?: primaryBucketUuid,
         paydayDate = paydayDate,
         lastResetTimestamp = lastResetTimestamp,
         lastSeenDate = lastSeenDate,

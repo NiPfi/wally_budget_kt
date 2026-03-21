@@ -22,6 +22,8 @@ interface UserSettingsStore {
 
     suspend fun updateSelectedBucket(selectedBucketUuid: String?)
 
+    suspend fun updateLeftoverReceiverBucket(leftoverReceiverBucketUuid: String?)
+
     suspend fun updateLastResetTimestamp(timestamp: Long)
 
     suspend fun updateLastSeenDate(date: LocalDate)

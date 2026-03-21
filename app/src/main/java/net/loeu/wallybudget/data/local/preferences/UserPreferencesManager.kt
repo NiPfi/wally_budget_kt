@@ -51,6 +51,7 @@ class UserPreferencesManager(
         UserSettings(
             monthlyBudgetCents = preferences[PreferenceKeys.MONTHLY_BUDGET_CENTS] ?: 0L,
             portfolioMonthlyBudgetCents = preferences[PreferenceKeys.PORTFOLIO_MONTHLY_BUDGET_CENTS],
+            leftoverReceiverBucketUuid = preferences[PreferenceKeys.PRIMARY_BUCKET_UUID],
             paydayDate = preferences[PreferenceKeys.PAYDAY_DATE] ?: 1,
             lastResetTimestamp = preferences[PreferenceKeys.LAST_RESET_TIMESTAMP] ?: 0L,
             lastSeenDate = preferences[PreferenceKeys.LAST_SEEN_DATE],
@@ -142,7 +143,15 @@ class UserPreferencesManager(
             ensureSettingsIdentity(preferences)
             selectedBucketUuid?.let { preferences[PreferenceKeys.SELECTED_BUCKET_UUID] = it }
                 ?: preferences.remove(PreferenceKeys.SELECTED_BUCKET_UUID)
-            preferences.remove(PreferenceKeys.PRIMARY_BUCKET_UUID)
+            touchSettingsMetadata(preferences)
+        }
+    }
+
+    override suspend fun updateLeftoverReceiverBucket(leftoverReceiverBucketUuid: String?) {
+        context.dataStore.edit { preferences ->
+            ensureSettingsIdentity(preferences)
+            leftoverReceiverBucketUuid?.let { preferences[PreferenceKeys.PRIMARY_BUCKET_UUID] = it }
+                ?: preferences.remove(PreferenceKeys.PRIMARY_BUCKET_UUID)
             touchSettingsMetadata(preferences)
         }
     }
@@ -227,10 +236,11 @@ class UserPreferencesManager(
                 preferences[PreferenceKeys.PENDING_CYCLE_END_DATE_EXCLUSIVE] = it
             } ?: preferences.remove(PreferenceKeys.PENDING_CYCLE_END_DATE_EXCLUSIVE)
             preferences[PreferenceKeys.PENDING_CYCLE_DETECTED_AT_TIMESTAMP] =
-                settings.pendingCycleDetectedAtTimestamp
+            settings.pendingCycleDetectedAtTimestamp
+            settings.leftoverReceiverBucketUuid?.let { preferences[PreferenceKeys.PRIMARY_BUCKET_UUID] = it }
+                ?: preferences.remove(PreferenceKeys.PRIMARY_BUCKET_UUID)
             settings.selectedBucketUuid?.let { preferences[PreferenceKeys.SELECTED_BUCKET_UUID] = it }
                 ?: preferences.remove(PreferenceKeys.SELECTED_BUCKET_UUID)
-            preferences.remove(PreferenceKeys.PRIMARY_BUCKET_UUID)
             preferences[PreferenceKeys.ONBOARDING_COMPLETED] = onboardingCompleted
             preferences[PreferenceKeys.SETTINGS_RECORD_UUID] = settings.settingsRecordUuid
                 .takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString()

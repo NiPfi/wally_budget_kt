@@ -53,6 +53,7 @@ class CompleteOnboardingUseCaseTest {
         assertEquals(100_000L, settingsStore.currentSettings.monthlyBudgetCents)
         assertEquals(100_000L, settingsStore.currentSettings.portfolioMonthlyBudgetCents)
         assertEquals(25, settingsStore.currentSettings.paydayDate)
+        assertEquals(DEFAULT_SPENDING_BUCKET_UUID, settingsStore.currentSettings.leftoverReceiverBucketUuid)
         assertEquals(DEFAULT_SPENDING_BUCKET_UUID, settingsStore.currentSettings.selectedBucketUuid)
         assertEquals(1, budgetBucketDao.countAll())
         assertEquals(2, bucketAllocationPolicyDao.countAll())

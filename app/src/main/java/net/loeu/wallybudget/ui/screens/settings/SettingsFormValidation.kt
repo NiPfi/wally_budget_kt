@@ -35,10 +35,13 @@ internal fun settingsDraftsMatch(
     currentBucketDrafts: List<EditableBucketUi>,
     externalBudgetText: String,
     externalPaydayText: String,
-    externalBucketDrafts: List<EditableBucketUi>
+    externalBucketDrafts: List<EditableBucketUi>,
+    currentLeftoverReceiverBucketUuid: String? = null,
+    externalLeftoverReceiverBucketUuid: String? = null
 ): Boolean {
     return currentBudgetText == externalBudgetText &&
         currentPaydayText == externalPaydayText &&
+        currentLeftoverReceiverBucketUuid == externalLeftoverReceiverBucketUuid &&
         currentBucketDrafts == externalBucketDrafts
 }
 
@@ -49,6 +52,8 @@ internal fun shouldSyncSettingsDrafts(
     externalBudgetText: String,
     externalPaydayText: String,
     externalBucketDrafts: List<EditableBucketUi>,
+    currentLeftoverReceiverBucketUuid: String? = null,
+    externalLeftoverReceiverBucketUuid: String? = null,
     isEditorOpen: Boolean
 ): Boolean {
     return currentBucketDrafts.isEmpty() || (
@@ -58,7 +63,9 @@ internal fun shouldSyncSettingsDrafts(
             currentBucketDrafts = currentBucketDrafts,
             externalBudgetText = externalBudgetText,
             externalPaydayText = externalPaydayText,
-            externalBucketDrafts = externalBucketDrafts
+            externalBucketDrafts = externalBucketDrafts,
+            currentLeftoverReceiverBucketUuid = currentLeftoverReceiverBucketUuid,
+            externalLeftoverReceiverBucketUuid = externalLeftoverReceiverBucketUuid
         )
     )
 }

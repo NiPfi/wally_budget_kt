@@ -62,6 +62,7 @@ class ExportSnapshotUseCase(
                 portfolioMonthlyBudgetCents = settings.portfolioMonthlyBudgetCents,
                 legacyDefaultBucketBudgetCents = settings.monthlyBudgetCents,
                 paydayDate = settings.paydayDate,
+                primaryBucketUuid = settings.leftoverReceiverBucketUuid,
                 selectedBucketUuid = settings.selectedBucketUuid,
                 lastResetTimestamp = settings.lastResetTimestamp,
                 pendingCycleStartDate = settings.pendingCycleStartDate,

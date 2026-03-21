@@ -38,7 +38,7 @@ internal fun NavGraphBuilder.addHomeDestination(
     spendingForecast: SpendingForecast?,
     isHomeDataLoading: Boolean,
     onSelectBucket: (String) -> Unit,
-    onSavePortfolioPlan: (Long, List<BucketDraft>) -> Unit,
+    onSavePortfolioPlan: (Long, String?, List<BucketDraft>) -> Unit,
     onAddExpense: (String, Long, String, ExpenseCategory?, LocalDate) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
@@ -84,7 +84,7 @@ internal fun NavGraphBuilder.addPortfolioDestination(
     bucketSummaries: List<BucketSummaryState>,
     allBuckets: List<BudgetBucket>,
     userSettings: UserSettings,
-    onSavePortfolioPlan: (Long, List<BucketDraft>) -> Unit,
+    onSavePortfolioPlan: (Long, String?, List<BucketDraft>) -> Unit,
     timelineLockReason: String?,
     usesVerticalNavigation: Boolean
 ) {
@@ -180,7 +180,7 @@ internal fun NavGraphBuilder.addSettingsDestination(
     allBuckets: List<BudgetBucket>,
     bucketSummaries: List<BucketSummaryState>,
     currentDate: LocalDate,
-    onSavePortfolioPlan: (Long, List<BucketDraft>) -> Unit,
+    onSavePortfolioPlan: (Long, String?, List<BucketDraft>) -> Unit,
     onSavePayday: (Int) -> Unit,
     onUndoPaydayChange: () -> Unit,
     isPaydayUndoAvailable: Boolean,

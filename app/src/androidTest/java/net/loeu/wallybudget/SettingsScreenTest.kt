@@ -30,11 +30,11 @@ class SettingsScreenTest {
 
     @Test
     fun settings_screen_portfolio_plan_save_updates_budget_only() {
-        val saveCalls = mutableListOf<Pair<Long, List<BucketDraft>>>()
+        val saveCalls = mutableListOf<Triple<Long, String?, List<BucketDraft>>>()
 
         setSettingsScreenContent(
-            onSavePortfolioPlan = { budgetCents, buckets ->
-                saveCalls += budgetCents to buckets
+            onSavePortfolioPlan = { budgetCents, leftoverReceiverBucketUuid, buckets ->
+                saveCalls += Triple(budgetCents, leftoverReceiverBucketUuid, buckets)
             }
         )
 
@@ -67,7 +67,7 @@ class SettingsScreenTest {
         var undoCalls = 0
 
         setSettingsScreenContent(
-            onSavePortfolioPlan = { _, _ -> },
+            onSavePortfolioPlan = { _, _, _ -> },
             onUndoPaydayChange = { undoCalls += 1 },
             isPaydayUndoAvailable = true,
             paydayUndoExpiresAtExclusive = LocalDate.of(2026, 12, 25)
@@ -82,7 +82,7 @@ class SettingsScreenTest {
     }
 
     private fun setSettingsScreenContent(
-        onSavePortfolioPlan: (Long, List<BucketDraft>) -> Unit = { _, _ -> },
+        onSavePortfolioPlan: (Long, String?, List<BucketDraft>) -> Unit = { _, _, _ -> },
         onSavePayday: (Int) -> Unit = {},
         onUndoPaydayChange: () -> Unit = {},
         isPaydayUndoAvailable: Boolean = false,
@@ -119,6 +119,7 @@ class SettingsScreenTest {
                 SettingsScreen(
                     userSettings = UserSettings(
                         monthlyBudgetCents = 100_000L,
+                        leftoverReceiverBucketUuid = "bucket-1",
                         paydayDate = 25,
                         isOnboardingCompleted = true
                     ),

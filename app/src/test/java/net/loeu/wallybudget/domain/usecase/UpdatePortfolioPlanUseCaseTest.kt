@@ -24,6 +24,94 @@ class UpdatePortfolioPlanUseCaseTest {
 
     @Test
     @Suppress("LongMethod")
+    fun invoke_routesLeftoverAllocationToConfiguredReceiver() = runBlocking {
+        val settingsStore = FakeUserSettingsStore(
+            UserSettings(
+                monthlyBudgetCents = 456_300L,
+                portfolioMonthlyBudgetCents = 456_300L,
+                leftoverReceiverBucketUuid = "bills",
+                paydayDate = 25,
+                selectedBucketUuid = DEFAULT_SPENDING_BUCKET_UUID
+            )
+        )
+        val bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(
+            listOf(
+                bucketPolicyEntity(
+                    "spending-current",
+                    DEFAULT_SPENDING_BUCKET_UUID,
+                    "2026-02-25",
+                    "2026-03-25",
+                    100_000L
+                ),
+                bucketPolicyEntity("bills-current", "bills", "2026-02-25", "2026-03-25", 356_300L)
+            )
+        )
+        val useCase = UpdatePortfolioPlanUseCase(
+            transactionRunner = FakeTransactionRunner(),
+            userSettingsStore = settingsStore,
+            budgetPolicyDao = FakeBudgetPolicyDao(
+                listOf(
+                    BudgetPolicyEntity(
+                        id = 1L,
+                        policyUuid = "current-policy",
+                        cycleStartDate = "2026-02-25",
+                        cycleEndDateExclusive = "2026-03-25",
+                        budgetAmountCents = 456_300L,
+                        paydayDayOfMonth = 25,
+                        originInstallId = "test-install-id",
+                        lastModifiedByInstallId = "test-install-id",
+                        createdAtEpochMs = 1L,
+                        updatedAtEpochMs = 1L,
+                        modClock = "0000000000001-0000-test-install-id"
+                    )
+                )
+            ),
+            budgetBucketDao = FakeBudgetBucketDao(
+                listOf(
+                    bucketEntity(DEFAULT_SPENDING_BUCKET_UUID, DEFAULT_SPENDING_BUCKET_NAME, 100_000L, 0),
+                    bucketEntity("bills", "Bills", 356_300L, 1)
+                )
+            ),
+            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
+            currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 3, 21)),
+            cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService()),
+            hybridLogicalClockService = HybridLogicalClockService()
+        )
+
+        useCase(
+            UpdatePortfolioPlanRequest(
+                portfolioMonthlyBudgetCents = 456_300L,
+                leftoverReceiverBucketUuid = "bills",
+                buckets = listOf(
+                    BucketDraft(
+                        bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                        name = DEFAULT_SPENDING_BUCKET_NAME,
+                        trackingMode = BucketTrackingMode.DAILY_TARGET,
+                        balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
+                        defaultAllocatedAmountCents = 100_000L,
+                        sortOrder = 0
+                    ),
+                    BucketDraft(
+                        bucketUuid = "bills",
+                        name = "Bills",
+                        trackingMode = BucketTrackingMode.CYCLE_RESERVE,
+                        balanceBehavior = BucketBalanceBehavior.RETAIN_IN_BUCKET,
+                        defaultAllocatedAmountCents = 0L,
+                        sortOrder = 1
+                    )
+                )
+            )
+        )
+
+        val activePolicies = bucketAllocationPolicyDao.getAllForSnapshot().associateBy { it.bucketUuid }
+        assertEquals(100_000L, activePolicies.getValue(DEFAULT_SPENDING_BUCKET_UUID).allocatedAmountCents)
+        assertEquals(356_300L, activePolicies.getValue("bills").allocatedAmountCents)
+        assertEquals("bills", settingsStore.currentSettings.leftoverReceiverBucketUuid)
+    }
+
+    @Test
+    @Suppress("LongMethod")
     fun invoke_budgetOnlySavePreservesFutureBucketPolicies() = runBlocking {
         val settingsStore = FakeUserSettingsStore(
             UserSettings(

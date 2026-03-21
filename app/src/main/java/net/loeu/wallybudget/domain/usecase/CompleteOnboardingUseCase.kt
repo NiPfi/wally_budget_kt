@@ -214,6 +214,7 @@ class CompleteOnboardingUseCase(
 
         userSettingsStore.updateMonthlyBudget(monthlyBudgetCents)
         userSettingsStore.updatePortfolioMonthlyBudget(monthlyBudgetCents)
+        userSettingsStore.updateLeftoverReceiverBucket(DEFAULT_SPENDING_BUCKET_UUID)
         userSettingsStore.updatePaydayDate(paydayDate)
         userSettingsStore.updateSelectedBucket(DEFAULT_SPENDING_BUCKET_UUID)
         userSettingsStore.updateLastResetTimestamp(cycleStartDate.toStartOfDayMillis())

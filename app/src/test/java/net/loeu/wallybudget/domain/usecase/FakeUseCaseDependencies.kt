@@ -87,6 +87,12 @@ internal class FakeUserSettingsStore(
         )
     }
 
+    override suspend fun updateLeftoverReceiverBucket(leftoverReceiverBucketUuid: String?) {
+        mutableUserSettings.value = mutableUserSettings.value.copy(
+            leftoverReceiverBucketUuid = leftoverReceiverBucketUuid
+        )
+    }
+
     override suspend fun updateLastResetTimestamp(timestamp: Long) {
         mutableUserSettings.value = mutableUserSettings.value.copy(lastResetTimestamp = timestamp)
     }

@@ -109,6 +109,7 @@ class PrepareSnapshotImportUseCase(
         return UserSettings(
             monthlyBudgetCents = legacyDefaultBucketBudgetCents,
             portfolioMonthlyBudgetCents = settings.portfolioMonthlyBudgetCents,
+            leftoverReceiverBucketUuid = settings.primaryBucketUuid ?: DEFAULT_SPENDING_BUCKET_UUID,
             paydayDate = settings.paydayDate,
             selectedBucketUuid = settings.selectedBucketUuid
                 ?: DEFAULT_SPENDING_BUCKET_UUID,

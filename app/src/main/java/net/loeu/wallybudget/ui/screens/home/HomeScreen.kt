@@ -70,7 +70,6 @@ import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketSummaryState
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
-import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.PortfolioState
@@ -110,7 +109,7 @@ private data class HomeBucketEditorState(
     val trackingMode: BucketTrackingMode,
     val balanceBehavior: BucketBalanceBehavior,
     val amountText: String,
-    val isSystemDefault: Boolean
+    val isComputedRemainder: Boolean
 )
 
 @Composable
@@ -122,7 +121,7 @@ fun HomeScreen(
     currentDate: LocalDate,
     spendingForecast: SpendingForecast?,
     onSelectBucket: (String) -> Unit,
-    onSavePortfolioPlan: (Long, List<BucketDraft>) -> Unit,
+    onSavePortfolioPlan: (Long, String?, List<BucketDraft>) -> Unit,
     onAddExpense: (String, Long, String, ExpenseCategory?, LocalDate) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
@@ -144,10 +143,12 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     val canEditExpenses = !isLoadingData && timelineLockReason == null
     val openBuckets = allBuckets.filterNot { it.isClosed }
+    val leftoverReceiverBucketUuid = remember(openBuckets, userSettings.leftoverReceiverBucketUuid) {
+        userSettings.leftoverReceiverBucketUuid ?: openBuckets.firstOrNull()?.bucketUuid
+    }
     val orderedOpenSummaries = remember(bucketSummaries) {
         bucketSummaries.sortedWith(
-            compareBy<BucketSummaryState> { it.bucket.bucketUuid != DEFAULT_SPENDING_BUCKET_UUID }
-                .thenBy { it.bucket.sortOrder }
+            compareBy<BucketSummaryState> { it.bucket.sortOrder }
                 .thenBy { it.bucket.createdAtEpochMs }
         )
     }
@@ -196,7 +197,7 @@ fun HomeScreen(
             amountText = CurrencyFormatter.centsToDecimalString(
                 summary?.allocatedThisCycleCents ?: bucket.defaultAllocatedAmountCents
             ),
-            isSystemDefault = bucket.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID
+            isComputedRemainder = bucket.bucketUuid == leftoverReceiverBucketUuid
         )
     }
 
@@ -299,6 +300,7 @@ fun HomeScreen(
         onSaveSettings = { updatedBucketDraft ->
             onSavePortfolioPlan(
                 userSettings.resolvedPortfolioMonthlyBudgetCents,
+                userSettings.leftoverReceiverBucketUuid,
                 buildUpdatedHomeBucketDrafts(
                     allBuckets = allBuckets,
                     bucketSummaries = bucketSummaries,
@@ -1014,6 +1016,7 @@ internal fun AddBucketSheet(
     portfolioBudgetCents: Long,
     existingBuckets: List<BudgetBucket>,
     bucketSummaries: List<BucketSummaryState>,
+    leftoverReceiverBucketUuid: String? = null,
     onDismiss: () -> Unit,
     onCreateBucket: (BucketDraft) -> Unit,
 ) {
@@ -1028,6 +1031,7 @@ internal fun AddBucketSheet(
             portfolioBudgetCents = portfolioBudgetCents,
             existingBuckets = existingBuckets,
             bucketSummaries = bucketSummaries,
+            leftoverReceiverBucketUuid = leftoverReceiverBucketUuid,
             onDismiss = onDismiss,
             onCreateBucket = onCreateBucket
         )
@@ -1081,20 +1085,20 @@ private fun HomeBucketSettingsSheet(
             OutlinedTextField(
                 value = amountText,
                 onValueChange = {
-                    if (!editor.isSystemDefault) {
+                    if (!editor.isComputedRemainder) {
                         amountText = it
                     }
                     errorMessage = null
                 },
-                label = { Text(if (editor.isSystemDefault) "Computed remainder" else "Cycle allocation") },
+                label = { Text(if (editor.isComputedRemainder) "Computed remainder" else "Cycle allocation") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
-                enabled = !editor.isSystemDefault,
+                enabled = !editor.isComputedRemainder,
                 modifier = Modifier.fillMaxWidth()
             )
-            if (editor.isSystemDefault) {
+            if (editor.isComputedRemainder) {
                 Text(
-                    text = "This system bucket always absorbs the leftover portfolio budget after your named buckets.",
+                    text = "This bucket receives any unallocated portfolio remainder after the other open buckets.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1159,6 +1163,7 @@ private fun HomeBucketSettingsSheet(
                         val otherAllocatedCents = sumOtherNamedBucketAllocationsForValidation(
                             allBuckets = allBuckets,
                             bucketSummaries = bucketSummaries,
+                            leftoverReceiverBucketUuid = editor.bucketUuid.takeIf { editor.isComputedRemainder },
                             editedBucketUuid = editor.bucketUuid
                         )
                         when {
@@ -1168,9 +1173,9 @@ private fun HomeBucketSettingsSheet(
                                     !it.isClosed &&
                                     it.name.trim().lowercase() == normalizedName
                             } -> errorMessage = "Bucket names must be unique."
-                            !editor.isSystemDefault && (amountCents == null || amountCents < 0L) ->
+                            !editor.isComputedRemainder && (amountCents == null || amountCents < 0L) ->
                                 errorMessage = "Enter a valid allocation."
-                            !editor.isSystemDefault && otherAllocatedCents + requireNotNull(amountCents) > portfolioBudgetCents ->
+                            !editor.isComputedRemainder && otherAllocatedCents + requireNotNull(amountCents) > portfolioBudgetCents ->
                                 errorMessage = "Allocation exceeds the portfolio total."
                             else -> {
                                 onSaveSettings(
@@ -1201,6 +1206,7 @@ internal fun AddBucketForm(
     portfolioBudgetCents: Long,
     existingBuckets: List<BudgetBucket>,
     bucketSummaries: List<BucketSummaryState>,
+    leftoverReceiverBucketUuid: String? = null,
     onDismiss: () -> Unit,
     onCreateBucket: (BucketDraft) -> Unit
 ) {
@@ -1210,7 +1216,7 @@ internal fun AddBucketForm(
     var balanceBehavior by rememberSaveable { mutableStateOf(BucketBalanceBehavior.RETURN_TO_PORTFOLIO) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
     val allocatedToNamedBucketsCents = bucketSummaries
-        .filterNot { it.bucket.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID || it.bucket.isClosed }
+        .filterNot { it.bucket.bucketUuid == leftoverReceiverBucketUuid || it.bucket.isClosed }
         .sumOf { it.allocatedThisCycleCents }
     val computedDefaultBucketCents = (portfolioBudgetCents - allocatedToNamedBucketsCents).coerceAtLeast(0L)
 
@@ -1236,7 +1242,7 @@ internal fun AddBucketForm(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "Default bucket remainder: ${CurrencyFormatter.format(computedDefaultBucketCents)}",
+                    text = "Leftover remainder: ${CurrencyFormatter.format(computedDefaultBucketCents)}",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -1524,6 +1530,7 @@ internal fun buildExistingHomeBucketDrafts(
 internal fun sumOtherNamedBucketAllocationsForValidation(
     allBuckets: List<BudgetBucket>,
     bucketSummaries: List<BucketSummaryState>,
+    leftoverReceiverBucketUuid: String?,
     editedBucketUuid: String
 ): Long {
     return buildExistingHomeBucketDrafts(
@@ -1532,7 +1539,7 @@ internal fun sumOtherNamedBucketAllocationsForValidation(
     )
         .filterNot { draft ->
             draft.bucketUuid == editedBucketUuid ||
-                draft.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID ||
+                draft.bucketUuid == leftoverReceiverBucketUuid ||
                 draft.closeRequested
         }
         .sumOf { it.defaultAllocatedAmountCents }

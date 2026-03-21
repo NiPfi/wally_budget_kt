@@ -28,6 +28,7 @@ class HomeScreenTest {
                 summary(editedBucket, allocatedThisCycleCents = 30_00L),
                 summary(groceriesBucket, allocatedThisCycleCents = 15_00L)
             ),
+            leftoverReceiverBucketUuid = defaultBucket.bucketUuid,
             editedBucketUuid = editedBucket.bucketUuid
         )
 

@@ -62,6 +62,34 @@ class UpdateBudgetSettingsUseCaseBucketsTest {
         assertNull(fixture.settingsStore.pendingPaydayUndo.first())
     }
 
+    @Test
+    fun invoke_routesLeftoverToConfiguredReceiverBucket() = runBlocking {
+        val fixture = createFixture()
+
+        fixture.useCase(
+            requestFor(
+                spendingBucketDraft(),
+                BucketDraft(
+                    bucketUuid = "bills-bucket",
+                    name = "Bills",
+                    trackingMode = BucketTrackingMode.CYCLE_RESERVE,
+                    balanceBehavior = BucketBalanceBehavior.RETAIN_IN_BUCKET,
+                    defaultAllocatedAmountCents = 150_000L,
+                    sortOrder = 1,
+                    isPrimary = false
+                ),
+                leftoverReceiverBucketUuid = "bills-bucket"
+            )
+        )
+
+        val activePolicies = fixture.bucketAllocationPolicyDao.getAllForSnapshot()
+            .filter { it.deletedAtEpochMs == null }
+            .associateBy { it.bucketUuid }
+        assertEquals(100_000L, activePolicies.getValue(DEFAULT_SPENDING_BUCKET_UUID).allocatedAmountCents)
+        assertEquals(350_000L, activePolicies.getValue("bills-bucket").allocatedAmountCents)
+        assertEquals("bills-bucket", fixture.settingsStore.currentSettings.leftoverReceiverBucketUuid)
+    }
+
     private fun createFixture(): BucketSaveFixture {
         val settingsStore = migratedSettingsStore()
         val budgetPolicyDao = migratedBudgetPolicyDao()
@@ -192,10 +220,14 @@ class UpdateBudgetSettingsUseCaseBucketsTest {
         )
     }
 
-    private fun requestFor(vararg buckets: BucketDraft): UpdateBudgetSettingsRequest {
+    private fun requestFor(
+        vararg buckets: BucketDraft,
+        leftoverReceiverBucketUuid: String? = DEFAULT_SPENDING_BUCKET_UUID
+    ): UpdateBudgetSettingsRequest {
         return UpdateBudgetSettingsRequest(
             portfolioMonthlyBudgetCents = 450_000L,
             paydayDate = 25,
+            leftoverReceiverBucketUuid = leftoverReceiverBucketUuid,
             buckets = buckets.toList(),
             budgetChangeMode = BudgetChangeMode.PRORATE_CURRENT_CYCLE
         )

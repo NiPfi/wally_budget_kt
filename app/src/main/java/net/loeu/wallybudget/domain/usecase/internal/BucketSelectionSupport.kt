@@ -1,7 +1,6 @@
 package net.loeu.wallybudget.domain.usecase.internal
 
 import net.loeu.wallybudget.domain.model.BudgetBucket
-import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 
 fun resolveSelectedOpenBucketUuid(
     selectedBucketUuid: String?,
@@ -10,8 +9,8 @@ fun resolveSelectedOpenBucketUuid(
     val openBucketUuids = openBuckets.map { it.bucketUuid }
     return when {
         selectedBucketUuid in openBucketUuids -> selectedBucketUuid
-        DEFAULT_SPENDING_BUCKET_UUID in openBucketUuids -> DEFAULT_SPENDING_BUCKET_UUID
-        else -> openBucketUuids.firstOrNull()
+        openBucketUuids.isNotEmpty() -> openBucketUuids.first()
+        else -> null
     }
 }
 

@@ -28,7 +28,7 @@ fun PortfolioScreen(
     bucketSummaries: List<BucketSummaryState>,
     allBuckets: List<BudgetBucket>,
     userSettings: UserSettings,
-    onSavePortfolioPlan: (Long, List<BucketDraft>) -> Unit,
+    onSavePortfolioPlan: (Long, String?, List<BucketDraft>) -> Unit,
     onNavigateToSettings: () -> Unit,
     showTopRightSettingsAction: Boolean,
     modifier: Modifier = Modifier,
@@ -74,10 +74,12 @@ fun PortfolioScreen(
         portfolioBudgetCents = userSettings.resolvedPortfolioMonthlyBudgetCents,
         existingBuckets = allBuckets,
         bucketSummaries = bucketSummaries,
+        leftoverReceiverBucketUuid = userSettings.leftoverReceiverBucketUuid,
         onDismiss = { showAddBucketDialog = false },
         onCreateBucket = { newBucketDraft ->
             onSavePortfolioPlan(
                 userSettings.resolvedPortfolioMonthlyBudgetCents,
+                userSettings.leftoverReceiverBucketUuid,
                 buildHomeBucketDrafts(
                     allBuckets = allBuckets,
                     bucketSummaries = bucketSummaries,

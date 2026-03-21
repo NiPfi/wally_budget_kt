@@ -431,6 +431,7 @@ class BudgetViewModel(
 
     fun updatePortfolioPlan(
         portfolioMonthlyBudgetCents: Long,
+        leftoverReceiverBucketUuid: String?,
         buckets: List<BucketDraft>
     ) {
         viewModelScope.launch {
@@ -438,6 +439,7 @@ class BudgetViewModel(
                 val result = updatePortfolioPlanUseCase(
                     UpdatePortfolioPlanRequest(
                         portfolioMonthlyBudgetCents = portfolioMonthlyBudgetCents,
+                        leftoverReceiverBucketUuid = leftoverReceiverBucketUuid,
                         buckets = buckets
                     )
                 )

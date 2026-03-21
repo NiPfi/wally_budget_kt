@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,8 +46,10 @@ import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.BucketSummaryState
+import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.usecase.BucketDraft
+import net.loeu.wallybudget.domain.usecase.internal.resolveLeftoverReceiverDraftUuid
 import net.loeu.wallybudget.util.CurrencyFormatter
 import java.time.LocalDate
 
@@ -68,7 +71,7 @@ fun SettingsScreen(
     allBuckets: List<BudgetBucket>,
     bucketSummaries: List<BucketSummaryState>,
     currentDate: LocalDate,
-    onSavePortfolioPlan: (Long, List<BucketDraft>) -> Unit,
+    onSavePortfolioPlan: (Long, String?, List<BucketDraft>) -> Unit,
     onSavePayday: (Int) -> Unit,
     onUndoPaydayChange: () -> Unit,
     isPaydayUndoAvailable: Boolean,
@@ -84,6 +87,7 @@ fun SettingsScreen(
 ) {
     var portfolioBudgetText by remember { mutableStateOf("") }
     var paydayText by remember { mutableStateOf("") }
+    var leftoverReceiverBucketUuid by remember { mutableStateOf<String?>(null) }
     val bucketDrafts = remember { mutableStateListOf<EditableBucketUi>() }
     var showBudgetError by remember { mutableStateOf(false) }
     var showPaydayError by remember { mutableStateOf(false) }
@@ -93,19 +97,23 @@ fun SettingsScreen(
     val externalBucketDrafts = allBuckets
         .sortedWith(compareBy<BudgetBucket> { it.sortOrder }.thenBy { it.createdAtEpochMs })
         .map { bucket -> bucket.toEditableUi() }
+    val externalLeftoverReceiverBucketUuid = userSettings.leftoverReceiverBucketUuid ?: DEFAULT_SPENDING_BUCKET_UUID
     val portfolioPlanHasChanges = bucketDrafts.isNotEmpty() && !settingsDraftsMatch(
         currentBudgetText = portfolioBudgetText,
         currentPaydayText = externalPaydayText,
         currentBucketDrafts = bucketDrafts,
         externalBudgetText = externalBudgetText,
         externalPaydayText = externalPaydayText,
-        externalBucketDrafts = externalBucketDrafts
+        externalBucketDrafts = externalBucketDrafts,
+        currentLeftoverReceiverBucketUuid = leftoverReceiverBucketUuid,
+        externalLeftoverReceiverBucketUuid = externalLeftoverReceiverBucketUuid
     )
     val paydayHasChanges = paydayText != externalPaydayText
 
     LaunchedEffect(externalBudgetText, externalBucketDrafts) {
         if (!portfolioPlanHasChanges) {
             portfolioBudgetText = externalBudgetText
+            leftoverReceiverBucketUuid = externalLeftoverReceiverBucketUuid
             bucketDrafts.clear()
             bucketDrafts += externalBucketDrafts
         }
@@ -137,6 +145,9 @@ fun SettingsScreen(
             PortfolioPlanSection(
                 portfolioBudgetText = portfolioBudgetText,
                 showBudgetError = showBudgetError,
+                leftoverReceiverBucketUuid = leftoverReceiverBucketUuid,
+                bucketOptions = allBuckets.filterNot { it.isClosed },
+                onLeftoverReceiverChange = { leftoverReceiverBucketUuid = it },
                 onBudgetChange = {
                     portfolioBudgetText = it
                     showBudgetError = false
@@ -167,7 +178,7 @@ fun SettingsScreen(
                         showBudgetError = false
                         return@PlanningSaveSection
                     }
-                    onSavePortfolioPlan(requireNotNull(portfolioBudgetCents), saveDrafts)
+                    onSavePortfolioPlan(requireNotNull(portfolioBudgetCents), leftoverReceiverBucketUuid, saveDrafts)
                 }
             )
 
@@ -224,6 +235,9 @@ private fun SettingsTopBar(onNavigateBack: () -> Unit) {
 private fun PortfolioPlanSection(
     portfolioBudgetText: String,
     showBudgetError: Boolean,
+    leftoverReceiverBucketUuid: String?,
+    bucketOptions: List<BudgetBucket>,
+    onLeftoverReceiverChange: (String) -> Unit,
     onBudgetChange: (String) -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -233,10 +247,29 @@ private fun PortfolioPlanSection(
         ) {
             Text(text = "Portfolio Plan", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(
-                text = "Budget and bucket planning changes apply directly. Any amount not allocated to named buckets stays in the default bucket automatically.",
+                text = "Budget and bucket planning changes apply directly. Any amount not allocated to named buckets goes to the selected leftover receiver.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            if (bucketOptions.isNotEmpty()) {
+                Text(
+                    text = "Leftover receiver",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    bucketOptions.forEach { bucket ->
+                        FilterChip(
+                            selected = bucket.bucketUuid == leftoverReceiverBucketUuid,
+                            onClick = { onLeftoverReceiverChange(bucket.bucketUuid) },
+                            label = { Text(bucket.name) }
+                        )
+                    }
+                }
+            }
             OutlinedTextField(
                 value = portfolioBudgetText,
                 onValueChange = onBudgetChange,

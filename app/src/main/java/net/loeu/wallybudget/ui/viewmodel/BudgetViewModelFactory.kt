@@ -282,9 +282,6 @@ class BudgetViewModelFactory(
             transactionRunner = database,
             userSettingsStore = userPreferencesManager,
             budgetBucketDao = budgetBucketDao,
-            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
-            bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
-            budgetCalculationService = budgetCalculationService,
             hybridLogicalClockService = hybridLogicalClockService
         )
     }

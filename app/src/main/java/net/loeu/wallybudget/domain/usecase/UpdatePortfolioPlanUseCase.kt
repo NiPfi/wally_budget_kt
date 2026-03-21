@@ -23,6 +23,7 @@ import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
+import net.loeu.wallybudget.domain.usecase.internal.resolveLeftoverReceiverDraftUuid
 import net.loeu.wallybudget.domain.usecase.internal.newBucketAllocationPolicy
 import net.loeu.wallybudget.domain.usecase.internal.resolveSelectedOpenBucketUuid
 import java.time.LocalDate
@@ -32,6 +33,7 @@ import java.util.UUID
 
 data class UpdatePortfolioPlanRequest(
     val portfolioMonthlyBudgetCents: Long,
+    val leftoverReceiverBucketUuid: String? = null,
     val buckets: List<BucketDraft> = emptyList()
 )
 
@@ -71,8 +73,31 @@ class UpdatePortfolioPlanUseCase(
         validateRequest(request, bucketDrafts, context)
 
         val budgetChanged = request.portfolioMonthlyBudgetCents != context.settings.resolvedPortfolioMonthlyBudgetCents
+        val resolvedLeftoverReceiverBucketUuid = resolveLeftoverReceiverDraftUuid(
+            preferredBucketUuid = request.leftoverReceiverBucketUuid ?: context.settings.leftoverReceiverBucketUuid,
+            openDrafts = bucketDrafts.filterNot { it.closeRequested },
+            existingBucketsByUuid = context.buckets.associateBy { it.bucketUuid }
+        )
+        val leftoverReceiverChanged = resolvedLeftoverReceiverBucketUuid !=
+            resolveLeftoverReceiverDraftUuid(
+                preferredBucketUuid = context.settings.leftoverReceiverBucketUuid,
+                openDrafts = context.buckets
+                    .filterNot { it.isClosed }
+                    .sortedWith(compareBy<BudgetBucket> { it.sortOrder }.thenBy { it.createdAtEpochMs })
+                    .map {
+                        BucketDraft(
+                            bucketUuid = it.bucketUuid,
+                            name = it.name,
+                            trackingMode = it.trackingMode,
+                            balanceBehavior = it.balanceBehavior,
+                            defaultAllocatedAmountCents = it.defaultAllocatedAmountCents,
+                            sortOrder = it.sortOrder
+                        )
+                    },
+                existingBucketsByUuid = context.buckets.associateBy { it.bucketUuid }
+            )
         val bucketChanged = hasBucketChanges(bucketDrafts, context)
-        if (!budgetChanged && !bucketChanged) {
+        if (!budgetChanged && !bucketChanged && !leftoverReceiverChanged) {
             return UpdatePortfolioPlanResult("No planning changes.")
         }
 
@@ -86,12 +111,13 @@ class UpdatePortfolioPlanUseCase(
 
         userSettingsStore.updateMonthlyBudget(request.portfolioMonthlyBudgetCents)
         userSettingsStore.updatePortfolioMonthlyBudget(request.portfolioMonthlyBudgetCents)
+        userSettingsStore.updateLeftoverReceiverBucket(resolvedLeftoverReceiverBucketUuid)
         userSettingsStore.updateSelectedBucket(mutation.finalSelectedBucketUuid)
         invalidateOrExpirePendingPaydayUndo()
 
         val parts = buildList {
             if (budgetChanged) add("Portfolio budget updated.")
-            if (bucketChanged) add("Bucket plan updated.")
+            if (bucketChanged || leftoverReceiverChanged) add("Bucket plan updated.")
         }
         return UpdatePortfolioPlanResult(parts.joinToString(" "))
     }
@@ -125,7 +151,8 @@ class UpdatePortfolioPlanUseCase(
             return normalizeBucketDrafts(
                 drafts = request.buckets.sortedBy { it.sortOrder },
                 context = context,
-                portfolioMonthlyBudgetCents = request.portfolioMonthlyBudgetCents
+                portfolioMonthlyBudgetCents = request.portfolioMonthlyBudgetCents,
+                preferredLeftoverReceiverBucketUuid = request.leftoverReceiverBucketUuid
             )
         }
         val activeBuckets = context.buckets.filter { it.deletedAtEpochMs == null }
@@ -142,7 +169,8 @@ class UpdatePortfolioPlanUseCase(
                     )
                 ),
                 context = context,
-                portfolioMonthlyBudgetCents = request.portfolioMonthlyBudgetCents
+                portfolioMonthlyBudgetCents = request.portfolioMonthlyBudgetCents,
+                preferredLeftoverReceiverBucketUuid = request.leftoverReceiverBucketUuid
             )
         }
         return normalizeBucketDrafts(
@@ -158,9 +186,10 @@ class UpdatePortfolioPlanUseCase(
                         sortOrder = bucket.sortOrder,
                         closeRequested = bucket.isClosed
                     )
-                },
+            },
             context = context,
-            portfolioMonthlyBudgetCents = request.portfolioMonthlyBudgetCents
+            portfolioMonthlyBudgetCents = request.portfolioMonthlyBudgetCents,
+            preferredLeftoverReceiverBucketUuid = request.leftoverReceiverBucketUuid
         )
     }
 
@@ -190,22 +219,19 @@ class UpdatePortfolioPlanUseCase(
 
         val openBuckets = bucketDrafts.filterNot { it.closeRequested }
         require(openBuckets.isNotEmpty()) { "At least one bucket must remain open." }
-        val defaultBucket = openBuckets.firstOrNull { it.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
-            ?: throw IllegalArgumentException("The default bucket must remain open.")
-        require(defaultBucket.trackingMode == BucketTrackingMode.DAILY_TARGET) {
-            "The default bucket tracking mode is fixed."
-        }
-        require(defaultBucket.balanceBehavior == BucketBalanceBehavior.RETURN_TO_PORTFOLIO) {
-            "The default bucket balance behavior is fixed."
-        }
         val duplicateName = openBuckets
             .groupBy { it.name.trim().lowercase(Locale.getDefault()) }
             .values
             .firstOrNull { it.size > 1 }
         require(duplicateName == null) { "Bucket names must be unique." }
+        val receiverBucketUuid = resolveLeftoverReceiverDraftUuid(
+            preferredBucketUuid = request.leftoverReceiverBucketUuid ?: context.settings.leftoverReceiverBucketUuid,
+            openDrafts = openBuckets,
+            existingBucketsByUuid = existingByUuid
+        )
         require(
             openBuckets
-                .filterNot { it.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
+                .filterNot { it.bucketUuid == receiverBucketUuid }
                 .sumOf { it.defaultAllocatedAmountCents } <= request.portfolioMonthlyBudgetCents
         ) {
             "Bucket allocations cannot exceed the portfolio budget."
@@ -452,6 +478,11 @@ class UpdatePortfolioPlanUseCase(
         nowEpochMs: Long
     ) {
         val existingByUuid = context.buckets.associateBy { it.bucketUuid }
+        val receiverBucketUuid = resolveLeftoverReceiverDraftUuid(
+            preferredBucketUuid = context.settings.leftoverReceiverBucketUuid,
+            openDrafts = bucketDrafts.filterNot { it.closeRequested },
+            existingBucketsByUuid = existingByUuid
+        )
         val openDraftsByUuid = bucketDrafts
             .filterNot { it.closeRequested }
             .associateBy { it.bucketUuid }
@@ -465,10 +496,11 @@ class UpdatePortfolioPlanUseCase(
                 cyclePolicies = cyclePolicies,
                 openDraftsByUuid = openDraftsByUuid,
                 existingByUuid = existingByUuid,
+                receiverBucketUuid = receiverBucketUuid,
                 nowEpochMs = nowEpochMs
             )
             val namedAllocationTotal = openDraftsByUuid.values
-                .filterNot { it.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
+                .filterNot { it.bucketUuid == receiverBucketUuid }
                 .sumOf { draft ->
                     resolveFutureNamedBucketAllocation(
                         draft = draft,
@@ -477,11 +509,12 @@ class UpdatePortfolioPlanUseCase(
                     )
                 }
             val defaultAllocation = (portfolioMonthlyBudgetCents - namedAllocationTotal).coerceAtLeast(0L)
-            val existingDefaultPolicy = cyclePolicies.firstOrNull { it.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
-            if (existingDefaultPolicy == null) {
+            val receiverPolicy = cyclePolicies.firstOrNull { it.bucketUuid == receiverBucketUuid }
+            val resolvedReceiverBucketUuid = receiverBucketUuid ?: DEFAULT_SPENDING_BUCKET_UUID
+            if (receiverPolicy == null) {
                 bucketAllocationPolicyDao.insert(
                     newBucketAllocationPolicy(
-                        bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                        bucketUuid = resolvedReceiverBucketUuid,
                         cycleStart = cycleStart,
                         cycleEndExclusive = cycleEndExclusive,
                         allocatedAmountCents = defaultAllocation,
@@ -492,7 +525,7 @@ class UpdatePortfolioPlanUseCase(
                 )
             } else {
                 val entity = bucketAllocationPolicyDao.findByAllocationUuid(
-                    existingDefaultPolicy.allocationUuid
+                    receiverPolicy.allocationUuid
                 ) ?: return@forEach
                 if (entity.allocatedAmountCents != defaultAllocation) {
                     bucketAllocationPolicyDao.update(
@@ -517,10 +550,11 @@ class UpdatePortfolioPlanUseCase(
         cyclePolicies: List<BucketAllocationPolicy>,
         openDraftsByUuid: Map<String, BucketDraft>,
         existingByUuid: Map<String, BudgetBucket>,
+        receiverBucketUuid: String?,
         nowEpochMs: Long
     ) {
         openDraftsByUuid.values
-            .filterNot { it.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
+            .filterNot { it.bucketUuid == receiverBucketUuid }
             .forEach { draft ->
                 if (!hasFutureNamedBucketAllocationChanged(draft, existingByUuid)) return@forEach
 
@@ -581,30 +615,31 @@ class UpdatePortfolioPlanUseCase(
     private fun normalizeBucketDrafts(
         drafts: List<BucketDraft>,
         context: UpdatePortfolioPlanContext,
-        portfolioMonthlyBudgetCents: Long
+        portfolioMonthlyBudgetCents: Long,
+        preferredLeftoverReceiverBucketUuid: String?
     ): List<BucketDraft> {
-        val existingDefaultBucket = context.buckets.firstOrNull { it.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
-        val providedDefaultBucket = drafts.firstOrNull { it.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
-        val namedOpenAllocationTotal = drafts
-            .filterNot { it.closeRequested || it.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
-            .sumOf { it.defaultAllocatedAmountCents }
-        val normalizedDrafts = drafts
-            .filterNot { it.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
-            .map { it.copy(name = it.name.trim()) }
-            .toMutableList()
-        normalizedDrafts += BucketDraft(
-            bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
-            name = when {
-                providedDefaultBucket != null -> providedDefaultBucket.name.trim()
-                existingDefaultBucket != null -> existingDefaultBucket.name
-                else -> DEFAULT_SPENDING_BUCKET_NAME
-            }.ifBlank { DEFAULT_SPENDING_BUCKET_NAME },
-            trackingMode = BucketTrackingMode.DAILY_TARGET,
-            balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
-            defaultAllocatedAmountCents = (portfolioMonthlyBudgetCents - namedOpenAllocationTotal).coerceAtLeast(0L),
-            sortOrder = 0,
-            closeRequested = false
+        val existingByUuid = context.buckets.associateBy { it.bucketUuid }
+        val trimmedDrafts = drafts.map { it.copy(name = it.name.trim()) }
+        val openDrafts = trimmedDrafts.filterNot { it.closeRequested }
+        val receiverBucketUuid = resolveLeftoverReceiverDraftUuid(
+            preferredBucketUuid = preferredLeftoverReceiverBucketUuid ?: context.settings.leftoverReceiverBucketUuid,
+            openDrafts = openDrafts,
+            existingBucketsByUuid = existingByUuid
         )
-        return normalizedDrafts.sortedBy { it.sortOrder }
+        val namedOpenAllocationTotal = trimmedDrafts
+            .filterNot { it.closeRequested || it.bucketUuid == receiverBucketUuid }
+            .sumOf { it.defaultAllocatedAmountCents }
+        return trimmedDrafts
+            .map { draft ->
+                if (draft.bucketUuid == receiverBucketUuid && !draft.closeRequested) {
+                    draft.copy(
+                        defaultAllocatedAmountCents = (portfolioMonthlyBudgetCents - namedOpenAllocationTotal)
+                            .coerceAtLeast(0L)
+                    )
+                } else {
+                    draft
+                }
+            }
+            .sortedBy { it.sortOrder }
     }
 }
