@@ -173,9 +173,11 @@ internal fun MergedSummaryHeaderSurface(
     modifier: Modifier = Modifier,
     headerHorizontalPadding: androidx.compose.ui.unit.Dp = 14.dp,
     headerBottomPadding: androidx.compose.ui.unit.Dp = 2.dp,
+    onNavigateToAnalysis: (() -> Unit)? = null,
     onNavigateToSettings: (() -> Unit)? = null,
     headerRowTestTag: String? = null,
     titleTestTag: String? = null,
+    analysisTestTag: String? = null,
     settingsTestTag: String? = null,
     body: @Composable () -> Unit
 ) {
@@ -192,10 +194,12 @@ internal fun MergedSummaryHeaderSurface(
                 contentColor = summaryColors.content,
                 horizontalPadding = headerHorizontalPadding,
                 bottomPadding = headerBottomPadding,
+                onNavigateToAnalysis = onNavigateToAnalysis,
                 onNavigateToSettings = onNavigateToSettings,
                 modifier = Modifier.fillMaxWidth(),
                 rowTestTag = headerRowTestTag,
                 titleTestTag = titleTestTag,
+                analysisTestTag = analysisTestTag,
                 settingsTestTag = settingsTestTag
             )
             body()
@@ -209,10 +213,12 @@ internal fun MergedSummaryHeaderRow(
     contentColor: Color,
     horizontalPadding: androidx.compose.ui.unit.Dp,
     bottomPadding: androidx.compose.ui.unit.Dp,
+    onNavigateToAnalysis: (() -> Unit)?,
     onNavigateToSettings: (() -> Unit)?,
     modifier: Modifier = Modifier,
     rowTestTag: String? = null,
     titleTestTag: String? = null,
+    analysisTestTag: String? = null,
     settingsTestTag: String? = null
 ) {
     Box(
@@ -233,18 +239,34 @@ internal fun MergedSummaryHeaderRow(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-        if (onNavigateToSettings != null) {
-            IconButton(
-                onClick = onNavigateToSettings,
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .then(if (settingsTestTag != null) Modifier.testTag(settingsTestTag) else Modifier)
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_settings),
-                    contentDescription = "Open settings",
-                    tint = contentColor
-                )
+        Row(modifier = Modifier.align(Alignment.CenterEnd)) {
+            if (onNavigateToAnalysis != null) {
+                IconButton(
+                    onClick = onNavigateToAnalysis,
+                    modifier = Modifier.then(
+                        if (analysisTestTag != null) Modifier.testTag(analysisTestTag) else Modifier
+                    )
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_analytics),
+                        contentDescription = "Open analysis",
+                        tint = contentColor
+                    )
+                }
+            }
+            if (onNavigateToSettings != null) {
+                IconButton(
+                    onClick = onNavigateToSettings,
+                    modifier = Modifier.then(
+                        if (settingsTestTag != null) Modifier.testTag(settingsTestTag) else Modifier
+                    )
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_settings),
+                        contentDescription = "Open settings",
+                        tint = contentColor
+                    )
+                }
             }
         }
     }

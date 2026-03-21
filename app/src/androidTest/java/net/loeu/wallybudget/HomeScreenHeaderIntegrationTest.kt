@@ -38,6 +38,7 @@ class HomeScreenHeaderIntegrationTest {
         composeRule.setContent {
             val bucketSummaries = remember { listOf(testBucketSummary("bucket-1", "Groceries"), testBucketSummary("bucket-2", "Travel")) }
             var selectedBucketUuid by remember { mutableStateOf("bucket-1") }
+            var analysisOpened by remember { mutableStateOf(false) }
 
             WallyBudgetTheme {
                 HomeScreen(
@@ -51,7 +52,6 @@ class HomeScreenHeaderIntegrationTest {
                         monthlyBudgetCents = 250_000L,
                         portfolioMonthlyBudgetCents = 250_000L,
                         paydayDate = 1,
-                        primaryBucketUuid = null,
                         selectedBucketUuid = selectedBucketUuid
                     ),
                     currentDate = LocalDate.of(2026, 3, 7),
@@ -62,6 +62,7 @@ class HomeScreenHeaderIntegrationTest {
                     onRestoreExpense = {},
                     onUpdateExpense = {},
                     onDeleteExpense = {},
+                    onNavigateToAnalysis = { analysisOpened = true },
                     showTopRightSettingsAction = true,
                     showAddExpenseSheet = false,
                     onShowAddExpenseSheet = {},
@@ -69,16 +70,23 @@ class HomeScreenHeaderIntegrationTest {
                     settingsMessage = null,
                     onSettingsMessageConsumed = {}
                 )
+                if (analysisOpened) {
+                    androidx.compose.material3.Text("Analysis opened")
+                }
             }
         }
 
         composeRule.onNodeWithTag("home_page_header_title").assertIsDisplayed()
+        composeRule.onNodeWithTag("home_page_header_analysis").assertIsDisplayed()
         composeRule.onNodeWithTag("home_page_header_settings").assertIsDisplayed()
 
         composeRule.onRoot().performTouchInput {
             swipeLeft()
         }
         composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("home_page_header_analysis").assertIsDisplayed().performClick()
+        composeRule.onNodeWithText("Analysis opened").assertIsDisplayed()
 
         composeRule.onNodeWithTag("home_page_header_settings").assertIsDisplayed().performClick()
         composeRule.onNodeWithText("Bucket settings").assertIsDisplayed()
@@ -107,7 +115,6 @@ class HomeScreenHeaderIntegrationTest {
             balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
             defaultAllocatedAmountCents = 50_000L,
             sortOrder = if (bucketUuid == "bucket-1") 1 else 2,
-            isPrimary = bucketUuid == "bucket-1",
             originInstallId = "test-install",
             lastModifiedByInstallId = "test-install",
             createdAtEpochMs = if (bucketUuid == "bucket-1") 1L else 2L,

@@ -38,6 +38,7 @@ internal data class OverviewContentState(
     val onEditTodayExpense: ((Expense) -> Unit)?,
     val isLoading: Boolean,
     val headerTitle: String?,
+    val headerAnalysisAction: (() -> Unit)?,
     val headerSettingsAction: (() -> Unit)?,
     val onNavigateToSettings: (() -> Unit)?,
     val availableRecoverableOverspendCents: Long,
@@ -82,6 +83,7 @@ internal fun OverviewContentLayout(
             useWarningTint = contentState.useWarningTint,
             onShowSafeTodayDetails = onShowSafeTodayDetails,
             headerTitle = contentState.headerTitle,
+            headerAnalysisAction = contentState.headerAnalysisAction,
             headerSettingsAction = contentState.headerSettingsAction,
             onNavigateToSettings = contentState.onNavigateToSettings
         )
@@ -117,6 +119,7 @@ internal fun OverviewContentLayout(
             useWarningTint = contentState.useWarningTint,
             onShowSafeTodayDetails = onShowSafeTodayDetails,
             headerTitle = contentState.headerTitle,
+            headerAnalysisAction = contentState.headerAnalysisAction,
             headerSettingsAction = contentState.headerSettingsAction,
             showTestTags = true,
             onNavigateToSettings = contentState.onNavigateToSettings
@@ -182,6 +185,7 @@ private fun SubcomposeMeasureScope.measureOverviewHeaderPlaceables(
     useWarningTint: Boolean,
     onShowSafeTodayDetails: () -> Unit,
     headerTitle: String?,
+    headerAnalysisAction: (() -> Unit)?,
     headerSettingsAction: (() -> Unit)?,
     showTestTags: Boolean,
     onNavigateToSettings: (() -> Unit)?
@@ -194,6 +198,7 @@ private fun SubcomposeMeasureScope.measureOverviewHeaderPlaceables(
         useWarningTint = useWarningTint,
         onShowSafeTodayDetails = onShowSafeTodayDetails,
         headerTitle = headerTitle,
+        headerAnalysisAction = headerAnalysisAction,
         headerSettingsAction = headerSettingsAction,
         showTestTags = showTestTags,
         onNavigateToSettings = onNavigateToSettings
@@ -221,6 +226,7 @@ private fun SubcomposeMeasureScope.measureHeaderMetrics(
     useWarningTint: Boolean,
     onShowSafeTodayDetails: () -> Unit,
     headerTitle: String?,
+    headerAnalysisAction: (() -> Unit)?,
     headerSettingsAction: (() -> Unit)?,
     onNavigateToSettings: (() -> Unit)?
 ): OverviewHeaderMetrics {
@@ -241,6 +247,7 @@ private fun SubcomposeMeasureScope.measureHeaderMetrics(
         useWarningTint = useWarningTint,
         onSafeTodayInfoClick = onShowSafeTodayDetails,
         headerTitle = headerTitle,
+        headerAnalysisAction = headerAnalysisAction,
         headerSettingsAction = headerSettingsAction,
         showTestTags = false,
         onNavigateToSettings = onNavigateToSettings,
@@ -255,6 +262,7 @@ private fun SubcomposeMeasureScope.measureHeaderMetrics(
         useWarningTint = useWarningTint,
         onSafeTodayInfoClick = onShowSafeTodayDetails,
         headerTitle = headerTitle,
+        headerAnalysisAction = headerAnalysisAction,
         headerSettingsAction = headerSettingsAction,
         showTestTags = false,
         onNavigateToSettings = onNavigateToSettings,
@@ -281,6 +289,7 @@ private fun CurrentSummaryHeader(
     useWarningTint: Boolean,
     onShowSafeTodayDetails: () -> Unit,
     headerTitle: String?,
+    headerAnalysisAction: (() -> Unit)?,
     headerSettingsAction: (() -> Unit)?,
     showTestTags: Boolean,
     onNavigateToSettings: (() -> Unit)?
@@ -312,9 +321,11 @@ private fun CurrentSummaryHeader(
             modifier = summaryModifier,
             headerHorizontalPadding = horizontalPadding,
             headerBottomPadding = 0.dp,
+            onNavigateToAnalysis = headerAnalysisAction,
             onNavigateToSettings = headerSettingsAction,
             headerRowTestTag = if (showTestTags) "home_page_header_row" else null,
             titleTestTag = if (showTestTags) "home_page_header_title" else null,
+            analysisTestTag = if (showTestTags) "home_page_header_analysis" else null,
             settingsTestTag = if (showTestTags) "home_page_header_settings" else null
         ) {
             Box(modifier = Modifier.offset(y = mergedHeaderBodyOffset)) {
@@ -436,6 +447,7 @@ private fun SubcomposeMeasureScope.measureSummaryCardHeight(
     useWarningTint: Boolean,
     onSafeTodayInfoClick: () -> Unit,
     headerTitle: String?,
+    headerAnalysisAction: (() -> Unit)?,
     headerSettingsAction: (() -> Unit)?,
     showTestTags: Boolean,
     onNavigateToSettings: (() -> Unit)?,
@@ -451,6 +463,7 @@ private fun SubcomposeMeasureScope.measureSummaryCardHeight(
             useWarningTint = useWarningTint,
             onShowSafeTodayDetails = onSafeTodayInfoClick,
             headerTitle = headerTitle,
+            headerAnalysisAction = headerAnalysisAction,
             headerSettingsAction = headerSettingsAction,
             showTestTags = showTestTags,
             onNavigateToSettings = onNavigateToSettings

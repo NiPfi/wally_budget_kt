@@ -26,6 +26,7 @@ import net.loeu.wallybudget.ui.screens.settings.SettingsScreen
 import java.time.LocalDate
 
 internal fun NavGraphBuilder.addHomeDestination(
+    navController: NavHostController,
     bucketSummaries: List<BucketSummaryState>,
     selectedBucketOverview: SelectedBucketOverview,
     allBuckets: List<BudgetBucket>,
@@ -62,6 +63,7 @@ internal fun NavGraphBuilder.addHomeDestination(
             onRestoreExpense = onRestoreExpense,
             onUpdateExpense = onUpdateExpense,
             onDeleteExpense = onDeleteExpense,
+            onNavigateToAnalysis = { navController.navigate(Screen.Analysis.route) },
             showTopRightSettingsAction = !usesVerticalNavigation,
             showAddExpenseSheet = showAddExpenseSheet,
             onShowAddExpenseSheet = onShowAddExpenseSheet,
@@ -147,6 +149,7 @@ internal fun NavGraphBuilder.addAnalysisDestination(
             monthlyHistory = monthlyHistory.orEmpty(),
             timelineLockReason = timelineLockReason,
             isLoading = isAnalysisLoading,
+            onNavigateBack = { navController.popBackStack() },
             onNavigateToSettings = if (usesVerticalNavigation) null else {
                 { navController.navigate(Screen.Settings.route) }
             },

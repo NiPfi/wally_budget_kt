@@ -124,6 +124,7 @@ fun HomeScreen(
     onRestoreExpense: (Expense) -> Unit,
     onUpdateExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
+    onNavigateToAnalysis: () -> Unit,
     showTopRightSettingsAction: Boolean,
     showAddExpenseSheet: Boolean,
     onShowAddExpenseSheet: () -> Unit,
@@ -250,6 +251,7 @@ fun HomeScreen(
                         canEditExpenses = canEditExpenses,
                         isLoadingData = isLoadingData,
                         onEditExpense = { expenseBeingEdited = it },
+                        onNavigateToAnalysis = onNavigateToAnalysis,
                         showTopRightSettingsAction = showTopRightSettingsAction,
                         onNavigateToSettings = if (showTopRightSettingsAction) {
                             { openBucketSettings(pageBucketUuid) }
@@ -536,6 +538,7 @@ private fun BucketHomePage(
     canEditExpenses: Boolean,
     isLoadingData: Boolean,
     onEditExpense: (Expense) -> Unit,
+    onNavigateToAnalysis: (() -> Unit)?,
     showTopRightSettingsAction: Boolean,
     onNavigateToSettings: (() -> Unit)?,
     modifier: Modifier = Modifier
@@ -553,6 +556,7 @@ private fun BucketHomePage(
                         spendingForecast = null
                     ),
                     collapseProgress = 0f,
+                    onNavigateToAnalysis = onNavigateToAnalysis,
                     onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null
                 )
             }
@@ -588,6 +592,7 @@ private fun BucketHomePage(
             },
             isLoading = isLoadingData,
             headerTitle = pageTitle,
+            headerAnalysisAction = onNavigateToAnalysis,
             headerSettingsAction = if (showTopRightSettingsAction) onNavigateToSettings else null,
             onNavigateToSettings = null,
             enableHeaderCollapse = true,
@@ -611,6 +616,7 @@ private fun BucketHomePage(
                 ReserveSummaryCard(
                     selectedBucketOverview = selectedBucketOverview,
                     collapseProgress = collapseProgress,
+                    onNavigateToAnalysis = onNavigateToAnalysis,
                     onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null
                 )
             }
@@ -644,6 +650,7 @@ private fun BucketHomePage(
 private fun ReserveSummaryCard(
     selectedBucketOverview: SelectedBucketOverview,
     collapseProgress: Float,
+    onNavigateToAnalysis: (() -> Unit)?,
     onNavigateToSettings: (() -> Unit)?
 ) {
     val showTestTags = !LocalCollapsingHeaderIsForMeasurement.current
@@ -664,9 +671,11 @@ private fun ReserveSummaryCard(
         modifier = Modifier.fillMaxWidth(),
         headerHorizontalPadding = horizontalPadding,
         headerBottomPadding = 0.dp,
+        onNavigateToAnalysis = onNavigateToAnalysis,
         onNavigateToSettings = onNavigateToSettings,
         headerRowTestTag = if (showTestTags) "home_page_header_row" else null,
         titleTestTag = if (showTestTags) "home_page_header_title" else null,
+        analysisTestTag = if (showTestTags) "home_page_header_analysis" else null,
         settingsTestTag = if (showTestTags) "home_page_header_settings" else null
     ) {
         Column(

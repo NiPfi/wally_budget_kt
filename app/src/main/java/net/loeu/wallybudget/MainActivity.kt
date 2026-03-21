@@ -252,6 +252,7 @@ private fun MainNavigationShell(
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val showNavigationChrome = currentRoute != Screen.Analysis.route
     val navigationLayoutType = mainNavigationLayoutType()
     val usesVerticalNavigation = when (navigationLayoutType) {
         NavigationSuiteType.NavigationRail,
@@ -261,22 +262,7 @@ private fun MainNavigationShell(
         else -> false
     }
 
-    NavigationSuiteScaffold(
-        modifier = modifier.fillMaxSize(),
-        navigationSuiteType = navigationLayoutType,
-        navigationItemVerticalArrangement = if (usesVerticalNavigation) {
-            Arrangement.SpaceBetween
-        } else {
-            Arrangement.Top
-        },
-        navigationItems = {
-            MainNavigationItems(
-                currentRoute = currentRoute,
-                usesVerticalNavigation = usesVerticalNavigation,
-                onNavigate = navController::navigateToTopLevel
-            )
-        }
-    ) {
+    val content: @Composable () -> Unit = {
         MainNavigationHost(
             navController = navController,
             bucketSummaries = bucketSummaries,
@@ -313,6 +299,30 @@ private fun MainNavigationShell(
             usesVerticalNavigation = usesVerticalNavigation
         )
     }
+    if (showNavigationChrome) {
+        NavigationSuiteScaffold(
+            modifier = modifier.fillMaxSize(),
+            navigationSuiteType = navigationLayoutType,
+            navigationItemVerticalArrangement = if (usesVerticalNavigation) {
+                Arrangement.SpaceBetween
+            } else {
+                Arrangement.Top
+            },
+            navigationItems = {
+                MainNavigationItems(
+                    currentRoute = currentRoute,
+                    usesVerticalNavigation = usesVerticalNavigation,
+                    onNavigate = navController::navigateToTopLevel
+                )
+            }
+        ) {
+            content()
+        }
+    } else {
+        Box(modifier = modifier.fillMaxSize()) {
+            content()
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
@@ -334,7 +344,7 @@ private fun MainNavigationItems(
     usesVerticalNavigation: Boolean,
     onNavigate: (Screen) -> Unit
 ) {
-    val primaryScreens = listOf(Screen.Home, Screen.Portfolio, Screen.Analysis, Screen.History)
+    val primaryScreens = listOf(Screen.Home, Screen.Portfolio, Screen.History)
     if (usesVerticalNavigation) {
         Column {
             primaryScreens.forEach { screen ->
@@ -437,6 +447,7 @@ private fun MainNavigationHost(
         startDestination = Screen.Home.route
     ) {
         addHomeDestination(
+            navController = navController,
             bucketSummaries = bucketSummaries,
             selectedBucketOverview = selectedBucketOverview,
             allBuckets = allBuckets,
