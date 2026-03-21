@@ -35,6 +35,7 @@ class PerformMonthlyResetUseCase(
     private val budgetCalculationService: BudgetCalculationService,
     private val cycleScheduleResolver: CycleScheduleResolver,
     private val budgetAdjustmentResolver: BudgetAdjustmentResolver,
+    private val rebuildBucketMonthlyHistoryUseCase: RebuildBucketMonthlyHistoryUseCase,
     private val hybridLogicalClockService: HybridLogicalClockService
 ) {
     suspend operator fun invoke(settings: UserSettings, now: LocalDate) {
@@ -125,7 +126,12 @@ class PerformMonthlyResetUseCase(
 
         if (clearPending) userSettingsStore.clearPendingCycle()
         (nextPendingCycle ?: recoveryPendingCycle)?.let { storePendingCycle(it) }
-        userSettingsStore.updateLastResetTimestamp(currentCycleStart.toStartOfDayMillis())
+        val updatedLastResetTimestamp = currentCycleStart.toStartOfDayMillis()
+        userSettingsStore.updateLastResetTimestamp(updatedLastResetTimestamp)
+        rebuildBucketMonthlyHistoryUseCase(
+            settings = settings.copy(lastResetTimestamp = updatedLastResetTimestamp),
+            replaceExisting = true
+        )
     }
 
     private suspend fun ensurePolicyForCycle(

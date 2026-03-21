@@ -2,10 +2,10 @@ package net.loeu.wallybudget.domain.usecase
 
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 
-class ClearPendingSettingsUndoUseCase(
+class ClearPendingPaydayUndoUseCase(
     private val userSettingsStore: UserSettingsStore
 ) {
     suspend operator fun invoke() {
-        userSettingsStore.clearPendingSettingsUndo()
+        userSettingsStore.clearPendingPaydayUndo()
     }
 }

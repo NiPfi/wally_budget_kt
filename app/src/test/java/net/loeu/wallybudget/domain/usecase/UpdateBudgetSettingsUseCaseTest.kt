@@ -6,6 +6,7 @@ import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
+import net.loeu.wallybudget.domain.service.BucketAllocationResolver
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import org.junit.Assert.assertEquals
@@ -56,9 +57,9 @@ class UpdateBudgetSettingsUseCaseTest {
             )
         )
 
-        assertEquals(120_000L, settingsStore.currentSettings.monthlyBudgetCents)
+        assertEquals(120_000L, settingsStore.currentSettings.portfolioMonthlyBudgetCents)
         assertEquals(1, budgetAdjustmentDao.countAll())
-        assertTrue(result.summaryMessage.contains("Budget prorated"))
+        assertTrue(result.summaryMessage.contains("Portfolio budget prorated"))
     }
 
     @Test
@@ -108,7 +109,7 @@ class UpdateBudgetSettingsUseCaseTest {
         assertEquals("2026-05-01", activePolicies[1].cycleStartDate)
         assertEquals("2026-06-01", activePolicies[1].cycleEndDateExclusive)
         assertEquals(120_000L, activePolicies[1].budgetAmountCents)
-        assertTrue(result.summaryMessage.contains("Budget changes on 2026-05-01"))
+        assertTrue(result.summaryMessage.contains("Portfolio budget changes on 2026-05-01"))
         assertTrue(result.summaryMessage.contains("Payday switches from 25 to 1 now."))
         assertTrue(result.summaryMessage.contains("This cycle extends to 2026-05-01."))
     }
@@ -160,10 +161,10 @@ class UpdateBudgetSettingsUseCaseTest {
         assertEquals("2026-04-20", activePolicies[1].cycleStartDate)
         assertEquals("2026-05-20", activePolicies[1].cycleEndDateExclusive)
         assertEquals(120_000L, activePolicies[1].budgetAmountCents)
-        assertTrue(result.summaryMessage.contains("Budget changes on 2026-04-20"))
+        assertTrue(result.summaryMessage.contains("Portfolio budget changes on 2026-04-20"))
         assertTrue(result.summaryMessage.contains("Payday switches from 25 to 20 now."))
         assertTrue(result.summaryMessage.contains("This cycle now ends on 2026-04-20."))
-        assertEquals("2026-04-20", settingsStore.pendingSettingsUndo.first()?.expiresAtExclusive)
+        assertEquals("2026-04-20", settingsStore.pendingPaydayUndo.first()?.expiresAtExclusive)
     }
 
     @Test
@@ -300,9 +301,9 @@ class UpdateBudgetSettingsUseCaseTest {
         )
 
         assertEquals("No settings changed.", result.summaryMessage)
-        assertEquals(100_000L, settingsStore.currentSettings.monthlyBudgetCents)
+        assertEquals(100_000L, settingsStore.currentSettings.resolvedPortfolioMonthlyBudgetCents)
         assertEquals(0, budgetAdjustmentDao.getActiveForCycle("2026-03-25").size)
-        assertEquals(null, settingsStore.pendingSettingsUndo.first())
+        assertEquals(null, settingsStore.pendingPaydayUndo.first())
     }
 
     @Test
@@ -349,13 +350,13 @@ class UpdateBudgetSettingsUseCaseTest {
             )
         )
 
-        assertEquals(110_000L, settingsStore.currentSettings.monthlyBudgetCents)
+        assertEquals(110_000L, settingsStore.currentSettings.portfolioMonthlyBudgetCents)
         val activeAdjustments = budgetAdjustmentDao.getActiveForCycle("2026-03-25")
         assertEquals(1, activeAdjustments.size)
         assertEquals(100_000L, activeAdjustments.single().previousMonthlyBudgetCents)
         assertEquals(110_000L, activeAdjustments.single().newMonthlyBudgetCents)
 
-        val pendingUndo = settingsStore.pendingSettingsUndo.first()
+        val pendingUndo = settingsStore.pendingPaydayUndo.first()
         assertNotNull(pendingUndo)
         assertEquals(100_000L, pendingUndo?.previousSettings?.monthlyBudgetCents)
         assertEquals(25, pendingUndo?.previousSettings?.paydayDate)
@@ -480,9 +481,13 @@ class UpdateBudgetSettingsUseCaseTest {
             userSettingsStore = settingsStore,
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = budgetAdjustmentDao,
+            budgetBucketDao = FakeBudgetBucketDao(),
+            bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(),
+            bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
             currentDateProvider = FakeCurrentDateProvider(currentDate),
             cycleScheduleResolver = cycleScheduleResolver,
             budgetAdjustmentResolver = BudgetAdjustmentResolver(),
+            bucketAllocationResolver = BucketAllocationResolver(),
             hybridLogicalClockService = HybridLogicalClockService()
         )
     }

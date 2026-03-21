@@ -2,6 +2,14 @@ package net.loeu.wallybudget.domain.model
 
 import java.time.LocalDate
 
+data class CycleBucketSummary(
+    val bucketUuid: String,
+    val bucketName: String,
+    val spentCents: Long,
+    val remainingCents: Long,
+    val overspentCents: Long
+)
+
 data class ExpenseDaySection(
     val date: LocalDate,
     val expenses: List<Expense>,
@@ -18,6 +26,7 @@ data class ExpenseCycleSection(
     val budgetAmountCents: Long,
     val totalSpentCents: Long,
     val surplusCents: Long,
+    val bucketSummaries: List<CycleBucketSummary> = emptyList(),
     val daySections: List<ExpenseDaySection>,
     val isActiveCycle: Boolean,
     val isReadOnly: Boolean,

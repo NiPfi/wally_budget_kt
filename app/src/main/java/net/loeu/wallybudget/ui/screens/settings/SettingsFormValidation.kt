@@ -28,3 +28,37 @@ internal fun validateSettingsForm(
         isPaydayValid = isPaydayValid
     )
 }
+
+internal fun settingsDraftsMatch(
+    currentBudgetText: String,
+    currentPaydayText: String,
+    currentBucketDrafts: List<EditableBucketUi>,
+    externalBudgetText: String,
+    externalPaydayText: String,
+    externalBucketDrafts: List<EditableBucketUi>
+): Boolean {
+    return currentBudgetText == externalBudgetText &&
+        currentPaydayText == externalPaydayText &&
+        currentBucketDrafts == externalBucketDrafts
+}
+
+internal fun shouldSyncSettingsDrafts(
+    currentBudgetText: String,
+    currentPaydayText: String,
+    currentBucketDrafts: List<EditableBucketUi>,
+    externalBudgetText: String,
+    externalPaydayText: String,
+    externalBucketDrafts: List<EditableBucketUi>,
+    isEditorOpen: Boolean
+): Boolean {
+    return currentBucketDrafts.isEmpty() || (
+        !isEditorOpen && settingsDraftsMatch(
+            currentBudgetText = currentBudgetText,
+            currentPaydayText = currentPaydayText,
+            currentBucketDrafts = currentBucketDrafts,
+            externalBudgetText = externalBudgetText,
+            externalPaydayText = externalPaydayText,
+            externalBucketDrafts = externalBucketDrafts
+        )
+    )
+}

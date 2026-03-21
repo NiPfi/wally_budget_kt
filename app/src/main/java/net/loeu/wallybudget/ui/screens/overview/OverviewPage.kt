@@ -46,6 +46,9 @@ fun OverviewPage(
     onEditTodayExpense: ((Expense) -> Unit)?,
     modifier: Modifier = Modifier,
     isLoading: Boolean = false,
+    headerTitle: String? = null,
+    headerAnalysisAction: (() -> Unit)? = null,
+    headerSettingsAction: (() -> Unit)? = null,
     onNavigateToSettings: (() -> Unit)? = null,
     showSpendingDetailsSection: Boolean = true,
     showTodayExpensesSection: Boolean = true,
@@ -53,7 +56,7 @@ fun OverviewPage(
     defaultCollapsedHeader: Boolean = false,
     bottomContentPadding: Dp = 24.dp
 ) {
-    val headerHorizontalPadding = 12.dp; val headerTopPadding = if (defaultCollapsedHeader) 0.dp else 8.dp
+    val headerHorizontalPadding = 0.dp; val headerTopPadding = 0.dp
     val headerBottomSpacing = 10.dp
     val availableRecoverableOverspendCents = calculateAvailableRecoverableOverspendCentsFromForecast(
         remainingTodayCents = budgetState.remainingTodayCents,
@@ -88,6 +91,9 @@ fun OverviewPage(
             spendingForecast = spendingForecast,
             onEditTodayExpense = onEditTodayExpense,
             isLoading = isLoading,
+            headerTitle = headerTitle,
+            headerAnalysisAction = headerAnalysisAction,
+            headerSettingsAction = headerSettingsAction,
             onNavigateToSettings = onNavigateToSettings,
             availableRecoverableOverspendCents = availableRecoverableOverspendCents,
             useWarningTint = useWarningTint

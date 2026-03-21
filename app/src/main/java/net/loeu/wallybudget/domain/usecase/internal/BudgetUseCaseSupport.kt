@@ -71,7 +71,7 @@ internal suspend fun archiveCycleIfNeeded(
     } else {
         budgetPolicyDao.findActivePolicyForCycle(cycleStart.toString())
             ?.budgetAmountCents
-            ?: settings.monthlyBudgetCents
+            ?: settings.resolvedPortfolioMonthlyBudgetCents
     }
 
     monthlyHistoryDao.insert(
@@ -148,7 +148,8 @@ internal fun buildPendingCycleCloseoutState(
     val cycleBudgetAmount = budgetAdjustmentResolver.resolveEffectiveCycleBudgetAmount(
         cycleStart = pendingCycle.start,
         cycleEndExclusive = pendingCycle.endExclusive,
-        baseMonthlyBudgetCents = resolvedPendingPolicy?.budgetAmountCents ?: settings.monthlyBudgetCents,
+        baseMonthlyBudgetCents = resolvedPendingPolicy?.budgetAmountCents
+            ?: settings.resolvedPortfolioMonthlyBudgetCents,
         adjustments = adjustments
     )
     val baseDailyBudget = cycleBudgetAmount / dayCount

@@ -129,7 +129,7 @@ class CycleScheduleResolver(
                 cycleStart,
                 settings.paydayDate
             ),
-            budgetAmountCents = settings.monthlyBudgetCents,
+            budgetAmountCents = settings.resolvedPortfolioMonthlyBudgetCents,
             paydayDayOfMonth = settings.paydayDate
         )
     }

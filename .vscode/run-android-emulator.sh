@@ -3,6 +3,14 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/.." && pwd)"
+app_id="net.loeu.wallybudget"
+activity_name="${app_id}/.MainActivity"
+mode="${1:-launch}"
+
+if [[ "${mode}" != "launch" && "${mode}" != "deploy" ]]; then
+    echo "Usage: ${0} [launch|deploy]" >&2
+    exit 1
+fi
 
 sdk_dir=""
 if [[ -f "${repo_root}/local.properties" ]]; then
@@ -36,24 +44,37 @@ mapfile -t emulator_serials < <(
     "${adb}" devices |
         tail -n +2 |
         sed '/^[[:space:]]*$/d' |
-        awk '$2 == "device" && $1 ~ /^emulator-/ { print $1 }'
+        awk '$2 == "device" { print $1 }'
 )
 
 if [[ "${#emulator_serials[@]}" -eq 0 ]]; then
-    echo "No running emulator detected. Start one emulator, then rerun this launch profile." >&2
+    echo "No connected Android device or emulator detected. Connect one target, then rerun this launch profile." >&2
     exit 1
 fi
 
 if [[ "${#emulator_serials[@]}" -ne 1 ]]; then
-    echo "Multiple running emulators detected: ${emulator_serials[*]}. Leave one emulator connected and retry." >&2
+    echo "Multiple Android targets detected: ${emulator_serials[*]}. Leave one target connected and retry." >&2
     exit 1
 fi
 
 serial="${emulator_serials[0]}"
 
-(
-    cd "${repo_root}"
-    ANDROID_SERIAL="${serial}" ./gradlew --console=plain installDebug
-)
+if [[ "${mode}" == "deploy" ]]; then
+    (
+        cd "${repo_root}"
+        ANDROID_SERIAL="${serial}" ./gradlew --console=plain :app:assembleDebug
+    )
 
-"${adb}" -s "${serial}" shell am start -W -n net.loeu.wallybudget/.MainActivity
+    apk_path="${repo_root}/app/build/outputs/apk/debug/app-debug.apk"
+    if [[ ! -f "${apk_path}" ]]; then
+        echo "Debug APK not found at ${apk_path}. Build may have failed." >&2
+        exit 1
+    fi
+
+    "${adb}" -s "${serial}" install -r "${apk_path}" >/dev/null
+elif ! "${adb}" -s "${serial}" shell pm path "${app_id}" >/dev/null 2>&1; then
+    echo "The debug app is not installed on ${serial}. Run this profile with 'deploy' once first." >&2
+    exit 1
+fi
+
+"${adb}" -s "${serial}" shell am start -W -S -n "${activity_name}"

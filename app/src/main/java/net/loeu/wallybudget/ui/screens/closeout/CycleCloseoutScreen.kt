@@ -246,6 +246,7 @@ fun CycleCloseoutReviewScreen(
     CycleLedgerScreen(
         section = pendingCycle.toExpenseCycleSection(),
         title = "Review ended cycle",
+        historyBucketNameByUuid = emptyMap(),
         modifier = modifier,
         onEditExpense = onEditExpense,
         onAddExpenseForDate = onAddExpenseForDate,

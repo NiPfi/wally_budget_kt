@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package net.loeu.wallybudget.ui.screens.overview
 
 import androidx.compose.foundation.clickable
@@ -8,6 +10,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -16,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
@@ -25,6 +31,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
@@ -32,6 +39,8 @@ import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.util.CurrencyFormatter
 import kotlin.math.roundToInt
+
+private val FlatSummaryCardShape = RoundedCornerShape(0.dp)
 
 @Composable
 fun SummaryCard(
@@ -62,53 +71,254 @@ fun SummaryCard(
     val colors = summaryCardColors(useWarningTint)
 
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(14.dp, FlatSummaryCardShape),
         color = colors.container,
         tonalElevation = lerp(2.dp, 0.dp, progress),
-        shape = MaterialTheme.shapes.extraLarge
+        shape = FlatSummaryCardShape
     ) {
-        Column(
-            modifier = Modifier
-                .padding(horizontal = horizontalPadding, vertical = verticalPadding),
-            verticalArrangement = Arrangement.spacedBy(contentSpacing)
-        ) {
-            SummaryCardPrimaryRow(
-                budgetState = budgetState,
-                amountFontSize = amountFontSize,
-                amountLineHeight = amountLineHeight,
-                contentColor = colors.content,
-                progress = progress,
-                iconAlpha = iconAlpha,
-                iconOffsetPx = iconOffsetPx,
-                rightTopOffsetPx = rightTopOffsetPx,
-                recoverableOverspendCents = recoverableOverspendCents,
-                safeTodayAlpha = safeTodayAlpha,
-                isLoading = isLoading,
-                animateCounters = animateCounters,
-                onSafeTodayInfoClick = onSafeTodayInfoClick,
-                onNavigateToSettings = onNavigateToSettings
+        SummaryCardBody(
+            budgetState = budgetState,
+            recoverableOverspendCents = recoverableOverspendCents,
+            progress = progress,
+            horizontalPadding = horizontalPadding,
+            topPadding = verticalPadding,
+            bottomPadding = verticalPadding,
+            contentSpacing = contentSpacing,
+            amountFontSize = amountFontSize,
+            amountLineHeight = amountLineHeight,
+            contentColor = colors.content,
+            iconAlpha = iconAlpha,
+            iconOffsetPx = iconOffsetPx,
+            rightTopOffsetPx = rightTopOffsetPx,
+            safeTodayAlpha = safeTodayAlpha,
+            bottomOffsetPx = bottomOffsetPx,
+            secondaryMetricsProgress = secondaryMetricsProgress,
+            isLoading = isLoading,
+            animateCounters = animateCounters,
+            tagSecondaryMetrics = tagSecondaryMetrics,
+            onSafeTodayInfoClick = onSafeTodayInfoClick,
+            onNavigateToSettings = onNavigateToSettings
+        )
+    }
+}
+
+@Composable
+internal fun SummaryCardBody(
+    budgetState: BudgetState,
+    recoverableOverspendCents: Long,
+    progress: Float,
+    horizontalPadding: androidx.compose.ui.unit.Dp,
+    topPadding: androidx.compose.ui.unit.Dp,
+    bottomPadding: androidx.compose.ui.unit.Dp,
+    contentSpacing: androidx.compose.ui.unit.Dp,
+    amountFontSize: androidx.compose.ui.unit.TextUnit,
+    amountLineHeight: androidx.compose.ui.unit.TextUnit,
+    contentColor: Color,
+    iconAlpha: Float,
+    iconOffsetPx: Float,
+    rightTopOffsetPx: Float,
+    safeTodayAlpha: Float,
+    bottomOffsetPx: Float,
+    secondaryMetricsProgress: Float,
+    isLoading: Boolean,
+    animateCounters: Boolean,
+    tagSecondaryMetrics: Boolean,
+    onSafeTodayInfoClick: (() -> Unit)?,
+    onNavigateToSettings: (() -> Unit)?
+) {
+    Column(
+        modifier = Modifier.padding(
+            start = horizontalPadding,
+            top = topPadding,
+            end = horizontalPadding,
+            bottom = bottomPadding
+        ),
+        verticalArrangement = Arrangement.spacedBy(contentSpacing)
+    ) {
+        SummaryCardPrimaryRow(
+            budgetState = budgetState,
+            amountFontSize = amountFontSize,
+            amountLineHeight = amountLineHeight,
+            contentColor = contentColor,
+            progress = progress,
+            iconAlpha = iconAlpha,
+            iconOffsetPx = iconOffsetPx,
+            rightTopOffsetPx = rightTopOffsetPx,
+            recoverableOverspendCents = recoverableOverspendCents,
+            safeTodayAlpha = safeTodayAlpha,
+            isLoading = isLoading,
+            animateCounters = animateCounters,
+            onSafeTodayInfoClick = onSafeTodayInfoClick,
+            onNavigateToSettings = onNavigateToSettings
+        )
+        SummaryCardSecondaryMetrics(
+            budgetState = budgetState,
+            secondaryMetricsProgress = secondaryMetricsProgress,
+            bottomOffsetPx = bottomOffsetPx,
+            progress = progress,
+            contentColor = contentColor,
+            animateCounters = animateCounters,
+            isLoading = isLoading,
+            tagSecondaryMetrics = tagSecondaryMetrics
+        )
+    }
+}
+
+@Composable
+internal fun SummaryHeaderSurface(
+    title: String,
+    summaryColors: SummaryCardColors,
+    modifier: Modifier = Modifier,
+    headerHorizontalPadding: androidx.compose.ui.unit.Dp = 14.dp,
+    headerTopPadding: androidx.compose.ui.unit.Dp = 7.dp,
+    headerBottomPadding: androidx.compose.ui.unit.Dp = 2.dp,
+    onNavigateToAnalysis: (() -> Unit)? = null,
+    onNavigateToSettings: (() -> Unit)? = null,
+    applyStatusBarsPadding: Boolean = true,
+    headerRowTestTag: String? = null,
+    titleTestTag: String? = null,
+    analysisTestTag: String? = null,
+    settingsTestTag: String? = null,
+    body: @Composable () -> Unit
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(14.dp, FlatSummaryCardShape),
+        color = summaryColors.container,
+        shape = FlatSummaryCardShape
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            SummaryHeaderRow(
+                title = title,
+                contentColor = summaryColors.content,
+                horizontalPadding = headerHorizontalPadding,
+                topPadding = headerTopPadding,
+                bottomPadding = headerBottomPadding,
+                onNavigateToAnalysis = onNavigateToAnalysis,
+                onNavigateToSettings = onNavigateToSettings,
+                applyStatusBarsPadding = applyStatusBarsPadding,
+                modifier = Modifier.fillMaxWidth(),
+                rowTestTag = headerRowTestTag,
+                titleTestTag = titleTestTag,
+                analysisTestTag = analysisTestTag,
+                settingsTestTag = settingsTestTag
             )
-            SummaryCardSecondaryMetrics(
-                budgetState = budgetState,
-                secondaryMetricsProgress = secondaryMetricsProgress,
-                bottomOffsetPx = bottomOffsetPx,
-                progress = progress,
-                contentColor = colors.content,
-                animateCounters = animateCounters,
-                isLoading = isLoading,
-                tagSecondaryMetrics = tagSecondaryMetrics
-            )
+            body()
         }
     }
 }
 
-private data class SummaryCardColors(
+@Composable
+internal fun MergedSummaryHeaderSurface(
+    title: String,
+    summaryColors: SummaryCardColors,
+    modifier: Modifier = Modifier,
+    headerHorizontalPadding: androidx.compose.ui.unit.Dp = 14.dp,
+    headerTopPadding: androidx.compose.ui.unit.Dp = 7.dp,
+    headerBottomPadding: androidx.compose.ui.unit.Dp = 2.dp,
+    onNavigateToAnalysis: (() -> Unit)? = null,
+    onNavigateToSettings: (() -> Unit)? = null,
+    headerRowTestTag: String? = null,
+    titleTestTag: String? = null,
+    analysisTestTag: String? = null,
+    settingsTestTag: String? = null,
+    body: @Composable () -> Unit
+) {
+    SummaryHeaderSurface(
+        title = title,
+        summaryColors = summaryColors,
+        modifier = modifier,
+        headerHorizontalPadding = headerHorizontalPadding,
+        headerTopPadding = headerTopPadding,
+        headerBottomPadding = headerBottomPadding,
+        onNavigateToAnalysis = onNavigateToAnalysis,
+        onNavigateToSettings = onNavigateToSettings,
+        applyStatusBarsPadding = true,
+        headerRowTestTag = headerRowTestTag,
+        titleTestTag = titleTestTag,
+        analysisTestTag = analysisTestTag,
+        settingsTestTag = settingsTestTag,
+        body = body
+    )
+}
+
+@Composable
+internal fun SummaryHeaderRow(
+    title: String,
+    contentColor: Color,
+    horizontalPadding: androidx.compose.ui.unit.Dp,
+    topPadding: androidx.compose.ui.unit.Dp,
+    bottomPadding: androidx.compose.ui.unit.Dp,
+    onNavigateToAnalysis: (() -> Unit)?,
+    onNavigateToSettings: (() -> Unit)?,
+    applyStatusBarsPadding: Boolean,
+    modifier: Modifier = Modifier,
+    rowTestTag: String? = null,
+    titleTestTag: String? = null,
+    analysisTestTag: String? = null,
+    settingsTestTag: String? = null
+) {
+    Box(
+        modifier = modifier
+            .then(if (rowTestTag != null) Modifier.testTag(rowTestTag) else Modifier)
+            .then(if (applyStatusBarsPadding) Modifier.statusBarsPadding() else Modifier)
+            .padding(start = horizontalPadding, top = topPadding, end = horizontalPadding, bottom = bottomPadding)
+    ) {
+        Text(
+            text = title,
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .widthIn(max = 260.dp)
+                .then(if (titleTestTag != null) Modifier.testTag(titleTestTag) else Modifier),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = contentColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Row(modifier = Modifier.align(Alignment.CenterEnd)) {
+            if (onNavigateToAnalysis != null) {
+                IconButton(
+                    onClick = onNavigateToAnalysis,
+                    modifier = Modifier.then(
+                        if (analysisTestTag != null) Modifier.testTag(analysisTestTag) else Modifier
+                    )
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_analytics),
+                        contentDescription = "Open analysis",
+                        tint = contentColor
+                    )
+                }
+            }
+            if (onNavigateToSettings != null) {
+                IconButton(
+                    onClick = onNavigateToSettings,
+                    modifier = Modifier.then(
+                        if (settingsTestTag != null) Modifier.testTag(settingsTestTag) else Modifier
+                    )
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_settings),
+                        contentDescription = "Open settings",
+                        tint = contentColor
+                    )
+                }
+            }
+        }
+    }
+}
+
+internal data class SummaryCardColors(
     val container: Color,
     val content: Color
 )
 
 @Composable
-private fun summaryCardColors(useWarningTint: Boolean): SummaryCardColors {
+internal fun summaryCardColors(useWarningTint: Boolean): SummaryCardColors {
     return SummaryCardColors(
         container = if (useWarningTint) {
             blendedAlertContainer()
@@ -408,7 +618,7 @@ private fun Modifier.collapseHeight(progress: Float): Modifier = this
     }
 
 @Composable
-private fun blendedAlertContainer(): Color {
+internal fun blendedAlertContainer(): Color {
     return lerp(
         MaterialTheme.colorScheme.primaryContainer,
         MaterialTheme.colorScheme.tertiaryContainer,
@@ -417,7 +627,7 @@ private fun blendedAlertContainer(): Color {
 }
 
 @Composable
-private fun blendedAlertContent(): Color {
+internal fun blendedAlertContent(): Color {
     return lerp(
         MaterialTheme.colorScheme.onPrimaryContainer,
         MaterialTheme.colorScheme.onTertiaryContainer,

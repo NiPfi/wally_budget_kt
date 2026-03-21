@@ -2,16 +2,16 @@ package net.loeu.wallybudget.data.local.preferences
 
 import net.loeu.wallybudget.domain.model.BudgetAdjustment
 import net.loeu.wallybudget.domain.model.BudgetPolicy
-import net.loeu.wallybudget.domain.model.PendingSettingsUndo
+import net.loeu.wallybudget.domain.model.PendingPaydayUndo
 import net.loeu.wallybudget.domain.model.UserSettings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Test
 
-class SettingsUndoJsonCodecTest {
+class PaydayUndoJsonCodecTest {
 
-    private val codec = SettingsUndoJsonCodec()
+    private val codec = PaydayUndoJsonCodec()
 
     @Test
     fun encode_omitsLazyDelegateFields() {
@@ -36,8 +36,8 @@ class SettingsUndoJsonCodecTest {
         assertEquals(1, decoded?.adjustmentsToDeactivate?.size)
     }
 
-    private fun samplePendingUndo(): PendingSettingsUndo {
-        return PendingSettingsUndo(
+    private fun samplePendingUndo(): PendingPaydayUndo {
+        return PendingPaydayUndo(
             previousSettings = UserSettings(
                 monthlyBudgetCents = 100_000L,
                 paydayDate = 25,

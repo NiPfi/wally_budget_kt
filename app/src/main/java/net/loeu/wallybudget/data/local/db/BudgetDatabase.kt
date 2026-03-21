@@ -10,17 +10,36 @@ import androidx.room.withTransaction
 import androidx.sqlite.db.SupportSQLiteDatabase
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
+import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
+import net.loeu.wallybudget.data.local.dao.BucketAllocationAdjustmentDao
+import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
+import net.loeu.wallybudget.data.local.dao.BucketMonthlyHistoryDao
 import net.loeu.wallybudget.data.local.dao.CycleOverviewDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
 import net.loeu.wallybudget.data.local.entity.BudgetAdjustmentEntity
+import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
 import net.loeu.wallybudget.data.local.entity.BudgetPolicyEntity
+import net.loeu.wallybudget.data.local.entity.BucketAllocationAdjustmentEntity
+import net.loeu.wallybudget.data.local.entity.BucketAllocationPolicyEntity
+import net.loeu.wallybudget.data.local.entity.BucketMonthlyHistoryEntity
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
 import net.loeu.wallybudget.data.local.entity.MonthlyHistoryEntity
+import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
+import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 
 @Database(
-    entities = [ExpenseEntity::class, MonthlyHistoryEntity::class, BudgetPolicyEntity::class, BudgetAdjustmentEntity::class],
-    version = 9,
+    entities = [
+        ExpenseEntity::class,
+        MonthlyHistoryEntity::class,
+        BudgetPolicyEntity::class,
+        BudgetAdjustmentEntity::class,
+        BudgetBucketEntity::class,
+        BucketAllocationPolicyEntity::class,
+        BucketAllocationAdjustmentEntity::class,
+        BucketMonthlyHistoryEntity::class
+    ],
+    version = 11,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -30,6 +49,10 @@ abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
     abstract fun cycleOverviewDao(): CycleOverviewDao
     abstract fun budgetPolicyDao(): BudgetPolicyDao
     abstract fun budgetAdjustmentDao(): BudgetAdjustmentDao
+    abstract fun budgetBucketDao(): BudgetBucketDao
+    abstract fun bucketAllocationPolicyDao(): BucketAllocationPolicyDao
+    abstract fun bucketAllocationAdjustmentDao(): BucketAllocationAdjustmentDao
+    abstract fun bucketMonthlyHistoryDao(): BucketMonthlyHistoryDao
 
     override suspend fun <T> inTransaction(block: suspend () -> T): T = withTransaction { block() }
 
@@ -413,6 +436,342 @@ abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
                 )
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_budget_adjustments_deletedAtEpochMs` ON `budget_adjustments` (`deletedAtEpochMs`)"
+                )
+            }
+        }
+
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    ALTER TABLE `expenses`
+                    ADD COLUMN `bucketUuid` TEXT NOT NULL DEFAULT '$DEFAULT_SPENDING_BUCKET_UUID'
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_expenses_bucketUuid` ON `expenses` (`bucketUuid`)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `budget_buckets` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `bucketUuid` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `trackingMode` TEXT NOT NULL,
+                        `balanceBehavior` TEXT NOT NULL,
+                        `defaultAllocatedAmountCents` INTEGER NOT NULL DEFAULT 0,
+                        `sortOrder` INTEGER NOT NULL,
+                        `isPrimary` INTEGER NOT NULL,
+                        `originInstallId` TEXT NOT NULL,
+                        `lastModifiedByInstallId` TEXT NOT NULL,
+                        `createdAtEpochMs` INTEGER NOT NULL,
+                        `updatedAtEpochMs` INTEGER NOT NULL,
+                        `closedAtEpochMs` INTEGER,
+                        `deletedAtEpochMs` INTEGER,
+                        `modClock` TEXT NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_budget_buckets_bucketUuid` ON `budget_buckets` (`bucketUuid`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_budget_buckets_sortOrder` ON `budget_buckets` (`sortOrder`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_budget_buckets_closedAtEpochMs` ON `budget_buckets` (`closedAtEpochMs`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_budget_buckets_deletedAtEpochMs` ON `budget_buckets` (`deletedAtEpochMs`)"
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `bucket_allocation_policies` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `allocationUuid` TEXT NOT NULL,
+                        `bucketUuid` TEXT NOT NULL,
+                        `cycleStartDate` TEXT NOT NULL,
+                        `cycleEndDateExclusive` TEXT NOT NULL,
+                        `allocatedAmountCents` INTEGER NOT NULL,
+                        `originInstallId` TEXT NOT NULL,
+                        `lastModifiedByInstallId` TEXT NOT NULL,
+                        `createdAtEpochMs` INTEGER NOT NULL,
+                        `updatedAtEpochMs` INTEGER NOT NULL,
+                        `deletedAtEpochMs` INTEGER,
+                        `modClock` TEXT NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_bucket_allocation_policies_allocationUuid` ON `bucket_allocation_policies` (`allocationUuid`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_bucket_allocation_policies_bucketUuid` ON `bucket_allocation_policies` (`bucketUuid`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_bucket_allocation_policies_cycleStartDate` ON `bucket_allocation_policies` (`cycleStartDate`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_bucket_allocation_policies_cycleEndDateExclusive` ON `bucket_allocation_policies` (`cycleEndDateExclusive`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_bucket_allocation_policies_deletedAtEpochMs` ON `bucket_allocation_policies` (`deletedAtEpochMs`)"
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `bucket_allocation_adjustments` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `adjustmentUuid` TEXT NOT NULL,
+                        `bucketUuid` TEXT NOT NULL,
+                        `cycleStartDate` TEXT NOT NULL,
+                        `effectiveDate` TEXT NOT NULL,
+                        `previousAllocatedAmountCents` INTEGER NOT NULL,
+                        `newAllocatedAmountCents` INTEGER NOT NULL,
+                        `originInstallId` TEXT NOT NULL,
+                        `lastModifiedByInstallId` TEXT NOT NULL,
+                        `createdAtEpochMs` INTEGER NOT NULL,
+                        `updatedAtEpochMs` INTEGER NOT NULL,
+                        `deletedAtEpochMs` INTEGER,
+                        `modClock` TEXT NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_bucket_allocation_adjustments_adjustmentUuid` ON `bucket_allocation_adjustments` (`adjustmentUuid`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_bucket_allocation_adjustments_bucketUuid` ON `bucket_allocation_adjustments` (`bucketUuid`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_bucket_allocation_adjustments_cycleStartDate` ON `bucket_allocation_adjustments` (`cycleStartDate`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_bucket_allocation_adjustments_effectiveDate` ON `bucket_allocation_adjustments` (`effectiveDate`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_bucket_allocation_adjustments_deletedAtEpochMs` ON `bucket_allocation_adjustments` (`deletedAtEpochMs`)"
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `bucket_monthly_history` (
+                        `bucketUuid` TEXT NOT NULL,
+                        `cycleStartDate` TEXT NOT NULL,
+                        `budgetAmountCents` INTEGER NOT NULL,
+                        `totalSpentCents` INTEGER NOT NULL,
+                        `surplusCents` INTEGER NOT NULL,
+                        `cycleEndDate` TEXT NOT NULL,
+                        `endTimestamp` INTEGER NOT NULL,
+                        PRIMARY KEY(`bucketUuid`, `cycleStartDate`)
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    INSERT OR IGNORE INTO `budget_buckets` (
+                        `bucketUuid`,
+                        `name`,
+                        `trackingMode`,
+                        `balanceBehavior`,
+                        `defaultAllocatedAmountCents`,
+                        `sortOrder`,
+                        `isPrimary`,
+                        `originInstallId`,
+                        `lastModifiedByInstallId`,
+                        `createdAtEpochMs`,
+                        `updatedAtEpochMs`,
+                        `closedAtEpochMs`,
+                        `deletedAtEpochMs`,
+                        `modClock`
+                    )
+                    SELECT
+                        '$DEFAULT_SPENDING_BUCKET_UUID',
+                        '$DEFAULT_SPENDING_BUCKET_NAME',
+                        'DAILY_TARGET',
+                        'RETURN_TO_PORTFOLIO',
+                        0,
+                        0,
+                        1,
+                        COALESCE((SELECT originInstallId FROM budget_policies ORDER BY createdAtEpochMs ASC LIMIT 1), ''),
+                        COALESCE((SELECT lastModifiedByInstallId FROM budget_policies ORDER BY updatedAtEpochMs DESC LIMIT 1), ''),
+                        COALESCE((SELECT MIN(createdAtEpochMs) FROM budget_policies), 0),
+                        COALESCE((SELECT MAX(updatedAtEpochMs) FROM budget_policies), 0),
+                        NULL,
+                        NULL,
+                        COALESCE((SELECT modClock FROM budget_policies ORDER BY updatedAtEpochMs DESC LIMIT 1), '')
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    INSERT INTO `bucket_allocation_policies` (
+                        `allocationUuid`,
+                        `bucketUuid`,
+                        `cycleStartDate`,
+                        `cycleEndDateExclusive`,
+                        `allocatedAmountCents`,
+                        `originInstallId`,
+                        `lastModifiedByInstallId`,
+                        `createdAtEpochMs`,
+                        `updatedAtEpochMs`,
+                        `deletedAtEpochMs`,
+                        `modClock`
+                    )
+                    SELECT
+                        lower(hex(randomblob(4))) || '-' ||
+                            lower(hex(randomblob(2))) || '-' ||
+                            '4' || substr(lower(hex(randomblob(2))), 2) || '-' ||
+                            substr('89ab', abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))), 2) || '-' ||
+                            lower(hex(randomblob(6))),
+                        '$DEFAULT_SPENDING_BUCKET_UUID',
+                        `cycleStartDate`,
+                        `cycleEndDateExclusive`,
+                        `budgetAmountCents`,
+                        `originInstallId`,
+                        `lastModifiedByInstallId`,
+                        `createdAtEpochMs`,
+                        `updatedAtEpochMs`,
+                        `deletedAtEpochMs`,
+                        `modClock`
+                    FROM `budget_policies`
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    INSERT INTO `bucket_allocation_adjustments` (
+                        `adjustmentUuid`,
+                        `bucketUuid`,
+                        `cycleStartDate`,
+                        `effectiveDate`,
+                        `previousAllocatedAmountCents`,
+                        `newAllocatedAmountCents`,
+                        `originInstallId`,
+                        `lastModifiedByInstallId`,
+                        `createdAtEpochMs`,
+                        `updatedAtEpochMs`,
+                        `deletedAtEpochMs`,
+                        `modClock`
+                    )
+                    SELECT
+                        lower(hex(randomblob(4))) || '-' ||
+                            lower(hex(randomblob(2))) || '-' ||
+                            '4' || substr(lower(hex(randomblob(2))), 2) || '-' ||
+                            substr('89ab', abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))), 2) || '-' ||
+                            lower(hex(randomblob(6))),
+                        '$DEFAULT_SPENDING_BUCKET_UUID',
+                        `cycleStartDate`,
+                        `effectiveDate`,
+                        `previousMonthlyBudgetCents`,
+                        `newMonthlyBudgetCents`,
+                        `originInstallId`,
+                        `lastModifiedByInstallId`,
+                        `createdAtEpochMs`,
+                        `updatedAtEpochMs`,
+                        `deletedAtEpochMs`,
+                        `modClock`
+                    FROM `budget_adjustments`
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    INSERT INTO `bucket_monthly_history` (
+                        `bucketUuid`,
+                        `cycleStartDate`,
+                        `budgetAmountCents`,
+                        `totalSpentCents`,
+                        `surplusCents`,
+                        `cycleEndDate`,
+                        `endTimestamp`
+                    )
+                    SELECT
+                        '$DEFAULT_SPENDING_BUCKET_UUID',
+                        `cycleStartDate`,
+                        `budgetAmountCents`,
+                        `totalSpentCents`,
+                        `surplusCents`,
+                        `cycleEndDate`,
+                        `endTimestamp`
+                    FROM `monthly_history`
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `budget_buckets_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `bucketUuid` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `trackingMode` TEXT NOT NULL,
+                        `balanceBehavior` TEXT NOT NULL,
+                        `defaultAllocatedAmountCents` INTEGER NOT NULL DEFAULT 0,
+                        `sortOrder` INTEGER NOT NULL,
+                        `originInstallId` TEXT NOT NULL,
+                        `lastModifiedByInstallId` TEXT NOT NULL,
+                        `createdAtEpochMs` INTEGER NOT NULL,
+                        `updatedAtEpochMs` INTEGER NOT NULL,
+                        `closedAtEpochMs` INTEGER,
+                        `deletedAtEpochMs` INTEGER,
+                        `modClock` TEXT NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `budget_buckets_new` (
+                        `id`,
+                        `bucketUuid`,
+                        `name`,
+                        `trackingMode`,
+                        `balanceBehavior`,
+                        `defaultAllocatedAmountCents`,
+                        `sortOrder`,
+                        `originInstallId`,
+                        `lastModifiedByInstallId`,
+                        `createdAtEpochMs`,
+                        `updatedAtEpochMs`,
+                        `closedAtEpochMs`,
+                        `deletedAtEpochMs`,
+                        `modClock`
+                    )
+                    SELECT
+                        `id`,
+                        `bucketUuid`,
+                        `name`,
+                        `trackingMode`,
+                        `balanceBehavior`,
+                        `defaultAllocatedAmountCents`,
+                        `sortOrder`,
+                        `originInstallId`,
+                        `lastModifiedByInstallId`,
+                        `createdAtEpochMs`,
+                        `updatedAtEpochMs`,
+                        `closedAtEpochMs`,
+                        `deletedAtEpochMs`,
+                        `modClock`
+                    FROM `budget_buckets`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `budget_buckets`")
+                db.execSQL("ALTER TABLE `budget_buckets_new` RENAME TO `budget_buckets`")
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_budget_buckets_bucketUuid` ON `budget_buckets` (`bucketUuid`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_budget_buckets_sortOrder` ON `budget_buckets` (`sortOrder`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_budget_buckets_closedAtEpochMs` ON `budget_buckets` (`closedAtEpochMs`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_budget_buckets_deletedAtEpochMs` ON `budget_buckets` (`deletedAtEpochMs`)"
                 )
             }
         }

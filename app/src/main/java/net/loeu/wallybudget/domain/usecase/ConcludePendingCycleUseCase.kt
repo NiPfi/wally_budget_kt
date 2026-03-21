@@ -24,7 +24,8 @@ class ConcludePendingCycleUseCase(
     private val userSettingsStore: UserSettingsStore,
     private val budgetCalculationService: BudgetCalculationService,
     private val cycleScheduleResolver: CycleScheduleResolver,
-    private val budgetAdjustmentResolver: BudgetAdjustmentResolver
+    private val budgetAdjustmentResolver: BudgetAdjustmentResolver,
+    private val rebuildBucketMonthlyHistoryUseCase: RebuildBucketMonthlyHistoryUseCase
 ) {
     suspend operator fun invoke(settings: UserSettings) {
         val pendingCycle = settings.pendingCycleRangeOrNull() ?: return
@@ -52,5 +53,6 @@ class ConcludePendingCycleUseCase(
             )
         }
         userSettingsStore.clearPendingCycle()
+        rebuildBucketMonthlyHistoryUseCase(settings, replaceExisting = true)
     }
 }

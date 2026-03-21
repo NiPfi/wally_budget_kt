@@ -3,6 +3,9 @@ package net.loeu.wallybudget.domain.usecase
 import android.net.Uri
 import net.loeu.wallybudget.data.local.entity.BudgetAdjustmentEntity
 import net.loeu.wallybudget.data.local.entity.BudgetPolicyEntity
+import net.loeu.wallybudget.data.local.entity.BucketAllocationAdjustmentEntity
+import net.loeu.wallybudget.data.local.entity.BucketAllocationPolicyEntity
+import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
 import net.loeu.wallybudget.data.snapshot.DecodedSnapshotPayload
 import net.loeu.wallybudget.data.snapshot.DocumentUriGateway
@@ -10,6 +13,10 @@ import net.loeu.wallybudget.data.snapshot.GzipSnapshotCodec
 import net.loeu.wallybudget.data.snapshot.SnapshotCompatibilityService
 import net.loeu.wallybudget.data.snapshot.SnapshotJsonCodec
 import net.loeu.wallybudget.data.snapshot.model.SnapshotEnvelopeV1
+import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
+import net.loeu.wallybudget.domain.model.BucketTrackingMode
+import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
+import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.SnapshotError
 import net.loeu.wallybudget.domain.model.SnapshotImportPreview
@@ -17,7 +24,7 @@ import net.loeu.wallybudget.domain.model.UserSettings
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 
-@Suppress("ThrowsCount", "TooGenericExceptionCaught")
+@Suppress("ThrowsCount", "TooGenericExceptionCaught", "TooManyFunctions")
 class PrepareSnapshotImportUseCase(
     private val documentUriGateway: DocumentUriGateway,
     private val gzipSnapshotCodec: GzipSnapshotCodec,
@@ -68,6 +75,9 @@ class PrepareSnapshotImportUseCase(
                 settings = envelope.toUserSettings(),
                 budgetPolicies = envelope.toBudgetPolicyEntities(),
                 budgetAdjustments = envelope.toBudgetAdjustmentEntities(),
+                budgetBuckets = envelope.toBudgetBucketEntities(),
+                bucketAllocationPolicies = envelope.toBucketAllocationPolicyEntities(),
+                bucketAllocationAdjustments = envelope.toBucketAllocationAdjustmentEntities(),
                 expenses = envelope.toExpenseEntities()
             )
         } catch (exception: SnapshotOperationException) {
@@ -86,16 +96,22 @@ class PrepareSnapshotImportUseCase(
             expenseCount = expenses.size,
             tombstoneCount = expenses.count { it.deletedAtEpochMs != null },
             budgetPolicyCount = budgetPolicies.size,
-            defaultMonthlyBudgetCents = settings.defaultMonthlyBudgetCents,
+            defaultMonthlyBudgetCents = settings.legacyDefaultBucketBudgetCents
+                ?: settings.defaultMonthlyBudgetCents,
             paydayDate = settings.paydayDate,
             compressed = payload.compressed
         )
     }
 
     private fun SnapshotEnvelopeV1.toUserSettings(): UserSettings {
+        val legacyDefaultBucketBudgetCents = settings.legacyDefaultBucketBudgetCents
+            ?: settings.defaultMonthlyBudgetCents
         return UserSettings(
-            monthlyBudgetCents = settings.defaultMonthlyBudgetCents,
+            monthlyBudgetCents = legacyDefaultBucketBudgetCents,
+            portfolioMonthlyBudgetCents = settings.portfolioMonthlyBudgetCents,
             paydayDate = settings.paydayDate,
+            selectedBucketUuid = settings.selectedBucketUuid
+                ?: DEFAULT_SPENDING_BUCKET_UUID,
             lastResetTimestamp = settings.lastResetTimestamp,
             pendingCycleStartDate = settings.pendingCycleStartDate,
             pendingCycleEndDateExclusive = settings.pendingCycleEndDateExclusive,
@@ -152,7 +168,126 @@ class PrepareSnapshotImportUseCase(
                 description = record.description,
                 timestamp = record.timestampEpochMs,
                 expenseDate = record.expenseDate,
+                bucketUuid = record.bucketUuid ?: DEFAULT_SPENDING_BUCKET_UUID,
                 icon = record.icon?.let { ExpenseCategory.entries.find { entry -> entry.name == it } },
+                originInstallId = record.originInstallId,
+                lastModifiedByInstallId = record.lastModifiedByInstallId,
+                createdAtEpochMs = record.createdAtEpochMs,
+                updatedAtEpochMs = record.updatedAtEpochMs,
+                deletedAtEpochMs = record.deletedAtEpochMs,
+                modClock = record.modClock
+            )
+        }
+    }
+
+    private fun SnapshotEnvelopeV1.toBudgetBucketEntities(): List<BudgetBucketEntity> {
+        val records = budgetBuckets
+        if (!records.isNullOrEmpty()) {
+            return records.map { record ->
+                BudgetBucketEntity(
+                    bucketUuid = record.bucketUuid,
+                    name = record.name,
+                trackingMode = BucketTrackingMode.valueOf(record.trackingMode),
+                balanceBehavior = BucketBalanceBehavior.valueOf(record.balanceBehavior),
+                defaultAllocatedAmountCents = record.defaultAllocatedAmountCents,
+                sortOrder = record.sortOrder,
+                originInstallId = record.originInstallId,
+                lastModifiedByInstallId = record.lastModifiedByInstallId,
+                    createdAtEpochMs = record.createdAtEpochMs,
+                    updatedAtEpochMs = record.updatedAtEpochMs,
+                    closedAtEpochMs = record.closedAtEpochMs,
+                    deletedAtEpochMs = record.deletedAtEpochMs,
+                    modClock = record.modClock
+                )
+            }
+        }
+
+        val legacyBudget = settings.legacyDefaultBucketBudgetCents ?: settings.defaultMonthlyBudgetCents
+        return listOf(
+            BudgetBucketEntity(
+                bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                name = DEFAULT_SPENDING_BUCKET_NAME,
+                trackingMode = BucketTrackingMode.DAILY_TARGET,
+                balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
+                defaultAllocatedAmountCents = legacyBudget,
+                sortOrder = 0,
+                originInstallId = writerInstallId,
+                lastModifiedByInstallId = writerInstallId,
+                createdAtEpochMs = exportedAtEpochMs,
+                updatedAtEpochMs = exportedAtEpochMs,
+                closedAtEpochMs = null,
+                deletedAtEpochMs = null,
+                modClock = snapshotModClock
+            )
+        )
+    }
+
+    private fun SnapshotEnvelopeV1.toBucketAllocationPolicyEntities(): List<BucketAllocationPolicyEntity> {
+        val records = bucketAllocationPolicies
+        if (!records.isNullOrEmpty()) {
+            return records.map { record ->
+                BucketAllocationPolicyEntity(
+                    allocationUuid = record.allocationUuid,
+                    bucketUuid = record.bucketUuid,
+                    cycleStartDate = record.cycleStartDate,
+                    cycleEndDateExclusive = record.cycleEndDateExclusive,
+                    allocatedAmountCents = record.allocatedAmountCents,
+                    originInstallId = record.originInstallId,
+                    lastModifiedByInstallId = record.lastModifiedByInstallId,
+                    createdAtEpochMs = record.createdAtEpochMs,
+                    updatedAtEpochMs = record.updatedAtEpochMs,
+                    deletedAtEpochMs = record.deletedAtEpochMs,
+                    modClock = record.modClock
+                )
+            }
+        }
+
+        return budgetPolicies.map { record ->
+            BucketAllocationPolicyEntity(
+                allocationUuid = record.policyUuid,
+                bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                cycleStartDate = record.cycleStartDate,
+                cycleEndDateExclusive = record.cycleEndDateExclusive,
+                allocatedAmountCents = record.budgetAmountCents,
+                originInstallId = record.originInstallId,
+                lastModifiedByInstallId = record.lastModifiedByInstallId,
+                createdAtEpochMs = record.createdAtEpochMs,
+                updatedAtEpochMs = record.updatedAtEpochMs,
+                deletedAtEpochMs = record.deletedAtEpochMs,
+                modClock = record.modClock
+            )
+        }
+    }
+
+    private fun SnapshotEnvelopeV1.toBucketAllocationAdjustmentEntities(): List<BucketAllocationAdjustmentEntity> {
+        val records = bucketAllocationAdjustments
+        if (!records.isNullOrEmpty()) {
+            return records.map { record ->
+                BucketAllocationAdjustmentEntity(
+                    adjustmentUuid = record.adjustmentUuid,
+                    bucketUuid = record.bucketUuid,
+                    cycleStartDate = record.cycleStartDate,
+                    effectiveDate = record.effectiveDate,
+                    previousAllocatedAmountCents = record.previousAllocatedAmountCents,
+                    newAllocatedAmountCents = record.newAllocatedAmountCents,
+                    originInstallId = record.originInstallId,
+                    lastModifiedByInstallId = record.lastModifiedByInstallId,
+                    createdAtEpochMs = record.createdAtEpochMs,
+                    updatedAtEpochMs = record.updatedAtEpochMs,
+                    deletedAtEpochMs = record.deletedAtEpochMs,
+                    modClock = record.modClock
+                )
+            }
+        }
+
+        return budgetAdjustments.orEmpty().map { record ->
+            BucketAllocationAdjustmentEntity(
+                adjustmentUuid = record.adjustmentUuid,
+                bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                cycleStartDate = record.cycleStartDate,
+                effectiveDate = record.effectiveDate,
+                previousAllocatedAmountCents = record.previousMonthlyBudgetCents,
+                newAllocatedAmountCents = record.newMonthlyBudgetCents,
                 originInstallId = record.originInstallId,
                 lastModifiedByInstallId = record.lastModifiedByInstallId,
                 createdAtEpochMs = record.createdAtEpochMs,
