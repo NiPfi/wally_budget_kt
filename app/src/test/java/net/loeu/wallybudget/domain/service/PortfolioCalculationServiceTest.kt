@@ -33,6 +33,28 @@ class PortfolioCalculationServiceTest {
         assertEquals(-29_125L, state.netReserveCents)
     }
 
+    @Test
+    fun calculatePortfolioState_usesStoredPortfolioBudgetAsCycleBaseline_whenPlanIsAtLeastAllocated() {
+        val state = service.calculatePortfolioState(
+            portfolioTotalBudgetCents = 500_000L,
+            bucketSummaries = listOf(
+                summary(bucket("default"), allocatedThisCycleCents = 100_000L, spentThisCycleCents = 74_125L),
+                summary(bucket("bills"), allocatedThisCycleCents = 350_000L, spentThisCycleCents = 405_000L)
+            ),
+            totalSpentThisCycleCents = 479_125L,
+            bucketHistory = emptyList(),
+            cycleStartDate = LocalDate.of(2026, 2, 25),
+            cycleEndDateExclusive = LocalDate.of(2026, 3, 25)
+        )
+
+        assertEquals(500_000L, state.portfolioTotalBudgetCents)
+        assertEquals(450_000L, state.allocatedToBucketsCents)
+        assertEquals(50_000L, state.unassignedPlannedBudgetCents)
+        assertEquals(0L, state.completedCycleReserveCents)
+        assertEquals(20_875L, state.remainingThisCycleCents)
+        assertEquals(20_875L, state.netReserveCents)
+    }
+
     private fun summary(
         bucket: BudgetBucket,
         allocatedThisCycleCents: Long,
