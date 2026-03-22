@@ -47,7 +47,7 @@ import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
         FundEntity::class,
         FundTransactionEntity::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -994,6 +994,74 @@ abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
                         AND seed.modClock IS NOT NULL
                     """.trimIndent()
                 )
+            }
+        }
+
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("PRAGMA foreign_keys=OFF")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `funds_new` (
+                        `uuid` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `balanceCents` INTEGER NOT NULL DEFAULT 0,
+                        `allocationPerCycleCents` INTEGER NOT NULL DEFAULT 0,
+                        `targetAmountCents` INTEGER,
+                        `sortOrder` INTEGER NOT NULL DEFAULT 0,
+                        `originInstallId` TEXT NOT NULL,
+                        `lastModifiedByInstallId` TEXT NOT NULL,
+                        `createdAtEpochMs` INTEGER NOT NULL,
+                        `updatedAtEpochMs` INTEGER NOT NULL,
+                        `closedAtEpochMs` INTEGER,
+                        `deletedAtEpochMs` INTEGER,
+                        `modClock` TEXT NOT NULL,
+                        PRIMARY KEY(`uuid`)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `funds_new` (
+                        `uuid`,
+                        `name`,
+                        `balanceCents`,
+                        `allocationPerCycleCents`,
+                        `targetAmountCents`,
+                        `sortOrder`,
+                        `originInstallId`,
+                        `lastModifiedByInstallId`,
+                        `createdAtEpochMs`,
+                        `updatedAtEpochMs`,
+                        `closedAtEpochMs`,
+                        `deletedAtEpochMs`,
+                        `modClock`
+                    )
+                    SELECT
+                        `uuid`,
+                        `name`,
+                        `balanceCents`,
+                        `allocationPerCycleCents`,
+                        `targetAmountCents`,
+                        `sortOrder`,
+                        `originInstallId`,
+                        `lastModifiedByInstallId`,
+                        `createdAtEpochMs`,
+                        `updatedAtEpochMs`,
+                        `closedAtEpochMs`,
+                        `deletedAtEpochMs`,
+                        `modClock`
+                    FROM `funds`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `funds`")
+                db.execSQL("ALTER TABLE `funds_new` RENAME TO `funds`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_funds_sortOrder` ON `funds` (`sortOrder`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_funds_closedAtEpochMs` ON `funds` (`closedAtEpochMs`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_funds_deletedAtEpochMs` ON `funds` (`deletedAtEpochMs`)")
+
+                db.execSQL("PRAGMA foreign_keys=ON")
             }
         }
     }
