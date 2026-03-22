@@ -24,6 +24,7 @@ import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.ExpenseCategory
+import net.loeu.wallybudget.domain.model.FundTransactionType
 import net.loeu.wallybudget.domain.model.SnapshotError
 import net.loeu.wallybudget.domain.model.SnapshotImportPreview
 import net.loeu.wallybudget.domain.model.UserSettings
@@ -348,12 +349,13 @@ class PrepareSnapshotImportUseCase(
     }
 
     private fun SnapshotEnvelopeV1.toFundTransactionEntities(): List<FundTransactionEntity> {
-        return fundTransactions.orEmpty().map { record ->
+        return fundTransactions.orEmpty().mapNotNull { record ->
+            val type = FundTransactionType.entries.find { it.name == record.type } ?: return@mapNotNull null
             FundTransactionEntity(
                 uuid = record.uuid,
                 fundUuid = record.fundUuid,
                 amountCents = record.amountCents,
-                type = net.loeu.wallybudget.domain.model.FundTransactionType.valueOf(record.type),
+                type = type,
                 description = record.description,
                 dateEpochMs = record.dateEpochMs
             )

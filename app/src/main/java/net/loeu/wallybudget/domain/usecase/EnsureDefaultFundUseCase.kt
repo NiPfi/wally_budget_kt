@@ -2,6 +2,7 @@ package net.loeu.wallybudget.domain.usecase
 
 import net.loeu.wallybudget.data.local.dao.FundDao
 import net.loeu.wallybudget.data.local.db.TransactionRunner
+import net.loeu.wallybudget.data.local.entity.FundEntity
 import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_NAME
@@ -21,9 +22,8 @@ class EnsureDefaultFundUseCase(
         val settings = userSettingsStore.ensureIdentity()
         val installId = settings.installDeviceId
         val nowEpochMs = now.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val existing = fundDao.findByUuid(DEFAULT_FUND_UUID)
-
         transactionRunner.inTransaction {
+            val existing = fundDao.findByUuid(DEFAULT_FUND_UUID)
             when {
                 existing == null -> {
                     fundDao.insert(
@@ -65,7 +65,7 @@ class EnsureDefaultFundUseCase(
         }
     }
 
-    private fun shouldNormalize(existing: net.loeu.wallybudget.data.local.entity.FundEntity): Boolean {
+    private fun shouldNormalize(existing: FundEntity): Boolean {
         return existing.closedAtEpochMs != null ||
             existing.deletedAtEpochMs != null ||
             existing.sortOrder != 0 ||

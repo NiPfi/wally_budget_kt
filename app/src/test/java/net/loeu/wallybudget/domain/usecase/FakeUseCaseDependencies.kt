@@ -241,6 +241,14 @@ internal class FakeExpenseDao(
             entries.filter { it.deletedAtEpochMs == null }.maxOfOrNull { it.expenseDate }
         }
 
+    override suspend fun getInRange(startDateInclusive: String, endDateExclusive: String): List<ExpenseEntity> {
+        return expenses.filter {
+            it.deletedAtEpochMs == null &&
+                it.expenseDate >= startDateInclusive &&
+                it.expenseDate < endDateExclusive
+        }
+    }
+
     override suspend fun getAllForSnapshot(): List<ExpenseEntity> = expenses.toList()
 
     override suspend fun countAll(): Int = expenses.size

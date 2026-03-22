@@ -19,12 +19,6 @@ import net.loeu.wallybudget.data.local.dao.CycleOverviewDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.dao.FundDao
 import net.loeu.wallybudget.data.local.entity.toDomainModel
-import net.loeu.wallybudget.data.local.entity.toDomainModel as adjustmentToDomainModel
-import net.loeu.wallybudget.data.local.entity.toDomainModel as bucketAdjustmentToDomainModel
-import net.loeu.wallybudget.data.local.entity.toDomainModel as bucketHistoryToDomainModel
-import net.loeu.wallybudget.data.local.entity.toDomainModel as bucketPolicyToDomainModel
-import net.loeu.wallybudget.data.local.entity.toDomainModel as bucketToDomainModel
-import net.loeu.wallybudget.data.local.entity.toDomainModel as policyToDomainModel
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.domain.model.BucketAllocationAdjustment
@@ -99,12 +93,12 @@ private fun observeSelectedBucketUuid(userSettings: Flow<UserSettings>) = userSe
     .distinctUntilChanged()
 
 private fun observeActiveBuckets(budgetBucketDao: BudgetBucketDao): Flow<List<BudgetBucket>> {
-    return budgetBucketDao.observeAllActive().map { entries -> entries.map { it.bucketToDomainModel() } }
+    return budgetBucketDao.observeAllActive().map { entries -> entries.map { it.toDomainModel() } }
 }
 
 private fun observeAllBucketHistory(bucketMonthlyHistoryDao: BucketMonthlyHistoryDao): Flow<List<BucketMonthlyHistory>> {
     return bucketMonthlyHistoryDao.observeAll().map { entries ->
-        entries.map { it.bucketHistoryToDomainModel() }
+        entries.map { it.toDomainModel() }
     }
 }
 
@@ -127,13 +121,13 @@ private fun observeFundStates(fundDao: FundDao): Flow<List<FundState>> {
 
 private fun observePortfolioPolicies(budgetPolicyDao: BudgetPolicyDao): Flow<List<BudgetPolicy>> {
     return budgetPolicyDao.observeActivePolicies().map { entries ->
-        entries.map { it.policyToDomainModel() }
+        entries.map { it.toDomainModel() }
     }
 }
 
 private fun observeBucketPolicies(bucketAllocationPolicyDao: BucketAllocationPolicyDao): Flow<List<BucketAllocationPolicy>> {
     return bucketAllocationPolicyDao.observeActivePolicies().map { entries ->
-        entries.map { it.bucketPolicyToDomainModel() }
+        entries.map { it.toDomainModel() }
     }
 }
 
@@ -141,7 +135,7 @@ private fun observeAllBucketAdjustments(
     bucketAllocationAdjustmentDao: BucketAllocationAdjustmentDao
 ): Flow<List<BucketAllocationAdjustment>> {
     return bucketAllocationAdjustmentDao.observeAllActive().map { entries ->
-        entries.map { it.bucketAdjustmentToDomainModel() }
+        entries.map { it.toDomainModel() }
     }
 }
 
@@ -246,7 +240,7 @@ private fun observePendingCycleAdjustments(
             flowOf(emptyList())
         } else {
             budgetAdjustmentDao.observeActiveForCycle(range.start.toString())
-                .map { entries -> entries.map { it.adjustmentToDomainModel() } }
+                .map { entries -> entries.map { it.toDomainModel() } }
         }
     }
 }
@@ -261,7 +255,7 @@ private fun observeCurrentPortfolioAdjustments(
         .distinctUntilChanged()
         .flatMapLatest { cycleStart ->
             budgetAdjustmentDao.observeActiveForCycle(cycleStart)
-                .map { entries -> entries.map { it.adjustmentToDomainModel() } }
+                .map { entries -> entries.map { it.toDomainModel() } }
         }
 }
 

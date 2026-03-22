@@ -9,10 +9,9 @@ import net.loeu.wallybudget.data.local.dao.FundDao
 import net.loeu.wallybudget.data.local.dao.FundTransactionDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
 import net.loeu.wallybudget.data.local.db.TransactionRunner
+import net.loeu.wallybudget.data.local.entity.FundEntity
 import net.loeu.wallybudget.data.local.entity.FundTransactionEntity
-import net.loeu.wallybudget.data.local.entity.toDomainModel as bucketAdjustmentToDomainModel
-import net.loeu.wallybudget.data.local.entity.toDomainModel as adjustmentToDomainModel
-import net.loeu.wallybudget.data.local.entity.toDomainModel as policyToDomainModel
+import net.loeu.wallybudget.data.local.entity.toDomainModel
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.FundTransactionType
@@ -26,6 +25,7 @@ import net.loeu.wallybudget.domain.usecase.internal.archiveCycleIfNeeded
 import net.loeu.wallybudget.domain.usecase.internal.emptyBucketAllocationAdjustmentDao
 import net.loeu.wallybudget.domain.usecase.internal.emptyBucketAllocationPolicyDao
 import net.loeu.wallybudget.domain.usecase.internal.emptyFundDao
+import net.loeu.wallybudget.domain.usecase.internal.CycleRange
 import net.loeu.wallybudget.domain.usecase.internal.emptyFundTransactionDao
 import net.loeu.wallybudget.domain.usecase.internal.pendingCycleRangeOrNull
 import java.time.ZoneId
@@ -55,7 +55,7 @@ class ConcludePendingCycleUseCase(
         transactionRunner.inTransaction {
             val policies = budgetPolicyDao.getAllForSnapshot()
                 .filter { it.deletedAtEpochMs == null }
-                .map { it.policyToDomainModel() }
+                .map { it.toDomainModel() }
             val cyclePolicy = cycleScheduleResolver.policyForCycleStart(
                 cycleStart = pendingCycle.start,
                 settings = settings,
@@ -69,7 +69,7 @@ class ConcludePendingCycleUseCase(
                 budgetAdjustmentResolver = budgetAdjustmentResolver,
                 cyclePolicy = cyclePolicy,
                 adjustments = budgetAdjustmentDao.getActiveForCycle(pendingCycle.start.toString())
-                    .map { it.adjustmentToDomainModel() },
+                    .map { it.toDomainModel() },
                 settings = settings,
                 cycleStart = pendingCycle.start,
                 cycleEnd = pendingCycle.endExclusive
@@ -84,7 +84,7 @@ class ConcludePendingCycleUseCase(
     }
 
     private suspend fun distributeCycleCloseoutToFunds(
-        pendingCycle: net.loeu.wallybudget.domain.usecase.internal.CycleRange,
+        pendingCycle: CycleRange,
         installId: String
     ) {
         val activeFunds = fundDao.getAllActive()
@@ -100,7 +100,7 @@ class ConcludePendingCycleUseCase(
     }
 
     private suspend fun depositCloseoutAmounts(
-        activeFunds: List<net.loeu.wallybudget.data.local.entity.FundEntity>,
+        activeFunds: List<FundEntity>,
         totalSurplusCents: Long,
         closeoutEpochMs: Long,
         installId: String
@@ -149,14 +149,12 @@ class ConcludePendingCycleUseCase(
     }
 
     private suspend fun calculateCycleCloseoutSurplusCents(
-        pendingCycle: net.loeu.wallybudget.domain.usecase.internal.CycleRange
+        pendingCycle: CycleRange
     ): Long {
-        val cycleExpenses = expenseDao.getAllForSnapshot()
-            .filter { it.deletedAtEpochMs == null }
-            .filter {
-                it.expenseDate >= pendingCycle.start.toString() &&
-                    it.expenseDate < pendingCycle.endExclusive.toString()
-            }
+        val cycleExpenses = expenseDao.getInRange(
+            startDateInclusive = pendingCycle.start.toString(),
+            endDateExclusive = pendingCycle.endExclusive.toString()
+        )
         val bucketPolicies = bucketAllocationPolicyDao.getAllForSnapshot()
             .filter { it.deletedAtEpochMs == null && it.cycleStartDate == pendingCycle.start.toString() }
 
@@ -164,7 +162,7 @@ class ConcludePendingCycleUseCase(
             val adjustments = bucketAllocationAdjustmentDao.getActiveForCycle(
                 bucketUuid = policy.bucketUuid,
                 cycleStartDate = policy.cycleStartDate
-            ).map { it.bucketAdjustmentToDomainModel() }
+            ).map { it.toDomainModel() }
             val effectiveAllocatedAmount = bucketAllocationResolver.resolveEffectiveCycleAllocationAmount(
                 cycleStart = pendingCycle.start,
                 cycleEndExclusive = pendingCycle.endExclusive,
@@ -180,7 +178,7 @@ class ConcludePendingCycleUseCase(
     }
 
     private fun resolveSurplusShare(
-        fund: net.loeu.wallybudget.data.local.entity.FundEntity,
+        fund: FundEntity,
         index: Int,
         lastIndex: Int,
         totalSurplusCents: Long,
