@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
+import net.loeu.wallybudget.data.local.querymodel.BucketSpendRow
 
 @Dao
 interface ExpenseDao : BaseInsertDao<ExpenseEntity> {
@@ -73,4 +74,14 @@ interface ExpenseDao : BaseInsertDao<ExpenseEntity> {
 
     @Query("SELECT * FROM expenses WHERE recordUuid = :recordUuid LIMIT 1")
     suspend fun findByRecordUuid(recordUuid: String): ExpenseEntity?
+
+    @Query(
+        "SELECT bucketUuid, SUM(amountCents) AS totalSpentCents FROM expenses " +
+            "WHERE deletedAtEpochMs IS NULL AND expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive " +
+            "GROUP BY bucketUuid"
+    )
+    suspend fun totalSpentPerBucketInRange(
+        startDateInclusive: String,
+        endDateExclusive: String
+    ): List<BucketSpendRow>
 }
