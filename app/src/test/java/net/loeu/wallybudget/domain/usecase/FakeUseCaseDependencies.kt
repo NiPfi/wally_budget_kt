@@ -30,8 +30,12 @@ import net.loeu.wallybudget.data.local.querymodel.ExpenseDayTotalRow
 import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.domain.model.PendingPaydayUndo
 import net.loeu.wallybudget.domain.model.UserSettings
+import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
+import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
+import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
+import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
@@ -930,6 +934,70 @@ internal fun fundEntity(
         createdAtEpochMs = createdAtEpochMs,
         updatedAtEpochMs = updatedAtEpochMs,
         closedAtEpochMs = closedAtEpochMs,
+        deletedAtEpochMs = deletedAtEpochMs,
+        modClock = modClock
+    )
+}
+
+internal fun bucketEntity(
+    id: Long = 1L,
+    bucketUuid: String = DEFAULT_SPENDING_BUCKET_UUID,
+    name: String = DEFAULT_SPENDING_BUCKET_NAME,
+    trackingMode: BucketTrackingMode = BucketTrackingMode.DAILY_TARGET,
+    balanceBehavior: BucketBalanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
+    defaultAllocatedAmountCents: Long = 0L,
+    sortOrder: Int = 0,
+    originInstallId: String = "test-install-id",
+    lastModifiedByInstallId: String = "test-install-id",
+    createdAtEpochMs: Long = 1L,
+    updatedAtEpochMs: Long = createdAtEpochMs,
+    closedAtEpochMs: Long? = null,
+    deletedAtEpochMs: Long? = null,
+    modClock: String = "%013d-%04d-%s".format(updatedAtEpochMs, 0, "test-install-id")
+): BudgetBucketEntity {
+    return BudgetBucketEntity(
+        id = id,
+        bucketUuid = bucketUuid,
+        name = name,
+        trackingMode = trackingMode,
+        balanceBehavior = balanceBehavior,
+        defaultAllocatedAmountCents = defaultAllocatedAmountCents,
+        sortOrder = sortOrder,
+        originInstallId = originInstallId,
+        lastModifiedByInstallId = lastModifiedByInstallId,
+        createdAtEpochMs = createdAtEpochMs,
+        updatedAtEpochMs = updatedAtEpochMs,
+        closedAtEpochMs = closedAtEpochMs,
+        deletedAtEpochMs = deletedAtEpochMs,
+        modClock = modClock
+    )
+}
+
+internal fun bucketPolicyEntity(
+    id: Long = 1L,
+    allocationUuid: String = "bucket-policy-1",
+    bucketUuid: String = DEFAULT_SPENDING_BUCKET_UUID,
+    cycleStartDate: String = "2026-03-01",
+    cycleEndDateExclusive: String = "2026-04-01",
+    allocatedAmountCents: Long = 0L,
+    originInstallId: String = "test-install-id",
+    lastModifiedByInstallId: String = "test-install-id",
+    createdAtEpochMs: Long = 1L,
+    updatedAtEpochMs: Long = createdAtEpochMs,
+    deletedAtEpochMs: Long? = null,
+    modClock: String = "%013d-%04d-%s".format(updatedAtEpochMs, 0, "test-install-id")
+): BucketAllocationPolicyEntity {
+    return BucketAllocationPolicyEntity(
+        id = id,
+        allocationUuid = allocationUuid,
+        bucketUuid = bucketUuid,
+        cycleStartDate = cycleStartDate,
+        cycleEndDateExclusive = cycleEndDateExclusive,
+        allocatedAmountCents = allocatedAmountCents,
+        originInstallId = originInstallId,
+        lastModifiedByInstallId = lastModifiedByInstallId,
+        createdAtEpochMs = createdAtEpochMs,
+        updatedAtEpochMs = updatedAtEpochMs,
         deletedAtEpochMs = deletedAtEpochMs,
         modClock = modClock
     )
