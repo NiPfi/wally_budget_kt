@@ -12,7 +12,8 @@ data class BudgetState(
     val spentTodayCents: Long,
     val remainingTodayCents: Long,
     val daysRemainingInCycle: Int,
-    val cumulativeSavingsCents: Long, // Overall savings/deficit across all months
+    @Deprecated("Savings are modeled through funds.")
+    val cumulativeSavingsCents: Long = 0L,
     val paydayDate: Int,
     val cycleStartDate: LocalDate
 ) {

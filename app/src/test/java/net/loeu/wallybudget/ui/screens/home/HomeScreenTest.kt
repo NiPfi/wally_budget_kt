@@ -4,8 +4,12 @@ import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketSummaryState
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
+import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
+import net.loeu.wallybudget.domain.model.Fund
+import net.loeu.wallybudget.util.CurrencyFormatter
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class HomeScreenTest {
@@ -34,6 +38,60 @@ class HomeScreenTest {
         assertEquals(15_00L, total)
     }
 
+    @Test
+    fun defaultFund_returnsDefaultFundWhenPresent() {
+        val expected = fund(DEFAULT_FUND_UUID, "Savings", balanceCents = 42_00L)
+
+        val resolved = defaultFund(
+            listOf(
+                fund("travel", "Travel", balanceCents = 10_00L),
+                expected
+            )
+        )
+
+        assertEquals(expected, resolved)
+    }
+
+    @Test
+    fun defaultFund_returnsNullWhenDefaultFundMissing() {
+        val resolved = defaultFund(
+            listOf(fund("travel", "Travel", balanceCents = 10_00L))
+        )
+
+        assertNull(resolved)
+    }
+
+    @Test
+    fun formatFundTargetProgress_formatsTargetAndPercent() {
+        val text = formatFundTargetProgress(
+            fund(
+                DEFAULT_FUND_UUID,
+                "Savings",
+                balanceCents = 50_00L,
+                targetAmountCents = 120_00L
+            )
+        )
+
+        assertEquals(
+            "${CurrencyFormatter.format(50_00L)} of ${CurrencyFormatter.format(120_00L)} target · 42%",
+            text
+        )
+    }
+
+    @Test
+    fun formatFundTargetProgress_returnsNullWithoutPositiveTarget() {
+        assertNull(
+            formatFundTargetProgress(
+                fund(DEFAULT_FUND_UUID, "Savings", balanceCents = 50_00L, targetAmountCents = null)
+            )
+        )
+        assertNull(
+            formatFundTargetProgress(
+                fund(DEFAULT_FUND_UUID, "Savings", balanceCents = 50_00L, targetAmountCents = 0L)
+            )
+        )
+    }
+
     private fun summary(bucket: BudgetBucket, allocatedThisCycleCents: Long) = BucketSummaryState(
         bucket = bucket,
         allocatedThisCycleCents = allocatedThisCycleCents,
@@ -55,6 +113,25 @@ class HomeScreenTest {
         balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
         defaultAllocatedAmountCents = defaultAllocatedAmountCents,
         sortOrder = sortOrder,
+        originInstallId = "test-install-id",
+        lastModifiedByInstallId = "test-install-id",
+        createdAtEpochMs = 1L,
+        updatedAtEpochMs = 1L,
+        modClock = "0000000000001-0000-test-install-id"
+    )
+
+    private fun fund(
+        uuid: String,
+        name: String,
+        balanceCents: Long,
+        targetAmountCents: Long? = null
+    ) = Fund(
+        uuid = uuid,
+        name = name,
+        balanceCents = balanceCents,
+        allocationPerCycleCents = 0L,
+        targetAmountCents = targetAmountCents,
+        sortOrder = 0,
         originInstallId = "test-install-id",
         lastModifiedByInstallId = "test-install-id",
         createdAtEpochMs = 1L,

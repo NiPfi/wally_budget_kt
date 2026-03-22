@@ -4,9 +4,9 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import net.loeu.wallybudget.data.local.db.LegacyBucketBalanceBehavior
+import net.loeu.wallybudget.data.local.db.LegacyBucketTrackingMode
 import net.loeu.wallybudget.domain.model.BudgetBucket
-import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
-import net.loeu.wallybudget.domain.model.BucketTrackingMode
 
 @Entity(
     tableName = "budget_buckets",
@@ -22,8 +22,8 @@ data class BudgetBucketEntity(
     val id: Long = 0,
     val bucketUuid: String,
     val name: String,
-    val trackingMode: BucketTrackingMode,
-    val balanceBehavior: BucketBalanceBehavior,
+    val trackingMode: LegacyBucketTrackingMode = LegacyBucketTrackingMode.DAILY_TARGET,
+    val balanceBehavior: LegacyBucketBalanceBehavior = LegacyBucketBalanceBehavior.RETURN_TO_PORTFOLIO,
     @ColumnInfo(defaultValue = "0")
     val defaultAllocatedAmountCents: Long,
     val sortOrder: Int,
@@ -34,14 +34,45 @@ data class BudgetBucketEntity(
     val closedAtEpochMs: Long? = null,
     val deletedAtEpochMs: Long? = null,
     val modClock: String
-)
+) {
+    @Suppress("UNUSED_PARAMETER")
+    constructor(
+        id: Long = 0,
+        bucketUuid: String,
+        name: String,
+        trackingMode: net.loeu.wallybudget.domain.model.BucketTrackingMode,
+        balanceBehavior: net.loeu.wallybudget.domain.model.BucketBalanceBehavior,
+        defaultAllocatedAmountCents: Long,
+        sortOrder: Int,
+        originInstallId: String,
+        lastModifiedByInstallId: String,
+        createdAtEpochMs: Long,
+        updatedAtEpochMs: Long,
+        closedAtEpochMs: Long? = null,
+        deletedAtEpochMs: Long? = null,
+        modClock: String
+    ) : this(
+        id = id,
+        bucketUuid = bucketUuid,
+        name = name,
+        trackingMode = LegacyBucketTrackingMode.valueOf(trackingMode.name),
+        balanceBehavior = LegacyBucketBalanceBehavior.valueOf(balanceBehavior.name),
+        defaultAllocatedAmountCents = defaultAllocatedAmountCents,
+        sortOrder = sortOrder,
+        originInstallId = originInstallId,
+        lastModifiedByInstallId = lastModifiedByInstallId,
+        createdAtEpochMs = createdAtEpochMs,
+        updatedAtEpochMs = updatedAtEpochMs,
+        closedAtEpochMs = closedAtEpochMs,
+        deletedAtEpochMs = deletedAtEpochMs,
+        modClock = modClock
+    )
+}
 
 fun BudgetBucketEntity.toDomainModel(): BudgetBucket {
     return BudgetBucket(
         bucketUuid = bucketUuid,
         name = name,
-        trackingMode = trackingMode,
-        balanceBehavior = balanceBehavior,
         defaultAllocatedAmountCents = defaultAllocatedAmountCents,
         sortOrder = sortOrder,
         originInstallId = originInstallId,
@@ -59,8 +90,6 @@ fun BudgetBucket.toEntity(id: Long = 0L): BudgetBucketEntity {
         id = id,
         bucketUuid = bucketUuid,
         name = name,
-        trackingMode = trackingMode,
-        balanceBehavior = balanceBehavior,
         defaultAllocatedAmountCents = defaultAllocatedAmountCents,
         sortOrder = sortOrder,
         originInstallId = originInstallId,

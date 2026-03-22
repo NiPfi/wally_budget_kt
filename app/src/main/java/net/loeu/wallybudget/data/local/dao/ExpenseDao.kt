@@ -55,6 +55,13 @@ interface ExpenseDao : BaseInsertDao<ExpenseEntity> {
     @Query("SELECT MAX(expenseDate) FROM expenses WHERE deletedAtEpochMs IS NULL")
     fun observeLatestExpenseDate(): Flow<String?>
 
+    @Query(
+        "SELECT * FROM expenses " +
+            "WHERE deletedAtEpochMs IS NULL AND expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive " +
+            "ORDER BY expenseDate DESC, timestamp DESC, id DESC"
+    )
+    suspend fun getInRange(startDateInclusive: String, endDateExclusive: String): List<ExpenseEntity>
+
     @Query("SELECT * FROM expenses ORDER BY expenseDate DESC, timestamp DESC, id DESC")
     suspend fun getAllForSnapshot(): List<ExpenseEntity>
 

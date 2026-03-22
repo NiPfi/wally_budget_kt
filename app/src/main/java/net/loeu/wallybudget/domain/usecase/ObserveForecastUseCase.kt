@@ -23,7 +23,6 @@ import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.domain.config.ForecastConfig
 import net.loeu.wallybudget.domain.model.BucketAllocationAdjustment
 import net.loeu.wallybudget.domain.model.BucketAllocationPolicy
-import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.BudgetPolicy
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.Expense
@@ -138,7 +137,6 @@ class ObserveForecastUseCase(
         ) { composedInputs, inputs ->
             buildSpendingForecast(
                 inputs = inputs,
-                bucketTrackingMode = composedInputs.bucket?.trackingMode,
                 bucketUuid = composedInputs.bucket?.bucketUuid ?: DEFAULT_SPENDING_BUCKET_UUID,
                 historyEntries = composedInputs.historyEntries,
                 recentExpenseEntries = composedInputs.recentExpenseEntries,
@@ -202,16 +200,12 @@ class ObserveForecastUseCase(
 
     private fun buildSpendingForecast(
         inputs: EffectiveForecastInputs,
-        bucketTrackingMode: BucketTrackingMode?,
         bucketUuid: String,
         historyEntries: List<MonthlyHistory>,
         recentExpenseEntries: List<Expense>,
         currentPolicy: ResolvedCyclePolicy,
         adjustments: List<BucketAllocationAdjustment>
     ): SpendingForecast? {
-        if (bucketTrackingMode != BucketTrackingMode.DAILY_TARGET) {
-            return null
-        }
         val bucketExpenses = recentExpenseEntries.filter { it.bucketUuid == bucketUuid }
         val currentCycleExpenses = bucketExpenses.filterByRange(
             start = currentPolicy.cycleStart,
@@ -223,9 +217,6 @@ class ObserveForecastUseCase(
         )
         val totalSpentThisCycleCents = currentCycleExpenses.sumOf { it.amountCents }
         val spentTodayCents = todayExpenses.sumOf { it.amountCents }
-        val cumulativeSavingsCents = historyEntries
-            .filter { !it.getCycleEnd().isAfter(currentPolicy.cycleStart) }
-            .sumOf { it.surplusCents }
         val resolvedBucketAllocation = bucketAllocationResolver.resolveBucketAllocation(
             cycleStart = currentPolicy.cycleStart,
             cycleEndExclusive = currentPolicy.cycleEndExclusive,
@@ -242,7 +233,6 @@ class ObserveForecastUseCase(
             allocatedBeforeTodayCents = resolvedBucketAllocation.allocatedBeforeDateCents,
             totalSpentThisCycleCents = totalSpentThisCycleCents,
             spentTodayCents = spentTodayCents,
-            cumulativeSavingsCents = cumulativeSavingsCents,
             paydayDate = currentPolicy.paydayDayOfMonth
         )
         return budgetCalculationService.calculateSpendingForecast(

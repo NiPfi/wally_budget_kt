@@ -10,10 +10,14 @@ data class PortfolioState(
     val remainingThisCycleCents: Long,
     val completedCycleReserveCents: Long,
     val netReserveCents: Long,
-    val earmarkedReserveCents: Long,
-    val unassignedReserveCents: Long,
+    @Deprecated("Bucket-level reserve semantics were removed.")
+    val earmarkedReserveCents: Long = 0L,
+    @Deprecated("Bucket-level reserve semantics were removed.")
+    val unassignedReserveCents: Long = netReserveCents,
     val cycleStartDate: LocalDate,
-    val cycleEndDateExclusive: LocalDate
+    val cycleEndDateExclusive: LocalDate,
+    val allocatedToFundsCents: Long = 0L,
+    val totalFundBalanceCents: Long = 0L
 )
 
 data class BucketSummaryState(
@@ -22,8 +26,9 @@ data class BucketSummaryState(
     val spentThisCycleCents: Long,
     val remainingThisCycleCents: Long,
     val overspentCents: Long,
-    val earmarkedBalanceCents: Long,
-    val budgetState: BudgetState? = null
+    val budgetState: BudgetState? = null,
+    @Deprecated("Bucket-level reserve semantics were removed.")
+    val earmarkedBalanceCents: Long = 0L
 )
 
 data class SelectedBucketOverview(
@@ -38,6 +43,7 @@ data class SelectedBucketOverview(
 data class PortfolioOverviewState(
     val effectiveCurrentDate: LocalDate,
     val portfolioState: PortfolioState,
+    val funds: List<Fund> = emptyList(),
     val bucketSummaries: List<BucketSummaryState>,
     val selectedBucketOverview: SelectedBucketOverview,
     val pendingCycleCloseoutState: PendingCycleCloseoutState?,

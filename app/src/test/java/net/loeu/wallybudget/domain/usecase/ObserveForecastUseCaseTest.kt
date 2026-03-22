@@ -1,3 +1,5 @@
+@file:Suppress("MaxLineLength")
+
 package net.loeu.wallybudget.domain.usecase
 
 import kotlinx.coroutines.flow.first
@@ -130,8 +132,8 @@ class ObserveForecastUseCaseTest {
         )
         val bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(
             listOf(
-                bucketPolicyEntity("stale-policy", "2026-03-25", "2026-04-25", 100_000L, 1L),
-                bucketPolicyEntity("rewritten-policy", "2026-03-25", "2026-04-20", 80_000L, 2L)
+                bucketPolicyEntity(id = 1L, allocationUuid = "stale-policy", cycleStartDate = "2026-03-25", cycleEndDateExclusive = "2026-04-25", allocatedAmountCents = 100_000L),
+                bucketPolicyEntity(id = 2L, allocationUuid = "rewritten-policy", cycleStartDate = "2026-03-25", cycleEndDateExclusive = "2026-04-20", allocatedAmountCents = 80_000L, createdAtEpochMs = 2L)
             )
         )
         val budgetCalculationService = BudgetCalculationService()
@@ -204,7 +206,7 @@ class ObserveForecastUseCaseTest {
         )
         val bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(
             listOf(
-                bucketPolicyEntity("default-policy", "2026-03-25", "2026-04-25", 100_000L, 1L)
+                bucketPolicyEntity(id = 1L, allocationUuid = "default-policy", cycleStartDate = "2026-03-25", cycleEndDateExclusive = "2026-04-25", allocatedAmountCents = 100_000L)
             )
         )
         val bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao()
@@ -296,26 +298,6 @@ class ObserveForecastUseCaseTest {
         createdAtEpochMs = 1L,
         updatedAtEpochMs = 1L,
         modClock = "0000000000001-0000-test-install-id"
-    )
-
-    private fun bucketPolicyEntity(
-        allocationUuid: String,
-        cycleStartDate: String,
-        cycleEndDateExclusive: String,
-        allocatedAmountCents: Long,
-        createdAtEpochMs: Long
-    ) = BucketAllocationPolicyEntity(
-        id = createdAtEpochMs,
-        allocationUuid = allocationUuid,
-        bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
-        cycleStartDate = cycleStartDate,
-        cycleEndDateExclusive = cycleEndDateExclusive,
-        allocatedAmountCents = allocatedAmountCents,
-        originInstallId = "test-install-id",
-        lastModifiedByInstallId = "test-install-id",
-        createdAtEpochMs = createdAtEpochMs,
-        updatedAtEpochMs = createdAtEpochMs,
-        modClock = "000000000000$createdAtEpochMs-0000-test-install-id"
     )
 
     private fun budgetPolicyEntity(

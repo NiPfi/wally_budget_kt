@@ -1,9 +1,10 @@
+@file:Suppress("MaxLineLength")
+
 package net.loeu.wallybudget.domain.usecase
 
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import net.loeu.wallybudget.data.local.entity.BucketAllocationAdjustmentEntity
-import net.loeu.wallybudget.data.local.entity.BucketAllocationPolicyEntity
 import net.loeu.wallybudget.data.local.entity.BudgetAdjustmentEntity
 import net.loeu.wallybudget.data.local.entity.BudgetPolicyEntity
 import net.loeu.wallybudget.domain.model.UserSettings
@@ -36,8 +37,8 @@ class UpdatePaydayUseCaseTest {
         )
         val bucketPolicyDao = FakeBucketAllocationPolicyDao(
             listOf(
-                bucketPolicyEntity("bucket-current", "travel", "2026-03-25", "2026-04-25", 30_000L),
-                bucketPolicyEntity("bucket-future", "travel", "2026-04-25", "2026-05-25", 40_000L)
+                bucketPolicyEntity(allocationUuid = "bucket-current", bucketUuid = "travel", cycleStartDate = "2026-03-25", cycleEndDateExclusive = "2026-04-25", allocatedAmountCents = 30_000L),
+                bucketPolicyEntity(id = 2L, allocationUuid = "bucket-future", bucketUuid = "travel", cycleStartDate = "2026-04-25", cycleEndDateExclusive = "2026-05-25", allocatedAmountCents = 40_000L)
             )
         )
         val bucketAdjustmentDao = FakeBucketAllocationAdjustmentDao(
@@ -110,8 +111,8 @@ class UpdatePaydayUseCaseTest {
         )
         val bucketPolicyDao = FakeBucketAllocationPolicyDao(
             listOf(
-                bucketPolicyEntity("bucket-current", "travel", "2026-03-25", "2026-04-25", 30_000L),
-                bucketPolicyEntity("bucket-special", "travel", "2026-05-25", "2026-06-25", 60_000L)
+                bucketPolicyEntity(allocationUuid = "bucket-current", bucketUuid = "travel", cycleStartDate = "2026-03-25", cycleEndDateExclusive = "2026-04-25", allocatedAmountCents = 30_000L),
+                bucketPolicyEntity(id = 3L, allocationUuid = "bucket-special", bucketUuid = "travel", cycleStartDate = "2026-05-25", cycleEndDateExclusive = "2026-06-25", allocatedAmountCents = 60_000L)
             )
         )
         val useCase = UpdatePaydayUseCase(
@@ -155,30 +156,6 @@ class UpdatePaydayUseCaseTest {
         cycleEndDateExclusive = cycleEndDateExclusive,
         budgetAmountCents = 100_000L,
         paydayDayOfMonth = 25,
-        originInstallId = "test-install-id",
-        lastModifiedByInstallId = "test-install-id",
-        createdAtEpochMs = 1L,
-        updatedAtEpochMs = 1L,
-        modClock = "0000000000001-0000-test-install-id"
-    )
-
-    private fun bucketPolicyEntity(
-        allocationUuid: String,
-        bucketUuid: String,
-        cycleStartDate: String,
-        cycleEndDateExclusive: String,
-        allocatedAmountCents: Long
-    ) = BucketAllocationPolicyEntity(
-        id = when (allocationUuid) {
-            "bucket-current" -> 1L
-            "bucket-future" -> 2L
-            else -> 3L
-        },
-        allocationUuid = allocationUuid,
-        bucketUuid = bucketUuid,
-        cycleStartDate = cycleStartDate,
-        cycleEndDateExclusive = cycleEndDateExclusive,
-        allocatedAmountCents = allocatedAmountCents,
         originInstallId = "test-install-id",
         lastModifiedByInstallId = "test-install-id",
         createdAtEpochMs = 1L,

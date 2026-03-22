@@ -27,6 +27,7 @@ import net.loeu.wallybudget.domain.usecase.ClearPendingPaydayUndoUseCase
 import net.loeu.wallybudget.domain.usecase.DeleteExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.EnsureDefaultBucketStateUseCase
 import net.loeu.wallybudget.domain.usecase.EnsureBudgetPolicyHistoryUseCase
+import net.loeu.wallybudget.domain.usecase.EnsureDefaultFundUseCase
 import net.loeu.wallybudget.domain.usecase.ExportSnapshotUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveBudgetBucketsUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveForecastUseCase
@@ -78,7 +79,9 @@ class BudgetViewModelFactory(
                 BudgetDatabase.migration7To8(installId),
                 BudgetDatabase.MIGRATION_8_9,
                 BudgetDatabase.MIGRATION_9_10,
-                BudgetDatabase.MIGRATION_10_11
+                BudgetDatabase.MIGRATION_10_11,
+                BudgetDatabase.MIGRATION_11_12,
+                BudgetDatabase.MIGRATION_12_13
             )
             .build()
     }
@@ -125,6 +128,8 @@ class BudgetViewModelFactory(
     private val bucketAllocationPolicyDao by lazy { database.bucketAllocationPolicyDao() }
     private val bucketAllocationAdjustmentDao by lazy { database.bucketAllocationAdjustmentDao() }
     private val bucketMonthlyHistoryDao by lazy { database.bucketMonthlyHistoryDao() }
+    private val fundDao by lazy { database.fundDao() }
+    private val fundTransactionDao by lazy { database.fundTransactionDao() }
 
     private val observeHomeOverviewUseCase by lazy {
         ObserveHomeOverviewUseCase(
@@ -133,6 +138,7 @@ class BudgetViewModelFactory(
             budgetAdjustmentDao = budgetAdjustmentDao,
             budgetPolicyDao = budgetPolicyDao,
             budgetBucketDao = budgetBucketDao,
+            fundDao = fundDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
             bucketMonthlyHistoryDao = bucketMonthlyHistoryDao,
@@ -288,6 +294,14 @@ class BudgetViewModelFactory(
             hybridLogicalClockService = hybridLogicalClockService
         )
     }
+    private val ensureDefaultFundUseCase by lazy {
+        EnsureDefaultFundUseCase(
+            transactionRunner = database,
+            userSettingsStore = userPreferencesManager,
+            fundDao = fundDao,
+            hybridLogicalClockService = hybridLogicalClockService
+        )
+    }
     private val performMonthlyResetUseCase by lazy {
         PerformMonthlyResetUseCase(
             transactionRunner = database,
@@ -309,11 +323,17 @@ class BudgetViewModelFactory(
             expenseDao = expenseDao,
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = budgetAdjustmentDao,
+            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
             monthlyHistoryDao = monthlyHistoryDao,
+            fundDao = fundDao,
+            fundTransactionDao = fundTransactionDao,
             userSettingsStore = userPreferencesManager,
             budgetCalculationService = budgetCalculationService,
             cycleScheduleResolver = cycleScheduleResolver,
             budgetAdjustmentResolver = budgetAdjustmentResolver,
+            bucketAllocationResolver = bucketAllocationResolver,
+            hybridLogicalClockService = hybridLogicalClockService,
             rebuildBucketMonthlyHistoryUseCase = rebuildBucketMonthlyHistoryUseCase
         )
     }
@@ -329,6 +349,8 @@ class BudgetViewModelFactory(
             budgetBucketDao = budgetBucketDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+            fundDao = fundDao,
+            fundTransactionDao = fundTransactionDao,
             userSettingsStore = userPreferencesManager,
             hybridLogicalClockService = hybridLogicalClockService,
             appVersionName = appVersionName
@@ -352,6 +374,8 @@ class BudgetViewModelFactory(
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
             bucketMonthlyHistoryDao = bucketMonthlyHistoryDao,
+            fundDao = fundDao,
+            fundTransactionDao = fundTransactionDao,
             userSettingsStore = userPreferencesManager,
             rebuildMonthlyHistoryUseCase = rebuildMonthlyHistoryUseCase,
             rebuildBucketMonthlyHistoryUseCase = rebuildBucketMonthlyHistoryUseCase
@@ -391,6 +415,7 @@ class BudgetViewModelFactory(
                 prepareSnapshotImportUseCase = prepareSnapshotImportUseCase,
                 applyOnboardingRestoreUseCase = applyOnboardingRestoreUseCase,
                 ensureDefaultBucketStateUseCase = ensureDefaultBucketStateUseCase,
+                ensureDefaultFundUseCase = ensureDefaultFundUseCase,
                 ensureBudgetPolicyHistoryUseCase = ensureBudgetPolicyHistoryUseCase,
                 rebuildMonthlyHistoryUseCase = rebuildMonthlyHistoryUseCase,
                 resolveMutationEffectiveDateUseCase = resolveMutationEffectiveDateUseCase,

@@ -11,6 +11,8 @@ import net.loeu.wallybudget.data.local.dao.BucketMonthlyHistoryDao
 import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.CycleOverviewDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
+import net.loeu.wallybudget.data.local.dao.FundDao
+import net.loeu.wallybudget.data.local.dao.FundTransactionDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
 import net.loeu.wallybudget.data.local.entity.BudgetAdjustmentEntity
 import net.loeu.wallybudget.data.local.entity.BudgetPolicyEntity
@@ -20,12 +22,20 @@ import net.loeu.wallybudget.data.local.entity.BucketMonthlyHistoryEntity
 import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
 import net.loeu.wallybudget.data.local.db.TransactionRunner
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
+import net.loeu.wallybudget.data.local.entity.FundEntity
+import net.loeu.wallybudget.data.local.entity.FundTransactionEntity
 import net.loeu.wallybudget.data.local.entity.MonthlyHistoryEntity
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.local.querymodel.ExpenseDayTotalRow
 import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.domain.model.PendingPaydayUndo
 import net.loeu.wallybudget.domain.model.UserSettings
+import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
+import net.loeu.wallybudget.domain.model.BucketTrackingMode
+import net.loeu.wallybudget.domain.model.DEFAULT_FUND_NAME
+import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
+import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
+import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
@@ -234,6 +244,14 @@ internal class FakeExpenseDao(
         allExpensesFlow.map { entries ->
             entries.filter { it.deletedAtEpochMs == null }.maxOfOrNull { it.expenseDate }
         }
+
+    override suspend fun getInRange(startDateInclusive: String, endDateExclusive: String): List<ExpenseEntity> {
+        return expenses.filter {
+            it.deletedAtEpochMs == null &&
+                it.expenseDate >= startDateInclusive &&
+                it.expenseDate < endDateExclusive
+        }
+    }
 
     override suspend fun getAllForSnapshot(): List<ExpenseEntity> = expenses.toList()
 
@@ -704,6 +722,83 @@ internal class FakeBucketMonthlyHistoryDao(
     }
 }
 
+internal class FakeFundDao(
+    initialFunds: List<FundEntity> = emptyList()
+) : FundDao {
+    private val funds = initialFunds.toMutableList()
+    private val fundFlow = MutableStateFlow(sortedFunds())
+
+    override suspend fun update(fund: FundEntity) {
+        funds.replaceAll { existing -> if (existing.uuid == fund.uuid) fund else existing }
+        refresh()
+    }
+
+    override fun observeAllActive(): Flow<List<FundEntity>> = fundFlow.map { current ->
+        current.filter { it.deletedAtEpochMs == null && it.closedAtEpochMs == null }
+    }
+
+    override suspend fun getAllForSnapshot(): List<FundEntity> = sortedFunds()
+
+    override suspend fun getAllActive(): List<FundEntity> = sortedFunds()
+        .filter { it.deletedAtEpochMs == null && it.closedAtEpochMs == null }
+
+    override suspend fun findByUuid(uuid: String): FundEntity? = funds.firstOrNull { it.uuid == uuid }
+
+    override suspend fun deleteAll() {
+        funds.clear()
+        refresh()
+    }
+
+    override suspend fun insert(entity: FundEntity): Long {
+        funds.removeAll { it.uuid == entity.uuid }
+        funds += entity
+        refresh()
+        return 1L
+    }
+
+    override suspend fun insert(entities: List<FundEntity>): List<Long> = entities.map { insert(it) }
+
+    val currentFunds: List<FundEntity>
+        get() = fundFlow.value
+
+    private fun refresh() {
+        fundFlow.value = sortedFunds()
+    }
+
+    private fun sortedFunds(): List<FundEntity> {
+        return funds.sortedWith(
+            compareBy<FundEntity> { it.sortOrder }
+                .thenBy { it.createdAtEpochMs }
+                .thenBy { it.uuid }
+        )
+    }
+}
+
+internal class FakeFundTransactionDao(
+    initialTransactions: List<FundTransactionEntity> = emptyList()
+) : FundTransactionDao {
+    private val transactions = initialTransactions.toMutableList()
+
+    override suspend fun getAllForSnapshot(): List<FundTransactionEntity> {
+        return transactions.sortedWith(compareBy<FundTransactionEntity> { it.dateEpochMs }.thenBy { it.uuid })
+    }
+
+    override suspend fun deleteAll() {
+        transactions.clear()
+    }
+
+    override suspend fun insert(entity: FundTransactionEntity): Long {
+        transactions.removeAll { it.uuid == entity.uuid }
+        transactions += entity
+        return 1L
+    }
+
+    override suspend fun insert(entities: List<FundTransactionEntity>): List<Long> = entities.map { insert(it) }
+
+    val currentTransactions: List<FundTransactionEntity>
+        get() = transactions.sortedWith(compareBy<FundTransactionEntity> { it.dateEpochMs }.thenBy { it.uuid })
+}
+
 internal class FakeCycleOverviewDao(
     private val expenseDao: FakeExpenseDao
 ) : CycleOverviewDao {
@@ -810,5 +905,100 @@ internal fun budgetAdjustmentEntity(
         updatedAtEpochMs = timestamp,
         deletedAtEpochMs = null,
         modClock = "%013d-%04d-%s".format(timestamp, 0, "test-install-id")
+    )
+}
+
+internal fun fundEntity(
+    uuid: String = DEFAULT_FUND_UUID,
+    name: String = DEFAULT_FUND_NAME,
+    balanceCents: Long = 0L,
+    allocationPerCycleCents: Long = 0L,
+    sortOrder: Int = 0,
+    originInstallId: String = "test-install-id",
+    lastModifiedByInstallId: String = "test-install-id",
+    createdAtEpochMs: Long = 1L,
+    updatedAtEpochMs: Long = createdAtEpochMs,
+    closedAtEpochMs: Long? = null,
+    deletedAtEpochMs: Long? = null,
+    modClock: String = "%013d-%04d-%s".format(updatedAtEpochMs, 0, "test-install-id")
+): FundEntity {
+    return FundEntity(
+        uuid = uuid,
+        name = name,
+        balanceCents = balanceCents,
+        allocationPerCycleCents = allocationPerCycleCents,
+        targetAmountCents = null,
+        sortOrder = sortOrder,
+        originInstallId = originInstallId,
+        lastModifiedByInstallId = lastModifiedByInstallId,
+        createdAtEpochMs = createdAtEpochMs,
+        updatedAtEpochMs = updatedAtEpochMs,
+        closedAtEpochMs = closedAtEpochMs,
+        deletedAtEpochMs = deletedAtEpochMs,
+        modClock = modClock
+    )
+}
+
+internal fun bucketEntity(
+    id: Long = 1L,
+    bucketUuid: String = DEFAULT_SPENDING_BUCKET_UUID,
+    name: String = DEFAULT_SPENDING_BUCKET_NAME,
+    trackingMode: BucketTrackingMode = BucketTrackingMode.DAILY_TARGET,
+    balanceBehavior: BucketBalanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
+    defaultAllocatedAmountCents: Long = 0L,
+    sortOrder: Int = 0,
+    originInstallId: String = "test-install-id",
+    lastModifiedByInstallId: String = "test-install-id",
+    createdAtEpochMs: Long = 1L,
+    updatedAtEpochMs: Long = createdAtEpochMs,
+    closedAtEpochMs: Long? = null,
+    deletedAtEpochMs: Long? = null,
+    modClock: String = "%013d-%04d-%s".format(updatedAtEpochMs, 0, lastModifiedByInstallId)
+): BudgetBucketEntity {
+    return BudgetBucketEntity(
+        id = id,
+        bucketUuid = bucketUuid,
+        name = name,
+        trackingMode = trackingMode,
+        balanceBehavior = balanceBehavior,
+        defaultAllocatedAmountCents = defaultAllocatedAmountCents,
+        sortOrder = sortOrder,
+        originInstallId = originInstallId,
+        lastModifiedByInstallId = lastModifiedByInstallId,
+        createdAtEpochMs = createdAtEpochMs,
+        updatedAtEpochMs = updatedAtEpochMs,
+        closedAtEpochMs = closedAtEpochMs,
+        deletedAtEpochMs = deletedAtEpochMs,
+        modClock = modClock
+    )
+}
+
+internal fun bucketPolicyEntity(
+    id: Long = 1L,
+    allocationUuid: String = "bucket-policy-1",
+    bucketUuid: String = DEFAULT_SPENDING_BUCKET_UUID,
+    cycleStartDate: String = "2026-03-01",
+    cycleEndDateExclusive: String = "2026-04-01",
+    allocatedAmountCents: Long = 0L,
+    originInstallId: String = "test-install-id",
+    lastModifiedByInstallId: String = "test-install-id",
+    createdAtEpochMs: Long = 1L,
+    updatedAtEpochMs: Long = createdAtEpochMs,
+    deletedAtEpochMs: Long? = null,
+    modClock: String = "%013d-%04d-%s".format(updatedAtEpochMs, 0, lastModifiedByInstallId)
+): BucketAllocationPolicyEntity {
+    return BucketAllocationPolicyEntity(
+        id = id,
+        allocationUuid = allocationUuid,
+        bucketUuid = bucketUuid,
+        cycleStartDate = cycleStartDate,
+        cycleEndDateExclusive = cycleEndDateExclusive,
+        allocatedAmountCents = allocatedAmountCents,
+        originInstallId = originInstallId,
+        lastModifiedByInstallId = lastModifiedByInstallId,
+        createdAtEpochMs = createdAtEpochMs,
+        updatedAtEpochMs = updatedAtEpochMs,
+        deletedAtEpochMs = deletedAtEpochMs,
+        modClock = modClock
     )
 }
