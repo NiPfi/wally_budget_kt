@@ -66,14 +66,17 @@ class EnsureDefaultBucketStateUseCase(
                     defaultBucket.sortOrder != 0 ||
                     defaultBucket.defaultAllocatedAmountCents != defaultBucketAllocation -> {
                     val entity = budgetBucketDao.findByBucketUuid(DEFAULT_SPENDING_BUCKET_UUID) ?: return@inTransaction
+                    // Only reopen the default bucket when it was actually closed/deleted;
+                    // preserve its closed/deleted state when the trigger is just a
+                    // sort-order or allocation mismatch.
                     budgetBucketDao.update(
                         defaultBucket.copy(
                             defaultAllocatedAmountCents = defaultBucketAllocation,
                             sortOrder = 0,
                             updatedAtEpochMs = nowEpochMs,
                             lastModifiedByInstallId = installId,
-                            closedAtEpochMs = null,
-                            deletedAtEpochMs = null,
+                            closedAtEpochMs = if (defaultBucket.isClosed) null else defaultBucket.closedAtEpochMs,
+                            deletedAtEpochMs = if (defaultBucket.isClosed) null else defaultBucket.deletedAtEpochMs,
                             modClock = hybridLogicalClockService.next(defaultBucket.modClock, nowEpochMs, installId)
                         ).toEntity(id = entity.id)
                     )
@@ -128,6 +131,9 @@ class EnsureDefaultBucketStateUseCase(
             }
         }
 
+        // Bucket selection update runs outside the transaction. A concurrent
+        // UpdateBudgetSettingsUseCase could race, but the worst outcome is a redundant
+        // re-selection on the next app launch — no data corruption is possible.
         val openBuckets = budgetBucketDao.getAllActive().map { it.toDomainModel() }
         val resolvedSelectedBucketUuid = resolveSelectedOpenBucketUuid(settings.selectedBucketUuid, openBuckets)
         if (resolvedSelectedBucketUuid != settings.selectedBucketUuid) {

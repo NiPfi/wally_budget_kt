@@ -79,8 +79,7 @@ class ObserveHistoryUseCaseTest {
                 remainingThisCycleCents = 94_000L,
                 completedCycleReserveCents = 0L,
                 netReserveCents = 94_000L,
-                earmarkedReserveCents = 0L,
-                unassignedReserveCents = 94_000L,
+
                 cycleStartDate = LocalDate.of(2026, 3, 25),
                 cycleEndDateExclusive = LocalDate.of(2026, 4, 25)
             ),
@@ -174,8 +173,7 @@ class ObserveHistoryUseCaseTest {
                         remainingThisCycleCents = 93_000L,
                         completedCycleReserveCents = 0L,
                         netReserveCents = 93_000L,
-                        earmarkedReserveCents = 0L,
-                        unassignedReserveCents = 93_000L,
+
                         cycleStartDate = LocalDate.of(2026, 3, 25),
                         cycleEndDateExclusive = LocalDate.of(2026, 4, 25)
                     ),
