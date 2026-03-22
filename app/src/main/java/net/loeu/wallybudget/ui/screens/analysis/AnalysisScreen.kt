@@ -39,6 +39,7 @@ import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.SpendingForecast
+import net.loeu.wallybudget.ui.CurrencyPlaceholderSamples
 import net.loeu.wallybudget.ui.components.TimelineLockBanner
 import net.loeu.wallybudget.ui.screens.overview.LoadingValuePlaceholder
 
@@ -398,7 +399,10 @@ private fun ConfidenceSection(
                     fillWidth = true
                 )
                 LoadingValuePlaceholder(
-                    sampleText = "Forecast range runs from $1,800.00 to $2,450.00 total spend by cycle end.",
+                    sampleText = CurrencyPlaceholderSamples.forecastRangeSummary(
+                        lowerAmountCents = 180_000L,
+                        upperAmountCents = 245_000L
+                    ),
                     textStyle = MaterialTheme.typography.bodyMedium,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Start,
                     fillWidth = true
@@ -473,7 +477,10 @@ private fun PlaceholderEvidenceCard() {
                 textAlign = androidx.compose.ui.text.style.TextAlign.Start
             )
             LoadingValuePlaceholder(
-                sampleText = "Current projection still leaves $200.00, but the upper range reaches $2,450.00.",
+                sampleText = CurrencyPlaceholderSamples.forecastRangeDetail(
+                    remainingAmountCents = 20_000L,
+                    upperAmountCents = 245_000L
+                ),
                 textStyle = MaterialTheme.typography.bodyMedium,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Start,
                 fillWidth = true

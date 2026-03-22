@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.BudgetState
+import net.loeu.wallybudget.ui.CurrencyPlaceholderSamples
 import net.loeu.wallybudget.util.CurrencyFormatter
 import kotlin.math.roundToInt
 
@@ -385,7 +386,7 @@ private fun SummaryCardPrimaryRow(
                     animateOnFirstResolvedValue = animateCounters,
                     textAlign = TextAlign.Start,
                     placeholder = isLoading,
-                    placeholderText = "$8,888"
+                    placeholderText = CurrencyPlaceholderSamples.amount(888_800L)
                 )
                 SafeTodayChip(
                     recoverableOverspendCents = recoverableOverspendCents,
@@ -499,7 +500,7 @@ private fun SafeTodayChip(
             color = contentColor,
             animate = false,
             placeholder = isLoading,
-            placeholderText = "+ $888"
+            placeholderText = CurrencyPlaceholderSamples.prefixedAmount("+ ", 88_800L)
         )
         Icon(
             painter = painterResource(R.drawable.ic_info),
@@ -545,7 +546,7 @@ private fun SummaryCardSecondaryMetrics(
                 animate = animateCounters,
                 animateOnFirstResolvedValue = animateCounters,
                 placeholder = isLoading,
-                placeholderText = "$8,888"
+                placeholderText = CurrencyPlaceholderSamples.amount(888_800L)
             )
         }
         SummaryMetric(
@@ -576,7 +577,7 @@ private fun SummaryCardSecondaryMetrics(
                 animate = animateCounters,
                 animateOnFirstResolvedValue = animateCounters,
                 placeholder = isLoading,
-                placeholderText = "$888"
+                placeholderText = CurrencyPlaceholderSamples.amount(88_800L)
             )
         }
     }

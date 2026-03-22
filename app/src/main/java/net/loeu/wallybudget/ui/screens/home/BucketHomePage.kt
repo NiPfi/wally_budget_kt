@@ -27,6 +27,7 @@ import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.SelectedBucketOverview
 import net.loeu.wallybudget.domain.model.SpendingForecast
+import net.loeu.wallybudget.ui.CurrencyPlaceholderSamples
 import net.loeu.wallybudget.ui.screens.expenses.ExpenseItem
 import net.loeu.wallybudget.ui.screens.overview.CollapsingSummaryLayout
 import net.loeu.wallybudget.ui.screens.overview.CollapsingSummaryLayoutConfig
@@ -204,7 +205,11 @@ private fun ReserveBucketLoadingPage(
         ) {
             ReserveLoadingSection(
                 title = "$pageTitle details",
-                rows = listOf("\$8,888", "\$888", "\$88")
+                rows = listOf(
+                    CurrencyPlaceholderSamples.amount(888_800L),
+                    CurrencyPlaceholderSamples.amount(88_800L),
+                    CurrencyPlaceholderSamples.amount(8_800L)
+                )
             )
             ReserveLoadingSection(
                 title = "Recent activity",
