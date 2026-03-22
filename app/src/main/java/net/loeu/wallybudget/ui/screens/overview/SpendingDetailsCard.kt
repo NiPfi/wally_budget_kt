@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import net.loeu.wallybudget.domain.model.BudgetState
+import net.loeu.wallybudget.ui.CurrencyPlaceholderSamples
 import kotlin.math.abs
 
 @Composable
@@ -41,13 +42,13 @@ fun SpendingDetailsCard(
             label = "Cycle spent",
             amountCents = budgetState.totalSpentThisCycleCents,
             isLoading = isLoading,
-            placeholderText = "$8,888"
+            placeholderText = CurrencyPlaceholderSamples.amount(888_800L)
         )
         SpendingDetailAmountRow(
             label = "Past days",
             amountCents = previousExpensesTotal,
             isLoading = isLoading,
-            placeholderText = "$8,888"
+            placeholderText = CurrencyPlaceholderSamples.amount(888_800L)
         )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
@@ -55,7 +56,7 @@ fun SpendingDetailsCard(
             label = "Base daily allowance",
             amountCents = budgetState.dailyBudgetCents,
             isLoading = isLoading,
-            placeholderText = "$888"
+            placeholderText = CurrencyPlaceholderSamples.amount(88_800L)
         )
         BudgetAdjustmentRow(dailyAdjustmentCents = dailyAdjustmentCents, isLoading = isLoading)
         EffectiveAllowanceRow(
@@ -107,7 +108,7 @@ private fun BudgetAdjustmentRow(
                 MaterialTheme.colorScheme.error
             },
             placeholder = isLoading,
-            placeholderText = "+$888"
+            placeholderText = CurrencyPlaceholderSamples.prefixedAmount("+", 88_800L)
         )
     }
 }
@@ -124,7 +125,7 @@ private fun EffectiveAllowanceRow(
             animate = true,
             textAlign = TextAlign.End,
             placeholder = isLoading,
-            placeholderText = "$888"
+            placeholderText = CurrencyPlaceholderSamples.amount(88_800L)
         )
     }
 }

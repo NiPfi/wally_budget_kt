@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseDaySection
+import net.loeu.wallybudget.ui.CurrencyPlaceholderSamples
 import net.loeu.wallybudget.ui.screens.expenses.ExpenseItem
 
 @Composable
@@ -143,7 +144,7 @@ private fun TodayExpensesHeader(
             animate = true,
             textAlign = TextAlign.End,
             placeholder = isLoading,
-            placeholderText = "$888"
+            placeholderText = CurrencyPlaceholderSamples.amount(88_800L)
         )
     }
 }
@@ -179,7 +180,7 @@ private fun LoadingExpenseRow() {
             )
         }
         LoadingValuePlaceholder(
-            sampleText = "$88.88",
+            sampleText = CurrencyPlaceholderSamples.amount(8_888L),
             textStyle = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.End
         )
