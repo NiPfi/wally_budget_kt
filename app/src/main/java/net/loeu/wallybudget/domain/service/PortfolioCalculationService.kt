@@ -18,8 +18,10 @@ class PortfolioCalculationService {
     ): PortfolioState {
         val allocatedToBucketsCents = bucketSummaries.sumOf { it.allocatedThisCycleCents }
         val allocatedToFundsCents = funds.sumOf { it.allocationPerCycleCents }
-        // Use one effective baseline for current-cycle portfolio math so reserve and plan
-        // calculations cannot diverge when the portfolio plan was increased mid-cycle.
+        // Use the greater of the declared portfolio budget and the sum of bucket+fund
+        // allocations so that reserve/remaining calculations stay consistent when
+        // allocations exceed the portfolio plan (e.g. after a mid-cycle increase that
+        // hasn't been reconciled with the portfolio total yet).
         val totalPlannedCents = allocatedToBucketsCents + allocatedToFundsCents
         val effectiveCycleBaselineCents = maxOf(portfolioTotalBudgetCents, totalPlannedCents)
         val completedCycleReserveCents = bucketHistory
