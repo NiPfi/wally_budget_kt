@@ -27,8 +27,6 @@ import net.loeu.wallybudget.data.snapshot.model.SnapshotFundTransactionRecordV5
 import net.loeu.wallybudget.data.snapshot.model.SnapshotSettingsRecordV1
 import net.loeu.wallybudget.domain.model.SnapshotError
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
-import net.loeu.wallybudget.domain.usecase.internal.emptyFundDao
-import net.loeu.wallybudget.domain.usecase.internal.emptyFundTransactionDao
 
 @Suppress("LongMethod", "ThrowsCount", "TooGenericExceptionCaught")
 class ExportSnapshotUseCase(
@@ -42,8 +40,8 @@ class ExportSnapshotUseCase(
     private val budgetBucketDao: BudgetBucketDao,
     private val bucketAllocationPolicyDao: BucketAllocationPolicyDao,
     private val bucketAllocationAdjustmentDao: BucketAllocationAdjustmentDao,
-    private val fundDao: FundDao = emptyFundDao,
-    private val fundTransactionDao: FundTransactionDao = emptyFundTransactionDao,
+    private val fundDao: FundDao,
+    private val fundTransactionDao: FundTransactionDao,
     private val userSettingsStore: UserSettingsStore,
     private val hybridLogicalClockService: HybridLogicalClockService,
     private val appVersionName: String

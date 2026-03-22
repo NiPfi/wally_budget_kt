@@ -13,8 +13,6 @@ import net.loeu.wallybudget.data.local.db.TransactionRunner
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.domain.model.SnapshotApplyResult
 import net.loeu.wallybudget.domain.model.SnapshotError
-import net.loeu.wallybudget.domain.usecase.internal.emptyFundDao
-import net.loeu.wallybudget.domain.usecase.internal.emptyFundTransactionDao
 
 class ApplyOnboardingRestoreUseCase(
     private val transactionRunner: TransactionRunner,
@@ -25,8 +23,8 @@ class ApplyOnboardingRestoreUseCase(
     private val bucketAllocationPolicyDao: BucketAllocationPolicyDao,
     private val bucketAllocationAdjustmentDao: BucketAllocationAdjustmentDao,
     private val bucketMonthlyHistoryDao: BucketMonthlyHistoryDao,
-    private val fundDao: FundDao = emptyFundDao,
-    private val fundTransactionDao: FundTransactionDao = emptyFundTransactionDao,
+    private val fundDao: FundDao,
+    private val fundTransactionDao: FundTransactionDao,
     private val userSettingsStore: UserSettingsStore,
     private val rebuildMonthlyHistoryUseCase: RebuildMonthlyHistoryUseCase,
     private val rebuildBucketMonthlyHistoryUseCase: RebuildBucketMonthlyHistoryUseCase

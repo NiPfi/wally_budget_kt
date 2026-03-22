@@ -14,7 +14,7 @@ import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.ExpenseCycleSection
-import net.loeu.wallybudget.domain.model.FundState
+import net.loeu.wallybudget.domain.model.Fund
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.PortfolioState
 import net.loeu.wallybudget.domain.model.SelectedBucketOverview
@@ -83,7 +83,7 @@ internal fun NavGraphBuilder.addPortfolioDestination(
     navController: NavHostController,
     portfolioState: PortfolioState,
     bucketSummaries: List<BucketSummaryState>,
-    fundStates: List<FundState>,
+    funds: List<Fund>,
     allBuckets: List<BudgetBucket>,
     userSettings: UserSettings,
     onSavePortfolioPlan: (Long, List<BucketDraft>) -> Unit,
@@ -94,7 +94,7 @@ internal fun NavGraphBuilder.addPortfolioDestination(
         PortfolioScreen(
             portfolioState = portfolioState,
             bucketSummaries = bucketSummaries,
-            fundStates = fundStates,
+            funds = funds,
             allBuckets = allBuckets,
             userSettings = userSettings,
             onSavePortfolioPlan = onSavePortfolioPlan,

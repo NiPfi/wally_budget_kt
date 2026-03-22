@@ -74,7 +74,7 @@ import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
-import net.loeu.wallybudget.domain.model.FundState
+import net.loeu.wallybudget.domain.model.Fund
 import net.loeu.wallybudget.domain.model.PortfolioState
 import net.loeu.wallybudget.domain.model.SelectedBucketOverview
 import net.loeu.wallybudget.domain.model.SpendingForecast
@@ -360,7 +360,7 @@ private fun HomeScreenEffects(
 internal fun PortfolioOverviewPage(
     portfolioState: PortfolioState,
     bucketSummaries: List<BucketSummaryState>,
-    fundStates: List<FundState>,
+    funds: List<Fund>,
     showTopRightSettingsAction: Boolean,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
@@ -403,7 +403,7 @@ internal fun PortfolioOverviewPage(
                 ActiveBucketsSection(bucketSummaries = bucketSummaries)
             }
             item {
-                FundsSection(fundStates = fundStates)
+                FundsSection(funds = funds)
             }
         }
     }
@@ -494,9 +494,9 @@ private fun ActiveBucketsSection(bucketSummaries: List<BucketSummaryState>) {
 }
 
 @Composable
-private fun FundsSection(fundStates: List<FundState>) {
-    val defaultFundState = remember(fundStates) { defaultFundState(fundStates) } ?: return
-    val targetProgressText = formatFundTargetProgress(defaultFundState)
+private fun FundsSection(funds: List<Fund>) {
+    val defaultFund = remember(funds) { defaultFund(funds) } ?: return
+    val targetProgressText = formatFundTargetProgress(defaultFund)
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -509,12 +509,12 @@ private fun FundsSection(fundStates: List<FundState>) {
         )
         {
             Text(
-                text = defaultFundState.fund.name,
+                text = defaultFund.name,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "Balance · ${CurrencyFormatter.format(defaultFundState.balanceCents)}",
+                text = "Balance · ${CurrencyFormatter.format(defaultFund.balanceCents)}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -529,16 +529,16 @@ private fun FundsSection(fundStates: List<FundState>) {
     }
 }
 
-internal fun defaultFundState(fundStates: List<FundState>): FundState? {
+internal fun defaultFund(funds: List<Fund>): Fund? {
     // Future milestones can expand this to show all funds. For now, keep the portfolio UI
     // focused on the guaranteed default destination for closeout surplus.
-    return fundStates.firstOrNull { it.fund.uuid == DEFAULT_FUND_UUID }
+    return funds.firstOrNull { it.uuid == DEFAULT_FUND_UUID }
 }
 
-internal fun formatFundTargetProgress(fundState: FundState): String? {
-    val targetAmountCents = fundState.targetAmountCents?.takeIf { it > 0L } ?: return null
-    val progressPercent = ((fundState.progressPercent ?: 0f).roundToInt()).coerceIn(0, 100)
-    return "${CurrencyFormatter.format(fundState.balanceCents)} of " +
+internal fun formatFundTargetProgress(fund: Fund): String? {
+    val targetAmountCents = fund.targetAmountCents?.takeIf { it > 0L } ?: return null
+    val progressPercent = ((fund.progressPercent ?: 0f).roundToInt()).coerceIn(0, 100)
+    return "${CurrencyFormatter.format(fund.balanceCents)} of " +
         "${CurrencyFormatter.format(targetAmountCents)} target · $progressPercent%"
 }
 

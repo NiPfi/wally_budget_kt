@@ -20,4 +20,9 @@ data class Fund(
 ) {
     val isClosed: Boolean
         get() = closedAtEpochMs != null || deletedAtEpochMs != null
+
+    val progressPercent: Float?
+        get() = targetAmountCents?.takeIf { it > 0L }?.let { target ->
+            ((balanceCents.toDouble() / target.toDouble()) * 100.0).coerceIn(0.0, 100.0).toFloat()
+        }
 }

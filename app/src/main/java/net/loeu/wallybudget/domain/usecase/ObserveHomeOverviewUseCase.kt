@@ -31,7 +31,7 @@ import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseDaySection
-import net.loeu.wallybudget.domain.model.FundState
+import net.loeu.wallybudget.domain.model.Fund
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.PortfolioOverviewState
 import net.loeu.wallybudget.domain.model.SelectedBucketOverview
@@ -55,7 +55,6 @@ import net.loeu.wallybudget.domain.usecase.internal.lastResetDateOrNull
 import net.loeu.wallybudget.domain.usecase.internal.pendingCycleRangeOrNull
 import net.loeu.wallybudget.domain.usecase.internal.resolveSelectedOpenBucket
 import net.loeu.wallybudget.domain.usecase.internal.toDayTotalsMap
-import net.loeu.wallybudget.domain.usecase.internal.emptyFundDao
 import java.time.LocalDate
 
 private data class EffectivePortfolioInputs(
@@ -73,7 +72,7 @@ private data class CurrentPortfolioInputs(
     val portfolioAdjustments: List<net.loeu.wallybudget.domain.model.BudgetAdjustment>,
     val bucketPolicies: List<BucketAllocationPolicy>,
     val bucketAdjustments: List<BucketAllocationAdjustment>,
-    val fundStates: List<FundState>,
+    val funds: List<Fund>,
     val currentExpenses: List<Expense>,
     val allBucketHistory: List<BucketMonthlyHistory>
 )
@@ -102,21 +101,8 @@ private fun observeAllBucketHistory(bucketMonthlyHistoryDao: BucketMonthlyHistor
     }
 }
 
-private fun observeFundStates(fundDao: FundDao): Flow<List<FundState>> {
-    return fundDao.observeAllActive().map { entries ->
-        entries.map { entity ->
-            val fund = entity.toDomainModel()
-            val progressPercent = fund.targetAmountCents?.takeIf { it > 0L }?.let { target ->
-                ((fund.balanceCents.toDouble() / target.toDouble()) * 100.0).coerceIn(0.0, 100.0).toFloat()
-            }
-            FundState(
-                fund = fund,
-                balanceCents = fund.balanceCents,
-                targetAmountCents = fund.targetAmountCents,
-                progressPercent = progressPercent
-            )
-        }
-    }
+private fun observeActiveFunds(fundDao: FundDao): Flow<List<Fund>> {
+    return fundDao.observeAllActive().map { entries -> entries.map { it.toDomainModel() } }
 }
 
 private fun observePortfolioPolicies(budgetPolicyDao: BudgetPolicyDao): Flow<List<BudgetPolicy>> {
@@ -382,7 +368,7 @@ class ObserveHomeOverviewUseCase(
     private val budgetAdjustmentDao: BudgetAdjustmentDao,
     private val budgetPolicyDao: BudgetPolicyDao,
     private val budgetBucketDao: BudgetBucketDao,
-    private val fundDao: FundDao = emptyFundDao,
+    private val fundDao: FundDao,
     private val bucketAllocationPolicyDao: BucketAllocationPolicyDao,
     private val bucketAllocationAdjustmentDao: BucketAllocationAdjustmentDao,
     private val bucketMonthlyHistoryDao: BucketMonthlyHistoryDao,
@@ -401,7 +387,7 @@ class ObserveHomeOverviewUseCase(
         val pendingCycle = observePendingCycle(userSettings)
         val selectedBucketUuid = observeSelectedBucketUuid(userSettings)
         val activeBuckets = observeActiveBuckets(budgetBucketDao)
-        val fundStates = observeFundStates(fundDao)
+        val activeFunds = observeActiveFunds(fundDao)
         val bucketPolicies = observeBucketPolicies(bucketAllocationPolicyDao)
         val bucketAdjustments = observeAllBucketAdjustments(bucketAllocationAdjustmentDao)
         val allBucketHistory = observeAllBucketHistory(bucketMonthlyHistoryDao)
@@ -451,7 +437,7 @@ class ObserveHomeOverviewUseCase(
         val currentInputs = combine(
             effectiveInputs,
             activeBuckets,
-            fundStates,
+            activeFunds,
             portfolioCurrentSupportingInputs
         ) { inputs, buckets, funds, supportingInputs ->
             CurrentPortfolioInputs(
@@ -464,7 +450,7 @@ class ObserveHomeOverviewUseCase(
                 portfolioAdjustments = supportingInputs.mutationInputs.portfolioAdjustments,
                 bucketPolicies = supportingInputs.mutationInputs.bucketPolicies,
                 bucketAdjustments = supportingInputs.mutationInputs.bucketAdjustments,
-                fundStates = funds,
+                funds = funds,
                 currentExpenses = supportingInputs.currentExpenses,
                 allBucketHistory = supportingInputs.allBucketHistory
             )
@@ -560,7 +546,7 @@ class ObserveHomeOverviewUseCase(
         val portfolioState = portfolioCalculationService.calculatePortfolioState(
             portfolioTotalBudgetCents = portfolioBudgetAmountCents,
             bucketSummaries = bucketSummaries,
-            fundStates = inputs.fundStates,
+            funds = inputs.funds,
             totalSpentThisCycleCents = inputs.currentExpenses.sumOf { it.amountCents },
             bucketHistory = inputs.allBucketHistory,
             cycleStartDate = inputs.portfolioPolicy.cycleStart,
@@ -589,7 +575,7 @@ class ObserveHomeOverviewUseCase(
         return PortfolioOverviewState(
             effectiveCurrentDate = inputs.today,
             portfolioState = portfolioState,
-            fundStates = inputs.fundStates,
+            funds = inputs.funds,
             bucketSummaries = bucketSummaries,
             selectedBucketOverview = selectedBucketOverview,
             pendingCycleCloseoutState = pendingCycleCloseoutState,

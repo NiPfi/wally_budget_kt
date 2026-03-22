@@ -22,7 +22,7 @@ import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.ExpenseCycleSection
 import net.loeu.wallybudget.domain.model.ExpenseDaySection
-import net.loeu.wallybudget.domain.model.FundState
+import net.loeu.wallybudget.domain.model.Fund
 import net.loeu.wallybudget.domain.model.HistoryState
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
@@ -166,8 +166,8 @@ class BudgetViewModel(
             initialValue = emptyList()
         )
 
-    val fundStates: StateFlow<List<FundState>> = portfolioOverviewState
-        .map { it?.fundStates ?: emptyList() }
+    val funds: StateFlow<List<Fund>> = portfolioOverviewState
+        .map { it?.funds ?: emptyList() }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),

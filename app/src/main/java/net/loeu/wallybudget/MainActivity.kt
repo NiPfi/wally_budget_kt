@@ -68,7 +68,7 @@ import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.ExpenseCycleSection
 import net.loeu.wallybudget.domain.model.ExpenseDaySection
-import net.loeu.wallybudget.domain.model.FundState
+import net.loeu.wallybudget.domain.model.Fund
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
 import net.loeu.wallybudget.domain.model.PortfolioState
@@ -184,7 +184,7 @@ fun BudgetApp(
             val shellContent: @Composable () -> Unit = {
                 MainNavigationShell(
                     bucketSummaries = displayBucketSummaries,
-                    fundStates = appState.fundStates,
+                    funds = appState.funds,
                     portfolioState = displayPortfolioState,
                     selectedBucketOverview = displaySelectedBucketOverview,
                     allBuckets = displayAllBuckets,
@@ -231,7 +231,7 @@ fun BudgetApp(
 @Composable
 private fun MainNavigationShell(
     bucketSummaries: List<BucketSummaryState>,
-    fundStates: List<FundState>,
+    funds: List<Fund>,
     portfolioState: PortfolioState,
     selectedBucketOverview: SelectedBucketOverview,
     allBuckets: List<BudgetBucket>,
@@ -285,7 +285,7 @@ private fun MainNavigationShell(
         MainNavigationHost(
             navController = navController,
             bucketSummaries = bucketSummaries,
-            fundStates = fundStates,
+            funds = funds,
             portfolioState = portfolioState,
             selectedBucketOverview = selectedBucketOverview,
             allBuckets = allBuckets,
@@ -431,7 +431,7 @@ private fun NavHostController.navigateToTopLevel(screen: Screen) {
 private fun MainNavigationHost(
     navController: NavHostController,
     bucketSummaries: List<BucketSummaryState>,
-    fundStates: List<FundState>,
+    funds: List<Fund>,
     portfolioState: PortfolioState,
     selectedBucketOverview: SelectedBucketOverview,
     allBuckets: List<BudgetBucket>,
@@ -496,7 +496,7 @@ private fun MainNavigationHost(
             navController = navController,
             portfolioState = portfolioState,
             bucketSummaries = bucketSummaries,
-            fundStates = fundStates,
+            funds = funds,
             allBuckets = allBuckets,
             userSettings = userSettings,
             onSavePortfolioPlan = onSavePortfolioPlan,

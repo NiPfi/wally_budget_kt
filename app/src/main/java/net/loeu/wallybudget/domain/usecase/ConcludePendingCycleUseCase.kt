@@ -22,11 +22,7 @@ import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import net.loeu.wallybudget.domain.usecase.internal.archiveCycleIfNeeded
-import net.loeu.wallybudget.domain.usecase.internal.emptyBucketAllocationAdjustmentDao
-import net.loeu.wallybudget.domain.usecase.internal.emptyBucketAllocationPolicyDao
-import net.loeu.wallybudget.domain.usecase.internal.emptyFundDao
 import net.loeu.wallybudget.domain.usecase.internal.CycleRange
-import net.loeu.wallybudget.domain.usecase.internal.emptyFundTransactionDao
 import net.loeu.wallybudget.domain.usecase.internal.pendingCycleRangeOrNull
 import java.time.ZoneId
 import java.util.UUID
@@ -36,11 +32,11 @@ class ConcludePendingCycleUseCase(
     private val expenseDao: ExpenseDao,
     private val budgetPolicyDao: BudgetPolicyDao,
     private val budgetAdjustmentDao: BudgetAdjustmentDao,
-    private val bucketAllocationPolicyDao: BucketAllocationPolicyDao = emptyBucketAllocationPolicyDao,
-    private val bucketAllocationAdjustmentDao: BucketAllocationAdjustmentDao = emptyBucketAllocationAdjustmentDao,
+    private val bucketAllocationPolicyDao: BucketAllocationPolicyDao,
+    private val bucketAllocationAdjustmentDao: BucketAllocationAdjustmentDao,
     private val monthlyHistoryDao: MonthlyHistoryDao,
-    private val fundDao: FundDao = emptyFundDao,
-    private val fundTransactionDao: FundTransactionDao = emptyFundTransactionDao,
+    private val fundDao: FundDao,
+    private val fundTransactionDao: FundTransactionDao,
     private val userSettingsStore: UserSettingsStore,
     private val budgetCalculationService: BudgetCalculationService,
     private val cycleScheduleResolver: CycleScheduleResolver,

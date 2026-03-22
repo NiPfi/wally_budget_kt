@@ -236,6 +236,8 @@ class SnapshotUseCasesTest {
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
             bucketMonthlyHistoryDao = bucketMonthlyHistoryDao,
+            fundDao = FakeFundDao(),
+            fundTransactionDao = FakeFundTransactionDao(),
             userSettingsStore = settingsStore,
             rebuildMonthlyHistoryUseCase = RebuildMonthlyHistoryUseCase(
                 budgetPolicyDao = budgetPolicyDao,
@@ -310,6 +312,8 @@ class SnapshotUseCasesTest {
             bucketAllocationPolicyDao = existingBucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = existingBucketAllocationAdjustmentDao,
             bucketMonthlyHistoryDao = existingBucketHistoryDao,
+            fundDao = FakeFundDao(),
+            fundTransactionDao = FakeFundTransactionDao(),
             userSettingsStore = FakeUserSettingsStore(),
             rebuildMonthlyHistoryUseCase = RebuildMonthlyHistoryUseCase(
                 budgetPolicyDao = existingBudgetPolicyDao,
@@ -364,6 +368,8 @@ class SnapshotUseCasesTest {
             bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(),
             bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
             bucketMonthlyHistoryDao = FakeBucketMonthlyHistoryDao(),
+            fundDao = FakeFundDao(),
+            fundTransactionDao = FakeFundTransactionDao(),
             userSettingsStore = FakeUserSettingsStore(
                 UserSettings(isOnboardingCompleted = true)
             ),

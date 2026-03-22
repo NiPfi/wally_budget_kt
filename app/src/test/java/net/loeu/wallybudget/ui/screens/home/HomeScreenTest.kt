@@ -7,7 +7,6 @@ import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.Fund
-import net.loeu.wallybudget.domain.model.FundState
 import net.loeu.wallybudget.util.CurrencyFormatter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -40,12 +39,12 @@ class HomeScreenTest {
     }
 
     @Test
-    fun defaultFundState_returnsDefaultFundWhenPresent() {
-        val expected = fundState(DEFAULT_FUND_UUID, "Savings", balanceCents = 42_00L)
+    fun defaultFund_returnsDefaultFundWhenPresent() {
+        val expected = fund(DEFAULT_FUND_UUID, "Savings", balanceCents = 42_00L)
 
-        val resolved = defaultFundState(
+        val resolved = defaultFund(
             listOf(
-                fundState("travel", "Travel", balanceCents = 10_00L),
+                fund("travel", "Travel", balanceCents = 10_00L),
                 expected
             )
         )
@@ -54,9 +53,9 @@ class HomeScreenTest {
     }
 
     @Test
-    fun defaultFundState_returnsNullWhenDefaultFundMissing() {
-        val resolved = defaultFundState(
-            listOf(fundState("travel", "Travel", balanceCents = 10_00L))
+    fun defaultFund_returnsNullWhenDefaultFundMissing() {
+        val resolved = defaultFund(
+            listOf(fund("travel", "Travel", balanceCents = 10_00L))
         )
 
         assertNull(resolved)
@@ -65,12 +64,11 @@ class HomeScreenTest {
     @Test
     fun formatFundTargetProgress_formatsTargetAndPercent() {
         val text = formatFundTargetProgress(
-            fundState(
+            fund(
                 DEFAULT_FUND_UUID,
                 "Savings",
                 balanceCents = 50_00L,
-                targetAmountCents = 120_00L,
-                progressPercent = 41.6f
+                targetAmountCents = 120_00L
             )
         )
 
@@ -84,12 +82,12 @@ class HomeScreenTest {
     fun formatFundTargetProgress_returnsNullWithoutPositiveTarget() {
         assertNull(
             formatFundTargetProgress(
-                fundState(DEFAULT_FUND_UUID, "Savings", balanceCents = 50_00L, targetAmountCents = null)
+                fund(DEFAULT_FUND_UUID, "Savings", balanceCents = 50_00L, targetAmountCents = null)
             )
         )
         assertNull(
             formatFundTargetProgress(
-                fundState(DEFAULT_FUND_UUID, "Savings", balanceCents = 50_00L, targetAmountCents = 0L)
+                fund(DEFAULT_FUND_UUID, "Savings", balanceCents = 50_00L, targetAmountCents = 0L)
             )
         )
     }
@@ -122,28 +120,22 @@ class HomeScreenTest {
         modClock = "0000000000001-0000-test-install-id"
     )
 
-    private fun fundState(
+    private fun fund(
         uuid: String,
         name: String,
         balanceCents: Long,
-        targetAmountCents: Long? = null,
-        progressPercent: Float? = null
-    ) = FundState(
-        fund = Fund(
-            uuid = uuid,
-            name = name,
-            balanceCents = balanceCents,
-            allocationPerCycleCents = 0L,
-            targetAmountCents = targetAmountCents,
-            sortOrder = 0,
-            originInstallId = "test-install-id",
-            lastModifiedByInstallId = "test-install-id",
-            createdAtEpochMs = 1L,
-            updatedAtEpochMs = 1L,
-            modClock = "0000000000001-0000-test-install-id"
-        ),
+        targetAmountCents: Long? = null
+    ) = Fund(
+        uuid = uuid,
+        name = name,
         balanceCents = balanceCents,
+        allocationPerCycleCents = 0L,
         targetAmountCents = targetAmountCents,
-        progressPercent = progressPercent
+        sortOrder = 0,
+        originInstallId = "test-install-id",
+        lastModifiedByInstallId = "test-install-id",
+        createdAtEpochMs = 1L,
+        updatedAtEpochMs = 1L,
+        modClock = "0000000000001-0000-test-install-id"
     )
 }

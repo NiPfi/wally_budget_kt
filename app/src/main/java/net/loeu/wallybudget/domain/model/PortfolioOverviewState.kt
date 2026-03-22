@@ -43,7 +43,7 @@ data class SelectedBucketOverview(
 data class PortfolioOverviewState(
     val effectiveCurrentDate: LocalDate,
     val portfolioState: PortfolioState,
-    val fundStates: List<FundState> = emptyList(),
+    val funds: List<Fund> = emptyList(),
     val bucketSummaries: List<BucketSummaryState>,
     val selectedBucketOverview: SelectedBucketOverview,
     val pendingCycleCloseoutState: PendingCycleCloseoutState?,

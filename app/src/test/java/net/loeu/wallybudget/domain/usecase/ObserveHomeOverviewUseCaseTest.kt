@@ -224,6 +224,7 @@ class ObserveHomeOverviewUseCaseTest {
             budgetAdjustmentDao = budgetAdjustmentDao,
             budgetPolicyDao = budgetPolicyDao,
             budgetBucketDao = budgetBucketDao,
+            fundDao = FakeFundDao(),
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
             bucketMonthlyHistoryDao = bucketHistoryDao,
