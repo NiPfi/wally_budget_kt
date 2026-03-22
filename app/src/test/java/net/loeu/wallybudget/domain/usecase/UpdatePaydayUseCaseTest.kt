@@ -1,3 +1,5 @@
+@file:Suppress("MaxLineLength")
+
 package net.loeu.wallybudget.domain.usecase
 
 import kotlinx.coroutines.flow.first
