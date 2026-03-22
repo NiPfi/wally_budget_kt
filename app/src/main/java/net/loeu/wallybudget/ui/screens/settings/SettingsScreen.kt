@@ -103,7 +103,7 @@ fun SettingsScreen(
     )
     val paydayHasChanges = paydayText != externalPaydayText
 
-    LaunchedEffect(externalBudgetText, externalBucketDrafts) {
+    LaunchedEffect(externalBudgetText, externalPaydayText, externalBucketDrafts) {
         if (
             shouldSyncSettingsDrafts(
                 currentBudgetText = portfolioBudgetText,

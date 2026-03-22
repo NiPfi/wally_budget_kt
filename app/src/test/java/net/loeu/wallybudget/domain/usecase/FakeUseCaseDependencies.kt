@@ -267,7 +267,7 @@ internal class FakeExpenseDao(
         return expenses.firstOrNull { it.recordUuid == recordUuid }
     }
 
-    override suspend fun spentPerBucketInRange(
+    override suspend fun totalSpentPerBucketInRange(
         startDateInclusive: String,
         endDateExclusive: String
     ): List<BucketSpendRow> {

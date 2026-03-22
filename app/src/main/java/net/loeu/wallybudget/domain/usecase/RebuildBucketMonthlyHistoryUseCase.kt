@@ -95,7 +95,7 @@ class RebuildBucketMonthlyHistoryUseCase(
             .map { CycleWindow(startDate = it.cycleStartDate, endDateExclusive = it.cycleEndDateExclusive) }
             .distinct()
             .associateWith { window ->
-                expenseDao.spentPerBucketInRange(
+                expenseDao.totalSpentPerBucketInRange(
                     startDateInclusive = window.startDate,
                     endDateExclusive = window.endDateExclusive
                 ).associate { row ->

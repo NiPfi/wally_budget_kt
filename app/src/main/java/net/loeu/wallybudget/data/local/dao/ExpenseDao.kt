@@ -80,7 +80,7 @@ interface ExpenseDao : BaseInsertDao<ExpenseEntity> {
             "WHERE deletedAtEpochMs IS NULL AND expenseDate >= :startDateInclusive AND expenseDate < :endDateExclusive " +
             "GROUP BY bucketUuid"
     )
-    suspend fun spentPerBucketInRange(
+    suspend fun totalSpentPerBucketInRange(
         startDateInclusive: String,
         endDateExclusive: String
     ): List<BucketSpendRow>
