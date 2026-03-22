@@ -25,7 +25,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -180,8 +179,6 @@ fun HomeScreen(
         bucketEditorState = HomeBucketEditorState(
             bucketUuid = bucket.bucketUuid,
             name = bucket.name,
-            trackingMode = bucket.trackingMode,
-            balanceBehavior = bucket.balanceBehavior,
             amountText = CurrencyFormatter.centsToDecimalString(
                 summary?.allocatedThisCycleCents ?: bucket.defaultAllocatedAmountCents
             ),

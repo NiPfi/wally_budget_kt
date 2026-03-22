@@ -13,7 +13,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -43,8 +42,6 @@ import java.util.UUID
 internal data class HomeBucketEditorState(
     val bucketUuid: String,
     val name: String,
-    val trackingMode: BucketTrackingMode,
-    val balanceBehavior: BucketBalanceBehavior,
     val amountText: String,
     val isSystemDefault: Boolean
 )
@@ -89,8 +86,6 @@ internal fun HomeBucketSettingsSheet(
     val editor = state ?: return
     var name by remember(editor) { mutableStateOf(editor.name) }
     var amountText by remember(editor) { mutableStateOf(editor.amountText) }
-    var trackingMode by remember(editor) { mutableStateOf(editor.trackingMode) }
-    var balanceBehavior by remember(editor) { mutableStateOf(editor.balanceBehavior) }
     var errorMessage by remember(editor) { mutableStateOf<String?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -140,41 +135,6 @@ internal fun HomeBucketSettingsSheet(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            } else {
-                Text(
-                    text = "Tracking mode",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    BucketTrackingMode.entries.forEach { mode ->
-                        FilterChip(
-                            selected = trackingMode == mode,
-                            onClick = {
-                                trackingMode = mode
-                                errorMessage = null
-                            },
-                            label = { Text(mode.displayLabel()) }
-                        )
-                    }
-                }
-                Text(
-                    text = "Balance behavior",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    BucketBalanceBehavior.entries.forEach { behavior ->
-                        FilterChip(
-                            selected = balanceBehavior == behavior,
-                            onClick = {
-                                balanceBehavior = behavior
-                                errorMessage = null
-                            },
-                            label = { Text(behavior.displayLabel()) }
-                        )
-                    }
-                }
             }
             errorMessage?.let {
                 Text(
@@ -195,6 +155,7 @@ internal fun HomeBucketSettingsSheet(
                 }
                 Button(
                     onClick = {
+                        val existingBucket = allBuckets.firstOrNull { it.bucketUuid == editor.bucketUuid }
                         val trimmedName = name.trim()
                         val normalizedName = trimmedName.lowercase()
                         val amountCents = CurrencyFormatter.parseAmountToCents(amountText)
@@ -219,10 +180,11 @@ internal fun HomeBucketSettingsSheet(
                                     BucketDraft(
                                         bucketUuid = editor.bucketUuid,
                                         name = trimmedName,
-                                        trackingMode = trackingMode,
-                                        balanceBehavior = balanceBehavior,
+                                        trackingMode = existingBucket?.trackingMode ?: BucketTrackingMode.DAILY_TARGET,
+                                        balanceBehavior = existingBucket?.balanceBehavior
+                                            ?: BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
                                         defaultAllocatedAmountCents = amountCents ?: 0L,
-                                        sortOrder = allBuckets.firstOrNull { it.bucketUuid == editor.bucketUuid }?.sortOrder ?: 0,
+                                        sortOrder = existingBucket?.sortOrder ?: 0,
                                         closeRequested = false
                                     )
                                 )
@@ -248,8 +210,6 @@ internal fun AddBucketForm(
 ) {
     var name by rememberSaveable { mutableStateOf("") }
     var amountText by rememberSaveable { mutableStateOf("0.00") }
-    var trackingMode by rememberSaveable { mutableStateOf(BucketTrackingMode.DAILY_TARGET) }
-    var balanceBehavior by rememberSaveable { mutableStateOf(BucketBalanceBehavior.RETURN_TO_PORTFOLIO) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
     val allocatedToNamedBucketsCents = bucketSummaries
         .filterNot { it.bucket.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID || it.bucket.isClosed }
@@ -273,7 +233,7 @@ internal fun AddBucketForm(
                     fontWeight = FontWeight.Black
                 )
                 Text(
-                    text = "Create a bucket here, then fine-tune it in Settings if needed.",
+                    text = "Create a bucket and set how much of the portfolio it should receive each cycle.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -303,40 +263,6 @@ internal fun AddBucketForm(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
-                Text(
-                    text = "Tracking mode",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    BucketTrackingMode.entries.forEach { mode ->
-                        FilterChip(
-                            selected = trackingMode == mode,
-                            onClick = { trackingMode = mode },
-                            label = { Text(mode.displayLabel()) }
-                        )
-                    }
-                }
-                Text(
-                    text = "Balance behavior",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    BucketBalanceBehavior.entries.forEach { behavior ->
-                        FilterChip(
-                            selected = balanceBehavior == behavior,
-                            onClick = { balanceBehavior = behavior },
-                            label = { Text(behavior.displayLabel()) }
-                        )
-                    }
-                }
                 errorMessage?.let {
                     Text(
                         text = it,
@@ -372,8 +298,8 @@ internal fun AddBucketForm(
                                         BucketDraft(
                                             bucketUuid = UUID.randomUUID().toString(),
                                             name = trimmedName,
-                                            trackingMode = trackingMode,
-                                            balanceBehavior = balanceBehavior,
+                                            trackingMode = BucketTrackingMode.DAILY_TARGET,
+                                            balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
                                             defaultAllocatedAmountCents = allocationCents,
                                             sortOrder = (existingBuckets.maxOfOrNull { it.sortOrder } ?: -1) + 1,
                                             closeRequested = false
@@ -381,8 +307,6 @@ internal fun AddBucketForm(
                                     )
                                     name = ""
                                     amountText = "0.00"
-                                    trackingMode = BucketTrackingMode.DAILY_TARGET
-                                    balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO
                                     errorMessage = null
                                 }
                             }
