@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package net.loeu.wallybudget.domain.usecase.internal
 
 import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao

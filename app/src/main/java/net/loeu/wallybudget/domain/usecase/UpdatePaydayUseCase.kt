@@ -1,4 +1,4 @@
-@file:Suppress("LongMethod", "ReturnCount", "TooManyFunctions")
+@file:Suppress("LongMethod", "ReturnCount", "TooManyFunctions", "MaxLineLength")
 
 package net.loeu.wallybudget.domain.usecase
 

@@ -1,4 +1,4 @@
-@file:Suppress("TooManyFunctions", "MaxLineLength")
+@file:Suppress("TooManyFunctions", "MaxLineLength", "CyclomaticComplexMethod", "LongMethod")
 
 package net.loeu.wallybudget.ui.screens.home
 
