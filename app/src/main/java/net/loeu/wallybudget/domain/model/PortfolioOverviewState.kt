@@ -10,10 +10,6 @@ data class PortfolioState(
     val remainingThisCycleCents: Long,
     val completedCycleReserveCents: Long,
     val netReserveCents: Long,
-    @Deprecated("Bucket-level reserve semantics were removed.")
-    val earmarkedReserveCents: Long = 0L,
-    @Deprecated("Bucket-level reserve semantics were removed.")
-    val unassignedReserveCents: Long = netReserveCents,
     val cycleStartDate: LocalDate,
     val cycleEndDateExclusive: LocalDate,
     val allocatedToFundsCents: Long = 0L,

@@ -21,6 +21,7 @@ import net.loeu.wallybudget.data.local.dao.FundDao
 import net.loeu.wallybudget.data.local.entity.toDomainModel
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.time.CurrentDateProvider
+import net.loeu.wallybudget.domain.model.BudgetAdjustment
 import net.loeu.wallybudget.domain.model.BucketAllocationAdjustment
 import net.loeu.wallybudget.domain.model.BucketAllocationPolicy
 import net.loeu.wallybudget.domain.model.BucketMonthlyHistory
@@ -46,6 +47,7 @@ import net.loeu.wallybudget.domain.service.CycleDateRange
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.PortfolioCalculationService
 import net.loeu.wallybudget.domain.service.ResolvedCyclePolicy
+import net.loeu.wallybudget.domain.usecase.internal.CycleRange
 import net.loeu.wallybudget.domain.usecase.internal.buildContinuousDaySections
 import net.loeu.wallybudget.domain.usecase.internal.buildPendingCycleCloseoutState
 import net.loeu.wallybudget.domain.usecase.internal.buildTimelineLockState
@@ -69,7 +71,7 @@ private data class CurrentPortfolioInputs(
     val selectedBucket: BudgetBucket?,
     val selectedBucketUuid: String,
     val portfolioPolicy: ResolvedCyclePolicy,
-    val portfolioAdjustments: List<net.loeu.wallybudget.domain.model.BudgetAdjustment>,
+    val portfolioAdjustments: List<BudgetAdjustment>,
     val bucketPolicies: List<BucketAllocationPolicy>,
     val bucketAdjustments: List<BucketAllocationAdjustment>,
     val funds: List<Fund>,
@@ -185,7 +187,7 @@ private fun observeExpensesInRange(
 @OptIn(ExperimentalCoroutinesApi::class)
 private fun observePendingCycleExpenses(
     expenseDao: ExpenseDao,
-    pendingCycle: Flow<net.loeu.wallybudget.domain.usecase.internal.CycleRange?>
+    pendingCycle: Flow<CycleRange?>
 ): Flow<List<Expense>> {
     return pendingCycle.flatMapLatest { range ->
         if (range == null) {
@@ -202,7 +204,7 @@ private fun observePendingCycleExpenses(
 @OptIn(ExperimentalCoroutinesApi::class)
 private fun observePendingCycleDayTotals(
     cycleOverviewDao: CycleOverviewDao,
-    pendingCycle: Flow<net.loeu.wallybudget.domain.usecase.internal.CycleRange?>
+    pendingCycle: Flow<CycleRange?>
 ): Flow<Map<LocalDate, Long>> {
     return pendingCycle.flatMapLatest { range ->
         if (range == null) {
@@ -219,8 +221,8 @@ private fun observePendingCycleDayTotals(
 @OptIn(ExperimentalCoroutinesApi::class)
 private fun observePendingCycleAdjustments(
     budgetAdjustmentDao: BudgetAdjustmentDao,
-    pendingCycle: Flow<net.loeu.wallybudget.domain.usecase.internal.CycleRange?>
-): Flow<List<net.loeu.wallybudget.domain.model.BudgetAdjustment>> {
+    pendingCycle: Flow<CycleRange?>
+): Flow<List<BudgetAdjustment>> {
     return pendingCycle.flatMapLatest { range ->
         if (range == null) {
             flowOf(emptyList())
@@ -235,7 +237,7 @@ private fun observePendingCycleAdjustments(
 private fun observeCurrentPortfolioAdjustments(
     budgetAdjustmentDao: BudgetAdjustmentDao,
     currentPolicy: Flow<ResolvedCyclePolicy>
-): Flow<List<net.loeu.wallybudget.domain.model.BudgetAdjustment>> {
+): Flow<List<BudgetAdjustment>> {
     return currentPolicy
         .map { it.cycleStart.toString() }
         .distinctUntilChanged()
@@ -490,7 +492,7 @@ class ObserveHomeOverviewUseCase(
         inputs: CurrentPortfolioInputs,
         pendingExpenses: List<Expense>,
         pendingDayTotals: Map<LocalDate, Long>,
-        pendingAdjustments: List<net.loeu.wallybudget.domain.model.BudgetAdjustment>,
+        pendingAdjustments: List<BudgetAdjustment>,
         portfolioPolicies: List<BudgetPolicy>,
         latestRecordedExpenseDate: LocalDate?
     ): PortfolioOverviewState {
@@ -507,6 +509,9 @@ class ObserveHomeOverviewUseCase(
                 budgetCalculationService = budgetCalculationService
             )
         }
+        // Display-only fallback when no bucket exists yet (e.g. during onboarding).
+        // Never persisted — the empty modClock is intentional since this object only
+        // drives the UI until EnsureDefaultBucketStateUseCase creates the real bucket.
         val selectedBucket = inputs.selectedBucket ?: inputs.activeBuckets.firstOrNull() ?: BudgetBucket(
             bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
             name = "Spending money",
@@ -586,7 +591,7 @@ class ObserveHomeOverviewUseCase(
 
 private data class PortfolioMutationInputs(
     val portfolioPolicy: ResolvedCyclePolicy,
-    val portfolioAdjustments: List<net.loeu.wallybudget.domain.model.BudgetAdjustment>,
+    val portfolioAdjustments: List<BudgetAdjustment>,
     val bucketPolicies: List<BucketAllocationPolicy>,
     val bucketAdjustments: List<BucketAllocationAdjustment>
 )
@@ -595,7 +600,7 @@ private data class PendingOverviewInputs(
     val currentInputs: CurrentPortfolioInputs,
     val pendingExpenses: List<Expense>,
     val pendingDayTotals: Map<LocalDate, Long>,
-    val pendingAdjustments: List<net.loeu.wallybudget.domain.model.BudgetAdjustment>
+    val pendingAdjustments: List<BudgetAdjustment>
 )
 
 private data class PortfolioCurrentSupportingInputs(
