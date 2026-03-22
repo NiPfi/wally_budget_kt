@@ -953,7 +953,7 @@ internal fun bucketEntity(
     updatedAtEpochMs: Long = createdAtEpochMs,
     closedAtEpochMs: Long? = null,
     deletedAtEpochMs: Long? = null,
-    modClock: String = "%013d-%04d-%s".format(updatedAtEpochMs, 0, "test-install-id")
+    modClock: String = "%013d-%04d-%s".format(updatedAtEpochMs, 0, lastModifiedByInstallId)
 ): BudgetBucketEntity {
     return BudgetBucketEntity(
         id = id,
@@ -985,7 +985,7 @@ internal fun bucketPolicyEntity(
     createdAtEpochMs: Long = 1L,
     updatedAtEpochMs: Long = createdAtEpochMs,
     deletedAtEpochMs: Long? = null,
-    modClock: String = "%013d-%04d-%s".format(updatedAtEpochMs, 0, "test-install-id")
+    modClock: String = "%013d-%04d-%s".format(updatedAtEpochMs, 0, lastModifiedByInstallId)
 ): BucketAllocationPolicyEntity {
     return BucketAllocationPolicyEntity(
         id = id,

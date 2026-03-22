@@ -100,7 +100,6 @@ import net.loeu.wallybudget.util.CurrencyFormatter
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.UUID
-import androidx.compose.material3.rememberModalBottomSheetState
 import kotlin.math.roundToInt
 
 @Composable
