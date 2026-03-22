@@ -4,6 +4,7 @@ import net.loeu.wallybudget.data.local.dao.BucketAllocationAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
 import net.loeu.wallybudget.data.local.dao.BucketMonthlyHistoryDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
+import net.loeu.wallybudget.data.local.entity.BucketAllocationPolicyEntity
 import net.loeu.wallybudget.data.local.entity.toDomainModel as bucketAdjustmentToDomainModel
 import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.domain.model.BucketMonthlyHistory
@@ -22,6 +23,11 @@ class RebuildBucketMonthlyHistoryUseCase(
     private val budgetCalculationService: BudgetCalculationService,
     private val bucketAllocationResolver: BucketAllocationResolver
 ) {
+    private data class CycleWindow(
+        val startDate: String,
+        val endDateExclusive: String
+    )
+
     suspend operator fun invoke(settings: UserSettings, replaceExisting: Boolean = false) {
         val completedUntil = settings.lastResetDateOrNull()
         if (completedUntil == null) {
@@ -43,8 +49,7 @@ class RebuildBucketMonthlyHistoryUseCase(
             return
         }
 
-        val allExpenses = expenseDao.getAllForSnapshot()
-            .filter { it.deletedAtEpochMs == null }
+        val totalSpentByWindowAndBucket = loadTotalSpentByWindowAndBucket(applicablePolicies)
 
         applicablePolicies.forEach { policy ->
             val adjustments = bucketAllocationAdjustmentDao.getActiveForCycle(
@@ -59,11 +64,12 @@ class RebuildBucketMonthlyHistoryUseCase(
                 baseAllocatedAmountCents = policy.allocatedAmountCents,
                 adjustments = adjustments
             )
-            val totalSpentCents = allExpenses
-                .asSequence()
-                .filter { it.bucketUuid == policy.bucketUuid }
-                .filter { it.expenseDate >= policy.cycleStartDate && it.expenseDate < policy.cycleEndDateExclusive }
-                .sumOf { it.amountCents }
+            val totalSpentCents = totalSpentByWindowAndBucket[
+                CycleWindow(
+                    startDate = policy.cycleStartDate,
+                    endDateExclusive = policy.cycleEndDateExclusive
+                )
+            ]?.get(policy.bucketUuid) ?: 0L
 
             bucketMonthlyHistoryDao.insert(
                 BucketMonthlyHistory(
@@ -80,5 +86,21 @@ class RebuildBucketMonthlyHistoryUseCase(
                 ).toEntity()
             )
         }
+    }
+
+    private suspend fun loadTotalSpentByWindowAndBucket(
+        applicablePolicies: List<BucketAllocationPolicyEntity>
+    ): Map<CycleWindow, Map<String, Long>> {
+        return applicablePolicies
+            .map { CycleWindow(startDate = it.cycleStartDate, endDateExclusive = it.cycleEndDateExclusive) }
+            .distinct()
+            .associateWith { window ->
+                expenseDao.spentPerBucketInRange(
+                    startDateInclusive = window.startDate,
+                    endDateExclusive = window.endDateExclusive
+                ).associate { row ->
+                    row.bucketUuid to row.totalSpentCents
+                }
+            }
     }
 }

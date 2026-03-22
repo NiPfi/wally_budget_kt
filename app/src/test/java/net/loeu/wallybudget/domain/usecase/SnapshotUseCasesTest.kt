@@ -12,6 +12,8 @@ import net.loeu.wallybudget.data.snapshot.model.SnapshotBudgetBucketRecordV3
 import net.loeu.wallybudget.data.snapshot.model.SnapshotBucketAllocationPolicyRecordV3
 import net.loeu.wallybudget.data.snapshot.model.SnapshotEnvelopeV1
 import net.loeu.wallybudget.data.snapshot.model.SnapshotExpenseRecordV1
+import net.loeu.wallybudget.data.snapshot.model.SnapshotFundRecordV5
+import net.loeu.wallybudget.data.snapshot.model.SnapshotFundTransactionRecordV5
 import net.loeu.wallybudget.data.snapshot.model.SnapshotSettingsRecordV1
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
@@ -84,6 +86,34 @@ class SnapshotUseCasesTest {
             throw AssertionError("Expected malformed snapshot failure")
         } catch (exception: IllegalArgumentException) {
             assertTrue(exception.message?.contains("settings") == true)
+        }
+    }
+
+    @Test
+    fun snapshotJsonCodec_rejectsSchema5EnvelopeMissingFunds() {
+        val missingFundsJson = """
+            {"format":"wallybudget-snapshot","schemaVersion":5,"snapshotId":"id","exportedAtEpochMs":1,"writerInstallId":"install-a","snapshotModClock":"clock","appVersionName":"1.0","settings":{"recordUuid":"settings-1","defaultMonthlyBudgetCents":100000,"paydayDate":25,"lastResetTimestamp":0,"pendingCycleStartDate":null,"pendingCycleEndDateExclusive":null,"pendingCycleDetectedAtTimestamp":0,"updatedAtEpochMs":1234,"modClock":"clock","lastModifiedByInstallId":"install-a"},"budgetPolicies":[],"budgetAdjustments":[],"expenses":[],"budgetBuckets":[],"bucketAllocationPolicies":[],"bucketAllocationAdjustments":[],"fundTransactions":[]}
+        """.trimIndent()
+
+        try {
+            SnapshotJsonCodec().decode(missingFundsJson)
+            throw AssertionError("Expected malformed snapshot failure")
+        } catch (exception: IllegalArgumentException) {
+            assertTrue(exception.message?.contains("funds") == true)
+        }
+    }
+
+    @Test
+    fun snapshotJsonCodec_rejectsSchema5EnvelopeMissingFundTransactions() {
+        val missingFundTransactionsJson = """
+            {"format":"wallybudget-snapshot","schemaVersion":5,"snapshotId":"id","exportedAtEpochMs":1,"writerInstallId":"install-a","snapshotModClock":"clock","appVersionName":"1.0","settings":{"recordUuid":"settings-1","defaultMonthlyBudgetCents":100000,"paydayDate":25,"lastResetTimestamp":0,"pendingCycleStartDate":null,"pendingCycleEndDateExclusive":null,"pendingCycleDetectedAtTimestamp":0,"updatedAtEpochMs":1234,"modClock":"clock","lastModifiedByInstallId":"install-a"},"budgetPolicies":[],"budgetAdjustments":[],"expenses":[],"budgetBuckets":[],"bucketAllocationPolicies":[],"bucketAllocationAdjustments":[],"funds":[]}
+        """.trimIndent()
+
+        try {
+            SnapshotJsonCodec().decode(missingFundTransactionsJson)
+            throw AssertionError("Expected malformed snapshot failure")
+        } catch (exception: IllegalArgumentException) {
+            assertTrue(exception.message?.contains("fundTransactions") == true)
         }
     }
 
@@ -408,6 +438,113 @@ class SnapshotUseCasesTest {
             assertEquals(SnapshotError.OnboardingCompletedRestoreBlocked, exception.snapshotError)
         }
     }
+
+    @Test
+    @Suppress("LongMethod")
+    fun rebuildBucketMonthlyHistory_aggregatesSpendPerBucketAcrossCycleWindows() = runBlocking {
+        val bucketOne = "bucket-1"
+        val bucketTwo = "bucket-2"
+        val expenseDao = FakeExpenseDao(
+            listOf(
+                expenseEntityOn(1L, LocalDate.of(2026, 3, 26), 1_000L).copy(bucketUuid = bucketOne),
+                expenseEntityOn(2L, LocalDate.of(2026, 3, 27), 2_000L).copy(bucketUuid = bucketOne),
+                expenseEntityOn(3L, LocalDate.of(2026, 3, 28), 500L).copy(bucketUuid = bucketTwo),
+                expenseEntityOn(4L, LocalDate.of(2026, 4, 28), 700L).copy(bucketUuid = bucketOne)
+            )
+        )
+        val bucketPolicyDao = FakeBucketAllocationPolicyDao(
+            listOf(
+                bucketPolicyEntity(
+                    id = 1L,
+                    allocationUuid = "alloc-1",
+                    bucketUuid = bucketOne,
+                    cycleStartDate = "2026-03-25",
+                    cycleEndDateExclusive = "2026-04-25",
+                    allocatedAmountCents = 5_000L
+                ),
+                bucketPolicyEntity(
+                    id = 2L,
+                    allocationUuid = "alloc-2",
+                    bucketUuid = bucketTwo,
+                    cycleStartDate = "2026-03-25",
+                    cycleEndDateExclusive = "2026-04-25",
+                    allocatedAmountCents = 3_000L
+                ),
+                bucketPolicyEntity(
+                    id = 3L,
+                    allocationUuid = "alloc-3",
+                    bucketUuid = bucketOne,
+                    cycleStartDate = "2026-04-25",
+                    cycleEndDateExclusive = "2026-05-25",
+                    allocatedAmountCents = 4_000L
+                )
+            )
+        )
+        val bucketHistoryDao = FakeBucketMonthlyHistoryDao()
+        val useCase = rebuildBucketHistory(
+            expenseDao = expenseDao,
+            bucketAllocationPolicyDao = bucketPolicyDao,
+            bucketMonthlyHistoryDao = bucketHistoryDao
+        )
+
+        useCase(
+            settings = UserSettings(
+                lastResetTimestamp = LocalDate.of(2026, 5, 25)
+                    .atStartOfDay(ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli()
+            ),
+            replaceExisting = true
+        )
+
+        val history = bucketHistoryDao.getAll()
+        assertEquals(3, history.size)
+        assertEquals(
+            3_000L,
+            history.single { it.bucketUuid == bucketOne && it.cycleStartDate == "2026-03-25" }.totalSpentCents
+        )
+        assertEquals(
+            500L,
+            history.single { it.bucketUuid == bucketTwo && it.cycleStartDate == "2026-03-25" }.totalSpentCents
+        )
+        assertEquals(
+            700L,
+            history.single { it.bucketUuid == bucketOne && it.cycleStartDate == "2026-04-25" }.totalSpentCents
+        )
+    }
+
+    @Test
+    fun rebuildBucketMonthlyHistory_defaultsToZeroWhenBucketHasNoExpensesInCycle() = runBlocking {
+        val bucketHistoryDao = FakeBucketMonthlyHistoryDao()
+        val useCase = rebuildBucketHistory(
+            expenseDao = FakeExpenseDao(),
+            bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(
+                listOf(
+                    bucketPolicyEntity(
+                        id = 1L,
+                        allocationUuid = "alloc-1",
+                        bucketUuid = "bucket-empty",
+                        cycleStartDate = "2026-03-25",
+                        cycleEndDateExclusive = "2026-04-25",
+                        allocatedAmountCents = 5_000L
+                    )
+                )
+            ),
+            bucketMonthlyHistoryDao = bucketHistoryDao
+        )
+
+        useCase(
+            settings = UserSettings(
+                lastResetTimestamp = LocalDate.of(2026, 4, 25)
+                    .atStartOfDay(ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli()
+            ),
+            replaceExisting = true
+        )
+
+        assertEquals(0L, bucketHistoryDao.getAll().single().totalSpentCents)
+    }
 }
 
 private class FakeDocumentUriGateway(
@@ -509,6 +646,33 @@ private fun sampleEnvelope(): SnapshotEnvelopeV1 {
                 modClock = "0000000001234-0000-install-a"
             )
         ),
-        bucketAllocationAdjustments = emptyList()
+        bucketAllocationAdjustments = emptyList(),
+        funds = listOf(
+            SnapshotFundRecordV5(
+                uuid = "fund-1",
+                name = "Savings",
+                balanceCents = 1_000L,
+                allocationPerCycleCents = 200L,
+                targetAmountCents = null,
+                sortOrder = 0,
+                originInstallId = "install-a",
+                lastModifiedByInstallId = "install-a",
+                createdAtEpochMs = 1234L,
+                updatedAtEpochMs = 1234L,
+                closedAtEpochMs = null,
+                deletedAtEpochMs = null,
+                modClock = "0000000001234-0000-install-a"
+            )
+        ),
+        fundTransactions = listOf(
+            SnapshotFundTransactionRecordV5(
+                uuid = "transaction-1",
+                fundUuid = "fund-1",
+                amountCents = 1_000L,
+                type = "MANUAL_ADJUSTMENT",
+                description = "Initial balance",
+                dateEpochMs = 1234L
+            )
+        )
     )
 }
