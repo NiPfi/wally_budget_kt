@@ -17,8 +17,6 @@ import net.loeu.wallybudget.data.snapshot.GzipSnapshotCodec
 import net.loeu.wallybudget.data.snapshot.SnapshotCompatibilityService
 import net.loeu.wallybudget.data.snapshot.SnapshotJsonCodec
 import net.loeu.wallybudget.data.snapshot.model.SnapshotEnvelopeV1
-import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
-import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
@@ -349,8 +347,9 @@ class PrepareSnapshotImportUseCase(
     }
 
     private fun SnapshotEnvelopeV1.toFundTransactionEntities(): List<FundTransactionEntity> {
-        return fundTransactions.orEmpty().mapNotNull { record ->
-            val type = FundTransactionType.entries.find { it.name == record.type } ?: return@mapNotNull null
+        return fundTransactions.orEmpty().map { record ->
+            val type = FundTransactionType.entries.find { it.name == record.type }
+                ?: throw SnapshotOperationException(SnapshotError.MalformedSnapshot)
             FundTransactionEntity(
                 uuid = record.uuid,
                 fundUuid = record.fundUuid,

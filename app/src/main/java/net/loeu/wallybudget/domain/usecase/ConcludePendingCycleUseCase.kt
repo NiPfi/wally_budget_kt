@@ -155,6 +155,8 @@ class ConcludePendingCycleUseCase(
             startDateInclusive = pendingCycle.start.toString(),
             endDateExclusive = pendingCycle.endExclusive.toString()
         )
+        val spentByBucketUuid = cycleExpenses.groupBy { it.bucketUuid }
+            .mapValues { (_, expenses) -> expenses.sumOf { it.amountCents } }
         val bucketPolicies = bucketAllocationPolicyDao.getAllForSnapshot()
             .filter { it.deletedAtEpochMs == null && it.cycleStartDate == pendingCycle.start.toString() }
 
@@ -169,10 +171,7 @@ class ConcludePendingCycleUseCase(
                 baseAllocatedAmountCents = policy.allocatedAmountCents,
                 adjustments = adjustments
             )
-            val spent = cycleExpenses
-                .asSequence()
-                .filter { it.bucketUuid == policy.bucketUuid }
-                .sumOf { it.amountCents }
+            val spent = spentByBucketUuid[policy.bucketUuid] ?: 0L
             (effectiveAllocatedAmount - spent).coerceAtLeast(0L)
         }
     }

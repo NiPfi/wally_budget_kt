@@ -136,6 +136,28 @@ class SnapshotUseCasesTest {
     }
 
     @Test
+    fun prepareSnapshotImport_rejectsUnknownFundTransactionType() = runBlocking {
+        val bytes = GzipSnapshotCodec().encodeToGzip(
+            """
+            {"format":"wallybudget-snapshot","schemaVersion":5,"snapshotId":"snapshot-1","baseSnapshotId":null,"exportedAtEpochMs":1234,"writerInstallId":"install-a","snapshotModClock":"0000000001234-0000-install-a","appVersionName":"1.0","settings":{"recordUuid":"settings-1","defaultMonthlyBudgetCents":100000,"paydayDate":25,"lastResetTimestamp":0,"pendingCycleStartDate":null,"pendingCycleEndDateExclusive":null,"pendingCycleDetectedAtTimestamp":0,"updatedAtEpochMs":1234,"modClock":"0000000001234-0000-install-a","lastModifiedByInstallId":"install-a"},"budgetPolicies":[{"policyUuid":"policy-1","cycleStartDate":"2026-03-25","cycleEndDateExclusive":"2026-04-25","budgetAmountCents":100000,"paydayDayOfMonth":25,"originInstallId":"install-a","lastModifiedByInstallId":"install-a","createdAtEpochMs":1234,"updatedAtEpochMs":1234,"deletedAtEpochMs":null,"modClock":"0000000001234-0000-install-a"}],"expenses":[],"funds":[{"uuid":"fund-1","name":"Savings","balanceCents":1000,"allocationPerCycleCents":0,"targetAmountCents":null,"sortOrder":0,"originInstallId":"install-a","lastModifiedByInstallId":"install-a","createdAtEpochMs":1234,"updatedAtEpochMs":1234,"closedAtEpochMs":null,"deletedAtEpochMs":null,"modClock":"0000000001234-0000-install-a"}],"fundTransactions":[{"uuid":"txn-1","fundUuid":"fund-1","amountCents":1000,"type":"BONUS","description":"","dateEpochMs":1234}]}
+            """.trimIndent()
+        )
+        val useCase = PrepareSnapshotImportUseCase(
+            documentUriGateway = FakeDocumentUriGateway(inputBytes = bytes),
+            gzipSnapshotCodec = GzipSnapshotCodec(),
+            snapshotJsonCodec = SnapshotJsonCodec(),
+            snapshotCompatibilityService = SnapshotCompatibilityService()
+        )
+
+        try {
+            useCase.prepareFromBytes(bytes)
+            throw AssertionError("Expected malformed snapshot for unknown fund transaction type")
+        } catch (exception: SnapshotOperationException) {
+            assertEquals(SnapshotError.MalformedSnapshot, exception.snapshotError)
+        }
+    }
+
+    @Test
     @Suppress("LongMethod")
     fun applyOnboardingRestore_restoresDataAndRebuildsHistory() = runBlocking {
         val expenseDao = FakeExpenseDao()
