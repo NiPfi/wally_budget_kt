@@ -25,6 +25,7 @@ import net.loeu.wallybudget.data.local.entity.ExpenseEntity
 import net.loeu.wallybudget.data.local.entity.FundEntity
 import net.loeu.wallybudget.data.local.entity.FundTransactionEntity
 import net.loeu.wallybudget.data.local.entity.MonthlyHistoryEntity
+import net.loeu.wallybudget.data.local.querymodel.BucketSpendRow
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.local.querymodel.ExpenseDayTotalRow
 import net.loeu.wallybudget.data.time.CurrentDateProvider
@@ -264,6 +265,25 @@ internal class FakeExpenseDao(
 
     override suspend fun findByRecordUuid(recordUuid: String): ExpenseEntity? {
         return expenses.firstOrNull { it.recordUuid == recordUuid }
+    }
+
+    override suspend fun totalSpentPerBucketInRange(
+        startDateInclusive: String,
+        endDateExclusive: String
+    ): List<BucketSpendRow> {
+        return expenses
+            .filter {
+                it.deletedAtEpochMs == null &&
+                    it.expenseDate >= startDateInclusive &&
+                    it.expenseDate < endDateExclusive
+            }
+            .groupBy { it.bucketUuid.orEmpty() }
+            .map { (bucketUuid, entries) ->
+                BucketSpendRow(
+                    bucketUuid = bucketUuid,
+                    totalSpentCents = entries.sumOf { it.amountCents }
+                )
+            }
     }
 
     private fun refresh() {

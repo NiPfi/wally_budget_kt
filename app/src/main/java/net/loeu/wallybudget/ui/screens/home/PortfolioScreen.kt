@@ -66,9 +66,7 @@ fun PortfolioScreen(
             funds = funds,
             showTopRightSettingsAction = showTopRightSettingsAction,
             onNavigateToSettings = onNavigateToSettings,
-            modifier = Modifier
-                .then(modifier)
-                .padding(paddingValues)
+            modifier = Modifier.padding(paddingValues)
         )
     }
 

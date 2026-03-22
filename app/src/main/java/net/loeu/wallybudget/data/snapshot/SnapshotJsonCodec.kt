@@ -43,6 +43,10 @@ class SnapshotJsonCodec(
             requireArray(root, "bucketAllocationPolicies")
             requireArray(root, "bucketAllocationAdjustments")
         }
+        if (schemaVersion >= 5) {
+            requireArray(root, "funds")
+            requireArray(root, "fundTransactions")
+        }
     }
 
     private fun requirePrimitive(root: JsonObject?, key: String) {
