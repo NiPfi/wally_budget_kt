@@ -16,8 +16,6 @@ import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BucketAllocationPolicy
-import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
-import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.UserSettings
@@ -135,8 +133,6 @@ class UpdatePortfolioPlanUseCase(
                     BucketDraft(
                         bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
                         name = DEFAULT_SPENDING_BUCKET_NAME,
-                        trackingMode = BucketTrackingMode.DAILY_TARGET,
-                        balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
                         defaultAllocatedAmountCents = request.portfolioMonthlyBudgetCents,
                         sortOrder = 0
                     )
@@ -152,8 +148,6 @@ class UpdatePortfolioPlanUseCase(
                     BucketDraft(
                         bucketUuid = bucket.bucketUuid,
                         name = bucket.name,
-                        trackingMode = bucket.trackingMode,
-                        balanceBehavior = bucket.balanceBehavior,
                         defaultAllocatedAmountCents = bucket.defaultAllocatedAmountCents,
                         sortOrder = bucket.sortOrder,
                         closeRequested = bucket.isClosed
@@ -190,14 +184,8 @@ class UpdatePortfolioPlanUseCase(
 
         val openBuckets = bucketDrafts.filterNot { it.closeRequested }
         require(openBuckets.isNotEmpty()) { "At least one bucket must remain open." }
-        val defaultBucket = openBuckets.firstOrNull { it.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
+        openBuckets.firstOrNull { it.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
             ?: throw IllegalArgumentException("The default bucket must remain open.")
-        require(defaultBucket.trackingMode == BucketTrackingMode.DAILY_TARGET) {
-            "The default bucket tracking mode is fixed."
-        }
-        require(defaultBucket.balanceBehavior == BucketBalanceBehavior.RETURN_TO_PORTFOLIO) {
-            "The default bucket balance behavior is fixed."
-        }
         val duplicateName = openBuckets
             .groupBy { it.name.trim().lowercase(Locale.getDefault()) }
             .values
@@ -224,8 +212,6 @@ class UpdatePortfolioPlanUseCase(
         return bucketDrafts.any { draft ->
             val existing = existingByUuid[draft.bucketUuid] ?: return@any true
             existing.name != draft.name ||
-                existing.trackingMode != draft.trackingMode ||
-                existing.balanceBehavior != draft.balanceBehavior ||
                 existing.defaultAllocatedAmountCents != draft.defaultAllocatedAmountCents ||
                 existing.sortOrder != draft.sortOrder ||
                 draft.closeRequested != existing.isClosed
@@ -243,8 +229,6 @@ class UpdatePortfolioPlanUseCase(
         val openBuckets = bucketDrafts.filterNot { it.closeRequested }.map { draft ->
             existingByUuid[draft.bucketUuid]?.copy(
                 name = draft.name.trim(),
-                trackingMode = draft.trackingMode,
-                balanceBehavior = draft.balanceBehavior,
                 defaultAllocatedAmountCents = draft.defaultAllocatedAmountCents,
                 sortOrder = draft.sortOrder,
                 closedAtEpochMs = null,
@@ -252,8 +236,6 @@ class UpdatePortfolioPlanUseCase(
             ) ?: BudgetBucket(
                 bucketUuid = draft.bucketUuid.ifBlank { UUID.randomUUID().toString() },
                 name = draft.name.trim(),
-                trackingMode = draft.trackingMode,
-                balanceBehavior = draft.balanceBehavior,
                 defaultAllocatedAmountCents = draft.defaultAllocatedAmountCents,
                 sortOrder = draft.sortOrder,
                 originInstallId = settings.installDeviceId,
@@ -308,8 +290,6 @@ class UpdatePortfolioPlanUseCase(
             BudgetBucket(
                 bucketUuid = draft.bucketUuid.ifBlank { UUID.randomUUID().toString() },
                 name = draft.name.trim(),
-                trackingMode = draft.trackingMode,
-                balanceBehavior = draft.balanceBehavior,
                 defaultAllocatedAmountCents = draft.defaultAllocatedAmountCents,
                 sortOrder = draft.sortOrder,
                 originInstallId = installId,
@@ -333,8 +313,6 @@ class UpdatePortfolioPlanUseCase(
         budgetBucketDao.update(
             existing.copy(
                 name = draft.name.trim(),
-                trackingMode = draft.trackingMode,
-                balanceBehavior = draft.balanceBehavior,
                 defaultAllocatedAmountCents = draft.defaultAllocatedAmountCents,
                 sortOrder = draft.sortOrder,
                 updatedAtEpochMs = nowEpochMs,
@@ -599,8 +577,6 @@ class UpdatePortfolioPlanUseCase(
                 existingDefaultBucket != null -> existingDefaultBucket.name
                 else -> DEFAULT_SPENDING_BUCKET_NAME
             }.ifBlank { DEFAULT_SPENDING_BUCKET_NAME },
-            trackingMode = BucketTrackingMode.DAILY_TARGET,
-            balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
             defaultAllocatedAmountCents = (portfolioMonthlyBudgetCents - namedOpenAllocationTotal).coerceAtLeast(0L),
             sortOrder = 0,
             closeRequested = false

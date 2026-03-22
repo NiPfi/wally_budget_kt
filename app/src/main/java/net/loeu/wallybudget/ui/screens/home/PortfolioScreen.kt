@@ -18,6 +18,7 @@ import androidx.compose.ui.res.painterResource
 import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BucketSummaryState
+import net.loeu.wallybudget.domain.model.FundState
 import net.loeu.wallybudget.domain.model.PortfolioState
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.usecase.BucketDraft
@@ -26,6 +27,7 @@ import net.loeu.wallybudget.domain.usecase.BucketDraft
 fun PortfolioScreen(
     portfolioState: PortfolioState,
     bucketSummaries: List<BucketSummaryState>,
+    fundStates: List<FundState>,
     allBuckets: List<BudgetBucket>,
     userSettings: UserSettings,
     onSavePortfolioPlan: (Long, List<BucketDraft>) -> Unit,
@@ -61,6 +63,7 @@ fun PortfolioScreen(
         PortfolioOverviewPage(
             portfolioState = portfolioState,
             bucketSummaries = orderedOpenSummaries,
+            fundStates = fundStates,
             showTopRightSettingsAction = showTopRightSettingsAction,
             onNavigateToSettings = onNavigateToSettings,
             modifier = Modifier

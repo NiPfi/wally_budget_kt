@@ -49,8 +49,8 @@ import java.util.UUID
 data class BucketDraft(
     val bucketUuid: String,
     val name: String,
-    val trackingMode: BucketTrackingMode,
-    val balanceBehavior: BucketBalanceBehavior,
+    val trackingMode: BucketTrackingMode = BucketTrackingMode.DAILY_TARGET,
+    val balanceBehavior: BucketBalanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
     val defaultAllocatedAmountCents: Long,
     val sortOrder: Int,
     val closeRequested: Boolean = false
@@ -552,8 +552,6 @@ class UpdateBudgetSettingsUseCase(
             openBuckets = openDrafts.map { draft ->
                 existingByUuid[draft.bucketUuid]?.copy(
                     name = draft.name.trim(),
-                    trackingMode = draft.trackingMode,
-                    balanceBehavior = draft.balanceBehavior,
                     defaultAllocatedAmountCents = draft.defaultAllocatedAmountCents,
                     sortOrder = draft.sortOrder,
                     closedAtEpochMs = null,
@@ -561,8 +559,6 @@ class UpdateBudgetSettingsUseCase(
                 ) ?: BudgetBucket(
                     bucketUuid = draft.bucketUuid.ifBlank { UUID.randomUUID().toString() },
                     name = draft.name.trim(),
-                    trackingMode = draft.trackingMode,
-                    balanceBehavior = draft.balanceBehavior,
                     defaultAllocatedAmountCents = draft.defaultAllocatedAmountCents,
                     sortOrder = draft.sortOrder,
                     originInstallId = settings.installDeviceId,
@@ -694,8 +690,6 @@ class UpdateBudgetSettingsUseCase(
         budgetBucketDao.update(
             existing.copy(
                 name = draft.name.trim(),
-                trackingMode = draft.trackingMode,
-                balanceBehavior = draft.balanceBehavior,
                 defaultAllocatedAmountCents = draft.defaultAllocatedAmountCents,
                 sortOrder = draft.sortOrder,
                 updatedAtEpochMs = nowEpochMs,

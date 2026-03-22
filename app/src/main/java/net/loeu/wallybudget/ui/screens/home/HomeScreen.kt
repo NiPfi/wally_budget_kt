@@ -70,9 +70,11 @@ import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketSummaryState
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
+import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
+import net.loeu.wallybudget.domain.model.FundState
 import net.loeu.wallybudget.domain.model.PortfolioState
 import net.loeu.wallybudget.domain.model.SelectedBucketOverview
 import net.loeu.wallybudget.domain.model.SpendingForecast
@@ -358,11 +360,11 @@ private fun HomeScreenEffects(
 internal fun PortfolioOverviewPage(
     portfolioState: PortfolioState,
     bucketSummaries: List<BucketSummaryState>,
+    fundStates: List<FundState>,
     showTopRightSettingsAction: Boolean,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val activeBucketRemainingCents = bucketSummaries.sumOf { it.remainingThisCycleCents }
     val layoutState = rememberOverviewPageLayoutState(
         defaultCollapsedHeader = false,
         enableHeaderCollapse = true
@@ -381,7 +383,6 @@ internal fun PortfolioOverviewPage(
         header = { collapseProgress ->
             PortfolioSummaryCard(
                 portfolioState = portfolioState,
-                activeBucketRemainingCents = activeBucketRemainingCents,
                 collapseProgress = collapseProgress,
                 onNavigateToSettings = if (showTopRightSettingsAction) onNavigateToSettings else null
             )
@@ -402,7 +403,7 @@ internal fun PortfolioOverviewPage(
                 ActiveBucketsSection(bucketSummaries = bucketSummaries)
             }
             item {
-                PortfolioReserveSection(portfolioState = portfolioState)
+                FundsSection(fundStates = fundStates)
             }
         }
     }
@@ -411,7 +412,6 @@ internal fun PortfolioOverviewPage(
 @Composable
 private fun PortfolioSummaryCard(
     portfolioState: PortfolioState,
-    activeBucketRemainingCents: Long,
     collapseProgress: Float,
     onNavigateToSettings: (() -> Unit)?
 ) {
@@ -434,18 +434,18 @@ private fun PortfolioSummaryCard(
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             CollapsingMetricsRow(visibilityProgress = (1f - progress * 1.15f).coerceIn(0f, 1f)) {
                 SummaryMetricColumn(
-                    label = "Allocated",
+                    label = "Buckets",
                     value = CurrencyFormatter.format(portfolioState.allocatedToBucketsCents),
+                    contentColor = contentColor
+                )
+                SummaryMetricColumn(
+                    label = "Funds",
+                    value = CurrencyFormatter.format(portfolioState.allocatedToFundsCents),
                     contentColor = contentColor
                 )
                 SummaryMetricColumn(
                     label = "Spent",
                     value = CurrencyFormatter.format(portfolioState.totalSpentThisCycleCents),
-                    contentColor = contentColor
-                )
-                SummaryMetricColumn(
-                    label = "Buckets left",
-                    value = CurrencyFormatter.formatSigned(activeBucketRemainingCents),
                     contentColor = contentColor
                 )
             }
@@ -462,9 +462,7 @@ private fun PortfolioSummaryCard(
 }
 
 @Composable
-private fun ActiveBucketsSection(
-    bucketSummaries: List<BucketSummaryState>
-) {
+private fun ActiveBucketsSection(bucketSummaries: List<BucketSummaryState>) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -496,43 +494,52 @@ private fun ActiveBucketsSection(
 }
 
 @Composable
-private fun PortfolioReserveSection(
-    portfolioState: PortfolioState
-) {
+private fun FundsSection(fundStates: List<FundState>) {
+    val defaultFundState = remember(fundStates) { defaultFundState(fundStates) } ?: return
+    val targetProgressText = formatFundTargetProgress(defaultFundState)
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        SectionHeading("Portfolio reserve")
-        Text(
-            text = "Net reserve combines carryover from completed cycles with what's left in the current cycle. " +
-                "Reserve kept in buckets stays earmarked; the rest is leftover reserve outside buckets.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        SectionHeading("Funds")
+        Column(
+            modifier = Modifier.padding(vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         )
-        PlainMetricRow(
-            "Completed cycles",
-            CurrencyFormatter.formatSigned(portfolioState.completedCycleReserveCents)
-        )
-        PlainMetricRow(
-            "Left in current cycle",
-            CurrencyFormatter.formatSigned(portfolioState.remainingThisCycleCents)
-        )
-        PlainMetricRow(
-            "Net reserve",
-            CurrencyFormatter.formatSigned(portfolioState.netReserveCents)
-        )
-        if (portfolioState.earmarkedReserveCents > 0L) {
-            PlainMetricRow(
-                "Earmarked reserve",
-                CurrencyFormatter.format(portfolioState.earmarkedReserveCents)
+        {
+            Text(
+                text = defaultFundState.fund.name,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
             )
-            PlainMetricRow(
-                "Cycle leftover reserve",
-                CurrencyFormatter.formatSigned(portfolioState.unassignedReserveCents)
+            Text(
+                text = "Balance · ${CurrencyFormatter.format(defaultFundState.balanceCents)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            targetProgressText?.let { progressText ->
+                Text(
+                    text = progressText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
+}
+
+internal fun defaultFundState(fundStates: List<FundState>): FundState? {
+    // Future milestones can expand this to show all funds. For now, keep the portfolio UI
+    // focused on the guaranteed default destination for closeout surplus.
+    return fundStates.firstOrNull { it.fund.uuid == DEFAULT_FUND_UUID }
+}
+
+internal fun formatFundTargetProgress(fundState: FundState): String? {
+    val targetAmountCents = fundState.targetAmountCents?.takeIf { it > 0L } ?: return null
+    val progressPercent = ((fundState.progressPercent ?: 0f).roundToInt()).coerceIn(0, 100)
+    return "${CurrencyFormatter.format(fundState.balanceCents)} of " +
+        "${CurrencyFormatter.format(targetAmountCents)} target · $progressPercent%"
 }
 
 @Composable

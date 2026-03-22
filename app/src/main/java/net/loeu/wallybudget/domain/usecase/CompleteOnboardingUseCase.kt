@@ -117,8 +117,6 @@ class CompleteOnboardingUseCase(
                     BudgetBucket(
                         bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
                         name = DEFAULT_SPENDING_BUCKET_NAME,
-                        trackingMode = BucketTrackingMode.DAILY_TARGET,
-                        balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
                         defaultAllocatedAmountCents = monthlyBudgetCents,
                         sortOrder = 0,
                         originInstallId = installId,
@@ -133,8 +131,6 @@ class CompleteOnboardingUseCase(
                 budgetBucketDao.update(
                     existingDefaultBucket.copy(
                         name = DEFAULT_SPENDING_BUCKET_NAME,
-                        trackingMode = BucketTrackingMode.DAILY_TARGET,
-                        balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
                         defaultAllocatedAmountCents = monthlyBudgetCents,
                         sortOrder = 0,
                         updatedAtEpochMs = nowEpochMs,

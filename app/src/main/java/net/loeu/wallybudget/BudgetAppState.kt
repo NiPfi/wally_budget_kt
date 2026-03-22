@@ -11,6 +11,7 @@ import net.loeu.wallybudget.domain.model.BucketSummaryState
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCycleSection
 import net.loeu.wallybudget.domain.model.ExpenseDaySection
+import net.loeu.wallybudget.domain.model.FundState
 import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
 import net.loeu.wallybudget.domain.model.PortfolioOverviewState
 import net.loeu.wallybudget.domain.model.PortfolioState
@@ -29,6 +30,7 @@ internal data class BudgetAppState(
     val portfolioState: PortfolioState?,
     val selectedBucketOverview: SelectedBucketOverview?,
     val bucketSummaries: List<BucketSummaryState>,
+    val fundStates: List<FundState>,
     val allBuckets: List<BudgetBucket>,
     val budgetState: BudgetState?,
     val effectiveCurrentDate: LocalDate,
@@ -60,6 +62,7 @@ internal fun rememberBudgetAppUiState(viewModel: BudgetViewModel): BudgetAppStat
     val portfolioState by viewModel.portfolioState.collectAsState()
     val selectedBucketOverview by viewModel.selectedBucketOverview.collectAsState()
     val bucketSummaries by viewModel.bucketSummaries.collectAsState()
+    val fundStates by viewModel.fundStates.collectAsState()
     val allBuckets by viewModel.allBuckets.collectAsState()
     val budgetState by viewModel.budgetState.collectAsState()
     val effectiveCurrentDate by viewModel.effectiveCurrentDate.collectAsState()
@@ -86,6 +89,7 @@ internal fun rememberBudgetAppUiState(viewModel: BudgetViewModel): BudgetAppStat
         portfolioState = portfolioState,
         selectedBucketOverview = selectedBucketOverview,
         bucketSummaries = bucketSummaries,
+        fundStates = fundStates,
         allBuckets = allBuckets,
         budgetState = budgetState,
         effectiveCurrentDate = effectiveCurrentDate,

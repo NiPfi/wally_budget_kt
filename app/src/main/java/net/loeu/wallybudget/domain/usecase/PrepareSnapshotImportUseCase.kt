@@ -7,6 +7,10 @@ import net.loeu.wallybudget.data.local.entity.BucketAllocationAdjustmentEntity
 import net.loeu.wallybudget.data.local.entity.BucketAllocationPolicyEntity
 import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
+import net.loeu.wallybudget.data.local.entity.FundEntity
+import net.loeu.wallybudget.data.local.entity.FundTransactionEntity
+import net.loeu.wallybudget.data.local.db.LegacyBucketBalanceBehavior
+import net.loeu.wallybudget.data.local.db.LegacyBucketTrackingMode
 import net.loeu.wallybudget.data.snapshot.DecodedSnapshotPayload
 import net.loeu.wallybudget.data.snapshot.DocumentUriGateway
 import net.loeu.wallybudget.data.snapshot.GzipSnapshotCodec
@@ -15,6 +19,8 @@ import net.loeu.wallybudget.data.snapshot.SnapshotJsonCodec
 import net.loeu.wallybudget.data.snapshot.model.SnapshotEnvelopeV1
 import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
+import net.loeu.wallybudget.domain.model.DEFAULT_FUND_NAME
+import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.ExpenseCategory
@@ -78,6 +84,8 @@ class PrepareSnapshotImportUseCase(
                 budgetBuckets = envelope.toBudgetBucketEntities(),
                 bucketAllocationPolicies = envelope.toBucketAllocationPolicyEntities(),
                 bucketAllocationAdjustments = envelope.toBucketAllocationAdjustmentEntities(),
+                funds = envelope.toFundEntities(),
+                fundTransactions = envelope.toFundTransactionEntities(),
                 expenses = envelope.toExpenseEntities()
             )
         } catch (exception: SnapshotOperationException) {
@@ -187,8 +195,8 @@ class PrepareSnapshotImportUseCase(
                 BudgetBucketEntity(
                     bucketUuid = record.bucketUuid,
                     name = record.name,
-                trackingMode = BucketTrackingMode.valueOf(record.trackingMode),
-                balanceBehavior = BucketBalanceBehavior.valueOf(record.balanceBehavior),
+                trackingMode = LegacyBucketTrackingMode.valueOf(record.trackingMode),
+                balanceBehavior = LegacyBucketBalanceBehavior.valueOf(record.balanceBehavior),
                 defaultAllocatedAmountCents = record.defaultAllocatedAmountCents,
                 sortOrder = record.sortOrder,
                 originInstallId = record.originInstallId,
@@ -207,8 +215,8 @@ class PrepareSnapshotImportUseCase(
             BudgetBucketEntity(
                 bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
                 name = DEFAULT_SPENDING_BUCKET_NAME,
-                trackingMode = BucketTrackingMode.DAILY_TARGET,
-                balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
+                trackingMode = LegacyBucketTrackingMode.DAILY_TARGET,
+                balanceBehavior = LegacyBucketBalanceBehavior.RETURN_TO_PORTFOLIO,
                 defaultAllocatedAmountCents = legacyBudget,
                 sortOrder = 0,
                 originInstallId = writerInstallId,
@@ -294,6 +302,60 @@ class PrepareSnapshotImportUseCase(
                 updatedAtEpochMs = record.updatedAtEpochMs,
                 deletedAtEpochMs = record.deletedAtEpochMs,
                 modClock = record.modClock
+            )
+        }
+    }
+
+    private fun SnapshotEnvelopeV1.toFundEntities(): List<FundEntity> {
+        val records = funds
+        if (!records.isNullOrEmpty()) {
+            return records.map { record ->
+                FundEntity(
+                    uuid = record.uuid,
+                    name = record.name,
+                    balanceCents = record.balanceCents,
+                    allocationPerCycleCents = record.allocationPerCycleCents,
+                    targetAmountCents = record.targetAmountCents,
+                    sortOrder = record.sortOrder,
+                    originInstallId = record.originInstallId,
+                    lastModifiedByInstallId = record.lastModifiedByInstallId,
+                    createdAtEpochMs = record.createdAtEpochMs,
+                    updatedAtEpochMs = record.updatedAtEpochMs,
+                    closedAtEpochMs = record.closedAtEpochMs,
+                    deletedAtEpochMs = record.deletedAtEpochMs,
+                    modClock = record.modClock
+                )
+            }
+        }
+
+        return listOf(
+            FundEntity(
+                uuid = DEFAULT_FUND_UUID,
+                name = DEFAULT_FUND_NAME,
+                balanceCents = 0L,
+                allocationPerCycleCents = 0L,
+                targetAmountCents = null,
+                sortOrder = 0,
+                originInstallId = writerInstallId,
+                lastModifiedByInstallId = writerInstallId,
+                createdAtEpochMs = exportedAtEpochMs,
+                updatedAtEpochMs = exportedAtEpochMs,
+                closedAtEpochMs = null,
+                deletedAtEpochMs = null,
+                modClock = snapshotModClock
+            )
+        )
+    }
+
+    private fun SnapshotEnvelopeV1.toFundTransactionEntities(): List<FundTransactionEntity> {
+        return fundTransactions.orEmpty().map { record ->
+            FundTransactionEntity(
+                uuid = record.uuid,
+                fundUuid = record.fundUuid,
+                amountCents = record.amountCents,
+                type = net.loeu.wallybudget.domain.model.FundTransactionType.valueOf(record.type),
+                description = record.description,
+                dateEpochMs = record.dateEpochMs
             )
         }
     }

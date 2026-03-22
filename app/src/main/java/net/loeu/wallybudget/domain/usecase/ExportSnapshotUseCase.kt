@@ -7,6 +7,8 @@ import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
 import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
+import net.loeu.wallybudget.data.local.dao.FundDao
+import net.loeu.wallybudget.data.local.dao.FundTransactionDao
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.snapshot.DocumentUriGateway
 import net.loeu.wallybudget.data.snapshot.GzipSnapshotCodec
@@ -20,9 +22,13 @@ import net.loeu.wallybudget.data.snapshot.model.SnapshotBucketAllocationAdjustme
 import net.loeu.wallybudget.data.snapshot.model.SnapshotBucketAllocationPolicyRecordV3
 import net.loeu.wallybudget.data.snapshot.model.SnapshotEnvelopeV1
 import net.loeu.wallybudget.data.snapshot.model.SnapshotExpenseRecordV1
+import net.loeu.wallybudget.data.snapshot.model.SnapshotFundRecordV5
+import net.loeu.wallybudget.data.snapshot.model.SnapshotFundTransactionRecordV5
 import net.loeu.wallybudget.data.snapshot.model.SnapshotSettingsRecordV1
 import net.loeu.wallybudget.domain.model.SnapshotError
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
+import net.loeu.wallybudget.domain.usecase.internal.emptyFundDao
+import net.loeu.wallybudget.domain.usecase.internal.emptyFundTransactionDao
 
 @Suppress("LongMethod", "ThrowsCount", "TooGenericExceptionCaught")
 class ExportSnapshotUseCase(
@@ -36,6 +42,8 @@ class ExportSnapshotUseCase(
     private val budgetBucketDao: BudgetBucketDao,
     private val bucketAllocationPolicyDao: BucketAllocationPolicyDao,
     private val bucketAllocationAdjustmentDao: BucketAllocationAdjustmentDao,
+    private val fundDao: FundDao = emptyFundDao,
+    private val fundTransactionDao: FundTransactionDao = emptyFundTransactionDao,
     private val userSettingsStore: UserSettingsStore,
     private val hybridLogicalClockService: HybridLogicalClockService,
     private val appVersionName: String
@@ -191,7 +199,36 @@ class ExportSnapshotUseCase(
                         deletedAtEpochMs = adjustment.deletedAtEpochMs,
                         modClock = adjustment.modClock
                     )
-                }
+                },
+            funds = fundDao.getAllForSnapshot()
+                .sortedWith(compareBy({ it.sortOrder }, { it.createdAtEpochMs }, { it.uuid }))
+                .map { fund ->
+                    SnapshotFundRecordV5(
+                        uuid = fund.uuid,
+                        name = fund.name,
+                        balanceCents = fund.balanceCents,
+                        allocationPerCycleCents = fund.allocationPerCycleCents,
+                        targetAmountCents = fund.targetAmountCents,
+                        sortOrder = fund.sortOrder,
+                        originInstallId = fund.originInstallId,
+                        lastModifiedByInstallId = fund.lastModifiedByInstallId,
+                        createdAtEpochMs = fund.createdAtEpochMs,
+                        updatedAtEpochMs = fund.updatedAtEpochMs,
+                        closedAtEpochMs = fund.closedAtEpochMs,
+                        deletedAtEpochMs = fund.deletedAtEpochMs,
+                        modClock = fund.modClock
+                    )
+                },
+            fundTransactions = fundTransactionDao.getAllForSnapshot().map { tx ->
+                SnapshotFundTransactionRecordV5(
+                    uuid = tx.uuid,
+                    fundUuid = tx.fundUuid,
+                    amountCents = tx.amountCents,
+                    type = tx.type.name,
+                    description = tx.description,
+                    dateEpochMs = tx.dateEpochMs
+                )
+            }
         )
         val canonicalWithoutId = snapshotJsonCodec.encode(envelope)
         val snapshotId = snapshotHasher.sha256(canonicalWithoutId)

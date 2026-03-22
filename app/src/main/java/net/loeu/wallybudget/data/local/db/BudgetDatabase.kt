@@ -16,6 +16,8 @@ import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
 import net.loeu.wallybudget.data.local.dao.BucketMonthlyHistoryDao
 import net.loeu.wallybudget.data.local.dao.CycleOverviewDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
+import net.loeu.wallybudget.data.local.dao.FundDao
+import net.loeu.wallybudget.data.local.dao.FundTransactionDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
 import net.loeu.wallybudget.data.local.entity.BudgetAdjustmentEntity
 import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
@@ -24,7 +26,11 @@ import net.loeu.wallybudget.data.local.entity.BucketAllocationAdjustmentEntity
 import net.loeu.wallybudget.data.local.entity.BucketAllocationPolicyEntity
 import net.loeu.wallybudget.data.local.entity.BucketMonthlyHistoryEntity
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
+import net.loeu.wallybudget.data.local.entity.FundEntity
+import net.loeu.wallybudget.data.local.entity.FundTransactionEntity
 import net.loeu.wallybudget.data.local.entity.MonthlyHistoryEntity
+import net.loeu.wallybudget.domain.model.DEFAULT_FUND_NAME
+import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 
@@ -37,12 +43,15 @@ import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
         BudgetBucketEntity::class,
         BucketAllocationPolicyEntity::class,
         BucketAllocationAdjustmentEntity::class,
-        BucketMonthlyHistoryEntity::class
+        BucketMonthlyHistoryEntity::class,
+        FundEntity::class,
+        FundTransactionEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
+@Suppress("TooManyFunctions")
 abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
     abstract fun expenseDao(): ExpenseDao
     abstract fun monthlyHistoryDao(): MonthlyHistoryDao
@@ -53,6 +62,8 @@ abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
     abstract fun bucketAllocationPolicyDao(): BucketAllocationPolicyDao
     abstract fun bucketAllocationAdjustmentDao(): BucketAllocationAdjustmentDao
     abstract fun bucketMonthlyHistoryDao(): BucketMonthlyHistoryDao
+    abstract fun fundDao(): FundDao
+    abstract fun fundTransactionDao(): FundTransactionDao
 
     override suspend fun <T> inTransaction(block: suspend () -> T): T = withTransaction { block() }
 
@@ -772,6 +783,198 @@ abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
                 )
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_budget_buckets_deletedAtEpochMs` ON `budget_buckets` (`deletedAtEpochMs`)"
+                )
+            }
+        }
+
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                val bucketColumns = db.query("PRAGMA table_info(`budget_buckets`)").use { cursor ->
+                    val nameIndex = cursor.getColumnIndex("name")
+                    buildSet {
+                        while (cursor.moveToNext()) {
+                            if (nameIndex >= 0) add(cursor.getString(nameIndex))
+                        }
+                    }
+                }
+                val hasTrackingModeColumn = "trackingMode" in bucketColumns
+                val hasBalanceBehaviorColumn = "balanceBehavior" in bucketColumns
+                val allocatedAmountColumn = when {
+                    "defaultAllocatedAmountCents" in bucketColumns -> "defaultAllocatedAmountCents"
+                    "allocatedCents" in bucketColumns -> "allocatedCents"
+                    else -> null
+                }
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `budget_buckets_normalized` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `bucketUuid` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `trackingMode` TEXT NOT NULL,
+                        `balanceBehavior` TEXT NOT NULL,
+                        `defaultAllocatedAmountCents` INTEGER NOT NULL DEFAULT 0,
+                        `sortOrder` INTEGER NOT NULL,
+                        `originInstallId` TEXT NOT NULL,
+                        `lastModifiedByInstallId` TEXT NOT NULL,
+                        `createdAtEpochMs` INTEGER NOT NULL,
+                        `updatedAtEpochMs` INTEGER NOT NULL,
+                        `closedAtEpochMs` INTEGER,
+                        `deletedAtEpochMs` INTEGER,
+                        `modClock` TEXT NOT NULL
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    INSERT INTO `budget_buckets_normalized` (
+                        `id`,
+                        `bucketUuid`,
+                        `name`,
+                        `trackingMode`,
+                        `balanceBehavior`,
+                        `defaultAllocatedAmountCents`,
+                        `sortOrder`,
+                        `originInstallId`,
+                        `lastModifiedByInstallId`,
+                        `createdAtEpochMs`,
+                        `updatedAtEpochMs`,
+                        `closedAtEpochMs`,
+                        `deletedAtEpochMs`,
+                        `modClock`
+                    )
+                    SELECT
+                        `id`,
+                        `bucketUuid`,
+                        `name`,
+                        ${if (hasTrackingModeColumn) "`trackingMode`" else "'DAILY_TARGET'"},
+                        ${if (hasBalanceBehaviorColumn) "`balanceBehavior`" else "'RETURN_TO_PORTFOLIO'"},
+                        ${allocatedAmountColumn?.let { "`$it`" } ?: "0"},
+                        `sortOrder`,
+                        `originInstallId`,
+                        `lastModifiedByInstallId`,
+                        `createdAtEpochMs`,
+                        `updatedAtEpochMs`,
+                        `closedAtEpochMs`,
+                        `deletedAtEpochMs`,
+                        `modClock`
+                    FROM `budget_buckets`
+                    """.trimIndent()
+                )
+
+                db.execSQL("DROP TABLE `budget_buckets`")
+                db.execSQL("ALTER TABLE `budget_buckets_normalized` RENAME TO `budget_buckets`")
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_budget_buckets_bucketUuid` ON `budget_buckets` (`bucketUuid`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_budget_buckets_sortOrder` ON `budget_buckets` (`sortOrder`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_budget_buckets_closedAtEpochMs` ON `budget_buckets` (`closedAtEpochMs`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_budget_buckets_deletedAtEpochMs` ON `budget_buckets` (`deletedAtEpochMs`)"
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `funds` (
+                        `uuid` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `balanceCents` INTEGER NOT NULL DEFAULT 0,
+                        `allocationPerCycleCents` INTEGER NOT NULL DEFAULT 0,
+                        `targetAmountCents` INTEGER,
+                        `sortOrder` INTEGER NOT NULL DEFAULT 0,
+                        `originInstallId` TEXT NOT NULL,
+                        `lastModifiedByInstallId` TEXT NOT NULL,
+                        `createdAtEpochMs` INTEGER NOT NULL,
+                        `updatedAtEpochMs` INTEGER NOT NULL,
+                        `closedAtEpochMs` INTEGER,
+                        `deletedAtEpochMs` INTEGER,
+                        `modClock` TEXT NOT NULL,
+                        PRIMARY KEY(`uuid`)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_funds_sortOrder` ON `funds` (`sortOrder`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_funds_closedAtEpochMs` ON `funds` (`closedAtEpochMs`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_funds_deletedAtEpochMs` ON `funds` (`deletedAtEpochMs`)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `fund_transactions` (
+                        `uuid` TEXT NOT NULL,
+                        `fundUuid` TEXT NOT NULL,
+                        `amountCents` INTEGER NOT NULL,
+                        `type` TEXT NOT NULL,
+                        `description` TEXT NOT NULL DEFAULT '',
+                        `dateEpochMs` INTEGER NOT NULL,
+                        PRIMARY KEY(`uuid`),
+                        FOREIGN KEY(`fundUuid`) REFERENCES `funds`(`uuid`) ON UPDATE NO ACTION ON DELETE NO ACTION
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_fund_transactions_fundUuid` ON `fund_transactions` (`fundUuid`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_fund_transactions_dateEpochMs` ON `fund_transactions` (`dateEpochMs`)")
+
+                // Some existing version-11 databases do not carry legacy reserve columns consistently.
+                // Falling back to zero here avoids upgrade crashes; the default fund still gets created.
+                val migratedBalanceCents = 0L
+
+                db.execSQL(
+                    """
+                    INSERT OR IGNORE INTO `funds` (
+                        `uuid`,
+                        `name`,
+                        `balanceCents`,
+                        `allocationPerCycleCents`,
+                        `targetAmountCents`,
+                        `sortOrder`,
+                        `originInstallId`,
+                        `lastModifiedByInstallId`,
+                        `createdAtEpochMs`,
+                        `updatedAtEpochMs`,
+                        `closedAtEpochMs`,
+                        `deletedAtEpochMs`,
+                        `modClock`
+                    )
+                    SELECT
+                        '$DEFAULT_FUND_UUID',
+                        '$DEFAULT_FUND_NAME',
+                        $migratedBalanceCents,
+                        0,
+                        NULL,
+                        0,
+                        COALESCE(
+                            (SELECT originInstallId FROM budget_buckets ORDER BY createdAtEpochMs ASC LIMIT 1),
+                            (SELECT originInstallId FROM budget_policies ORDER BY createdAtEpochMs ASC LIMIT 1),
+                            ''
+                        ),
+                        COALESCE(
+                            (SELECT lastModifiedByInstallId FROM budget_buckets ORDER BY updatedAtEpochMs DESC LIMIT 1),
+                            (SELECT lastModifiedByInstallId FROM budget_policies ORDER BY updatedAtEpochMs DESC LIMIT 1),
+                            ''
+                        ),
+                        COALESCE(
+                            (SELECT MIN(createdAtEpochMs) FROM budget_buckets),
+                            (SELECT MIN(createdAtEpochMs) FROM budget_policies),
+                            0
+                        ),
+                        COALESCE(
+                            (SELECT MAX(updatedAtEpochMs) FROM budget_buckets),
+                            (SELECT MAX(updatedAtEpochMs) FROM budget_policies),
+                            0
+                        ),
+                        NULL,
+                        NULL,
+                        COALESCE(
+                            (SELECT modClock FROM budget_buckets ORDER BY updatedAtEpochMs DESC LIMIT 1),
+                            (SELECT modClock FROM budget_policies ORDER BY updatedAtEpochMs DESC LIMIT 1),
+                            ''
+                        )
+                    """.trimIndent()
                 )
             }
         }

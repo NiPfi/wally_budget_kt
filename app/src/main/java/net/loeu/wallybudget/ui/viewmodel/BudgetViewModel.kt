@@ -22,6 +22,7 @@ import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.ExpenseCycleSection
 import net.loeu.wallybudget.domain.model.ExpenseDaySection
+import net.loeu.wallybudget.domain.model.FundState
 import net.loeu.wallybudget.domain.model.HistoryState
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
@@ -42,6 +43,7 @@ import net.loeu.wallybudget.domain.usecase.ClearPendingPaydayUndoUseCase
 import net.loeu.wallybudget.domain.usecase.DeleteExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.EnsureDefaultBucketStateUseCase
 import net.loeu.wallybudget.domain.usecase.EnsureBudgetPolicyHistoryUseCase
+import net.loeu.wallybudget.domain.usecase.EnsureDefaultFundUseCase
 import net.loeu.wallybudget.domain.usecase.ExportSnapshotUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveBudgetBucketsUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveForecastUseCase
@@ -92,6 +94,7 @@ class BudgetViewModel(
     private val prepareSnapshotImportUseCase: PrepareSnapshotImportUseCase,
     private val applyOnboardingRestoreUseCase: ApplyOnboardingRestoreUseCase,
     private val ensureDefaultBucketStateUseCase: EnsureDefaultBucketStateUseCase,
+    private val ensureDefaultFundUseCase: EnsureDefaultFundUseCase,
     private val ensureBudgetPolicyHistoryUseCase: EnsureBudgetPolicyHistoryUseCase,
     private val rebuildMonthlyHistoryUseCase: RebuildMonthlyHistoryUseCase,
     private val resolveMutationEffectiveDateUseCase: ResolveMutationEffectiveDateUseCase,
@@ -157,6 +160,14 @@ class BudgetViewModel(
 
     val bucketSummaries: StateFlow<List<BucketSummaryState>> = portfolioOverviewState
         .map { it?.bucketSummaries ?: emptyList() }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    val fundStates: StateFlow<List<FundState>> = portfolioOverviewState
+        .map { it?.fundStates ?: emptyList() }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -256,6 +267,9 @@ class BudgetViewModel(
     init {
         viewModelScope.launch {
             ensureDefaultBucketStateUseCase(currentDateProvider.currentDate())
+        }
+        viewModelScope.launch {
+            ensureDefaultFundUseCase(currentDateProvider.currentDate())
         }
         viewModelScope.launch {
             ensureBudgetPolicyHistoryUseCase(currentDateProvider.currentDate())
