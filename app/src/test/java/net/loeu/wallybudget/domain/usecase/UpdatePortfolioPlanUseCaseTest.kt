@@ -1,9 +1,9 @@
+@file:Suppress("MaxLineLength")
+
 package net.loeu.wallybudget.domain.usecase
 
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import net.loeu.wallybudget.data.local.entity.BucketAllocationPolicyEntity
-import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
 import net.loeu.wallybudget.data.local.entity.BudgetPolicyEntity
 import net.loeu.wallybudget.domain.model.PendingPaydayUndo
 import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
@@ -52,21 +52,15 @@ class UpdatePortfolioPlanUseCaseTest {
         )
         val budgetBucketDao = FakeBudgetBucketDao(
             listOf(
-                bucketEntity(DEFAULT_SPENDING_BUCKET_UUID, DEFAULT_SPENDING_BUCKET_NAME, 70_000L, 0),
-                bucketEntity("travel", "Travel", 30_000L, 1)
+                bucketEntity(defaultAllocatedAmountCents = 70_000L),
+                bucketEntity(id = 2L, bucketUuid = "travel", name = "Travel", balanceBehavior = BucketBalanceBehavior.RETAIN_IN_BUCKET, defaultAllocatedAmountCents = 30_000L, sortOrder = 1)
             )
         )
         val bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(
             listOf(
-                bucketPolicyEntity(
-                    "default-current",
-                    DEFAULT_SPENDING_BUCKET_UUID,
-                    "2026-03-25",
-                    "2026-04-25",
-                    70_000L
-                ),
-                bucketPolicyEntity("travel-current", "travel", "2026-03-25", "2026-04-25", 30_000L),
-                bucketPolicyEntity("travel-future", "travel", "2026-04-25", "2026-05-25", 50_000L)
+                bucketPolicyEntity(allocationUuid = "default-current", cycleStartDate = "2026-03-25", cycleEndDateExclusive = "2026-04-25", allocatedAmountCents = 70_000L),
+                bucketPolicyEntity(id = 2L, allocationUuid = "travel-current", bucketUuid = "travel", cycleStartDate = "2026-03-25", cycleEndDateExclusive = "2026-04-25", allocatedAmountCents = 30_000L),
+                bucketPolicyEntity(id = 4L, allocationUuid = "travel-future", bucketUuid = "travel", cycleStartDate = "2026-04-25", cycleEndDateExclusive = "2026-05-25", allocatedAmountCents = 50_000L)
             )
         )
 
@@ -118,22 +112,10 @@ class UpdatePortfolioPlanUseCaseTest {
 
         val bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(
             listOf(
-                bucketPolicyEntity(
-                    "default-current",
-                    DEFAULT_SPENDING_BUCKET_UUID,
-                    "2026-03-25",
-                    "2026-04-25",
-                    70_000L
-                ),
-                bucketPolicyEntity("travel-current", "travel", "2026-03-25", "2026-04-25", 30_000L),
-                bucketPolicyEntity(
-                    "default-future",
-                    DEFAULT_SPENDING_BUCKET_UUID,
-                    "2026-04-25",
-                    "2026-05-25",
-                    70_000L
-                ),
-                bucketPolicyEntity("travel-future", "travel", "2026-04-25", "2026-05-25", 30_000L)
+                bucketPolicyEntity(allocationUuid = "default-current", cycleStartDate = "2026-03-25", cycleEndDateExclusive = "2026-04-25", allocatedAmountCents = 70_000L),
+                bucketPolicyEntity(id = 2L, allocationUuid = "travel-current", bucketUuid = "travel", cycleStartDate = "2026-03-25", cycleEndDateExclusive = "2026-04-25", allocatedAmountCents = 30_000L),
+                bucketPolicyEntity(id = 3L, allocationUuid = "default-future", cycleStartDate = "2026-04-25", cycleEndDateExclusive = "2026-05-25", allocatedAmountCents = 70_000L),
+                bucketPolicyEntity(id = 4L, allocationUuid = "travel-future", bucketUuid = "travel", cycleStartDate = "2026-04-25", cycleEndDateExclusive = "2026-05-25", allocatedAmountCents = 30_000L)
             )
         )
         val useCase = UpdatePortfolioPlanUseCase(
@@ -157,17 +139,11 @@ class UpdatePortfolioPlanUseCaseTest {
                 )
             ),
             budgetBucketDao = FakeBudgetBucketDao(
-                listOf(bucketEntity(DEFAULT_SPENDING_BUCKET_UUID, DEFAULT_SPENDING_BUCKET_NAME, 100_000L, 0))
+                listOf(bucketEntity(defaultAllocatedAmountCents = 100_000L))
             ),
             bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(
                 listOf(
-                    bucketPolicyEntity(
-                        "default-current",
-                        DEFAULT_SPENDING_BUCKET_UUID,
-                        "2026-03-25",
-                        "2026-04-25",
-                        100_000L
-                    )
+                    bucketPolicyEntity(allocationUuid = "default-current", cycleStartDate = "2026-03-25", cycleEndDateExclusive = "2026-04-25", allocatedAmountCents = 100_000L)
                 )
             ),
             bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
@@ -194,22 +170,10 @@ class UpdatePortfolioPlanUseCaseTest {
         )
         val bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(
             listOf(
-                bucketPolicyEntity(
-                    "default-current",
-                    DEFAULT_SPENDING_BUCKET_UUID,
-                    "2026-03-25",
-                    "2026-04-25",
-                    70_000L
-                ),
-                bucketPolicyEntity("travel-current", "travel", "2026-03-25", "2026-04-25", 30_000L),
-                bucketPolicyEntity(
-                    "default-future",
-                    DEFAULT_SPENDING_BUCKET_UUID,
-                    "2026-04-25",
-                    "2026-05-25",
-                    70_000L
-                ),
-                bucketPolicyEntity("travel-future", "travel", "2026-04-25", "2026-05-25", 30_000L)
+                bucketPolicyEntity(allocationUuid = "default-current", cycleStartDate = "2026-03-25", cycleEndDateExclusive = "2026-04-25", allocatedAmountCents = 70_000L),
+                bucketPolicyEntity(id = 2L, allocationUuid = "travel-current", bucketUuid = "travel", cycleStartDate = "2026-03-25", cycleEndDateExclusive = "2026-04-25", allocatedAmountCents = 30_000L),
+                bucketPolicyEntity(id = 3L, allocationUuid = "default-future", cycleStartDate = "2026-04-25", cycleEndDateExclusive = "2026-05-25", allocatedAmountCents = 70_000L),
+                bucketPolicyEntity(id = 4L, allocationUuid = "travel-future", bucketUuid = "travel", cycleStartDate = "2026-04-25", cycleEndDateExclusive = "2026-05-25", allocatedAmountCents = 30_000L)
             )
         )
         val useCase = UpdatePortfolioPlanUseCase(
@@ -234,8 +198,8 @@ class UpdatePortfolioPlanUseCaseTest {
             ),
             budgetBucketDao = FakeBudgetBucketDao(
                 listOf(
-                    bucketEntity(DEFAULT_SPENDING_BUCKET_UUID, DEFAULT_SPENDING_BUCKET_NAME, 70_000L, 0),
-                    bucketEntity("travel", "Travel", 30_000L, 1)
+                    bucketEntity(defaultAllocatedAmountCents = 70_000L),
+                    bucketEntity(id = 2L, bucketUuid = "travel", name = "Travel", balanceBehavior = BucketBalanceBehavior.RETAIN_IN_BUCKET, defaultAllocatedAmountCents = 30_000L, sortOrder = 1)
                 )
             ),
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
@@ -293,22 +257,10 @@ class UpdatePortfolioPlanUseCaseTest {
         )
         val bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(
             listOf(
-                bucketPolicyEntity(
-                    "default-current",
-                    DEFAULT_SPENDING_BUCKET_UUID,
-                    "2026-03-25",
-                    "2026-04-25",
-                    70_000L
-                ),
-                bucketPolicyEntity("travel-current", "travel", "2026-03-25", "2026-04-25", 30_000L),
-                bucketPolicyEntity(
-                    "default-future",
-                    DEFAULT_SPENDING_BUCKET_UUID,
-                    "2026-04-25",
-                    "2026-05-25",
-                    70_000L
-                ),
-                bucketPolicyEntity("travel-future", "travel", "2026-04-25", "2026-05-25", 30_000L)
+                bucketPolicyEntity(allocationUuid = "default-current", cycleStartDate = "2026-03-25", cycleEndDateExclusive = "2026-04-25", allocatedAmountCents = 70_000L),
+                bucketPolicyEntity(id = 2L, allocationUuid = "travel-current", bucketUuid = "travel", cycleStartDate = "2026-03-25", cycleEndDateExclusive = "2026-04-25", allocatedAmountCents = 30_000L),
+                bucketPolicyEntity(id = 3L, allocationUuid = "default-future", cycleStartDate = "2026-04-25", cycleEndDateExclusive = "2026-05-25", allocatedAmountCents = 70_000L),
+                bucketPolicyEntity(id = 4L, allocationUuid = "travel-future", bucketUuid = "travel", cycleStartDate = "2026-04-25", cycleEndDateExclusive = "2026-05-25", allocatedAmountCents = 30_000L)
             )
         )
         val useCase = UpdatePortfolioPlanUseCase(
@@ -333,8 +285,8 @@ class UpdatePortfolioPlanUseCaseTest {
             ),
             budgetBucketDao = FakeBudgetBucketDao(
                 listOf(
-                    bucketEntity(DEFAULT_SPENDING_BUCKET_UUID, DEFAULT_SPENDING_BUCKET_NAME, 70_000L, 0),
-                    bucketEntity("travel", "Travel", 30_000L, 1)
+                    bucketEntity(defaultAllocatedAmountCents = 70_000L),
+                    bucketEntity(id = 2L, bucketUuid = "travel", name = "Travel", balanceBehavior = BucketBalanceBehavior.RETAIN_IN_BUCKET, defaultAllocatedAmountCents = 30_000L, sortOrder = 1)
                 )
             ),
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
@@ -376,52 +328,4 @@ class UpdatePortfolioPlanUseCaseTest {
         assertEquals(40_000L, futureTravelPolicy.allocatedAmountCents)
     }
 
-    private fun bucketEntity(
-        bucketUuid: String,
-        name: String,
-        defaultAllocatedAmountCents: Long,
-        sortOrder: Int
-    ) = BudgetBucketEntity(
-        id = if (bucketUuid == DEFAULT_SPENDING_BUCKET_UUID) 1L else 2L,
-        bucketUuid = bucketUuid,
-        name = name,
-        trackingMode = BucketTrackingMode.DAILY_TARGET,
-        balanceBehavior = if (bucketUuid == DEFAULT_SPENDING_BUCKET_UUID) {
-            BucketBalanceBehavior.RETURN_TO_PORTFOLIO
-        } else {
-            BucketBalanceBehavior.RETAIN_IN_BUCKET
-        },
-        defaultAllocatedAmountCents = defaultAllocatedAmountCents,
-        sortOrder = sortOrder,
-        originInstallId = "test-install-id",
-        lastModifiedByInstallId = "test-install-id",
-        createdAtEpochMs = 1L,
-        updatedAtEpochMs = 1L,
-        modClock = "0000000000001-0000-test-install-id"
-    )
-
-    private fun bucketPolicyEntity(
-        allocationUuid: String,
-        bucketUuid: String,
-        cycleStartDate: String,
-        cycleEndDateExclusive: String,
-        allocatedAmountCents: Long
-    ) = BucketAllocationPolicyEntity(
-        id = when (allocationUuid) {
-            "default-current" -> 1L
-            "travel-current" -> 2L
-            "default-future" -> 3L
-            else -> 4L
-        },
-        allocationUuid = allocationUuid,
-        bucketUuid = bucketUuid,
-        cycleStartDate = cycleStartDate,
-        cycleEndDateExclusive = cycleEndDateExclusive,
-        allocatedAmountCents = allocatedAmountCents,
-        originInstallId = "test-install-id",
-        lastModifiedByInstallId = "test-install-id",
-        createdAtEpochMs = 1L,
-        updatedAtEpochMs = 1L,
-        modClock = "0000000000001-0000-test-install-id"
-    )
 }

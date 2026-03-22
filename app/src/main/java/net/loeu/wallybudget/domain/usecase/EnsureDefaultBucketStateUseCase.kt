@@ -8,8 +8,6 @@ import net.loeu.wallybudget.data.local.entity.toDomainModel
 import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.domain.model.BudgetBucket
-import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
-import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
@@ -53,8 +51,6 @@ class EnsureDefaultBucketStateUseCase(
                         BudgetBucket(
                             bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
                             name = DEFAULT_SPENDING_BUCKET_NAME,
-                            trackingMode = BucketTrackingMode.DAILY_TARGET,
-                            balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
                             defaultAllocatedAmountCents = defaultBucketAllocation,
                             sortOrder = 0,
                             originInstallId = installId,
@@ -67,15 +63,11 @@ class EnsureDefaultBucketStateUseCase(
                 }
 
                 defaultBucket.isClosed ||
-                    defaultBucket.trackingMode != BucketTrackingMode.DAILY_TARGET ||
-                    defaultBucket.balanceBehavior != BucketBalanceBehavior.RETURN_TO_PORTFOLIO ||
                     defaultBucket.sortOrder != 0 ||
                     defaultBucket.defaultAllocatedAmountCents != defaultBucketAllocation -> {
                     val entity = budgetBucketDao.findByBucketUuid(DEFAULT_SPENDING_BUCKET_UUID) ?: return@inTransaction
                     budgetBucketDao.update(
                         defaultBucket.copy(
-                            trackingMode = BucketTrackingMode.DAILY_TARGET,
-                            balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
                             defaultAllocatedAmountCents = defaultBucketAllocation,
                             sortOrder = 0,
                             updatedAtEpochMs = nowEpochMs,

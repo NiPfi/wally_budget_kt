@@ -34,7 +34,7 @@ class BudgetCalculationService(
         now: LocalDate,
         totalSpentThisCycleCents: Long,
         spentTodayCents: Long,
-        cumulativeSavingsCents: Long,
+        @Suppress("UNUSED_PARAMETER") cumulativeSavingsCents: Long = 0L,
         cycleBudgetAmountCents: Long
     ): BudgetState {
         val cycleStart = getCycleStartDate(now, settings.paydayDate)
@@ -48,7 +48,6 @@ class BudgetCalculationService(
             allocatedBeforeTodayCents = null,
             totalSpentThisCycleCents = totalSpentThisCycleCents,
             spentTodayCents = spentTodayCents,
-            cumulativeSavingsCents = cumulativeSavingsCents,
             paydayDate = settings.paydayDate
         )
     }
@@ -62,7 +61,7 @@ class BudgetCalculationService(
         allocatedBeforeTodayCents: Long?,
         totalSpentThisCycleCents: Long,
         spentTodayCents: Long,
-        cumulativeSavingsCents: Long,
+        @Suppress("UNUSED_PARAMETER") cumulativeSavingsCents: Long = 0L,
         paydayDate: Int
     ): BudgetState {
         // Days remaining in cycle including today (e.g. last day => 1)
@@ -97,7 +96,6 @@ class BudgetCalculationService(
             spentTodayCents = spentTodayCents,
             remainingTodayCents = effectiveDailyBudgetCents - spentTodayCents,
             daysRemainingInCycle = daysRemainingInCycle,
-            cumulativeSavingsCents = cumulativeSavingsCents,
             paydayDate = paydayDate,
             cycleStartDate = cycleStart
         )

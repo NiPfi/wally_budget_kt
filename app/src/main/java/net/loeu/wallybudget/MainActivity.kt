@@ -68,6 +68,7 @@ import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.ExpenseCycleSection
 import net.loeu.wallybudget.domain.model.ExpenseDaySection
+import net.loeu.wallybudget.domain.model.Fund
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.PendingCycleCloseoutState
 import net.loeu.wallybudget.domain.model.PortfolioState
@@ -183,6 +184,7 @@ fun BudgetApp(
             val shellContent: @Composable () -> Unit = {
                 MainNavigationShell(
                     bucketSummaries = displayBucketSummaries,
+                    funds = appState.funds,
                     portfolioState = displayPortfolioState,
                     selectedBucketOverview = displaySelectedBucketOverview,
                     allBuckets = displayAllBuckets,
@@ -229,6 +231,7 @@ fun BudgetApp(
 @Composable
 private fun MainNavigationShell(
     bucketSummaries: List<BucketSummaryState>,
+    funds: List<Fund>,
     portfolioState: PortfolioState,
     selectedBucketOverview: SelectedBucketOverview,
     allBuckets: List<BudgetBucket>,
@@ -282,6 +285,7 @@ private fun MainNavigationShell(
         MainNavigationHost(
             navController = navController,
             bucketSummaries = bucketSummaries,
+            funds = funds,
             portfolioState = portfolioState,
             selectedBucketOverview = selectedBucketOverview,
             allBuckets = allBuckets,
@@ -427,6 +431,7 @@ private fun NavHostController.navigateToTopLevel(screen: Screen) {
 private fun MainNavigationHost(
     navController: NavHostController,
     bucketSummaries: List<BucketSummaryState>,
+    funds: List<Fund>,
     portfolioState: PortfolioState,
     selectedBucketOverview: SelectedBucketOverview,
     allBuckets: List<BudgetBucket>,
@@ -491,6 +496,7 @@ private fun MainNavigationHost(
             navController = navController,
             portfolioState = portfolioState,
             bucketSummaries = bucketSummaries,
+            funds = funds,
             allBuckets = allBuckets,
             userSettings = userSettings,
             onSavePortfolioPlan = onSavePortfolioPlan,
@@ -549,7 +555,6 @@ private fun loadingBudgetState(currentDate: LocalDate): BudgetState {
         spentTodayCents = 0L,
         remainingTodayCents = 35_00L,
         daysRemainingInCycle = 12,
-        cumulativeSavingsCents = 0L,
         paydayDate = currentDate.dayOfMonth.coerceAtLeast(1),
         cycleStartDate = currentDate.minusDays(18)
     )
@@ -564,13 +569,13 @@ private fun loadingPortfolioState(
     return PortfolioState(
         portfolioTotalBudgetCents = budgetState.monthlyBudgetCents,
         allocatedToBucketsCents = budgetState.monthlyBudgetCents,
+        allocatedToFundsCents = 0L,
         unassignedPlannedBudgetCents = 0L,
         totalSpentThisCycleCents = budgetState.totalSpentThisCycleCents,
         remainingThisCycleCents = remainingThisCycle,
         completedCycleReserveCents = budgetState.cumulativeSavingsCents,
         netReserveCents = netReserve,
-        earmarkedReserveCents = 0L,
-        unassignedReserveCents = netReserve,
+        totalFundBalanceCents = 0L,
         cycleStartDate = budgetState.cycleStartDate,
         cycleEndDateExclusive = currentDate.plusDays(budgetState.daysRemainingInCycle.toLong() + 1L)
     )
@@ -583,8 +588,6 @@ private fun loadingSelectedBucketOverview(
     val bucket = BudgetBucket(
         bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
         name = DEFAULT_SPENDING_BUCKET_NAME,
-        trackingMode = BucketTrackingMode.DAILY_TARGET,
-        balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
         defaultAllocatedAmountCents = budgetState.monthlyBudgetCents,
         sortOrder = 0,
         originInstallId = "",
@@ -599,7 +602,6 @@ private fun loadingSelectedBucketOverview(
         spentThisCycleCents = budgetState.totalSpentThisCycleCents,
         remainingThisCycleCents = budgetState.monthlyBudgetCents - budgetState.totalSpentThisCycleCents,
         overspentCents = 0L,
-        earmarkedBalanceCents = 0L,
         budgetState = budgetState
     )
     return SelectedBucketOverview(

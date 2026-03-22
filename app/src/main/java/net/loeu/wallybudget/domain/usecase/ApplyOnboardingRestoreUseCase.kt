@@ -7,6 +7,8 @@ import net.loeu.wallybudget.data.local.dao.BucketMonthlyHistoryDao
 import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
+import net.loeu.wallybudget.data.local.dao.FundDao
+import net.loeu.wallybudget.data.local.dao.FundTransactionDao
 import net.loeu.wallybudget.data.local.db.TransactionRunner
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.domain.model.SnapshotApplyResult
@@ -21,6 +23,8 @@ class ApplyOnboardingRestoreUseCase(
     private val bucketAllocationPolicyDao: BucketAllocationPolicyDao,
     private val bucketAllocationAdjustmentDao: BucketAllocationAdjustmentDao,
     private val bucketMonthlyHistoryDao: BucketMonthlyHistoryDao,
+    private val fundDao: FundDao,
+    private val fundTransactionDao: FundTransactionDao,
     private val userSettingsStore: UserSettingsStore,
     private val rebuildMonthlyHistoryUseCase: RebuildMonthlyHistoryUseCase,
     private val rebuildBucketMonthlyHistoryUseCase: RebuildBucketMonthlyHistoryUseCase
@@ -39,11 +43,15 @@ class ApplyOnboardingRestoreUseCase(
             bucketAllocationPolicyDao.deleteAll()
             bucketAllocationAdjustmentDao.deleteAll()
             bucketMonthlyHistoryDao.deleteAll()
+            fundTransactionDao.deleteAll()
+            fundDao.deleteAll()
             budgetPolicyDao.insert(preparedSnapshotImport.budgetPolicies)
             budgetAdjustmentDao.insert(preparedSnapshotImport.budgetAdjustments)
             budgetBucketDao.insert(preparedSnapshotImport.budgetBuckets)
             bucketAllocationPolicyDao.insert(preparedSnapshotImport.bucketAllocationPolicies)
             bucketAllocationAdjustmentDao.insert(preparedSnapshotImport.bucketAllocationAdjustments)
+            fundDao.insert(preparedSnapshotImport.funds)
+            fundTransactionDao.insert(preparedSnapshotImport.fundTransactions)
             expenseDao.insert(preparedSnapshotImport.expenses)
             rebuildMonthlyHistoryUseCase(preparedSnapshotImport.settings, replaceExisting = true)
             rebuildBucketMonthlyHistoryUseCase(preparedSnapshotImport.settings, replaceExisting = true)

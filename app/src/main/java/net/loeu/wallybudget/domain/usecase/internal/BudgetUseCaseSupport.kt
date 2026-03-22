@@ -91,6 +91,7 @@ internal suspend fun archiveCycleIfNeeded(
 
 internal fun buildBudgetState(
     today: LocalDate,
+    @Suppress("UNUSED_PARAMETER")
     history: List<MonthlyHistory>,
     totalSpentThisCycleCents: Long,
     spentTodayCents: Long,
@@ -99,13 +100,6 @@ internal fun buildBudgetState(
     budgetAdjustmentResolver: BudgetAdjustmentResolver,
     budgetCalculationService: BudgetCalculationService
 ): BudgetState {
-    val currentCycleRange = net.loeu.wallybudget.domain.service.CycleDateRange(
-        start = cyclePolicy.cycleStart,
-        endExclusive = minOf(today.plusDays(1), cyclePolicy.cycleEndExclusive)
-    )
-    val cumulativeSavingsCents = history
-        .filter { !it.getCycleEnd().isAfter(currentCycleRange.start) }
-        .sumOf { it.surplusCents }
     val resolvedCycleBudget = budgetAdjustmentResolver.resolveCycleBudget(
         cycleStart = cyclePolicy.cycleStart,
         cycleEndExclusive = cyclePolicy.cycleEndExclusive,
@@ -120,7 +114,6 @@ internal fun buildBudgetState(
         cycleEndExclusive = cyclePolicy.cycleEndExclusive,
         totalSpentThisCycleCents = totalSpentThisCycleCents,
         spentTodayCents = spentTodayCents,
-        cumulativeSavingsCents = cumulativeSavingsCents,
         cycleBudgetAmountCents = resolvedCycleBudget.effectiveCycleBudgetCents,
         plannedTodayBudgetCents = resolvedCycleBudget.plannedTodayBudgetCents,
         allocatedBeforeTodayCents = resolvedCycleBudget.allocatedBeforeDateCents,

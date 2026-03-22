@@ -14,6 +14,7 @@ import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.ExpenseCycleSection
+import net.loeu.wallybudget.domain.model.Fund
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.PortfolioState
 import net.loeu.wallybudget.domain.model.SelectedBucketOverview
@@ -82,6 +83,7 @@ internal fun NavGraphBuilder.addPortfolioDestination(
     navController: NavHostController,
     portfolioState: PortfolioState,
     bucketSummaries: List<BucketSummaryState>,
+    funds: List<Fund>,
     allBuckets: List<BudgetBucket>,
     userSettings: UserSettings,
     onSavePortfolioPlan: (Long, List<BucketDraft>) -> Unit,
@@ -92,6 +94,7 @@ internal fun NavGraphBuilder.addPortfolioDestination(
         PortfolioScreen(
             portfolioState = portfolioState,
             bucketSummaries = bucketSummaries,
+            funds = funds,
             allBuckets = allBuckets,
             userSettings = userSettings,
             onSavePortfolioPlan = onSavePortfolioPlan,
@@ -136,6 +139,7 @@ internal fun NavGraphBuilder.addHistoryDestination(
 
 internal fun NavGraphBuilder.addAnalysisDestination(
     navController: NavHostController,
+    @Suppress("UNUSED_PARAMETER")
     selectedBucketOverview: SelectedBucketOverview?,
     budgetState: BudgetState?,
     spendingForecast: SpendingForecast?,
@@ -146,26 +150,12 @@ internal fun NavGraphBuilder.addAnalysisDestination(
 ) {
     composable(Screen.Analysis.route) {
         val monthlyHistory by monthlyHistoryState.collectAsState()
-        val isAnalysisLoading = isHomeDataLoading || monthlyHistory == null
-        val isReserveBucket = selectedBucketOverview?.bucket?.trackingMode == BucketTrackingMode.CYCLE_RESERVE
-        if (!isAnalysisLoading && isReserveBucket) {
-            LaunchedEffect(selectedBucketOverview.bucket.bucketUuid) {
-                val popped = navController.popBackStack()
-                if (!popped) {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Home.route) { inclusive = false }
-                        launchSingleTop = true
-                    }
-                }
-            }
-            return@composable
-        }
         AnalysisScreen(
             budgetState = budgetState,
             spendingForecast = spendingForecast,
             monthlyHistory = monthlyHistory.orEmpty(),
             timelineLockReason = timelineLockReason,
-            isLoading = isAnalysisLoading,
+            isLoading = isHomeDataLoading || monthlyHistory == null,
             onNavigateBack = { navController.popBackStack() },
             onNavigateToSettings = if (usesVerticalNavigation) null else {
                 { navController.navigate(Screen.Settings.route) }

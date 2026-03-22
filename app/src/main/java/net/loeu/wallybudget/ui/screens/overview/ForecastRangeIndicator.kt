@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.loeu.wallybudget.ui.CurrencyPlaceholderSamples
 
 private const val MIN_VISUALIZATION_RANGE_CENTS = 100L
 
@@ -309,7 +310,7 @@ private fun ForecastRangeIndicatorPlaceholder(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 LoadingValuePlaceholder(
-                    sampleText = "$8,888",
+                    sampleText = CurrencyPlaceholderSamples.amount(888_800L),
                     textStyle = MaterialTheme.typography.bodySmall.copy(fontSize = (12 * scale).sp),
                     textAlign = TextAlign.Start
                 )
@@ -321,7 +322,7 @@ private fun ForecastRangeIndicatorPlaceholder(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 LoadingValuePlaceholder(
-                    sampleText = "$8,888",
+                    sampleText = CurrencyPlaceholderSamples.amount(888_800L),
                     textStyle = MaterialTheme.typography.titleMedium.copy(fontSize = (18 * scale).sp),
                     textAlign = TextAlign.Center
                 )
@@ -333,7 +334,7 @@ private fun ForecastRangeIndicatorPlaceholder(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 LoadingValuePlaceholder(
-                    sampleText = "$8,888",
+                    sampleText = CurrencyPlaceholderSamples.amount(888_800L),
                     textStyle = MaterialTheme.typography.bodySmall.copy(fontSize = (12 * scale).sp),
                     textAlign = TextAlign.End
                 )

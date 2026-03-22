@@ -15,7 +15,9 @@ data class SnapshotEnvelopeV1(
     val expenses: List<SnapshotExpenseRecordV1>,
     val budgetBuckets: List<SnapshotBudgetBucketRecordV3>? = null,
     val bucketAllocationPolicies: List<SnapshotBucketAllocationPolicyRecordV3>? = null,
-    val bucketAllocationAdjustments: List<SnapshotBucketAllocationAdjustmentRecordV3>? = null
+    val bucketAllocationAdjustments: List<SnapshotBucketAllocationAdjustmentRecordV3>? = null,
+    val funds: List<SnapshotFundRecordV5>? = null,
+    val fundTransactions: List<SnapshotFundTransactionRecordV5>? = null
 )
 
 data class SnapshotSettingsRecordV1(
@@ -123,4 +125,29 @@ data class SnapshotBucketAllocationAdjustmentRecordV3(
     val updatedAtEpochMs: Long,
     val deletedAtEpochMs: Long?,
     val modClock: String
+)
+
+data class SnapshotFundRecordV5(
+    val uuid: String,
+    val name: String,
+    val balanceCents: Long,
+    val allocationPerCycleCents: Long,
+    val targetAmountCents: Long?,
+    val sortOrder: Int,
+    val originInstallId: String,
+    val lastModifiedByInstallId: String,
+    val createdAtEpochMs: Long,
+    val updatedAtEpochMs: Long,
+    val closedAtEpochMs: Long?,
+    val deletedAtEpochMs: Long?,
+    val modClock: String
+)
+
+data class SnapshotFundTransactionRecordV5(
+    val uuid: String,
+    val fundUuid: String,
+    val amountCents: Long,
+    val type: String,
+    val description: String,
+    val dateEpochMs: Long
 )

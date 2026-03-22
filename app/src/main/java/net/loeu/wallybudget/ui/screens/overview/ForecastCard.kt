@@ -22,8 +22,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.BudgetState
-import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.config.ForecastConfig
+import net.loeu.wallybudget.domain.model.SpendingForecast
+import net.loeu.wallybudget.ui.CurrencyPlaceholderSamples
 
 @Composable
 fun ForecastCard(
@@ -150,7 +151,7 @@ private fun ForecastCardSummary(
             animate = true,
             textAlign = TextAlign.Start,
             placeholder = isLoading,
-            placeholderText = "$8,888"
+            placeholderText = CurrencyPlaceholderSamples.amount(888_800L)
         )
     }
 }
