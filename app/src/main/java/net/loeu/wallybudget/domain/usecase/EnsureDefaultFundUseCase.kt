@@ -43,19 +43,34 @@ class EnsureDefaultFundUseCase(
                     )
                 }
 
-                existing.closedAtEpochMs != null || existing.deletedAtEpochMs != null || existing.sortOrder != 0 -> {
+                shouldNormalize(existing) -> {
+                    val normalizedClock = if (existing.modClock.isBlank()) {
+                        hybridLogicalClockService.format(nowEpochMs, 0, installId)
+                    } else {
+                        hybridLogicalClockService.next(existing.modClock, nowEpochMs, installId)
+                    }
                     fundDao.update(
                         existing.copy(
                             closedAtEpochMs = null,
                             deletedAtEpochMs = null,
                             sortOrder = 0,
+                            originInstallId = existing.originInstallId.ifBlank { installId },
                             updatedAtEpochMs = nowEpochMs,
                             lastModifiedByInstallId = installId,
-                            modClock = hybridLogicalClockService.next(existing.modClock, nowEpochMs, installId)
+                            modClock = normalizedClock
                         )
                     )
                 }
             }
         }
+    }
+
+    private fun shouldNormalize(existing: net.loeu.wallybudget.data.local.entity.FundEntity): Boolean {
+        return existing.closedAtEpochMs != null ||
+            existing.deletedAtEpochMs != null ||
+            existing.sortOrder != 0 ||
+            existing.originInstallId.isBlank() ||
+            existing.lastModifiedByInstallId.isBlank() ||
+            existing.modClock.isBlank()
     }
 }

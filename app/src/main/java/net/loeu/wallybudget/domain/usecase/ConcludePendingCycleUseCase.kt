@@ -1,6 +1,7 @@
 package net.loeu.wallybudget.domain.usecase
 
 import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
+import net.loeu.wallybudget.data.local.dao.BucketAllocationAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
@@ -9,15 +10,20 @@ import net.loeu.wallybudget.data.local.dao.FundTransactionDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
 import net.loeu.wallybudget.data.local.db.TransactionRunner
 import net.loeu.wallybudget.data.local.entity.FundTransactionEntity
+import net.loeu.wallybudget.data.local.entity.toDomainModel as bucketAdjustmentToDomainModel
 import net.loeu.wallybudget.data.local.entity.toDomainModel as adjustmentToDomainModel
 import net.loeu.wallybudget.data.local.entity.toDomainModel as policyToDomainModel
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
+import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.FundTransactionType
 import net.loeu.wallybudget.domain.model.UserSettings
+import net.loeu.wallybudget.domain.service.BucketAllocationResolver
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
+import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import net.loeu.wallybudget.domain.usecase.internal.archiveCycleIfNeeded
+import net.loeu.wallybudget.domain.usecase.internal.emptyBucketAllocationAdjustmentDao
 import net.loeu.wallybudget.domain.usecase.internal.emptyBucketAllocationPolicyDao
 import net.loeu.wallybudget.domain.usecase.internal.emptyFundDao
 import net.loeu.wallybudget.domain.usecase.internal.emptyFundTransactionDao
@@ -31,6 +37,7 @@ class ConcludePendingCycleUseCase(
     private val budgetPolicyDao: BudgetPolicyDao,
     private val budgetAdjustmentDao: BudgetAdjustmentDao,
     private val bucketAllocationPolicyDao: BucketAllocationPolicyDao = emptyBucketAllocationPolicyDao,
+    private val bucketAllocationAdjustmentDao: BucketAllocationAdjustmentDao = emptyBucketAllocationAdjustmentDao,
     private val monthlyHistoryDao: MonthlyHistoryDao,
     private val fundDao: FundDao = emptyFundDao,
     private val fundTransactionDao: FundTransactionDao = emptyFundTransactionDao,
@@ -38,10 +45,13 @@ class ConcludePendingCycleUseCase(
     private val budgetCalculationService: BudgetCalculationService,
     private val cycleScheduleResolver: CycleScheduleResolver,
     private val budgetAdjustmentResolver: BudgetAdjustmentResolver,
+    private val bucketAllocationResolver: BucketAllocationResolver,
+    private val hybridLogicalClockService: HybridLogicalClockService,
     private val rebuildBucketMonthlyHistoryUseCase: RebuildBucketMonthlyHistoryUseCase
 ) {
     suspend operator fun invoke(settings: UserSettings) {
         val pendingCycle = settings.pendingCycleRangeOrNull() ?: return
+        val identitySettings = userSettingsStore.ensureIdentity()
         transactionRunner.inTransaction {
             val policies = budgetPolicyDao.getAllForSnapshot()
                 .filter { it.deletedAtEpochMs == null }
@@ -66,7 +76,7 @@ class ConcludePendingCycleUseCase(
             )
             distributeCycleCloseoutToFunds(
                 pendingCycle = pendingCycle,
-                settings = settings
+                installId = identitySettings.installDeviceId
             )
         }
         userSettingsStore.clearPendingCycle()
@@ -75,45 +85,44 @@ class ConcludePendingCycleUseCase(
 
     private suspend fun distributeCycleCloseoutToFunds(
         pendingCycle: net.loeu.wallybudget.domain.usecase.internal.CycleRange,
-        settings: UserSettings
+        installId: String
     ) {
-        val cyclePolicies = budgetPolicyDao.getAllForSnapshot()
-            .filter { it.deletedAtEpochMs == null }
-            .map { it.policyToDomainModel() }
-        val cyclePolicy = cycleScheduleResolver.policyForCycleStart(
-            cycleStart = pendingCycle.start,
-            settings = settings,
-            policies = cyclePolicies
-        )
-        val cycleExpenses = expenseDao.getAllForSnapshot()
-            .filter { it.deletedAtEpochMs == null }
-            .filter {
-                it.expenseDate >= pendingCycle.start.toString() &&
-                    it.expenseDate < pendingCycle.endExclusive.toString()
-            }
-        val bucketPolicies = bucketAllocationPolicyDao.getAllForSnapshot()
-            .filter { it.deletedAtEpochMs == null && it.cycleStartDate == pendingCycle.start.toString() }
         val activeFunds = fundDao.getAllActive()
         if (activeFunds.isEmpty()) return
 
-        val totalSurplusCents = bucketPolicies.sumOf { policy ->
-            val spent = cycleExpenses
-                .filter { it.bucketUuid == policy.bucketUuid && it.deletedAtEpochMs == null }
-                .sumOf { it.amountCents }
-            (policy.allocatedAmountCents - spent).coerceAtLeast(0L)
-        }
+        val totalSurplusCents = calculateCycleCloseoutSurplusCents(pendingCycle)
+        depositCloseoutAmounts(
+            activeFunds = activeFunds,
+            totalSurplusCents = totalSurplusCents,
+            closeoutEpochMs = pendingCycle.endExclusive.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+            installId = installId
+        )
+    }
 
-        val totalFundAllocationCents = activeFunds.sumOf { it.allocationPerCycleCents }
-        val closeoutEpochMs = pendingCycle.endExclusive.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    private suspend fun depositCloseoutAmounts(
+        activeFunds: List<net.loeu.wallybudget.data.local.entity.FundEntity>,
+        totalSurplusCents: Long,
+        closeoutEpochMs: Long,
+        installId: String
+    ) {
+        val sortedFunds = activeFunds.sortedWith(compareBy({ it.sortOrder }, { it.createdAtEpochMs }, { it.uuid }))
+        val totalFundAllocationCents = sortedFunds.sumOf { it.allocationPerCycleCents }
         var remainderCents = totalSurplusCents
+        val zeroAllocationSurplusRecipientUuid = sortedFunds.firstOrNull { it.uuid == DEFAULT_FUND_UUID }?.uuid
+            ?: sortedFunds.first().uuid
 
-        activeFunds.sortedBy { it.sortOrder }.forEachIndexed { index, fund ->
-            val surplusShare = when {
-                totalSurplusCents <= 0L || totalFundAllocationCents <= 0L -> 0L
-                index == activeFunds.lastIndex -> remainderCents
-                else -> ((totalSurplusCents * fund.allocationPerCycleCents) / totalFundAllocationCents).also {
-                    remainderCents -= it
-                }
+        sortedFunds.forEachIndexed { index, fund ->
+            val surplusShare = resolveSurplusShare(
+                fund = fund,
+                index = index,
+                lastIndex = sortedFunds.lastIndex,
+                totalSurplusCents = totalSurplusCents,
+                totalFundAllocationCents = totalFundAllocationCents,
+                zeroAllocationSurplusRecipientUuid = zeroAllocationSurplusRecipientUuid,
+                remainderCents = remainderCents
+            )
+            if (totalSurplusCents > 0L && totalFundAllocationCents > 0L && index != sortedFunds.lastIndex) {
+                remainderCents -= surplusShare
             }
             val depositAmount = fund.allocationPerCycleCents + surplusShare
             if (depositAmount <= 0L) return@forEachIndexed
@@ -131,9 +140,63 @@ class ConcludePendingCycleUseCase(
             fundDao.update(
                 fund.copy(
                     balanceCents = fund.balanceCents + depositAmount,
-                    updatedAtEpochMs = closeoutEpochMs
+                    updatedAtEpochMs = closeoutEpochMs,
+                    lastModifiedByInstallId = installId,
+                    modClock = hybridLogicalClockService.next(fund.modClock, closeoutEpochMs, installId)
                 )
             )
+        }
+    }
+
+    private suspend fun calculateCycleCloseoutSurplusCents(
+        pendingCycle: net.loeu.wallybudget.domain.usecase.internal.CycleRange
+    ): Long {
+        val cycleExpenses = expenseDao.getAllForSnapshot()
+            .filter { it.deletedAtEpochMs == null }
+            .filter {
+                it.expenseDate >= pendingCycle.start.toString() &&
+                    it.expenseDate < pendingCycle.endExclusive.toString()
+            }
+        val bucketPolicies = bucketAllocationPolicyDao.getAllForSnapshot()
+            .filter { it.deletedAtEpochMs == null && it.cycleStartDate == pendingCycle.start.toString() }
+
+        return bucketPolicies.sumOf { policy ->
+            val adjustments = bucketAllocationAdjustmentDao.getActiveForCycle(
+                bucketUuid = policy.bucketUuid,
+                cycleStartDate = policy.cycleStartDate
+            ).map { it.bucketAdjustmentToDomainModel() }
+            val effectiveAllocatedAmount = bucketAllocationResolver.resolveEffectiveCycleAllocationAmount(
+                cycleStart = pendingCycle.start,
+                cycleEndExclusive = pendingCycle.endExclusive,
+                baseAllocatedAmountCents = policy.allocatedAmountCents,
+                adjustments = adjustments
+            )
+            val spent = cycleExpenses
+                .asSequence()
+                .filter { it.bucketUuid == policy.bucketUuid }
+                .sumOf { it.amountCents }
+            (effectiveAllocatedAmount - spent).coerceAtLeast(0L)
+        }
+    }
+
+    private fun resolveSurplusShare(
+        fund: net.loeu.wallybudget.data.local.entity.FundEntity,
+        index: Int,
+        lastIndex: Int,
+        totalSurplusCents: Long,
+        totalFundAllocationCents: Long,
+        zeroAllocationSurplusRecipientUuid: String,
+        remainderCents: Long
+    ): Long {
+        return when {
+            totalSurplusCents <= 0L -> 0L
+            totalFundAllocationCents <= 0L -> if (fund.uuid == zeroAllocationSurplusRecipientUuid) {
+                totalSurplusCents
+            } else {
+                0L
+            }
+            index == lastIndex -> remainderCents
+            else -> (totalSurplusCents * fund.allocationPerCycleCents) / totalFundAllocationCents
         }
     }
 }

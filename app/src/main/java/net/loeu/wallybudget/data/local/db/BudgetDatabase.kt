@@ -919,9 +919,13 @@ abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_fund_transactions_fundUuid` ON `fund_transactions` (`fundUuid`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_fund_transactions_dateEpochMs` ON `fund_transactions` (`dateEpochMs`)")
 
-                // Some existing version-11 databases do not carry legacy reserve columns consistently.
-                // Falling back to zero here avoids upgrade crashes; the default fund still gets created.
-                val migratedBalanceCents = 0L
+                val migratedBalanceCents = try {
+                    db.query("SELECT COALESCE(SUM(surplusCents), 0) FROM `monthly_history`").use { cursor ->
+                        if (cursor.moveToFirst()) cursor.getLong(0).coerceAtLeast(0L) else 0L
+                    }
+                } catch (_: Exception) {
+                    0L
+                }
 
                 db.execSQL(
                     """
@@ -947,33 +951,47 @@ abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
                         0,
                         NULL,
                         0,
-                        COALESCE(
-                            (SELECT originInstallId FROM budget_buckets ORDER BY createdAtEpochMs ASC LIMIT 1),
-                            (SELECT originInstallId FROM budget_policies ORDER BY createdAtEpochMs ASC LIMIT 1),
-                            ''
-                        ),
-                        COALESCE(
-                            (SELECT lastModifiedByInstallId FROM budget_buckets ORDER BY updatedAtEpochMs DESC LIMIT 1),
-                            (SELECT lastModifiedByInstallId FROM budget_policies ORDER BY updatedAtEpochMs DESC LIMIT 1),
-                            ''
-                        ),
-                        COALESCE(
-                            (SELECT MIN(createdAtEpochMs) FROM budget_buckets),
-                            (SELECT MIN(createdAtEpochMs) FROM budget_policies),
-                            0
-                        ),
-                        COALESCE(
-                            (SELECT MAX(updatedAtEpochMs) FROM budget_buckets),
-                            (SELECT MAX(updatedAtEpochMs) FROM budget_policies),
-                            0
-                        ),
+                        seed.originInstallId,
+                        seed.lastModifiedByInstallId,
+                        seed.createdAtEpochMs,
+                        seed.updatedAtEpochMs,
                         NULL,
                         NULL,
-                        COALESCE(
-                            (SELECT modClock FROM budget_buckets ORDER BY updatedAtEpochMs DESC LIMIT 1),
-                            (SELECT modClock FROM budget_policies ORDER BY updatedAtEpochMs DESC LIMIT 1),
-                            ''
-                        )
+                        seed.modClock
+                    FROM (
+                        SELECT
+                            COALESCE(
+                                NULLIF((SELECT originInstallId FROM budget_buckets ORDER BY createdAtEpochMs ASC LIMIT 1), ''),
+                                NULLIF((SELECT originInstallId FROM budget_policies ORDER BY createdAtEpochMs ASC LIMIT 1), '')
+                            ) AS originInstallId,
+                            COALESCE(
+                                NULLIF(
+                                    (SELECT lastModifiedByInstallId FROM budget_buckets ORDER BY updatedAtEpochMs DESC LIMIT 1),
+                                    ''
+                                ),
+                                NULLIF(
+                                    (SELECT lastModifiedByInstallId FROM budget_policies ORDER BY updatedAtEpochMs DESC LIMIT 1),
+                                    ''
+                                )
+                            ) AS lastModifiedByInstallId,
+                            COALESCE(
+                                (SELECT MIN(createdAtEpochMs) FROM budget_buckets),
+                                (SELECT MIN(createdAtEpochMs) FROM budget_policies),
+                                0
+                            ) AS createdAtEpochMs,
+                            COALESCE(
+                                (SELECT MAX(updatedAtEpochMs) FROM budget_buckets),
+                                (SELECT MAX(updatedAtEpochMs) FROM budget_policies),
+                                0
+                            ) AS updatedAtEpochMs,
+                            COALESCE(
+                                NULLIF((SELECT modClock FROM budget_buckets ORDER BY updatedAtEpochMs DESC LIMIT 1), ''),
+                                NULLIF((SELECT modClock FROM budget_policies ORDER BY updatedAtEpochMs DESC LIMIT 1), '')
+                            ) AS modClock
+                    ) AS seed
+                    WHERE seed.originInstallId IS NOT NULL
+                        AND seed.lastModifiedByInstallId IS NOT NULL
+                        AND seed.modClock IS NOT NULL
                     """.trimIndent()
                 )
             }

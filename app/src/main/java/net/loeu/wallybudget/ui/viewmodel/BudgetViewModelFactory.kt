@@ -323,6 +323,7 @@ class BudgetViewModelFactory(
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = budgetAdjustmentDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
             monthlyHistoryDao = monthlyHistoryDao,
             fundDao = fundDao,
             fundTransactionDao = fundTransactionDao,
@@ -330,6 +331,8 @@ class BudgetViewModelFactory(
             budgetCalculationService = budgetCalculationService,
             cycleScheduleResolver = cycleScheduleResolver,
             budgetAdjustmentResolver = budgetAdjustmentResolver,
+            bucketAllocationResolver = bucketAllocationResolver,
+            hybridLogicalClockService = hybridLogicalClockService,
             rebuildBucketMonthlyHistoryUseCase = rebuildBucketMonthlyHistoryUseCase
         )
     }
