@@ -909,7 +909,7 @@ abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
                         `fundUuid` TEXT NOT NULL,
                         `amountCents` INTEGER NOT NULL,
                         `type` TEXT NOT NULL,
-                        `description` TEXT NOT NULL DEFAULT '',
+                        `description` TEXT NOT NULL,
                         `dateEpochMs` INTEGER NOT NULL,
                         PRIMARY KEY(`uuid`),
                         FOREIGN KEY(`fundUuid`) REFERENCES `funds`(`uuid`) ON UPDATE NO ACTION ON DELETE NO ACTION

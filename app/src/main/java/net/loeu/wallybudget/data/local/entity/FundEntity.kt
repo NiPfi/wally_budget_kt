@@ -1,5 +1,6 @@
 package net.loeu.wallybudget.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -17,9 +18,12 @@ data class FundEntity(
     @PrimaryKey
     val uuid: String,
     val name: String,
+    @ColumnInfo(defaultValue = "0")
     val balanceCents: Long,
+    @ColumnInfo(defaultValue = "0")
     val allocationPerCycleCents: Long,
     val targetAmountCents: Long?,
+    @ColumnInfo(defaultValue = "0")
     val sortOrder: Int,
     val originInstallId: String,
     val lastModifiedByInstallId: String,

@@ -100,10 +100,6 @@ internal fun buildBudgetState(
     budgetAdjustmentResolver: BudgetAdjustmentResolver,
     budgetCalculationService: BudgetCalculationService
 ): BudgetState {
-    val currentCycleRange = net.loeu.wallybudget.domain.service.CycleDateRange(
-        start = cyclePolicy.cycleStart,
-        endExclusive = minOf(today.plusDays(1), cyclePolicy.cycleEndExclusive)
-    )
     val resolvedCycleBudget = budgetAdjustmentResolver.resolveCycleBudget(
         cycleStart = cyclePolicy.cycleStart,
         cycleEndExclusive = cyclePolicy.cycleEndExclusive,
