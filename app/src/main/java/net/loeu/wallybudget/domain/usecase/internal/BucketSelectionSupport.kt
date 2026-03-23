@@ -3,7 +3,7 @@ package net.loeu.wallybudget.domain.usecase.internal
 import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 
-fun resolveSelectedOpenBucketUuid(
+internal fun resolveSelectedOpenBucketUuid(
     selectedBucketUuid: String?,
     openBuckets: List<BudgetBucket>
 ): String? {
@@ -15,7 +15,7 @@ fun resolveSelectedOpenBucketUuid(
     }
 }
 
-fun resolveSelectedOpenBucket(
+internal fun resolveSelectedOpenBucket(
     selectedBucketUuid: String?,
     openBuckets: List<BudgetBucket>
 ): BudgetBucket? {
