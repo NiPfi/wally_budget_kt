@@ -276,22 +276,32 @@ fun HomeScreen(
         onDismiss = onHideAddExpenseSheet,
         onAddExpense = onAddExpense
     )
-    HomeBucketSettingsSheet(
+    BucketEditorSheet(
         state = bucketEditorState,
         allBuckets = allBuckets,
         bucketSummaries = bucketSummaries,
         portfolioBudgetCents = userSettings.resolvedPortfolioMonthlyBudgetCents,
-        onDismiss = { bucketEditorState = null },
-        onSaveSettings = { updatedBucketDraft ->
-            onSavePortfolioPlan(
-                userSettings.resolvedPortfolioMonthlyBudgetCents,
-                buildUpdatedHomeBucketDrafts(
-                    allBuckets = allBuckets,
-                    bucketSummaries = bucketSummaries,
-                    updatedBucketDraft = updatedBucketDraft
-                )
-            )
-            bucketEditorState = null
+        onRequestDismiss = { bucketEditorState = null },
+        onSubmit = { updatedBucketDraft ->
+            when (val result = buildFreshUpdatedBucketDrafts(
+                allBuckets = allBuckets,
+                bucketSummaries = bucketSummaries,
+                updatedBucketDraft = updatedBucketDraft
+            )) {
+                is BucketDraftBuildResult.Success -> {
+                    onSavePortfolioPlan(
+                        userSettings.resolvedPortfolioMonthlyBudgetCents,
+                        result.drafts
+                    )
+                    bucketEditorState = null
+                }
+                BucketDraftBuildResult.BucketChanged -> {
+                    bucketEditorState = null
+                    scope.launch {
+                        snackbarHostState.showSnackbar(BUCKET_CHANGED_SNACKBAR_MESSAGE)
+                    }
+                }
+            }
         }
     )
     EditExpenseSheetDialog(
@@ -345,6 +355,7 @@ internal fun PortfolioOverviewPage(
     portfolioState: PortfolioState,
     bucketSummaries: List<BucketSummaryState>,
     funds: List<Fund>,
+    onEditBucket: (String) -> Unit,
     showTopRightSettingsAction: Boolean,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
@@ -384,7 +395,10 @@ internal fun PortfolioOverviewPage(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                ActiveBucketsSection(bucketSummaries = bucketSummaries)
+                ActiveBucketsSection(
+                    bucketSummaries = bucketSummaries,
+                    onEditBucket = onEditBucket
+                )
             }
             item {
                 FundsSection(funds = funds)
@@ -439,38 +453,6 @@ private fun PortfolioSummaryCard(
                         "unassigned plan",
                     style = MaterialTheme.typography.bodySmall,
                     color = contentColor.copy(alpha = 0.72f)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ActiveBucketsSection(bucketSummaries: List<BucketSummaryState>) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        SectionHeading("Active buckets")
-        bucketSummaries.forEachIndexed { index, summary ->
-            if (index > 0) {
-                HorizontalDivider()
-            }
-            Column(
-                modifier = Modifier.padding(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = summary.bucket.name,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "${CurrencyFormatter.format(summary.allocatedThisCycleCents)} allocated · " +
-                        "${CurrencyFormatter.format(summary.spentThisCycleCents)} spent · " +
-                        CurrencyFormatter.formatSigned(summary.remainingThisCycleCents),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
