@@ -147,16 +147,14 @@ class ConcludePendingCycleUseCase(
     private suspend fun calculateCycleCloseoutSurplusCents(
         pendingCycle: CycleRange
     ): Long {
-        val cycleExpenses = expenseDao.getInRange(
+        val spentByBucketUuid = expenseDao.totalSpentPerBucketInRange(
             startDateInclusive = pendingCycle.start.toString(),
             endDateExclusive = pendingCycle.endExclusive.toString()
-        )
-        val spentByBucketUuid = cycleExpenses.groupBy { it.bucketUuid }
-            .mapValues { (_, expenses) -> expenses.sumOf { it.amountCents } }
+        ).associate { it.bucketUuid to it.totalSpentCents }
         val bucketPolicies = bucketAllocationPolicyDao.getAllForSnapshot()
             .filter { it.deletedAtEpochMs == null && it.cycleStartDate == pendingCycle.start.toString() }
 
-        return bucketPolicies.sumOf { policy ->
+        val netSurplusCents = bucketPolicies.sumOf { policy ->
             val adjustments = bucketAllocationAdjustmentDao.getActiveForCycle(
                 bucketUuid = policy.bucketUuid,
                 cycleStartDate = policy.cycleStartDate
@@ -168,8 +166,9 @@ class ConcludePendingCycleUseCase(
                 adjustments = adjustments
             )
             val spent = spentByBucketUuid[policy.bucketUuid] ?: 0L
-            (effectiveAllocatedAmount - spent).coerceAtLeast(0L)
+            effectiveAllocatedAmount - spent
         }
+        return netSurplusCents.coerceAtLeast(0L)
     }
 
     private fun resolveSurplusShare(

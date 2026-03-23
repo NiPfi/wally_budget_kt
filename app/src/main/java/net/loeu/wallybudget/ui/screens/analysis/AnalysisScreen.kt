@@ -66,10 +66,10 @@ fun AnalysisScreen(
         timelineLockReason,
         isLoading
     ) {
-        if (!isLoading) {
+        if (!isLoading && budgetState != null && spendingForecast != null) {
             AnalysisSnapshotFactory.create(
-                budgetState = requireNotNull(budgetState),
-                spendingForecast = requireNotNull(spendingForecast),
+                budgetState = budgetState,
+                spendingForecast = spendingForecast,
                 monthlyHistory = monthlyHistory,
                 timelineLockReason = timelineLockReason
             )
