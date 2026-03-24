@@ -30,22 +30,17 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -54,23 +49,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.window.core.layout.WindowSizeClass.Companion.WIDTH_DP_MEDIUM_LOWER_BOUND
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import net.loeu.wallybudget.R
-import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.Expense
-import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.ExpenseCycleSection
-import net.loeu.wallybudget.domain.model.recordedDate
 import net.loeu.wallybudget.domain.model.ExpenseDaySection
 import net.loeu.wallybudget.ui.components.PagerDots
 import net.loeu.wallybudget.ui.components.TimelineLockBanner
 import net.loeu.wallybudget.ui.screens.expenses.ExpenseItem
-import net.loeu.wallybudget.ui.screens.home.AddExpenseSheet
 import net.loeu.wallybudget.util.CurrencyFormatter
-import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import kotlin.math.abs
 
 @OptIn(
     ExperimentalMaterial3Api::class,
@@ -81,12 +68,6 @@ import kotlin.math.abs
 fun HistoryScreen(
     historySections: List<ExpenseCycleSection>,
     historyBucketNameByUuid: Map<String, String>,
-    allBuckets: List<BudgetBucket>,
-    selectedBucketUuid: String?,
-    onAddExpense: (String, Long, String, ExpenseCategory?, LocalDate) -> Unit,
-    onRestoreExpense: (Expense) -> Unit,
-    onUpdateExpense: (Expense) -> Unit,
-    onDeleteExpense: (Expense) -> Unit,
     modifier: Modifier = Modifier,
     onNavigateToSettings: (() -> Unit)? = null,
     embedded: Boolean = false,
@@ -101,20 +82,13 @@ fun HistoryScreen(
         compactPagerSections.size.coerceAtLeast(1)
     }
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    val selectedDateEpochDay = rememberSaveable { mutableLongStateOf(LocalDate.now().toEpochDay()) }
-    var showInitialSwipeHint by rememberSaveable { mutableStateOf(true) }
-    var isAddSheetVisible by remember { mutableStateOf(false) }
-    var expenseBeingEdited by remember { mutableStateOf<Expense?>(null) }
+    val showInitialSwipeHint = rememberSaveable { mutableStateOf(true) }
     HistoryScreenEffects(
         interactionsEnabled = interactionsEnabled,
         currentPage = pagerState.currentPage,
         pageCount = compactPagerSections.size,
-        onResetEditing = {
-            expenseBeingEdited = null
-            isAddSheetVisible = false
-        },
-        onDismissInitialSwipeHint = { showInitialSwipeHint = false }
+        onResetEditing = {},
+        onDismissInitialSwipeHint = { showInitialSwipeHint.value = false }
     )
 
     HistoryScreenScaffold(
@@ -125,38 +99,11 @@ fun HistoryScreen(
         modifier = modifier,
         embedded = embedded,
         isCompact = isCompact,
-        showInitialSwipeHint = showInitialSwipeHint,
+        showInitialSwipeHint = showInitialSwipeHint.value,
         snackbarHostState = snackbarHostState,
         timelineLockReason = timelineLockReason,
         onNavigateToSettings = onNavigateToSettings,
-        onEditExpense = { expenseBeingEdited = it },
-        onAddExpenseForDate = { date ->
-            selectedDateEpochDay.longValue = date.toEpochDay()
-            isAddSheetVisible = true
-        },
         historyBucketNameByUuid = historyBucketNameByUuid
-    )
-
-    HistoryAddExpenseSheet(
-        isAddSheetVisible = isAddSheetVisible,
-        interactionsEnabled = interactionsEnabled,
-        selectedDateEpochDay = selectedDateEpochDay.longValue,
-        allBuckets = allBuckets,
-        selectedBucketUuid = selectedBucketUuid,
-        onDismiss = { isAddSheetVisible = false },
-        onAddExpense = onAddExpense
-    )
-
-    HistoryEditExpenseSheet(
-        editingExpense = expenseBeingEdited,
-        interactionsEnabled = interactionsEnabled,
-        allBuckets = allBuckets,
-        snackbarHostState = snackbarHostState,
-        scope = scope,
-        onDismiss = { expenseBeingEdited = null },
-        onUpdateExpense = onUpdateExpense,
-        onDeleteExpense = onDeleteExpense,
-        onRestoreExpense = onRestoreExpense
     )
 }
 
@@ -197,8 +144,7 @@ fun CycleLedgerScreen(
     section: ExpenseCycleSection,
     title: String,
     historyBucketNameByUuid: Map<String, String>,
-    onEditExpense: (Expense) -> Unit,
-    onAddExpenseForDate: (LocalDate) -> Unit,
+    onEditExpense: ((Expense) -> Unit)?,
     modifier: Modifier = Modifier,
     onNavigateBack: (() -> Unit)? = null
 ) {
@@ -229,7 +175,6 @@ fun CycleLedgerScreen(
                 section = section,
                 historyBucketNameByUuid = historyBucketNameByUuid,
                 onEditExpense = onEditExpense,
-                onAddExpenseForDate = onAddExpenseForDate,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .widthIn(max = 760.dp)
@@ -250,8 +195,7 @@ fun CycleLedgerScreen(
 internal fun CycleLedgerPage(
     section: ExpenseCycleSection,
     historyBucketNameByUuid: Map<String, String>,
-    onEditExpense: (Expense) -> Unit,
-    onAddExpenseForDate: (LocalDate) -> Unit,
+    onEditExpense: ((Expense) -> Unit)?,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(bottom = 24.dp)
 ) {
@@ -269,8 +213,7 @@ internal fun CycleLedgerPage(
             LedgerDaySection(
                 daySection = daySection,
                 historyBucketNameByUuid = historyBucketNameByUuid,
-                onEditExpense = onEditExpense,
-                onAddExpenseForDate = onAddExpenseForDate
+                onEditExpense = onEditExpense
             )
         }
     }
@@ -401,8 +344,7 @@ internal fun CycleHeader(
 internal fun LedgerDaySection(
     daySection: ExpenseDaySection,
     historyBucketNameByUuid: Map<String, String>,
-    onEditExpense: (Expense) -> Unit,
-    onAddExpenseForDate: (LocalDate) -> Unit
+    onEditExpense: ((Expense) -> Unit)?
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(
@@ -426,17 +368,6 @@ internal fun LedgerDaySection(
                     color = MaterialTheme.colorScheme.primary
                 )
             }
-            if (daySection.isEditable && !daySection.isToday) {
-                IconButton(
-                    onClick = { onAddExpenseForDate(daySection.date) },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_add),
-                        contentDescription = "Add expense for ${daySection.date}"
-                    )
-                }
-            }
         }
 
         if (daySection.expenses.isEmpty()) {
@@ -451,7 +382,7 @@ internal fun LedgerDaySection(
                 ExpenseItem(
                     expense = expense,
                     secondaryText = historyBucketNameByUuid[expense.bucketUuid],
-                    onEdit = if (daySection.isEditable) {
+                    onEdit = if (daySection.isEditable && onEditExpense != null) {
                         { onEditExpense(expense) }
                     } else {
                         null
