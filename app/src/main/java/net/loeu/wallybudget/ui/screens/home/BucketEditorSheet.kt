@@ -2,6 +2,7 @@
 
 package net.loeu.wallybudget.ui.screens.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -219,16 +221,18 @@ private fun BucketEditorHeader(
         )
         if (canCloseBucket) {
             Column(
+                modifier = Modifier
+                    .testTag("bucket_editor_close_action")
+                    .clickable(onClick = onRequestClose)
+                    .padding(8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                IconButton(onClick = onRequestClose) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_delete),
-                        contentDescription = "Close bucket",
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
+                Icon(
+                    painter = painterResource(R.drawable.ic_delete),
+                    contentDescription = "Close bucket",
+                    tint = MaterialTheme.colorScheme.error
+                )
                 Text(
                     text = "Close bucket",
                     style = MaterialTheme.typography.labelMedium,

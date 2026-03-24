@@ -355,6 +355,7 @@ internal fun PortfolioOverviewPage(
     portfolioState: PortfolioState,
     bucketSummaries: List<BucketSummaryState>,
     funds: List<Fund>,
+    bucketInteractionsEnabled: Boolean = true,
     onEditBucket: (String) -> Unit,
     showTopRightSettingsAction: Boolean,
     onNavigateToSettings: () -> Unit,
@@ -397,6 +398,7 @@ internal fun PortfolioOverviewPage(
             item {
                 ActiveBucketsSection(
                     bucketSummaries = bucketSummaries,
+                    enabled = bucketInteractionsEnabled,
                     onEditBucket = onEditBucket
                 )
             }

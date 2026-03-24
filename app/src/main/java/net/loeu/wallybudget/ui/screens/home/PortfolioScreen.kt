@@ -43,17 +43,25 @@ fun PortfolioScreen(
     interactionsEnabled: Boolean = true
 ) {
     var showAddBucketDialog by rememberSaveable { mutableStateOf(false) }
-    var editingBucketUuid by rememberSaveable { mutableStateOf<String?>(null) }
+    var editingBucketState by remember { mutableStateOf<HomeBucketEditorState?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val orderedOpenSummaries = remember(bucketSummaries) {
         bucketSummaries.filterNot { it.bucket.isClosed }
     }
-    val editingBucketState = rememberPortfolioBucketEditorState(
-        editingBucketUuid = editingBucketUuid,
-        allBuckets = allBuckets,
-        bucketSummaries = bucketSummaries
-    )
+
+    fun openBucketEditor(bucketUuid: String) {
+        val bucket = allBuckets.firstOrNull { it.bucketUuid == bucketUuid }?.takeIf { !it.isClosed } ?: return
+        val summary = bucketSummaries.firstOrNull { it.bucket.bucketUuid == bucketUuid }
+        editingBucketState = HomeBucketEditorState(
+            bucketUuid = bucket.bucketUuid,
+            name = bucket.name,
+            amountText = CurrencyFormatter.centsToDecimalString(
+                summary?.allocatedThisCycleCents ?: bucket.defaultAllocatedAmountCents
+            ),
+            isSystemDefault = bucket.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID
+        )
+    }
 
     Scaffold(
         modifier = modifier,
@@ -80,7 +88,7 @@ fun PortfolioScreen(
             bucketSummaries = orderedOpenSummaries,
             funds = funds,
             interactionsEnabled = interactionsEnabled,
-            onEditBucket = { editingBucketUuid = it },
+            onEditBucket = ::openBucketEditor,
             showTopRightSettingsAction = showTopRightSettingsAction,
             onNavigateToSettings = onNavigateToSettings,
             modifier = Modifier.padding(paddingValues)
@@ -91,7 +99,7 @@ fun PortfolioScreen(
         showAddBucketDialog = showAddBucketDialog,
         onDismissAddBucket = { showAddBucketDialog = false },
         editingBucketState = editingBucketState,
-        onDismissEditBucket = { editingBucketUuid = null },
+        onDismissEditBucket = { editingBucketState = null },
         portfolioBudgetCents = userSettings.resolvedPortfolioMonthlyBudgetCents,
         allBuckets = allBuckets,
         bucketSummaries = bucketSummaries,
@@ -99,30 +107,6 @@ fun PortfolioScreen(
         onSavePortfolioPlan = onSavePortfolioPlan,
         scope = scope
     )
-}
-
-@Composable
-private fun rememberPortfolioBucketEditorState(
-    editingBucketUuid: String?,
-    allBuckets: List<BudgetBucket>,
-    bucketSummaries: List<BucketSummaryState>
-): HomeBucketEditorState? {
-    return remember(editingBucketUuid, allBuckets, bucketSummaries) {
-        editingBucketUuid?.let { bucketUuid ->
-            val bucket = allBuckets.firstOrNull { it.bucketUuid == bucketUuid }?.takeIf { !it.isClosed }
-            val summary = bucketSummaries.firstOrNull { it.bucket.bucketUuid == bucketUuid }
-            bucket?.let {
-                HomeBucketEditorState(
-                    bucketUuid = it.bucketUuid,
-                    name = it.name,
-                    amountText = CurrencyFormatter.centsToDecimalString(
-                        summary?.allocatedThisCycleCents ?: it.defaultAllocatedAmountCents
-                    ),
-                    isSystemDefault = it.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID
-                )
-            }
-        }
-    }
 }
 
 @Composable
@@ -140,6 +124,7 @@ private fun PortfolioScreenContent(
         portfolioState = portfolioState,
         bucketSummaries = bucketSummaries,
         funds = funds,
+        bucketInteractionsEnabled = interactionsEnabled,
         onEditBucket = { bucketUuid ->
             if (interactionsEnabled) {
                 onEditBucket(bucketUuid)

@@ -88,7 +88,7 @@ class PortfolioScreenTest {
         setPortfolioContent(saveCalls = saveCalls)
 
         composeRule.onNodeWithTag("bucket_row_travel").performClick()
-        composeRule.onNodeWithText("Close bucket").performClick()
+        composeRule.onNodeWithTag("bucket_editor_close_action").performClick()
 
         composeRule.onNodeWithText("Bucket settings").assertIsDisplayed()
         composeRule.onNodeWithText("Close bucket?").assertIsDisplayed()

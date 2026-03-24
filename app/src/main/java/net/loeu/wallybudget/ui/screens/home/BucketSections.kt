@@ -19,6 +19,7 @@ import net.loeu.wallybudget.util.CurrencyFormatter
 @Composable
 internal fun ActiveBucketsSection(
     bucketSummaries: List<BucketSummaryState>,
+    enabled: Boolean = true,
     onEditBucket: (String) -> Unit
 ) {
     Column(
@@ -34,7 +35,7 @@ internal fun ActiveBucketsSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("bucket_row_${summary.bucket.bucketUuid}")
-                    .clickable { onEditBucket(summary.bucket.bucketUuid) }
+                    .clickable(enabled = enabled) { onEditBucket(summary.bucket.bucketUuid) }
                     .padding(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
