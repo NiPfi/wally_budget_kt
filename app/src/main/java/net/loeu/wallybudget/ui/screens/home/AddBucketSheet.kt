@@ -1,4 +1,4 @@
-@file:Suppress("MaxLineLength", "TooManyFunctions", "CyclomaticComplexMethod", "LongMethod", "MatchingDeclarationName")
+@file:Suppress("MaxLineLength", "LongMethod", "MatchingDeclarationName")
 
 package net.loeu.wallybudget.ui.screens.home
 
@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -19,14 +18,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -40,20 +37,6 @@ import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.usecase.BucketDraft
 import net.loeu.wallybudget.util.CurrencyFormatter
 import java.util.UUID
-
-internal data class HomeBucketEditorState(
-    val bucketUuid: String,
-    val name: String,
-    val amountText: String,
-    val isSystemDefault: Boolean
-)
-
-internal const val BUCKET_CHANGED_SNACKBAR_MESSAGE = "This bucket changed before your update could be saved."
-
-internal sealed interface BucketDraftBuildResult {
-    data class Success(val drafts: List<BucketDraft>) : BucketDraftBuildResult
-    data object BucketChanged : BucketDraftBuildResult
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,191 +61,6 @@ internal fun AddBucketSheet(
             bucketSummaries = bucketSummaries,
             onDismiss = onDismiss,
             onCreateBucket = onCreateBucket
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-internal fun BucketEditorSheet(
-    state: HomeBucketEditorState?,
-    allBuckets: List<BudgetBucket>,
-    bucketSummaries: List<BucketSummaryState>,
-    portfolioBudgetCents: Long,
-    onRequestDismiss: () -> Unit,
-    onSubmit: (BucketDraft) -> Unit
-) {
-    val editor = state ?: return
-    var name by remember(editor) { mutableStateOf(editor.name) }
-    var amountText by remember(editor) { mutableStateOf(editor.amountText) }
-    var errorMessage by remember(editor) { mutableStateOf<String?>(null) }
-    var showDiscardConfirmation by remember(editor) { mutableStateOf(false) }
-    var showCloseConfirmation by remember(editor) { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val isDirty = remember(editor, name, amountText) {
-        name != editor.name || amountText != editor.amountText
-    }
-    val canCloseBucket = remember(editor.bucketUuid, allBuckets) {
-        editor.bucketUuid != DEFAULT_SPENDING_BUCKET_UUID &&
-            allBuckets.any { it.bucketUuid == editor.bucketUuid && !it.isClosed }
-    }
-
-    ModalBottomSheet(
-        onDismissRequest = onRequestDismiss,
-        sheetState = sheetState
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(
-                text = "Bucket settings",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            OutlinedTextField(
-                value = name,
-                onValueChange = {
-                    name = it
-                    errorMessage = null
-                },
-                label = { Text("Bucket name") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = amountText,
-                onValueChange = {
-                    if (!editor.isSystemDefault) {
-                        amountText = it
-                    }
-                    errorMessage = null
-                },
-                label = { Text(if (editor.isSystemDefault) "Computed remainder" else "Cycle allocation") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true,
-                enabled = !editor.isSystemDefault,
-                modifier = Modifier.fillMaxWidth()
-            )
-            if (editor.isSystemDefault) {
-                Text(
-                    text = "This system bucket always absorbs the leftover portfolio budget after your named buckets.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            errorMessage?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Button(
-                    onClick = {
-                        if (isDirty) {
-                            showDiscardConfirmation = true
-                        } else {
-                            onRequestDismiss()
-                        }
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Cancel")
-                }
-                Button(
-                    onClick = {
-                        when (val result = validateBucketEditorSaveRequest(
-                            editor = editor,
-                            name = name,
-                            amountText = amountText,
-                            allBuckets = allBuckets,
-                            bucketSummaries = bucketSummaries,
-                            portfolioBudgetCents = portfolioBudgetCents
-                        )) {
-                            is BucketEditorValidationResult.Invalid -> errorMessage = result.message
-                            is BucketEditorValidationResult.Valid -> onSubmit(result.draft)
-                        }
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Save")
-                }
-            }
-            if (canCloseBucket) {
-                TextButton(
-                    onClick = { showCloseConfirmation = true },
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text("Close bucket")
-                }
-            }
-        }
-    }
-
-    if (showDiscardConfirmation) {
-        AlertDialog(
-            onDismissRequest = { showDiscardConfirmation = false },
-            title = { Text("Discard changes?") },
-            text = { Text("Your edits will be lost.") },
-            dismissButton = {
-                TextButton(onClick = { showDiscardConfirmation = false }) {
-                    Text("Keep editing")
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDiscardConfirmation = false
-                        onRequestDismiss()
-                    }
-                ) {
-                    Text("Discard changes")
-                }
-            }
-        )
-    }
-
-    if (showCloseConfirmation) {
-        AlertDialog(
-            onDismissRequest = { showCloseConfirmation = false },
-            title = { Text("Close bucket?") },
-            text = {
-                Text(
-                    "This bucket will stop being active, future planning for it is cleared, " +
-                        "this cannot be undone from the UI, and existing history and expenses are not deleted."
-                )
-            },
-            dismissButton = {
-                TextButton(onClick = { showCloseConfirmation = false }) {
-                    Text("Cancel")
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showCloseConfirmation = false
-                        onSubmit(
-                            buildBucketEditorDraft(
-                                editor = editor,
-                                allBuckets = allBuckets,
-                                name = name,
-                                amountText = amountText,
-                                closeRequested = true
-                            )
-                        )
-                    }
-                ) {
-                    Text("Close bucket")
-                }
-            }
         )
     }
 }
@@ -309,34 +107,22 @@ internal fun AddBucketForm(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = {
+                BucketNameAndAllocationFields(
+                    name = name,
+                    onNameChange = {
                         name = it
                         errorMessage = null
                     },
-                    label = { Text("Bucket name") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = amountText,
-                    onValueChange = {
+                    amountText = amountText,
+                    onAmountChange = {
                         amountText = it
                         errorMessage = null
                     },
-                    label = { Text("Cycle allocation") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    isAllocationEditable = true,
+                    allocationLabel = "Cycle allocation",
+                    supportingText = null,
+                    errorMessage = errorMessage
                 )
-                errorMessage?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -387,205 +173,96 @@ internal fun AddBucketForm(
         }
         if (bucketSummaries.isNotEmpty()) {
             item {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Current allocations",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    bucketSummaries.forEachIndexed { index, summary ->
-                        if (index > 0) {
-                            HorizontalDivider()
-                        }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.padding(end = 16.dp)) {
-                                Text(
-                                    text = summary.bucket.name,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = summary.bucket.trackingMode.displayLabel(),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Text(
-                                text = CurrencyFormatter.format(summary.allocatedThisCycleCents),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
+                CurrentAllocationsSection(bucketSummaries = bucketSummaries)
             }
         }
     }
 }
 
-internal fun buildExistingHomeBucketDrafts(
-    allBuckets: List<BudgetBucket>,
-    bucketSummaries: List<BucketSummaryState>
-): List<BucketDraft> {
-    val summaryByBucketUuid = bucketSummaries.associateBy { it.bucket.bucketUuid }
-    return allBuckets
-        .sortedWith(compareBy<BudgetBucket> { it.sortOrder }.thenBy { it.createdAtEpochMs })
-        .map { bucket ->
-            val effectiveAllocation = summaryByBucketUuid[bucket.bucketUuid]?.allocatedThisCycleCents
-                ?: bucket.defaultAllocatedAmountCents
-            BucketDraft(
-                bucketUuid = bucket.bucketUuid,
-                name = bucket.name,
-                trackingMode = bucket.trackingMode,
-                balanceBehavior = bucket.balanceBehavior,
-                defaultAllocatedAmountCents = effectiveAllocation,
-                sortOrder = bucket.sortOrder,
-                closeRequested = bucket.isClosed
-            )
-        }
-}
-
-internal fun sumOtherNamedBucketAllocationsForValidation(
-    allBuckets: List<BudgetBucket>,
-    bucketSummaries: List<BucketSummaryState>,
-    editedBucketUuid: String
-): Long {
-    return buildExistingHomeBucketDrafts(
-        allBuckets = allBuckets,
-        bucketSummaries = bucketSummaries
-    )
-        .filterNot { draft ->
-            draft.bucketUuid == editedBucketUuid ||
-                draft.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID ||
-                draft.closeRequested
-        }
-        .sumOf { it.defaultAllocatedAmountCents }
-}
-
-internal fun buildHomeBucketDrafts(
-    allBuckets: List<BudgetBucket>,
-    bucketSummaries: List<BucketSummaryState>,
-    newBucketDraft: BucketDraft
-): List<BucketDraft> {
-    return buildExistingHomeBucketDrafts(
-        allBuckets = allBuckets,
-        bucketSummaries = bucketSummaries
-    ) + newBucketDraft
-}
-
-internal fun buildUpdatedHomeBucketDrafts(
-    allBuckets: List<BudgetBucket>,
-    bucketSummaries: List<BucketSummaryState>,
-    updatedBucketDraft: BucketDraft
-): List<BucketDraft> {
-    return buildExistingHomeBucketDrafts(
-        allBuckets = allBuckets,
-        bucketSummaries = bucketSummaries
-    ).map { draft ->
-        if (draft.bucketUuid == updatedBucketDraft.bucketUuid) updatedBucketDraft else draft
-    }
-}
-
-internal fun buildFreshUpdatedBucketDrafts(
-    allBuckets: List<BudgetBucket>,
-    bucketSummaries: List<BucketSummaryState>,
-    updatedBucketDraft: BucketDraft
-): BucketDraftBuildResult {
-    val existingBucket = allBuckets.firstOrNull { it.bucketUuid == updatedBucketDraft.bucketUuid }
-        ?.takeIf { !it.isClosed }
-        ?: return BucketDraftBuildResult.BucketChanged
-    val normalizedDraft = updatedBucketDraft.copy(
-        trackingMode = existingBucket.trackingMode,
-        balanceBehavior = existingBucket.balanceBehavior,
-        defaultAllocatedAmountCents = if (existingBucket.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID) {
-            0L
-        } else {
-            updatedBucketDraft.defaultAllocatedAmountCents
-        },
-        sortOrder = existingBucket.sortOrder
-    )
-    return BucketDraftBuildResult.Success(
-        buildUpdatedHomeBucketDrafts(
-            allBuckets = allBuckets,
-            bucketSummaries = bucketSummaries,
-            updatedBucketDraft = normalizedDraft
-        )
-    )
-}
-
-private sealed interface BucketEditorValidationResult {
-    data class Valid(val draft: BucketDraft) : BucketEditorValidationResult
-    data class Invalid(val message: String) : BucketEditorValidationResult
-}
-
-private fun validateBucketEditorSaveRequest(
-    editor: HomeBucketEditorState,
+@Composable
+internal fun BucketNameAndAllocationFields(
     name: String,
+    onNameChange: (String) -> Unit,
     amountText: String,
-    allBuckets: List<BudgetBucket>,
-    bucketSummaries: List<BucketSummaryState>,
-    portfolioBudgetCents: Long
-): BucketEditorValidationResult {
-    val trimmedName = name.trim()
-    val normalizedName = trimmedName.lowercase()
-    val amountCents = CurrencyFormatter.parseAmountToCents(amountText)
-    val otherAllocatedCents = sumOtherNamedBucketAllocationsForValidation(
-        allBuckets = allBuckets,
-        bucketSummaries = bucketSummaries,
-        editedBucketUuid = editor.bucketUuid
+    onAmountChange: (String) -> Unit,
+    isAllocationEditable: Boolean,
+    allocationLabel: String,
+    supportingText: String?,
+    errorMessage: String?
+) {
+    OutlinedTextField(
+        value = name,
+        onValueChange = onNameChange,
+        label = { Text("Bucket name") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth()
     )
-    return when {
-        trimmedName.isBlank() -> BucketEditorValidationResult.Invalid("Enter a bucket name.")
-        allBuckets.any {
-            it.bucketUuid != editor.bucketUuid &&
-                !it.isClosed &&
-                it.name.trim().lowercase() == normalizedName
-        } -> BucketEditorValidationResult.Invalid("Bucket names must be unique.")
-        !editor.isSystemDefault && (amountCents == null || amountCents < 0L) ->
-            BucketEditorValidationResult.Invalid("Enter a valid allocation.")
-        !editor.isSystemDefault && otherAllocatedCents + requireNotNull(amountCents) > portfolioBudgetCents ->
-            BucketEditorValidationResult.Invalid("Allocation exceeds the portfolio total.")
-        else -> BucketEditorValidationResult.Valid(
-            buildBucketEditorDraft(
-                editor = editor,
-                allBuckets = allBuckets,
-                name = name,
-                amountText = amountText,
-                closeRequested = false
-            )
+    OutlinedTextField(
+        value = amountText,
+        onValueChange = onAmountChange,
+        label = { Text(allocationLabel) },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        singleLine = true,
+        enabled = isAllocationEditable,
+        modifier = Modifier.fillMaxWidth()
+    )
+    supportingText?.let {
+        Text(
+            text = it,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+    errorMessage?.let {
+        Text(
+            text = it,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.error
         )
     }
 }
 
-private fun buildBucketEditorDraft(
-    editor: HomeBucketEditorState,
-    allBuckets: List<BudgetBucket>,
-    name: String,
-    amountText: String,
-    closeRequested: Boolean
-): BucketDraft {
-    val latestBucket = allBuckets.firstOrNull { it.bucketUuid == editor.bucketUuid }
-    return BucketDraft(
-        bucketUuid = editor.bucketUuid,
-        name = name.trim(),
-        trackingMode = latestBucket?.trackingMode ?: BucketTrackingMode.DAILY_TARGET,
-        balanceBehavior = latestBucket?.balanceBehavior ?: BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
-        defaultAllocatedAmountCents = if (editor.isSystemDefault) {
-            0L
-        } else {
-            CurrencyFormatter.parseAmountToCents(amountText) ?: 0L
-        },
-        sortOrder = latestBucket?.sortOrder ?: 0,
-        closeRequested = closeRequested
-    )
+@Composable
+private fun CurrentAllocationsSection(bucketSummaries: List<BucketSummaryState>) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = "Current allocations",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        bucketSummaries.forEachIndexed { index, summary ->
+            if (index > 0) {
+                HorizontalDivider()
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.padding(end = 16.dp)) {
+                    Text(
+                        text = summary.bucket.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = summary.bucket.trackingMode.displayLabel(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    text = CurrencyFormatter.format(summary.allocatedThisCycleCents),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
 }
 
 internal fun BucketTrackingMode.displayLabel(): String = when (this) {
