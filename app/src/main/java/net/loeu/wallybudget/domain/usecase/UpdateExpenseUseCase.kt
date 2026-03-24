@@ -3,15 +3,21 @@ package net.loeu.wallybudget.domain.usecase
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
+import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.domain.model.Expense
+import net.loeu.wallybudget.domain.model.recordedDate
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 
 class UpdateExpenseUseCase(
     private val expenseDao: ExpenseDao,
     private val userSettingsStore: UserSettingsStore,
+    private val currentDateProvider: CurrentDateProvider,
     private val hybridLogicalClockService: HybridLogicalClockService
 ) {
     suspend operator fun invoke(expense: Expense) {
+        check(expense.recordedDate() == currentDateProvider.currentDate()) {
+            "Only current-day expenses can be edited."
+        }
         val settings = userSettingsStore.ensureIdentity()
         val installId = settings.installDeviceId
         val now = System.currentTimeMillis()

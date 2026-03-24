@@ -109,12 +109,6 @@ internal fun NavGraphBuilder.addHistoryDestination(
     navController: NavHostController,
     historySections: List<ExpenseCycleSection>,
     historyBucketNameByUuid: Map<String, String>,
-    allBuckets: List<BudgetBucket>,
-    selectedBucketUuid: String?,
-    onAddExpense: (String, Long, String, ExpenseCategory?, LocalDate) -> Unit,
-    onRestoreExpense: (Expense) -> Unit,
-    onUpdateExpense: (Expense) -> Unit,
-    onDeleteExpense: (Expense) -> Unit,
     timelineLockReason: String?,
     usesVerticalNavigation: Boolean
 ) {
@@ -122,12 +116,6 @@ internal fun NavGraphBuilder.addHistoryDestination(
         HistoryScreen(
             historySections = historySections,
             historyBucketNameByUuid = historyBucketNameByUuid,
-            allBuckets = allBuckets,
-            selectedBucketUuid = selectedBucketUuid,
-            onAddExpense = onAddExpense,
-            onRestoreExpense = onRestoreExpense,
-            onUpdateExpense = onUpdateExpense,
-            onDeleteExpense = onDeleteExpense,
             onNavigateToSettings = if (usesVerticalNavigation) null else {
                 { navController.navigate(Screen.Settings.route) }
             },

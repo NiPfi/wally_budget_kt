@@ -361,7 +361,11 @@ class BudgetViewModel(
             ) {
                 return@launch
             }
-            updateExpenseUseCase(expense)
+            try {
+                updateExpenseUseCase(expense)
+            } catch (_: IllegalStateException) {
+                return@launch
+            }
         }
     }
 

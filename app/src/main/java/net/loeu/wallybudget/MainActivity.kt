@@ -167,7 +167,6 @@ fun BudgetApp(
             PendingCycleFlow(
                 pendingCycle = appState.pendingCycleCloseoutState,
                 showAddExpenseSheet = appState.isAddExpenseSheetVisible,
-                onShowAddExpenseSheet = viewModel::showAddExpenseSheet,
                 onHideAddExpenseSheet = viewModel::hideAddExpenseSheet,
                 onConcludeCycle = viewModel::concludePendingCycle,
                 onAddExpense = viewModel::addExpense,
@@ -507,12 +506,6 @@ private fun MainNavigationHost(
             navController = navController,
             historySections = historySections,
             historyBucketNameByUuid = historyBucketNameByUuid,
-            allBuckets = allBuckets,
-            selectedBucketUuid = selectedBucketOverview.bucket.bucketUuid,
-            onAddExpense = onAddExpense,
-            onRestoreExpense = onRestoreExpense,
-            onUpdateExpense = onUpdateExpense,
-            onDeleteExpense = onDeleteExpense,
             timelineLockReason = timelineLockReason,
             usesVerticalNavigation = usesVerticalNavigation
         )
@@ -642,7 +635,6 @@ private fun MainNavigationItem(
 private fun PendingCycleFlow(
     pendingCycle: PendingCycleCloseoutState,
     showAddExpenseSheet: Boolean,
-    onShowAddExpenseSheet: () -> Unit,
     onHideAddExpenseSheet: () -> Unit,
     onConcludeCycle: () -> Unit,
     onAddExpense: (String, Long, String, ExpenseCategory?, LocalDate) -> Unit,
@@ -671,11 +663,7 @@ private fun PendingCycleFlow(
             CycleCloseoutReviewScreen(
                 pendingCycle = pendingCycle,
                 onNavigateBack = { navController.popBackStack() },
-                onEditExpense = { expenseBeingEdited = it },
-                onAddExpenseForDate = { date ->
-                    selectedDate = date
-                    onShowAddExpenseSheet()
-                }
+                onEditExpense = { expenseBeingEdited = it }
             )
         }
     }

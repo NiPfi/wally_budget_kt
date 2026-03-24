@@ -240,7 +240,6 @@ fun CycleCloseoutReviewScreen(
     pendingCycle: PendingCycleCloseoutState,
     onNavigateBack: () -> Unit,
     onEditExpense: (Expense) -> Unit,
-    onAddExpenseForDate: (LocalDate) -> Unit,
     modifier: Modifier = Modifier
 ) {
     CycleLedgerScreen(
@@ -249,7 +248,6 @@ fun CycleCloseoutReviewScreen(
         historyBucketNameByUuid = emptyMap(),
         modifier = modifier,
         onEditExpense = onEditExpense,
-        onAddExpenseForDate = onAddExpenseForDate,
         onNavigateBack = onNavigateBack
     )
 }

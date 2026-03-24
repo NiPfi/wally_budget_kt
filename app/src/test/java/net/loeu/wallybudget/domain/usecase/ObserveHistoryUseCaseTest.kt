@@ -124,6 +124,7 @@ class ObserveHistoryUseCaseTest {
             expectedHistorySectionTitles(),
             state.historySections.map { it.title }
         )
+        assertEquals(false, state.historySections.first().daySections.all { it.isEditable })
         assertEquals(1, state.historySections[2].daySections.size)
         assertEquals(1_500L, state.historySections[2].daySections.single().totalSpentCents)
         assertEquals(1, state.historySections[3].daySections.size)
