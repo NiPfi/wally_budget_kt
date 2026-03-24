@@ -45,6 +45,7 @@ import net.loeu.wallybudget.domain.usecase.EnsureDefaultBucketStateUseCase
 import net.loeu.wallybudget.domain.usecase.EnsureBudgetPolicyHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.EnsureDefaultFundUseCase
 import net.loeu.wallybudget.domain.usecase.ExportSnapshotUseCase
+import net.loeu.wallybudget.domain.usecase.ExpenseEditNotAllowedException
 import net.loeu.wallybudget.domain.usecase.ObserveBudgetBucketsUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveForecastUseCase
 import net.loeu.wallybudget.domain.usecase.ObserveHistoryUseCase
