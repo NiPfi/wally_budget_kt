@@ -1,4 +1,4 @@
-@file:Suppress("MaxLineLength", "TooManyFunctions", "CyclomaticComplexMethod", "LongMethod", "MatchingDeclarationName")
+@file:Suppress("MaxLineLength", "LongMethod", "MatchingDeclarationName")
 
 package net.loeu.wallybudget.ui.screens.home
 
@@ -21,10 +21,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -38,13 +37,6 @@ import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.usecase.BucketDraft
 import net.loeu.wallybudget.util.CurrencyFormatter
 import java.util.UUID
-
-internal data class HomeBucketEditorState(
-    val bucketUuid: String,
-    val name: String,
-    val amountText: String,
-    val isSystemDefault: Boolean
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,133 +62,6 @@ internal fun AddBucketSheet(
             onDismiss = onDismiss,
             onCreateBucket = onCreateBucket
         )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-internal fun HomeBucketSettingsSheet(
-    state: HomeBucketEditorState?,
-    allBuckets: List<BudgetBucket>,
-    bucketSummaries: List<BucketSummaryState>,
-    portfolioBudgetCents: Long,
-    onDismiss: () -> Unit,
-    onSaveSettings: (BucketDraft) -> Unit
-) {
-    val editor = state ?: return
-    var name by remember(editor) { mutableStateOf(editor.name) }
-    var amountText by remember(editor) { mutableStateOf(editor.amountText) }
-    var errorMessage by remember(editor) { mutableStateOf<String?>(null) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(
-                text = "Bucket settings",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            OutlinedTextField(
-                value = name,
-                onValueChange = {
-                    name = it
-                    errorMessage = null
-                },
-                label = { Text("Bucket name") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = amountText,
-                onValueChange = {
-                    if (!editor.isSystemDefault) {
-                        amountText = it
-                    }
-                    errorMessage = null
-                },
-                label = { Text(if (editor.isSystemDefault) "Computed remainder" else "Cycle allocation") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true,
-                enabled = !editor.isSystemDefault,
-                modifier = Modifier.fillMaxWidth()
-            )
-            if (editor.isSystemDefault) {
-                Text(
-                    text = "This system bucket always absorbs the leftover portfolio budget after your named buckets.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            errorMessage?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Button(
-                    onClick = onDismiss,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Cancel")
-                }
-                Button(
-                    onClick = {
-                        val existingBucket = allBuckets.firstOrNull { it.bucketUuid == editor.bucketUuid }
-                        val trimmedName = name.trim()
-                        val normalizedName = trimmedName.lowercase()
-                        val amountCents = CurrencyFormatter.parseAmountToCents(amountText)
-                        val otherAllocatedCents = sumOtherNamedBucketAllocationsForValidation(
-                            allBuckets = allBuckets,
-                            bucketSummaries = bucketSummaries,
-                            editedBucketUuid = editor.bucketUuid
-                        )
-                        when {
-                            trimmedName.isBlank() -> errorMessage = "Enter a bucket name."
-                            allBuckets.any {
-                                it.bucketUuid != editor.bucketUuid &&
-                                    !it.isClosed &&
-                                    it.name.trim().lowercase() == normalizedName
-                            } -> errorMessage = "Bucket names must be unique."
-                            !editor.isSystemDefault && (amountCents == null || amountCents < 0L) ->
-                                errorMessage = "Enter a valid allocation."
-                            !editor.isSystemDefault && otherAllocatedCents + requireNotNull(amountCents) > portfolioBudgetCents ->
-                                errorMessage = "Allocation exceeds the portfolio total."
-                            else -> {
-                                onSaveSettings(
-                                    BucketDraft(
-                                        bucketUuid = editor.bucketUuid,
-                                        name = trimmedName,
-                                        trackingMode = existingBucket?.trackingMode ?: BucketTrackingMode.DAILY_TARGET,
-                                        balanceBehavior = existingBucket?.balanceBehavior
-                                            ?: BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
-                                        defaultAllocatedAmountCents = amountCents ?: 0L,
-                                        sortOrder = existingBucket?.sortOrder ?: 0,
-                                        closeRequested = false
-                                    )
-                                )
-                            }
-                        }
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Save")
-                }
-            }
-        }
     }
 }
 
@@ -242,34 +107,22 @@ internal fun AddBucketForm(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = {
+                BucketNameAndAllocationFields(
+                    name = name,
+                    onNameChange = {
                         name = it
                         errorMessage = null
                     },
-                    label = { Text("Bucket name") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = amountText,
-                    onValueChange = {
+                    amountText = amountText,
+                    onAmountChange = {
                         amountText = it
                         errorMessage = null
                     },
-                    label = { Text("Cycle allocation") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    isAllocationEditable = true,
+                    allocationLabel = "Cycle allocation",
+                    supportingText = null,
+                    errorMessage = errorMessage
                 )
-                errorMessage?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -320,110 +173,95 @@ internal fun AddBucketForm(
         }
         if (bucketSummaries.isNotEmpty()) {
             item {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Current allocations",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    bucketSummaries.forEachIndexed { index, summary ->
-                        if (index > 0) {
-                            HorizontalDivider()
-                        }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.padding(end = 16.dp)) {
-                                Text(
-                                    text = summary.bucket.name,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = summary.bucket.trackingMode.displayLabel(),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Text(
-                                text = CurrencyFormatter.format(summary.allocatedThisCycleCents),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
+                CurrentAllocationsSection(bucketSummaries = bucketSummaries)
             }
         }
     }
 }
 
-internal fun buildExistingHomeBucketDrafts(
-    allBuckets: List<BudgetBucket>,
-    bucketSummaries: List<BucketSummaryState>
-): List<BucketDraft> {
-    val summaryByBucketUuid = bucketSummaries.associateBy { it.bucket.bucketUuid }
-    return allBuckets
-        .sortedWith(compareBy<BudgetBucket> { it.sortOrder }.thenBy { it.createdAtEpochMs })
-        .map { bucket ->
-            val effectiveAllocation = summaryByBucketUuid[bucket.bucketUuid]?.allocatedThisCycleCents
-                ?: bucket.defaultAllocatedAmountCents
-            BucketDraft(
-                bucketUuid = bucket.bucketUuid,
-                name = bucket.name,
-                trackingMode = bucket.trackingMode,
-                balanceBehavior = bucket.balanceBehavior,
-                defaultAllocatedAmountCents = effectiveAllocation,
-                sortOrder = bucket.sortOrder,
-                closeRequested = bucket.isClosed
-            )
-        }
-}
-
-internal fun sumOtherNamedBucketAllocationsForValidation(
-    allBuckets: List<BudgetBucket>,
-    bucketSummaries: List<BucketSummaryState>,
-    editedBucketUuid: String
-): Long {
-    return buildExistingHomeBucketDrafts(
-        allBuckets = allBuckets,
-        bucketSummaries = bucketSummaries
+@Composable
+internal fun BucketNameAndAllocationFields(
+    name: String,
+    onNameChange: (String) -> Unit,
+    amountText: String,
+    onAmountChange: (String) -> Unit,
+    isAllocationEditable: Boolean,
+    allocationLabel: String,
+    supportingText: String?,
+    errorMessage: String?
+) {
+    OutlinedTextField(
+        value = name,
+        onValueChange = onNameChange,
+        label = { Text("Bucket name") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth()
     )
-        .filterNot { draft ->
-            draft.bucketUuid == editedBucketUuid ||
-                draft.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID ||
-                draft.closeRequested
+    OutlinedTextField(
+        value = amountText,
+        onValueChange = onAmountChange,
+        label = { Text(allocationLabel) },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        singleLine = true,
+        enabled = isAllocationEditable,
+        modifier = Modifier.fillMaxWidth()
+    )
+    supportingText?.let {
+        Text(
+            text = it,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+    errorMessage?.let {
+        Text(
+            text = it,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.error
+        )
+    }
+}
+
+@Composable
+private fun CurrentAllocationsSection(bucketSummaries: List<BucketSummaryState>) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = "Current allocations",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        bucketSummaries.forEachIndexed { index, summary ->
+            if (index > 0) {
+                HorizontalDivider()
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.padding(end = 16.dp)) {
+                    Text(
+                        text = summary.bucket.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = summary.bucket.trackingMode.displayLabel(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    text = CurrencyFormatter.format(summary.allocatedThisCycleCents),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
-        .sumOf { it.defaultAllocatedAmountCents }
-}
-
-internal fun buildHomeBucketDrafts(
-    allBuckets: List<BudgetBucket>,
-    bucketSummaries: List<BucketSummaryState>,
-    newBucketDraft: BucketDraft
-): List<BucketDraft> {
-    return buildExistingHomeBucketDrafts(
-        allBuckets = allBuckets,
-        bucketSummaries = bucketSummaries
-    ) + newBucketDraft
-}
-
-internal fun buildUpdatedHomeBucketDrafts(
-    allBuckets: List<BudgetBucket>,
-    bucketSummaries: List<BucketSummaryState>,
-    updatedBucketDraft: BucketDraft
-): List<BucketDraft> {
-    return buildExistingHomeBucketDrafts(
-        allBuckets = allBuckets,
-        bucketSummaries = bucketSummaries
-    ).map { draft ->
-        if (draft.bucketUuid == updatedBucketDraft.bucketUuid) updatedBucketDraft else draft
     }
 }
 
