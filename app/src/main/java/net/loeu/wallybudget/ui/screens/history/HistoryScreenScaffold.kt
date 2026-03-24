@@ -15,10 +15,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,19 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import net.loeu.wallybudget.domain.model.BudgetBucket
-import net.loeu.wallybudget.domain.model.Expense
-import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.ExpenseCycleSection
-import net.loeu.wallybudget.domain.model.displayDescription
-import net.loeu.wallybudget.domain.model.recordedDate
 import net.loeu.wallybudget.ui.components.TimelineLockBanner
-import net.loeu.wallybudget.ui.screens.home.AddExpenseSheet
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -55,8 +42,6 @@ internal fun HistoryScreenScaffold(
     snackbarHostState: SnackbarHostState,
     timelineLockReason: String?,
     onNavigateToSettings: (() -> Unit)?,
-    onEditExpense: (Expense) -> Unit,
-    onAddExpenseForDate: (LocalDate) -> Unit,
     historyBucketNameByUuid: Map<String, String>
 ) {
     Scaffold(
@@ -87,16 +72,12 @@ internal fun HistoryScreenScaffold(
                     pagerState = pagerState,
                     showInitialSwipeHint = showInitialSwipeHint,
                     onNavigateToSettings = onNavigateToSettings,
-                    onEditExpense = onEditExpense,
-                    onAddExpenseForDate = onAddExpenseForDate,
                     historyBucketNameByUuid = historyBucketNameByUuid,
                     modifier = Modifier.weight(1f)
                 )
                 else -> FullHistoryContent(
                     historySections = historySections,
                     embedded = embedded,
-                    onEditExpense = onEditExpense,
-                    onAddExpenseForDate = onAddExpenseForDate,
                     historyBucketNameByUuid = historyBucketNameByUuid,
                     modifier = Modifier.weight(1f)
                 )
@@ -129,8 +110,6 @@ private fun CompactHistoryContent(
     pagerState: androidx.compose.foundation.pager.PagerState,
     showInitialSwipeHint: Boolean,
     onNavigateToSettings: (() -> Unit)?,
-    onEditExpense: (Expense) -> Unit,
-    onAddExpenseForDate: (LocalDate) -> Unit,
     historyBucketNameByUuid: Map<String, String>,
     modifier: Modifier = Modifier
 ) {
@@ -157,8 +136,7 @@ private fun CompactHistoryContent(
                 CycleLedgerPage(
                     section = compactPagerSections[page],
                     historyBucketNameByUuid = historyBucketNameByUuid,
-                    onEditExpense = onEditExpense,
-                    onAddExpenseForDate = onAddExpenseForDate,
+                    onEditExpense = null,
                     contentPadding = PaddingValues(bottom = 24.dp)
                 )
             }
@@ -180,8 +158,6 @@ private fun CompactHistoryContent(
 private fun FullHistoryContent(
     historySections: List<ExpenseCycleSection>,
     embedded: Boolean,
-    onEditExpense: (Expense) -> Unit,
-    onAddExpenseForDate: (LocalDate) -> Unit,
     historyBucketNameByUuid: Map<String, String>,
     modifier: Modifier = Modifier
 ) {
@@ -216,108 +192,10 @@ private fun FullHistoryContent(
                     LedgerDaySection(
                         daySection = daySection,
                         historyBucketNameByUuid = historyBucketNameByUuid,
-                        onEditExpense = onEditExpense,
-                        onAddExpenseForDate = onAddExpenseForDate
+                        onEditExpense = null
                     )
                 }
             }
         }
     }
-}
-
-@Composable
-internal fun HistoryAddExpenseSheet(
-    isAddSheetVisible: Boolean,
-    interactionsEnabled: Boolean,
-    selectedDateEpochDay: Long,
-    allBuckets: List<BudgetBucket>,
-    selectedBucketUuid: String?,
-    onDismiss: () -> Unit,
-    onAddExpense: (String, Long, String, ExpenseCategory?, LocalDate) -> Unit
-) {
-    if (!isAddSheetVisible || !interactionsEnabled) return
-
-    val selectedDate = LocalDate.ofEpochDay(selectedDateEpochDay)
-    AddExpenseSheet(
-        onDismiss = onDismiss,
-        bucketOptions = allBuckets.filterNot { it.isClosed },
-        initialBucketUuid = selectedBucketUuid,
-        initialBucketName = allBuckets.firstOrNull { it.bucketUuid == selectedBucketUuid }?.name,
-        preserveInitialBucketSelection = false,
-        onSubmitExpense = { bucketUuid, amountCents, description, icon ->
-            onAddExpense(bucketUuid, amountCents, description, icon, selectedDate)
-            onDismiss()
-        },
-        title = "Add expense for ${selectedDate.format(DateTimeFormatter.ofPattern("MMM d"))}",
-        confirmButtonText = "Save expense",
-        dateLabel = "Recorded for ${selectedDate.format(DateTimeFormatter.ofPattern("EEEE, MMM d"))}"
-    )
-}
-
-@Composable
-internal fun HistoryEditExpenseSheet(
-    editingExpense: Expense?,
-    interactionsEnabled: Boolean,
-    allBuckets: List<BudgetBucket>,
-    snackbarHostState: SnackbarHostState,
-    scope: CoroutineScope,
-    onDismiss: () -> Unit,
-    onUpdateExpense: (Expense) -> Unit,
-    onDeleteExpense: (Expense) -> Unit,
-    onRestoreExpense: (Expense) -> Unit
-) {
-    val editableExpense = editingExpense?.takeIf { interactionsEnabled } ?: return
-    val openBuckets = allBuckets.filterNot { it.isClosed }
-    val currentBucketName = allBuckets.firstOrNull { it.bucketUuid == editableExpense.bucketUuid }?.name
-        ?: "Unknown bucket"
-
-    AddExpenseSheet(
-        onDismiss = onDismiss,
-        bucketOptions = openBuckets,
-        initialBucketUuid = editableExpense.bucketUuid,
-        initialBucketName = currentBucketName,
-        preserveInitialBucketSelection = true,
-        onSubmitExpense = { bucketUuid, amountCents, description, icon ->
-            onUpdateExpense(
-                editableExpense.copy(
-                    bucketUuid = bucketUuid,
-                    amountCents = amountCents,
-                    description = description,
-                    icon = icon
-                )
-            )
-            onDismiss()
-        },
-        onDeleteExpense = {
-            onDeleteExpense(editableExpense)
-            scope.launch {
-                val dismissJob = launch {
-                    delay(5000)
-                    snackbarHostState.currentSnackbarData?.dismiss()
-                }
-                val result = snackbarHostState.showSnackbar(
-                    message = deletedHistoryExpenseMessage(editableExpense),
-                    actionLabel = "Undo",
-                    duration = SnackbarDuration.Short
-                )
-                if (result == SnackbarResult.ActionPerformed) {
-                    dismissJob.cancel()
-                    onRestoreExpense(editableExpense)
-                }
-            }
-            onDismiss()
-        },
-        title = "Edit expense",
-        confirmButtonText = "Save changes",
-        dateLabel = "Recorded for ${
-            editableExpense.recordedDate().format(DateTimeFormatter.ofPattern("EEEE, MMM d"))
-        }",
-        initialAmountCents = editableExpense.amountCents,
-        initialDescription = editableExpense.description,
-        initialIcon = editableExpense.icon
-    )
-}
-
-private fun deletedHistoryExpenseMessage(expense: Expense): String {
-    return "Deleted \"${expense.displayDescription}\""
 }

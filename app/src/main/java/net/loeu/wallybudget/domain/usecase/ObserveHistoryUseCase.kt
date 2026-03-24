@@ -148,7 +148,7 @@ class ObserveHistoryUseCase(
                 expensesByDate = currentCycleExpenses.groupByDate(),
                 dayTotals = currentCycleExpenses.sumByDate(),
                 remainingBudgetForDay = { null },
-                isEditable = !portfolioOverviewState.timelineLockState.isLocked,
+                isEditable = false,
                 today = portfolioOverviewState.effectiveCurrentDate
             ),
             isActiveCycle = true,
