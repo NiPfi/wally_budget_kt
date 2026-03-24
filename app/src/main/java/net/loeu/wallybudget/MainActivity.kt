@@ -662,8 +662,7 @@ private fun PendingCycleFlow(
         composable(Screen.CycleCloseoutReview.route) {
             CycleCloseoutReviewScreen(
                 pendingCycle = pendingCycle,
-                onNavigateBack = { navController.popBackStack() },
-                onEditExpense = { expenseBeingEdited = it }
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

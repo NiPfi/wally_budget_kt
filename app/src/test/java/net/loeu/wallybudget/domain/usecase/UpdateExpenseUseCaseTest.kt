@@ -63,10 +63,11 @@ class UpdateExpenseUseCaseTest {
             hybridLogicalClockService = HybridLogicalClockService()
         )
 
-        val exception = org.junit.Assert.assertThrows(IllegalStateException::class.java) {
-            runBlocking {
-                useCase(existing.toDomainModel().copy(description = "Iced coffee"))
-            }
+        val exception = try {
+            useCase(existing.toDomainModel().copy(description = "Iced coffee"))
+            throw AssertionError("Expected ExpenseEditNotAllowedException but none was thrown")
+        } catch (error: ExpenseEditNotAllowedException) {
+            error
         }
 
         assertEquals("Only current-day expenses can be edited.", exception.message)
@@ -94,10 +95,11 @@ class UpdateExpenseUseCaseTest {
             hybridLogicalClockService = HybridLogicalClockService()
         )
 
-        val exception = org.junit.Assert.assertThrows(IllegalStateException::class.java) {
-            runBlocking {
-                useCase(existing.toDomainModel().copy(description = "Planned groceries"))
-            }
+        val exception = try {
+            useCase(existing.toDomainModel().copy(description = "Planned groceries"))
+            throw AssertionError("Expected ExpenseEditNotAllowedException but none was thrown")
+        } catch (error: ExpenseEditNotAllowedException) {
+            error
         }
 
         assertEquals("Only current-day expenses can be edited.", exception.message)

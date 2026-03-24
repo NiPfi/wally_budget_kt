@@ -8,6 +8,10 @@ import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.recordedDate
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 
+class ExpenseEditNotAllowedException(
+    message: String
+) : IllegalStateException(message)
+
 class UpdateExpenseUseCase(
     private val expenseDao: ExpenseDao,
     private val userSettingsStore: UserSettingsStore,
@@ -15,8 +19,8 @@ class UpdateExpenseUseCase(
     private val hybridLogicalClockService: HybridLogicalClockService
 ) {
     suspend operator fun invoke(expense: Expense) {
-        check(expense.recordedDate() == currentDateProvider.currentDate()) {
-            "Only current-day expenses can be edited."
+        if (expense.recordedDate() != currentDateProvider.currentDate()) {
+            throw ExpenseEditNotAllowedException("Only current-day expenses can be edited.")
         }
         val settings = userSettingsStore.ensureIdentity()
         val installId = settings.installDeviceId

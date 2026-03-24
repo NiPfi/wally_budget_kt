@@ -152,7 +152,7 @@ internal fun buildPendingCycleCloseoutState(
         expensesByDate = cycleExpenses.groupBy { it.recordedDate() },
         dayTotals = dayTotals,
         remainingBudgetForDay = { totalSpent -> baseDailyBudget - totalSpent },
-        isEditable = true,
+        isEditable = false,
         today = null
     )
     val totalSpent = cycleExpenses.sumOf { it.amountCents }

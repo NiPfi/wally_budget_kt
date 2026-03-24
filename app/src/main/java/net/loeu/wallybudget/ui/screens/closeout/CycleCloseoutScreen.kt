@@ -239,7 +239,6 @@ private fun InsightRow(label: String, value: String) {
 fun CycleCloseoutReviewScreen(
     pendingCycle: PendingCycleCloseoutState,
     onNavigateBack: () -> Unit,
-    onEditExpense: (Expense) -> Unit,
     modifier: Modifier = Modifier
 ) {
     CycleLedgerScreen(
@@ -247,7 +246,7 @@ fun CycleCloseoutReviewScreen(
         title = "Review ended cycle",
         historyBucketNameByUuid = emptyMap(),
         modifier = modifier,
-        onEditExpense = onEditExpense,
+        onEditExpense = null,
         onNavigateBack = onNavigateBack
     )
 }

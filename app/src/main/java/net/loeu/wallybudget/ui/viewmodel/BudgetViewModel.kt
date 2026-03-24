@@ -363,7 +363,7 @@ class BudgetViewModel(
             }
             try {
                 updateExpenseUseCase(expense)
-            } catch (_: IllegalStateException) {
+            } catch (_: ExpenseEditNotAllowedException) {
                 return@launch
             }
         }
