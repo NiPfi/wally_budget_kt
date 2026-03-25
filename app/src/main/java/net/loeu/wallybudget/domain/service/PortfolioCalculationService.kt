@@ -5,8 +5,11 @@ import net.loeu.wallybudget.domain.model.BucketSummaryState
 import net.loeu.wallybudget.domain.model.Fund
 import net.loeu.wallybudget.domain.model.PortfolioState
 import java.time.LocalDate
+import java.util.logging.Logger
 
 class PortfolioCalculationService {
+    private val logger = Logger.getLogger(PortfolioCalculationService::class.java.name)
+
     fun calculatePortfolioState(
         portfolioTotalBudgetCents: Long,
         bucketSummaries: List<BucketSummaryState>,
@@ -18,24 +21,24 @@ class PortfolioCalculationService {
     ): PortfolioState {
         val allocatedToBucketsCents = bucketSummaries.sumOf { it.allocatedThisCycleCents }
         val allocatedToFundsCents = funds.sumOf { it.allocationPerCycleCents }
-        // Use the greater of the declared portfolio budget and the sum of bucket+fund
-        // allocations so that reserve/remaining calculations stay consistent when
-        // allocations exceed the portfolio plan (e.g. after a mid-cycle increase that
-        // hasn't been reconciled with the portfolio total yet).
         val totalPlannedCents = allocatedToBucketsCents + allocatedToFundsCents
-        val effectiveCycleBaselineCents = maxOf(portfolioTotalBudgetCents, totalPlannedCents)
+        if (totalPlannedCents > portfolioTotalBudgetCents) {
+            logger.warning(
+                "Current plan exceeds portfolio budget: planned=$totalPlannedCents budget=$portfolioTotalBudgetCents"
+            )
+        }
         val completedCycleReserveCents = bucketHistory
             .filter { it.getCycleEnd() <= cycleStartDate }
             .sumOf { it.surplusCents }
-        val remainingThisCycleCents = effectiveCycleBaselineCents - totalSpentThisCycleCents
+        val remainingThisCycleCents = portfolioTotalBudgetCents - totalSpentThisCycleCents
         val netReserveCents = completedCycleReserveCents + remainingThisCycleCents
         val totalFundBalanceCents = funds.sumOf { it.balanceCents }
 
         return PortfolioState(
-            portfolioTotalBudgetCents = effectiveCycleBaselineCents,
+            portfolioTotalBudgetCents = portfolioTotalBudgetCents,
             allocatedToBucketsCents = allocatedToBucketsCents,
             allocatedToFundsCents = allocatedToFundsCents,
-            unassignedPlannedBudgetCents = (effectiveCycleBaselineCents - totalPlannedCents).coerceAtLeast(0L),
+            unassignedPlannedBudgetCents = (portfolioTotalBudgetCents - totalPlannedCents).coerceAtLeast(0L),
             totalSpentThisCycleCents = totalSpentThisCycleCents,
             remainingThisCycleCents = remainingThisCycleCents,
             completedCycleReserveCents = completedCycleReserveCents,

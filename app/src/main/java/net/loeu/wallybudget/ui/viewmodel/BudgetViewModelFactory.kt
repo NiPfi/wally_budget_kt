@@ -81,7 +81,8 @@ class BudgetViewModelFactory(
                 BudgetDatabase.MIGRATION_9_10,
                 BudgetDatabase.MIGRATION_10_11,
                 BudgetDatabase.MIGRATION_11_12,
-                BudgetDatabase.MIGRATION_12_13
+                BudgetDatabase.MIGRATION_12_13,
+                BudgetDatabase.MIGRATION_13_14
             )
             .build()
     }
@@ -127,6 +128,7 @@ class BudgetViewModelFactory(
     private val budgetBucketDao by lazy { database.budgetBucketDao() }
     private val bucketAllocationPolicyDao by lazy { database.bucketAllocationPolicyDao() }
     private val bucketAllocationAdjustmentDao by lazy { database.bucketAllocationAdjustmentDao() }
+    private val bucketTransferDao by lazy { database.bucketTransferDao() }
     private val bucketMonthlyHistoryDao by lazy { database.bucketMonthlyHistoryDao() }
     private val fundDao by lazy { database.fundDao() }
     private val fundTransactionDao by lazy { database.fundTransactionDao() }
@@ -140,14 +142,13 @@ class BudgetViewModelFactory(
             budgetBucketDao = budgetBucketDao,
             fundDao = fundDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
-            bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+            bucketTransferDao = bucketTransferDao,
             bucketMonthlyHistoryDao = bucketMonthlyHistoryDao,
             userSettingsStore = userPreferencesManager,
             currentDateProvider = currentDateProvider,
             budgetCalculationService = budgetCalculationService,
             cycleScheduleResolver = cycleScheduleResolver,
             budgetAdjustmentResolver = budgetAdjustmentResolver,
-            bucketAllocationResolver = bucketAllocationResolver,
             portfolioCalculationService = portfolioCalculationService
         )
     }
@@ -239,6 +240,8 @@ class BudgetViewModelFactory(
             budgetBucketDao = budgetBucketDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+            bucketTransferDao = bucketTransferDao,
+            expenseDao = expenseDao,
             currentDateProvider = currentDateProvider,
             cycleScheduleResolver = cycleScheduleResolver,
             hybridLogicalClockService = hybridLogicalClockService
@@ -249,9 +252,6 @@ class BudgetViewModelFactory(
             transactionRunner = database,
             userSettingsStore = userPreferencesManager,
             budgetPolicyDao = budgetPolicyDao,
-            budgetAdjustmentDao = budgetAdjustmentDao,
-            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
-            bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
             currentDateProvider = currentDateProvider,
             cycleScheduleResolver = cycleScheduleResolver,
             hybridLogicalClockService = hybridLogicalClockService
@@ -313,6 +313,8 @@ class BudgetViewModelFactory(
             expenseDao = expenseDao,
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = budgetAdjustmentDao,
+            budgetBucketDao = budgetBucketDao,
+            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             monthlyHistoryDao = monthlyHistoryDao,
             userSettingsStore = userPreferencesManager,
             budgetCalculationService = budgetCalculationService,
@@ -328,6 +330,7 @@ class BudgetViewModelFactory(
             expenseDao = expenseDao,
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = budgetAdjustmentDao,
+            budgetBucketDao = budgetBucketDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
             monthlyHistoryDao = monthlyHistoryDao,
@@ -354,6 +357,7 @@ class BudgetViewModelFactory(
             budgetBucketDao = budgetBucketDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+            bucketTransferDao = bucketTransferDao,
             fundDao = fundDao,
             fundTransactionDao = fundTransactionDao,
             userSettingsStore = userPreferencesManager,
@@ -378,6 +382,7 @@ class BudgetViewModelFactory(
             budgetBucketDao = budgetBucketDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+            bucketTransferDao = bucketTransferDao,
             bucketMonthlyHistoryDao = bucketMonthlyHistoryDao,
             fundDao = fundDao,
             fundTransactionDao = fundTransactionDao,

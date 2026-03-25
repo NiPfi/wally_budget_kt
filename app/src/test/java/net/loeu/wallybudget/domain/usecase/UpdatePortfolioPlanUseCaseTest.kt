@@ -71,6 +71,8 @@ class UpdatePortfolioPlanUseCaseTest {
             budgetBucketDao = budgetBucketDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
+            bucketTransferDao = FakeBucketTransferDao(),
+            expenseDao = FakeExpenseDao(),
             currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
             cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService()),
             hybridLogicalClockService = HybridLogicalClockService()
@@ -147,6 +149,8 @@ class UpdatePortfolioPlanUseCaseTest {
                 )
             ),
             bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
+            bucketTransferDao = FakeBucketTransferDao(),
+            expenseDao = FakeExpenseDao(),
             currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
             cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService()),
             hybridLogicalClockService = HybridLogicalClockService()
@@ -159,7 +163,7 @@ class UpdatePortfolioPlanUseCaseTest {
 
     @Test
     @Suppress("LongMethod")
-    fun invoke_closingBucketReallocatesFutureDefaultPolicy() = runBlocking {
+    fun invoke_closingBucketLeavesFuturePoliciesUntouchedUntilRollover() = runBlocking {
         val settingsStore = FakeUserSettingsStore(
             UserSettings(
                 monthlyBudgetCents = 100_000L,
@@ -204,6 +208,8 @@ class UpdatePortfolioPlanUseCaseTest {
             ),
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
+            bucketTransferDao = FakeBucketTransferDao(),
+            expenseDao = FakeExpenseDao(),
             currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
             cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService()),
             hybridLogicalClockService = HybridLogicalClockService()
@@ -238,7 +244,7 @@ class UpdatePortfolioPlanUseCaseTest {
             .first { it.allocationUuid == "default-future" }
         val futureTravelPolicy = bucketAllocationPolicyDao.getAllForSnapshot()
             .first { it.allocationUuid == "travel-future" }
-        assertEquals(100_000L, futureDefaultPolicy.allocatedAmountCents)
+        assertEquals(70_000L, futureDefaultPolicy.allocatedAmountCents)
         assertNull(futureDefaultPolicy.deletedAtEpochMs)
         assertEquals(30_000L, futureTravelPolicy.allocatedAmountCents)
         assertTrue(futureTravelPolicy.deletedAtEpochMs != null)
@@ -246,7 +252,7 @@ class UpdatePortfolioPlanUseCaseTest {
 
     @Test
     @Suppress("LongMethod")
-    fun invoke_bucketPlanSaveRewritesChangedFutureNamedBucketPolicies() = runBlocking {
+    fun invoke_bucketPlanSaveDoesNotRewriteFutureNamedBucketPolicies() = runBlocking {
         val settingsStore = FakeUserSettingsStore(
             UserSettings(
                 monthlyBudgetCents = 100_000L,
@@ -291,6 +297,8 @@ class UpdatePortfolioPlanUseCaseTest {
             ),
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
+            bucketTransferDao = FakeBucketTransferDao(),
+            expenseDao = FakeExpenseDao(),
             currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
             cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService()),
             hybridLogicalClockService = HybridLogicalClockService()
@@ -324,8 +332,8 @@ class UpdatePortfolioPlanUseCaseTest {
             .first { it.allocationUuid == "default-future" }
         val futureTravelPolicy = bucketAllocationPolicyDao.getAllForSnapshot()
             .first { it.allocationUuid == "travel-future" }
-        assertEquals(60_000L, futureDefaultPolicy.allocatedAmountCents)
-        assertEquals(40_000L, futureTravelPolicy.allocatedAmountCents)
+        assertEquals(70_000L, futureDefaultPolicy.allocatedAmountCents)
+        assertEquals(30_000L, futureTravelPolicy.allocatedAmountCents)
     }
 
 }

@@ -12,6 +12,7 @@ data class BudgetBucket(
     val lastModifiedByInstallId: String,
     val createdAtEpochMs: Long,
     val updatedAtEpochMs: Long,
+    val settledCloseCycleEndDateExclusive: String? = null,
     val closedAtEpochMs: Long? = null,
     val deletedAtEpochMs: Long? = null,
     val modClock: String
@@ -28,6 +29,7 @@ data class BudgetBucket(
         lastModifiedByInstallId: String,
         createdAtEpochMs: Long,
         updatedAtEpochMs: Long,
+        settledCloseCycleEndDateExclusive: String? = null,
         closedAtEpochMs: Long? = null,
         deletedAtEpochMs: Long? = null,
         modClock: String
@@ -40,6 +42,7 @@ data class BudgetBucket(
         lastModifiedByInstallId = lastModifiedByInstallId,
         createdAtEpochMs = createdAtEpochMs,
         updatedAtEpochMs = updatedAtEpochMs,
+        settledCloseCycleEndDateExclusive = settledCloseCycleEndDateExclusive,
         closedAtEpochMs = closedAtEpochMs,
         deletedAtEpochMs = deletedAtEpochMs,
         modClock = modClock
@@ -56,6 +59,7 @@ data class BudgetBucket(
         lastModifiedByInstallId: String,
         createdAtEpochMs: Long,
         updatedAtEpochMs: Long,
+        settledCloseCycleEndDateExclusive: String? = null,
         closedAtEpochMs: Long? = null,
         deletedAtEpochMs: Long? = null,
         modClock: String
@@ -68,6 +72,7 @@ data class BudgetBucket(
         lastModifiedByInstallId = lastModifiedByInstallId,
         createdAtEpochMs = createdAtEpochMs,
         updatedAtEpochMs = updatedAtEpochMs,
+        settledCloseCycleEndDateExclusive = settledCloseCycleEndDateExclusive,
         closedAtEpochMs = closedAtEpochMs,
         deletedAtEpochMs = deletedAtEpochMs,
         modClock = modClock
@@ -86,6 +91,7 @@ data class BudgetBucket(
         lastModifiedByInstallId: String,
         createdAtEpochMs: Long,
         updatedAtEpochMs: Long,
+        settledCloseCycleEndDateExclusive: String? = null,
         closedAtEpochMs: Long? = null,
         deletedAtEpochMs: Long? = null,
         modClock: String
@@ -98,13 +104,20 @@ data class BudgetBucket(
         lastModifiedByInstallId = lastModifiedByInstallId,
         createdAtEpochMs = createdAtEpochMs,
         updatedAtEpochMs = updatedAtEpochMs,
+        settledCloseCycleEndDateExclusive = settledCloseCycleEndDateExclusive,
         closedAtEpochMs = closedAtEpochMs,
         deletedAtEpochMs = deletedAtEpochMs,
         modClock = modClock
     )
 
+    val isSettledClosing: Boolean
+        get() = settledCloseCycleEndDateExclusive != null && closedAtEpochMs == null && deletedAtEpochMs == null
+
     val isClosed: Boolean
-        get() = closedAtEpochMs != null || deletedAtEpochMs != null
+        get() = isSettledClosing || closedAtEpochMs != null || deletedAtEpochMs != null
+
+    val isOpenForEditing: Boolean
+        get() = !isClosed
 
     @Deprecated("Buckets are always spending buckets.")
     val trackingMode: BucketTrackingMode

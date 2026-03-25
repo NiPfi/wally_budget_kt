@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.map
 import net.loeu.wallybudget.data.local.dao.BucketAllocationAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
 import net.loeu.wallybudget.data.local.dao.BucketMonthlyHistoryDao
+import net.loeu.wallybudget.data.local.dao.BucketTransferDao
 import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
@@ -28,6 +29,7 @@ import net.loeu.wallybudget.domain.model.BucketMonthlyHistory
 import net.loeu.wallybudget.domain.model.BucketSummaryState
 import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BudgetPolicy
+import net.loeu.wallybudget.domain.model.BucketTransfer
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.Expense
@@ -40,7 +42,6 @@ import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.model.groupByDate
 import net.loeu.wallybudget.domain.model.sumByDate
 import net.loeu.wallybudget.domain.model.toMonthlyHistory
-import net.loeu.wallybudget.domain.service.BucketAllocationResolver
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.CycleDateRange
@@ -73,7 +74,7 @@ private data class CurrentPortfolioInputs(
     val portfolioPolicy: ResolvedCyclePolicy,
     val portfolioAdjustments: List<BudgetAdjustment>,
     val bucketPolicies: List<BucketAllocationPolicy>,
-    val bucketAdjustments: List<BucketAllocationAdjustment>,
+    val bucketTransfers: List<BucketTransfer>,
     val funds: List<Fund>,
     val currentExpenses: List<Expense>,
     val allBucketHistory: List<BucketMonthlyHistory>
@@ -115,14 +116,6 @@ private fun observePortfolioPolicies(budgetPolicyDao: BudgetPolicyDao): Flow<Lis
 
 private fun observeBucketPolicies(bucketAllocationPolicyDao: BucketAllocationPolicyDao): Flow<List<BucketAllocationPolicy>> {
     return bucketAllocationPolicyDao.observeActivePolicies().map { entries ->
-        entries.map { it.toDomainModel() }
-    }
-}
-
-private fun observeAllBucketAdjustments(
-    bucketAllocationAdjustmentDao: BucketAllocationAdjustmentDao
-): Flow<List<BucketAllocationAdjustment>> {
-    return bucketAllocationAdjustmentDao.observeAllActive().map { entries ->
         entries.map { it.toDomainModel() }
     }
 }
@@ -251,7 +244,7 @@ private fun resolvedSelectedBucket(
     buckets: List<BudgetBucket>,
     selectedBucketUuid: String
 ): BudgetBucket? {
-    return resolveSelectedOpenBucket(selectedBucketUuid, buckets)
+    return resolveSelectedOpenBucket(selectedBucketUuid, buckets.filter { it.isOpenForEditing })
 }
 
 private fun resolveCurrentBucketPolicy(
@@ -285,9 +278,8 @@ private fun buildBucketSummaryState(
     today: LocalDate,
     paydayDayOfMonth: Int,
     bucketPolicies: List<BucketAllocationPolicy>,
-    bucketAdjustments: List<BucketAllocationAdjustment>,
+    bucketTransfers: List<BucketTransfer>,
     currentExpenses: List<Expense>,
-    bucketAllocationResolver: BucketAllocationResolver,
     budgetCalculationService: BudgetCalculationService
 ): BucketSummaryState {
     val resolvedPolicy = resolveCurrentBucketPolicy(
@@ -296,28 +288,38 @@ private fun buildBucketSummaryState(
         paydayDayOfMonth = paydayDayOfMonth,
         bucketPolicies = bucketPolicies
     )
-    val cycleAdjustments = bucketAdjustments
-        .filter { it.bucketUuid == bucket.bucketUuid }
-        .filter { it.cycleStart() == portfolioPolicy.cycleStart }
-    val resolvedAllocation = bucketAllocationResolver.resolveBucketAllocation(
-        cycleStart = resolvedPolicy.cycleStart,
-        cycleEndExclusive = resolvedPolicy.cycleEndExclusive,
-        baseAllocatedAmountCents = resolvedPolicy.budgetAmountCents,
-        adjustments = cycleAdjustments,
-        today = today
-    )
+    val cycleTransfers = bucketTransfers.filter { it.cycleStart() == portfolioPolicy.cycleStart }
+    val netTransfersCents = cycleTransfers.sumOf { transfer ->
+        when (bucket.bucketUuid) {
+            transfer.toBucketUuid -> transfer.amountCents
+            transfer.fromBucketUuid -> -transfer.amountCents
+            else -> 0L
+        }
+    }
+    val effectiveAllocationCents = resolvedPolicy.budgetAmountCents + netTransfersCents
     val bucketCycleExpenses = currentExpenses.filter { it.bucketUuid == bucket.bucketUuid }
     val spentThisCycleCents = bucketCycleExpenses.sumOf { it.amountCents }
-    val remainingThisCycleCents = resolvedAllocation.effectiveCycleAllocationCents - spentThisCycleCents
+    val remainingThisCycleCents = effectiveAllocationCents - spentThisCycleCents
     val overspentCents = (-remainingThisCycleCents).coerceAtLeast(0L)
     val todayExpenses = bucketCycleExpenses.filterByRange(today, today.plusDays(1))
+    val daysInCycle = java.time.temporal.ChronoUnit.DAYS
+        .between(resolvedPolicy.cycleStart, resolvedPolicy.cycleEndExclusive)
+        .toInt()
+        .coerceAtLeast(1)
+    val daysBeforeToday = java.time.temporal.ChronoUnit.DAYS
+        .between(resolvedPolicy.cycleStart, today)
+        .toInt()
+        .coerceAtLeast(0)
+    val allocatedBeforeTodayCents = (effectiveAllocationCents * daysBeforeToday) / daysInCycle
+    val plannedTodayBudgetCents = (effectiveAllocationCents * (daysBeforeToday + 1L)) / daysInCycle -
+        allocatedBeforeTodayCents
     val budgetState = budgetCalculationService.calculateBudgetStateForResolvedCycle(
         now = today,
         cycleStart = resolvedPolicy.cycleStart,
         cycleEndExclusive = resolvedPolicy.cycleEndExclusive,
-        cycleBudgetAmountCents = resolvedAllocation.effectiveCycleAllocationCents,
-        plannedTodayBudgetCents = resolvedAllocation.plannedTodayAllocationCents,
-        allocatedBeforeTodayCents = resolvedAllocation.allocatedBeforeDateCents,
+        cycleBudgetAmountCents = effectiveAllocationCents,
+        plannedTodayBudgetCents = plannedTodayBudgetCents,
+        allocatedBeforeTodayCents = allocatedBeforeTodayCents,
         totalSpentThisCycleCents = spentThisCycleCents,
         spentTodayCents = todayExpenses.sumOf { it.amountCents },
         paydayDate = paydayDayOfMonth
@@ -325,7 +327,7 @@ private fun buildBucketSummaryState(
 
     return BucketSummaryState(
         bucket = bucket,
-        allocatedThisCycleCents = resolvedAllocation.effectiveCycleAllocationCents,
+        allocatedThisCycleCents = effectiveAllocationCents,
         spentThisCycleCents = spentThisCycleCents,
         remainingThisCycleCents = remainingThisCycleCents,
         overspentCents = overspentCents,
@@ -372,14 +374,13 @@ class ObserveHomeOverviewUseCase(
     private val budgetBucketDao: BudgetBucketDao,
     private val fundDao: FundDao,
     private val bucketAllocationPolicyDao: BucketAllocationPolicyDao,
-    private val bucketAllocationAdjustmentDao: BucketAllocationAdjustmentDao,
+    private val bucketTransferDao: BucketTransferDao,
     private val bucketMonthlyHistoryDao: BucketMonthlyHistoryDao,
     private val userSettingsStore: UserSettingsStore,
     private val currentDateProvider: CurrentDateProvider,
     private val budgetCalculationService: BudgetCalculationService,
     private val cycleScheduleResolver: CycleScheduleResolver,
     private val budgetAdjustmentResolver: BudgetAdjustmentResolver,
-    private val bucketAllocationResolver: BucketAllocationResolver,
     private val portfolioCalculationService: PortfolioCalculationService
 ) {
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -391,7 +392,6 @@ class ObserveHomeOverviewUseCase(
         val activeBuckets = observeActiveBuckets(budgetBucketDao)
         val activeFunds = observeActiveFunds(fundDao)
         val bucketPolicies = observeBucketPolicies(bucketAllocationPolicyDao)
-        val bucketAdjustments = observeAllBucketAdjustments(bucketAllocationAdjustmentDao)
         val allBucketHistory = observeAllBucketHistory(bucketMonthlyHistoryDao)
         val budgetPolicies = observePortfolioPolicies(budgetPolicyDao)
         val portfolioPolicy = observePortfolioCurrentPolicy(
@@ -413,26 +413,32 @@ class ObserveHomeOverviewUseCase(
         val portfolioMutationInputs = combine(
             portfolioPolicy,
             portfolioCurrentAdjustments,
-            bucketPolicies,
-            bucketAdjustments
-        ) { portfolioPolicyValue, portfolioAdjustmentsValue, bucketPoliciesValue, bucketAdjustmentsValue ->
+            bucketPolicies
+        ) { portfolioPolicyValue, portfolioAdjustmentsValue, bucketPoliciesValue ->
             PortfolioMutationInputs(
                 portfolioPolicy = portfolioPolicyValue,
                 portfolioAdjustments = portfolioAdjustmentsValue,
-                bucketPolicies = bucketPoliciesValue,
-                bucketAdjustments = bucketAdjustmentsValue
+                bucketPolicies = bucketPoliciesValue
             )
         }
+        val bucketTransfers = portfolioPolicy
+            .map { it.cycleStart.toString() }
+            .distinctUntilChanged()
+            .flatMapLatest { cycleStart ->
+                bucketTransferDao.observeForCycle(cycleStart).map { entries -> entries.map { it.toDomainModel() } }
+            }
         val portfolioCurrentSupportingInputs = combine(
             selectedBucketUuid,
             currentExpenses,
             allBucketHistory,
+            bucketTransfers,
             portfolioMutationInputs
-        ) { selectedBucketUuidValue, currentExpensesValue, allBucketHistoryValue, mutationInputs ->
+        ) { selectedBucketUuidValue, currentExpensesValue, allBucketHistoryValue, bucketTransfersValue, mutationInputs ->
             PortfolioCurrentSupportingInputs(
                 selectedBucketUuid = selectedBucketUuidValue,
                 currentExpenses = currentExpensesValue,
                 allBucketHistory = allBucketHistoryValue,
+                bucketTransfers = bucketTransfersValue,
                 mutationInputs = mutationInputs
             )
         }
@@ -451,7 +457,7 @@ class ObserveHomeOverviewUseCase(
                 portfolioPolicy = supportingInputs.mutationInputs.portfolioPolicy,
                 portfolioAdjustments = supportingInputs.mutationInputs.portfolioAdjustments,
                 bucketPolicies = supportingInputs.mutationInputs.bucketPolicies,
-                bucketAdjustments = supportingInputs.mutationInputs.bucketAdjustments,
+                bucketTransfers = supportingInputs.bucketTransfers,
                 funds = funds,
                 currentExpenses = supportingInputs.currentExpenses,
                 allBucketHistory = supportingInputs.allBucketHistory
@@ -503,9 +509,8 @@ class ObserveHomeOverviewUseCase(
                 today = inputs.today,
                 paydayDayOfMonth = inputs.settings.paydayDate,
                 bucketPolicies = inputs.bucketPolicies,
-                bucketAdjustments = inputs.bucketAdjustments,
+                bucketTransfers = inputs.bucketTransfers,
                 currentExpenses = inputs.currentExpenses,
-                bucketAllocationResolver = bucketAllocationResolver,
                 budgetCalculationService = budgetCalculationService
             )
         }
@@ -530,9 +535,8 @@ class ObserveHomeOverviewUseCase(
                 today = inputs.today,
                 paydayDayOfMonth = inputs.settings.paydayDate,
                 bucketPolicies = inputs.bucketPolicies,
-                bucketAdjustments = inputs.bucketAdjustments,
+                bucketTransfers = inputs.bucketTransfers,
                 currentExpenses = inputs.currentExpenses,
-                bucketAllocationResolver = bucketAllocationResolver,
                 budgetCalculationService = budgetCalculationService
             )
         val selectedBucketOverview = buildSelectedBucketOverview(
@@ -592,8 +596,7 @@ class ObserveHomeOverviewUseCase(
 private data class PortfolioMutationInputs(
     val portfolioPolicy: ResolvedCyclePolicy,
     val portfolioAdjustments: List<BudgetAdjustment>,
-    val bucketPolicies: List<BucketAllocationPolicy>,
-    val bucketAdjustments: List<BucketAllocationAdjustment>
+    val bucketPolicies: List<BucketAllocationPolicy>
 )
 
 private data class PendingOverviewInputs(
@@ -607,5 +610,6 @@ private data class PortfolioCurrentSupportingInputs(
     val selectedBucketUuid: String,
     val currentExpenses: List<Expense>,
     val allBucketHistory: List<BucketMonthlyHistory>,
+    val bucketTransfers: List<BucketTransfer>,
     val mutationInputs: PortfolioMutationInputs
 )

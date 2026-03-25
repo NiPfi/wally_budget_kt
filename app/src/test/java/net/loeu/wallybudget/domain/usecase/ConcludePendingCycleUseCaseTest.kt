@@ -42,6 +42,7 @@ class ConcludePendingCycleUseCaseTest {
             expenseDao = expenseDao,
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = budgetAdjustmentDao,
+            budgetBucketDao = FakeBudgetBucketDao(),
             monthlyHistoryDao = historyDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
@@ -106,13 +107,7 @@ class ConcludePendingCycleUseCaseTest {
         )
 
         val updatedFund = fundDao.findByUuid(DEFAULT_FUND_UUID)
-        val expectedDepositAmount = BucketAllocationResolver().resolveEffectiveCycleAllocationAmount(
-            cycleStart = pendingCycleStart,
-            cycleEndExclusive = pendingCycleEnd,
-            baseAllocatedAmountCents = 30_00L,
-            adjustments = bucketAllocationAdjustmentDao.getActiveForCycle("groceries", pendingCycleStart.toString())
-                .map { it.toDomainModel() }
-        ) - 20_00L
+        val expectedDepositAmount = 30_00L - 20_00L
         assertEquals(10_00L + expectedDepositAmount, updatedFund?.balanceCents)
         assertEquals("test-install-id", updatedFund?.lastModifiedByInstallId)
         assertEquals(1, fundTransactionDao.currentTransactions.size)
@@ -244,6 +239,7 @@ class ConcludePendingCycleUseCaseTest {
             expenseDao = FakeExpenseDao(expenses),
             budgetPolicyDao = FakeBudgetPolicyDao(listOf(budgetPolicyEntity(1L, pendingCycleStart, pendingCycleEnd))),
             budgetAdjustmentDao = FakeBudgetAdjustmentDao(),
+            budgetBucketDao = FakeBudgetBucketDao(),
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
             monthlyHistoryDao = FakeMonthlyHistoryDao(),

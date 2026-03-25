@@ -197,7 +197,7 @@ class UpdateBudgetSettingsUseCaseBucketsTest {
             portfolioMonthlyBudgetCents = 450_000L,
             paydayDate = 25,
             buckets = buckets.toList(),
-            budgetChangeMode = BudgetChangeMode.PRORATE_CURRENT_CYCLE
+            budgetChangeMode = BudgetChangeMode.APPLY_CURRENT_NOW
         )
     }
 
@@ -218,10 +218,11 @@ class UpdateBudgetSettingsUseCaseBucketsTest {
             budgetBucketDao = budgetBucketDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+            bucketTransferDao = FakeBucketTransferDao(),
+            expenseDao = FakeExpenseDao(),
             currentDateProvider = FakeCurrentDateProvider(currentDate),
             cycleScheduleResolver = cycleScheduleResolver,
             budgetAdjustmentResolver = BudgetAdjustmentResolver(),
-            bucketAllocationResolver = BucketAllocationResolver(),
             hybridLogicalClockService = hybridLogicalClockService
         )
     }

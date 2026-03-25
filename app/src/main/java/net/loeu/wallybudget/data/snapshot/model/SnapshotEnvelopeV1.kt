@@ -16,6 +16,7 @@ data class SnapshotEnvelopeV1(
     val budgetBuckets: List<SnapshotBudgetBucketRecordV3>? = null,
     val bucketAllocationPolicies: List<SnapshotBucketAllocationPolicyRecordV3>? = null,
     val bucketAllocationAdjustments: List<SnapshotBucketAllocationAdjustmentRecordV3>? = null,
+    val bucketTransfers: List<SnapshotBucketTransferRecordV1>? = null,
     val funds: List<SnapshotFundRecordV5>? = null,
     val fundTransactions: List<SnapshotFundTransactionRecordV5>? = null
 )
@@ -93,6 +94,7 @@ data class SnapshotBudgetBucketRecordV3(
     val lastModifiedByInstallId: String,
     val createdAtEpochMs: Long,
     val updatedAtEpochMs: Long,
+    val settledCloseCycleEndDateExclusive: String? = null,
     val closedAtEpochMs: Long?,
     val deletedAtEpochMs: Long?,
     val modClock: String
@@ -119,6 +121,23 @@ data class SnapshotBucketAllocationAdjustmentRecordV3(
     val effectiveDate: String,
     val previousAllocatedAmountCents: Long,
     val newAllocatedAmountCents: Long,
+    val originInstallId: String,
+    val lastModifiedByInstallId: String,
+    val createdAtEpochMs: Long,
+    val updatedAtEpochMs: Long,
+    val deletedAtEpochMs: Long?,
+    val modClock: String
+)
+
+data class SnapshotBucketTransferRecordV1(
+    val transferUuid: String,
+    val fromBucketUuid: String?,
+    val toBucketUuid: String?,
+    val amountCents: Long,
+    val reason: String,
+    val cycleStartDate: String,
+    val cycleEndDateExclusive: String,
+    val effectiveDate: String,
     val originInstallId: String,
     val lastModifiedByInstallId: String,
     val createdAtEpochMs: Long,

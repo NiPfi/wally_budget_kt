@@ -13,7 +13,7 @@ class PortfolioCalculationServiceTest {
     private val service = PortfolioCalculationService()
 
     @Test
-    fun calculatePortfolioState_usesAllocatedBucketsAsCycleBaseline_whenPlanExceedsStoredPortfolioBudget() {
+    fun calculatePortfolioState_usesStoredPortfolioBudget_whenPlanExceedsStoredPortfolioBudget() {
         val state = service.calculatePortfolioState(
             portfolioTotalBudgetCents = 100_000L,
             bucketSummaries = listOf(
@@ -26,11 +26,11 @@ class PortfolioCalculationServiceTest {
             cycleEndDateExclusive = LocalDate.of(2026, 3, 25)
         )
 
-        assertEquals(450_000L, state.portfolioTotalBudgetCents)
+        assertEquals(100_000L, state.portfolioTotalBudgetCents)
         assertEquals(450_000L, state.allocatedToBucketsCents)
         assertEquals(0L, state.completedCycleReserveCents)
-        assertEquals(-29_125L, state.remainingThisCycleCents)
-        assertEquals(-29_125L, state.netReserveCents)
+        assertEquals(-379_125L, state.remainingThisCycleCents)
+        assertEquals(-379_125L, state.netReserveCents)
     }
 
     @Test

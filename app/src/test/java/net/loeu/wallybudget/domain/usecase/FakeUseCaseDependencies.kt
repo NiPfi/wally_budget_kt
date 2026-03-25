@@ -8,6 +8,7 @@ import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
 import net.loeu.wallybudget.data.local.dao.BucketMonthlyHistoryDao
+import net.loeu.wallybudget.data.local.dao.BucketTransferDao
 import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.CycleOverviewDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
@@ -20,6 +21,7 @@ import net.loeu.wallybudget.data.local.entity.BucketAllocationAdjustmentEntity
 import net.loeu.wallybudget.data.local.entity.BucketAllocationPolicyEntity
 import net.loeu.wallybudget.data.local.entity.BucketMonthlyHistoryEntity
 import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
+import net.loeu.wallybudget.data.local.entity.BucketTransferEntity
 import net.loeu.wallybudget.data.local.db.TransactionRunner
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
 import net.loeu.wallybudget.data.local.entity.FundEntity
@@ -691,6 +693,53 @@ internal class FakeBucketAllocationAdjustmentDao(
     }
 }
 
+internal class FakeBucketTransferDao(
+    initialTransfers: List<BucketTransferEntity> = emptyList()
+) : BucketTransferDao {
+    private val transfers = initialTransfers.toMutableList()
+    private val transferFlow = MutableStateFlow(sortedTransfers())
+    private var nextId = (transfers.maxOfOrNull { it.id } ?: 0L) + 1L
+
+    override suspend fun insert(entity: BucketTransferEntity): Long {
+        val inserted = if (entity.id == 0L) entity.copy(id = nextId++) else entity
+        transfers.removeAll { it.id == inserted.id || it.transferUuid == inserted.transferUuid }
+        transfers += inserted
+        refresh()
+        return inserted.id
+    }
+
+    override suspend fun insert(entities: List<BucketTransferEntity>): List<Long> = entities.map { insert(it) }
+
+    override fun observeForCycle(cycleStartDate: String): Flow<List<BucketTransferEntity>> =
+        transferFlow.map { current ->
+            current.filter { it.deletedAtEpochMs == null && it.cycleStartDate == cycleStartDate }
+        }
+
+    override suspend fun getForCycle(cycleStartDate: String): List<BucketTransferEntity> {
+        return sortedTransfers().filter { it.deletedAtEpochMs == null && it.cycleStartDate == cycleStartDate }
+    }
+
+    override suspend fun getAllForSnapshot(): List<BucketTransferEntity> = sortedTransfers()
+
+    override suspend fun deleteAll() {
+        transfers.clear()
+        refresh()
+    }
+
+    private fun refresh() {
+        transferFlow.value = sortedTransfers()
+    }
+
+    private fun sortedTransfers(): List<BucketTransferEntity> {
+        return transfers.sortedWith(
+            compareBy<BucketTransferEntity> { it.cycleStartDate }
+                .thenBy { it.effectiveDate }
+                .thenBy { it.updatedAtEpochMs }
+                .thenBy { it.transferUuid }
+        )
+    }
+}
+
 internal class FakeBucketMonthlyHistoryDao(
     initialHistory: List<BucketMonthlyHistoryEntity> = emptyList()
 ) : BucketMonthlyHistoryDao {
@@ -972,6 +1021,7 @@ internal fun bucketEntity(
     createdAtEpochMs: Long = 1L,
     updatedAtEpochMs: Long = createdAtEpochMs,
     closedAtEpochMs: Long? = null,
+    settledCloseCycleEndDateExclusive: String? = null,
     deletedAtEpochMs: Long? = null,
     modClock: String = "%013d-%04d-%s".format(updatedAtEpochMs, 0, lastModifiedByInstallId)
 ): BudgetBucketEntity {
@@ -987,6 +1037,7 @@ internal fun bucketEntity(
         lastModifiedByInstallId = lastModifiedByInstallId,
         createdAtEpochMs = createdAtEpochMs,
         updatedAtEpochMs = updatedAtEpochMs,
+        settledCloseCycleEndDateExclusive = settledCloseCycleEndDateExclusive,
         closedAtEpochMs = closedAtEpochMs,
         deletedAtEpochMs = deletedAtEpochMs,
         modClock = modClock

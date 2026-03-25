@@ -214,7 +214,7 @@ class ObserveHomeOverviewUseCaseTest {
         budgetAdjustmentDao: FakeBudgetAdjustmentDao = FakeBudgetAdjustmentDao(),
         budgetBucketDao: FakeBudgetBucketDao = spendingBucketDao(),
         bucketAllocationPolicyDao: FakeBucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(),
-        bucketAllocationAdjustmentDao: FakeBucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
+        bucketTransferDao: FakeBucketTransferDao = FakeBucketTransferDao(),
         bucketHistoryDao: FakeBucketMonthlyHistoryDao = FakeBucketMonthlyHistoryDao()
     ): ObserveHomeOverviewUseCase {
         val budgetCalculationService = BudgetCalculationService()
@@ -226,14 +226,13 @@ class ObserveHomeOverviewUseCaseTest {
             budgetBucketDao = budgetBucketDao,
             fundDao = FakeFundDao(),
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
-            bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+            bucketTransferDao = bucketTransferDao,
             bucketMonthlyHistoryDao = bucketHistoryDao,
             userSettingsStore = settingsStore,
             currentDateProvider = FakeCurrentDateProvider(currentDate),
             budgetCalculationService = budgetCalculationService,
             cycleScheduleResolver = CycleScheduleResolver(budgetCalculationService),
             budgetAdjustmentResolver = BudgetAdjustmentResolver(),
-            bucketAllocationResolver = BucketAllocationResolver(),
             portfolioCalculationService = PortfolioCalculationService()
         )
     }

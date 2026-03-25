@@ -6,6 +6,7 @@ import net.loeu.wallybudget.data.local.entity.BudgetPolicyEntity
 import net.loeu.wallybudget.data.local.entity.BucketAllocationAdjustmentEntity
 import net.loeu.wallybudget.data.local.entity.BucketAllocationPolicyEntity
 import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
+import net.loeu.wallybudget.data.local.entity.BucketTransferEntity
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
 import net.loeu.wallybudget.data.local.entity.FundEntity
 import net.loeu.wallybudget.data.local.entity.FundTransactionEntity
@@ -21,6 +22,7 @@ import net.loeu.wallybudget.domain.model.DEFAULT_FUND_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
+import net.loeu.wallybudget.domain.model.BucketTransferReason
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.FundTransactionType
 import net.loeu.wallybudget.domain.model.SnapshotError
@@ -83,6 +85,7 @@ class PrepareSnapshotImportUseCase(
                 budgetBuckets = envelope.toBudgetBucketEntities(),
                 bucketAllocationPolicies = envelope.toBucketAllocationPolicyEntities(),
                 bucketAllocationAdjustments = envelope.toBucketAllocationAdjustmentEntities(),
+                bucketTransfers = envelope.toBucketTransferEntities(),
                 funds = envelope.toFundEntities(),
                 fundTransactions = envelope.toFundTransactionEntities(),
                 expenses = envelope.toExpenseEntities()
@@ -295,6 +298,29 @@ class PrepareSnapshotImportUseCase(
                 effectiveDate = record.effectiveDate,
                 previousAllocatedAmountCents = record.previousMonthlyBudgetCents,
                 newAllocatedAmountCents = record.newMonthlyBudgetCents,
+                originInstallId = record.originInstallId,
+                lastModifiedByInstallId = record.lastModifiedByInstallId,
+                createdAtEpochMs = record.createdAtEpochMs,
+                updatedAtEpochMs = record.updatedAtEpochMs,
+                deletedAtEpochMs = record.deletedAtEpochMs,
+                modClock = record.modClock
+            )
+        }
+    }
+
+    private fun SnapshotEnvelopeV1.toBucketTransferEntities(): List<BucketTransferEntity> {
+        return bucketTransfers.orEmpty().map { record ->
+            val reason = BucketTransferReason.entries.find { it.name == record.reason }
+                ?: throw SnapshotOperationException(SnapshotError.MalformedSnapshot)
+            BucketTransferEntity(
+                transferUuid = record.transferUuid,
+                fromBucketUuid = record.fromBucketUuid,
+                toBucketUuid = record.toBucketUuid,
+                amountCents = record.amountCents,
+                reason = reason,
+                cycleStartDate = record.cycleStartDate,
+                cycleEndDateExclusive = record.cycleEndDateExclusive,
+                effectiveDate = record.effectiveDate,
                 originInstallId = record.originInstallId,
                 lastModifiedByInstallId = record.lastModifiedByInstallId,
                 createdAtEpochMs = record.createdAtEpochMs,

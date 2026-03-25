@@ -1,6 +1,7 @@
 package net.loeu.wallybudget.domain.usecase
 
 import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
+import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
@@ -32,6 +33,7 @@ class ConcludePendingCycleUseCase(
     private val expenseDao: ExpenseDao,
     private val budgetPolicyDao: BudgetPolicyDao,
     private val budgetAdjustmentDao: BudgetAdjustmentDao,
+    private val budgetBucketDao: BudgetBucketDao,
     private val bucketAllocationPolicyDao: BucketAllocationPolicyDao,
     private val bucketAllocationAdjustmentDao: BucketAllocationAdjustmentDao,
     private val monthlyHistoryDao: MonthlyHistoryDao,
@@ -71,6 +73,10 @@ class ConcludePendingCycleUseCase(
                 cycleEnd = pendingCycle.endExclusive
             )
             distributeCycleCloseoutToFunds(
+                pendingCycle = pendingCycle,
+                installId = identitySettings.installDeviceId
+            )
+            finalizeSettledClosingBuckets(
                 pendingCycle = pendingCycle,
                 installId = identitySettings.installDeviceId
             )
@@ -155,20 +161,46 @@ class ConcludePendingCycleUseCase(
             .filter { it.deletedAtEpochMs == null && it.cycleStartDate == pendingCycle.start.toString() }
 
         val netSurplusCents = bucketPolicies.sumOf { policy ->
-            val adjustments = bucketAllocationAdjustmentDao.getActiveForCycle(
-                bucketUuid = policy.bucketUuid,
-                cycleStartDate = policy.cycleStartDate
-            ).map { it.toDomainModel() }
-            val effectiveAllocatedAmount = bucketAllocationResolver.resolveEffectiveCycleAllocationAmount(
-                cycleStart = pendingCycle.start,
-                cycleEndExclusive = pendingCycle.endExclusive,
-                baseAllocatedAmountCents = policy.allocatedAmountCents,
-                adjustments = adjustments
-            )
             val spent = spentByBucketUuid[policy.bucketUuid] ?: 0L
-            effectiveAllocatedAmount - spent
+            policy.allocatedAmountCents - spent
         }
         return netSurplusCents.coerceAtLeast(0L)
+    }
+
+    private suspend fun finalizeSettledClosingBuckets(
+        pendingCycle: CycleRange,
+        installId: String
+    ) {
+        budgetBucketDao.getAllForSnapshot()
+            .filter {
+                it.deletedAtEpochMs == null &&
+                    it.closedAtEpochMs == null &&
+                    it.settledCloseCycleEndDateExclusive == pendingCycle.endExclusive.toString()
+            }
+            .forEach { bucket ->
+                budgetBucketDao.update(
+                    bucket.copy(
+                        settledCloseCycleEndDateExclusive = null,
+                        closedAtEpochMs = pendingCycle.endExclusive
+                            .atStartOfDay(ZoneId.systemDefault())
+                            .toInstant()
+                            .toEpochMilli(),
+                        updatedAtEpochMs = pendingCycle.endExclusive
+                            .atStartOfDay(ZoneId.systemDefault())
+                            .toInstant()
+                            .toEpochMilli(),
+                        lastModifiedByInstallId = installId,
+                        modClock = hybridLogicalClockService.next(
+                            previousClock = bucket.modClock,
+                            nowEpochMs = pendingCycle.endExclusive
+                                .atStartOfDay(ZoneId.systemDefault())
+                                .toInstant()
+                                .toEpochMilli(),
+                            installId = installId
+                        )
+                    )
+                )
+            }
     }
 
     private fun resolveSurplusShare(

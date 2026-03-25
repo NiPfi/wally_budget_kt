@@ -5,6 +5,7 @@ import net.loeu.wallybudget.data.local.entity.BudgetAdjustmentEntity
 import net.loeu.wallybudget.data.local.entity.BucketAllocationAdjustmentEntity
 import net.loeu.wallybudget.data.local.entity.BucketAllocationPolicyEntity
 import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
+import net.loeu.wallybudget.data.local.entity.BucketTransferEntity
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
 import net.loeu.wallybudget.data.local.entity.FundEntity
 import net.loeu.wallybudget.data.local.entity.FundTransactionEntity
@@ -20,6 +21,7 @@ data class PreparedSnapshotImport(
     val budgetBuckets: List<BudgetBucketEntity> = emptyList(),
     val bucketAllocationPolicies: List<BucketAllocationPolicyEntity> = emptyList(),
     val bucketAllocationAdjustments: List<BucketAllocationAdjustmentEntity> = emptyList(),
+    val bucketTransfers: List<BucketTransferEntity> = emptyList(),
     val funds: List<FundEntity> = emptyList(),
     val fundTransactions: List<FundTransactionEntity> = emptyList(),
     val expenses: List<ExpenseEntity>
