@@ -25,7 +25,7 @@ internal fun buildExistingHomeBucketDrafts(
 ): List<BucketDraft> {
     val summaryByBucketUuid = bucketSummaries.associateBy { it.bucket.bucketUuid }
     return allBuckets
-        .sortedWith(compareBy<BudgetBucket> { it.sortOrder }.thenBy { it.createdAtEpochMs })
+        .sortedWith(compareBucketsClosedLast())
         .map { bucket ->
             val effectiveAllocation = summaryByBucketUuid[bucket.bucketUuid]?.allocatedThisCycleCents
                 ?: bucket.defaultAllocatedAmountCents
