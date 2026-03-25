@@ -27,10 +27,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import net.loeu.wallybudget.R
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Lock
 import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketSummaryState
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
@@ -229,7 +229,7 @@ private fun BucketEditorHeader(
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_delete),
+                    imageVector = Icons.Outlined.Lock,
                     contentDescription = "Close bucket",
                     tint = MaterialTheme.colorScheme.error
                 )
