@@ -16,6 +16,7 @@ import net.loeu.wallybudget.domain.service.BucketAllocationResolver
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
+import net.loeu.wallybudget.domain.service.CurrentCycleBucketAllocationResolver
 import net.loeu.wallybudget.domain.service.PortfolioCalculationService
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -294,7 +295,7 @@ class ObserveHomeOverviewUseCaseTest {
         budgetAdjustmentDao: FakeBudgetAdjustmentDao = FakeBudgetAdjustmentDao(),
         budgetBucketDao: FakeBudgetBucketDao = spendingBucketDao(),
         bucketAllocationPolicyDao: FakeBucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(),
-        @Suppress("UNUSED_PARAMETER")
+        bucketCycleBaselineDao: FakeBucketCycleBaselineDao = FakeBucketCycleBaselineDao(),
         bucketTransferDao: FakeBucketTransferDao = FakeBucketTransferDao(),
         bucketHistoryDao: FakeBucketMonthlyHistoryDao = FakeBucketMonthlyHistoryDao(),
         fundDao: FakeFundDao = FakeFundDao()
@@ -308,12 +309,15 @@ class ObserveHomeOverviewUseCaseTest {
             budgetBucketDao = budgetBucketDao,
             fundDao = fundDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketCycleBaselineDao = bucketCycleBaselineDao,
+            bucketTransferDao = bucketTransferDao,
             bucketMonthlyHistoryDao = bucketHistoryDao,
             userSettingsStore = settingsStore,
             currentDateProvider = FakeCurrentDateProvider(currentDate),
             budgetCalculationService = budgetCalculationService,
             cycleScheduleResolver = CycleScheduleResolver(budgetCalculationService),
             budgetAdjustmentResolver = BudgetAdjustmentResolver(),
+            currentCycleBucketAllocationResolver = CurrentCycleBucketAllocationResolver(),
             portfolioCalculationService = PortfolioCalculationService()
         )
     }
@@ -363,6 +367,7 @@ class ObserveHomeOverviewUseCaseTest {
             currentDate = LocalDate.of(2026, 4, 10),
             budgetPolicyDao = settledClosePortfolioPolicyDao(currentCycleStart, currentCycleEnd),
             budgetBucketDao = settledCloseBucketDao(currentCycleEnd),
+            bucketCycleBaselineDao = settledCloseBucketBaselineDao(currentCycleStart, currentCycleEnd),
             bucketAllocationPolicyDao = settledCloseBucketPolicyDao(currentCycleStart, currentCycleEnd),
             bucketTransferDao = FakeBucketTransferDao(listOf(settlementTransfer(currentCycleStart, currentCycleEnd)))
         )
@@ -449,6 +454,32 @@ class ObserveHomeOverviewUseCaseTest {
                     cycleStartDate = currentCycleStart.toString(),
                     cycleEndDateExclusive = currentCycleEnd.toString(),
                     allocatedAmountCents = 125_000L
+                )
+            )
+        )
+    }
+
+    private fun settledCloseBucketBaselineDao(
+        currentCycleStart: LocalDate,
+        currentCycleEnd: LocalDate
+    ): FakeBucketCycleBaselineDao {
+        return FakeBucketCycleBaselineDao(
+            listOf(
+                bucketCycleBaselineEntity(
+                    id = 1L,
+                    baselineUuid = "default-baseline",
+                    bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                    cycleStartDate = currentCycleStart.toString(),
+                    cycleEndDateExclusive = currentCycleEnd.toString(),
+                    baselineAmountCents = 100_000L
+                ),
+                bucketCycleBaselineEntity(
+                    id = 2L,
+                    baselineUuid = "bills-baseline",
+                    bucketUuid = "bills",
+                    cycleStartDate = currentCycleStart.toString(),
+                    cycleEndDateExclusive = currentCycleEnd.toString(),
+                    baselineAmountCents = 250_000L
                 )
             )
         )

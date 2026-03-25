@@ -4,10 +4,13 @@ import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
 import net.loeu.wallybudget.data.local.dao.BucketTransferDao
 import net.loeu.wallybudget.data.local.entity.toEntity
+import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BucketAllocationPolicy
+import net.loeu.wallybudget.domain.model.BucketCycleBaseline
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.BucketTransfer
 import net.loeu.wallybudget.domain.model.BucketTransferReason
+import net.loeu.wallybudget.domain.service.CurrentCycleBucketAllocationResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import java.time.LocalDate
 import java.util.UUID
@@ -109,16 +112,79 @@ internal suspend fun upsertCurrentCyclePortfolioPolicyAmount(
     )
 }
 
-internal fun currentCyclePolicyAllocation(
+internal fun currentCycleTransferDelta(
     bucketUuid: String,
-    cycleStart: LocalDate,
-    bucketPolicies: List<BucketAllocationPolicy>,
-    defaultAllocatedAmountCents: Long
+    transfers: List<BucketTransfer>
 ): Long {
-    return bucketPolicies
-        .firstOrNull { it.deletedAtEpochMs == null && it.bucketUuid == bucketUuid && it.cycleStart() == cycleStart }
-        ?.allocatedAmountCents
-        ?: defaultAllocatedAmountCents
+    return transfers.sumOf { transfer ->
+        when (bucketUuid) {
+            transfer.toBucketUuid -> transfer.amountCents
+            transfer.fromBucketUuid -> -transfer.amountCents
+            else -> 0L
+        }
+    }
+}
+
+internal fun resolveCurrentCycleAllocationSnapshot(
+    buckets: List<BudgetBucket>,
+    cycleStart: LocalDate,
+    baselines: List<BucketCycleBaseline>,
+    transfers: List<BucketTransfer>,
+    legacyPolicies: List<BucketAllocationPolicy> = emptyList(),
+    currentCycleBucketAllocationResolver: CurrentCycleBucketAllocationResolver = CurrentCycleBucketAllocationResolver()
+): Map<String, Long> {
+    return buckets.associate { bucket ->
+        bucket.bucketUuid to currentCycleBucketAllocationResolver.resolve(
+            bucketUuid = bucket.bucketUuid,
+            cycleStart = cycleStart,
+            fallbackAllocationCents = bucket.defaultAllocatedAmountCents,
+            baselines = baselines,
+            transfers = transfers,
+            legacyPolicies = legacyPolicies
+        ).effectiveAllocationCents
+    }
+}
+
+internal fun resolveCurrentCycleAllocationTotal(
+    buckets: List<BudgetBucket>,
+    cycleStart: LocalDate,
+    baselines: List<BucketCycleBaseline>,
+    transfers: List<BucketTransfer>,
+    legacyPolicies: List<BucketAllocationPolicy> = emptyList(),
+    currentCycleBucketAllocationResolver: CurrentCycleBucketAllocationResolver = CurrentCycleBucketAllocationResolver()
+): Long {
+    return resolveCurrentCycleAllocationSnapshot(
+        buckets = buckets,
+        cycleStart = cycleStart,
+        baselines = baselines,
+        transfers = transfers,
+        legacyPolicies = legacyPolicies,
+        currentCycleBucketAllocationResolver = currentCycleBucketAllocationResolver
+    ).values.sum()
+}
+
+internal fun resolveCurrentCycleDefaultAllocation(
+    portfolioMonthlyBudgetCents: Long,
+    namedBuckets: List<BudgetBucket>,
+    cycleStart: LocalDate,
+    baselines: List<BucketCycleBaseline>,
+    transfers: List<BucketTransfer>,
+    legacyPolicies: List<BucketAllocationPolicy> = emptyList(),
+    currentCycleBucketAllocationResolver: CurrentCycleBucketAllocationResolver = CurrentCycleBucketAllocationResolver()
+): Long {
+    val namedCurrentAllocationTotal = resolveCurrentCycleAllocationTotal(
+        buckets = namedBuckets,
+        cycleStart = cycleStart,
+        baselines = baselines,
+        transfers = transfers,
+        legacyPolicies = legacyPolicies,
+        currentCycleBucketAllocationResolver = currentCycleBucketAllocationResolver
+    )
+    return (
+        portfolioMonthlyBudgetCents -
+            namedCurrentAllocationTotal -
+            currentCycleTransferDelta(DEFAULT_SPENDING_BUCKET_UUID, transfers)
+        ).coerceAtLeast(0L)
 }
 
 internal fun resolveCurrentCycleReallocation(

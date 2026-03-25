@@ -2,6 +2,8 @@ package net.loeu.wallybudget.domain.usecase
 
 import net.loeu.wallybudget.data.local.dao.BucketAllocationAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
+import net.loeu.wallybudget.data.local.dao.BucketCycleBaselineDao
+import net.loeu.wallybudget.data.local.dao.BucketTransferDao
 import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.db.TransactionRunner
 import net.loeu.wallybudget.data.local.entity.toDomainModel
@@ -12,10 +14,13 @@ import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
+import net.loeu.wallybudget.domain.service.CurrentCycleBucketAllocationResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import net.loeu.wallybudget.domain.usecase.internal.lastResetDateOrNull
 import net.loeu.wallybudget.domain.usecase.internal.newBucketAllocationPolicy
 import net.loeu.wallybudget.domain.usecase.internal.resolveSelectedOpenBucketUuid
+import net.loeu.wallybudget.domain.usecase.internal.resolveCurrentCycleDefaultAllocation
+import net.loeu.wallybudget.domain.usecase.internal.upsertCurrentCycleBucketBaselineAmount
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -24,8 +29,12 @@ class EnsureDefaultBucketStateUseCase(
     private val userSettingsStore: UserSettingsStore,
     private val budgetBucketDao: BudgetBucketDao,
     private val bucketAllocationPolicyDao: BucketAllocationPolicyDao,
+    private val bucketCycleBaselineDao: BucketCycleBaselineDao? = null,
+    private val bucketTransferDao: BucketTransferDao? = null,
     private val bucketAllocationAdjustmentDao: BucketAllocationAdjustmentDao,
     private val budgetCalculationService: BudgetCalculationService,
+    private val currentCycleBucketAllocationResolver: CurrentCycleBucketAllocationResolver =
+        CurrentCycleBucketAllocationResolver(),
     private val hybridLogicalClockService: HybridLogicalClockService
 ) {
     private data class CurrentCycleDefaultRepair(
@@ -53,6 +62,11 @@ class EnsureDefaultBucketStateUseCase(
         val currentCycleDefaultRepair = currentCycleDefaultRepair(settings, now, allBuckets)
 
         transactionRunner.inTransaction {
+            val currentPolicy = bucketAllocationPolicyDao.findActivePolicyForCycle(
+                bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                cycleStartDate = currentCycleDefaultRepair.cycleStart.toString()
+            )
+            val repairedCurrentDefaultAllocation = currentCycleDefaultRepair.allocatedAmountCents
             when {
                 defaultBucket == null -> {
                     budgetBucketDao.insert(
@@ -91,14 +105,6 @@ class EnsureDefaultBucketStateUseCase(
                 }
             }
 
-            val cycleStart = settings.lastResetDateOrNull()
-                ?: budgetCalculationService.getCycleStartDate(now, settings.paydayDate)
-            val cycleEnd = budgetCalculationService.getNextCycleStartDate(cycleStart, settings.paydayDate)
-            val currentPolicy = bucketAllocationPolicyDao.findActivePolicyForCycle(
-                bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
-                cycleStartDate = cycleStart.toString()
-            )
-            val repairedCurrentDefaultAllocation = currentCycleDefaultRepair.allocatedAmountCents
             when {
                 currentPolicy == null -> {
                     bucketAllocationPolicyDao.insert(
@@ -129,7 +135,7 @@ class EnsureDefaultBucketStateUseCase(
                     )
                     val activeAdjustments = bucketAllocationAdjustmentDao.getActiveForCycle(
                         bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
-                        cycleStartDate = cycleStart.toString()
+                        cycleStartDate = currentCycleDefaultRepair.cycleStart.toString()
                     )
                     if (activeAdjustments.isNotEmpty()) {
                         bucketAllocationAdjustmentDao.deleteByAdjustmentUuids(
@@ -137,6 +143,19 @@ class EnsureDefaultBucketStateUseCase(
                         )
                     }
                 }
+            }
+
+            bucketCycleBaselineDao?.let { baselineDao ->
+                upsertCurrentCycleBucketBaselineAmount(
+                    bucketCycleBaselineDao = baselineDao,
+                    bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                    cycleStart = currentCycleDefaultRepair.cycleStart,
+                    cycleEndExclusive = currentCycleDefaultRepair.cycleEndExclusive,
+                    baselineAmountCents = currentCycleDefaultRepair.allocatedAmountCents,
+                    installId = installId,
+                    nowEpochMs = nowEpochMs,
+                    hybridLogicalClockService = hybridLogicalClockService
+                )
             }
         }
 
@@ -161,23 +180,27 @@ class EnsureDefaultBucketStateUseCase(
         val namedBucketsByUuid = allBuckets
             .filter { it.bucketUuid != DEFAULT_SPENDING_BUCKET_UUID && it.isVisibleInCurrentCycle }
             .associateBy { it.bucketUuid }
-        val currentPoliciesByBucketUuid = bucketAllocationPolicyDao.getAllForSnapshot()
-            .filter { policy ->
-                policy.deletedAtEpochMs == null &&
-                    policy.cycleStartDate == cycleStart.toString() &&
-                    policy.cycleEndDateExclusive == cycleEnd.toString() &&
-                    policy.bucketUuid != DEFAULT_SPENDING_BUCKET_UUID &&
-                    namedBucketsByUuid.containsKey(policy.bucketUuid)
-            }
-            .associateBy { it.bucketUuid }
-        val namedCurrentAllocationTotal = namedBucketsByUuid.values.sumOf { bucket ->
-            currentPoliciesByBucketUuid[bucket.bucketUuid]?.allocatedAmountCents ?: bucket.defaultAllocatedAmountCents
-        }
+        val baselines = bucketCycleBaselineDao
+            ?.getActiveForCycle(cycleStart.toString())
+            ?.map { it.toDomainModel() }
+            .orEmpty()
+        val transfers = bucketTransferDao
+            ?.getForCycle(cycleStart.toString())
+            ?.map { it.toDomainModel() }
+            .orEmpty()
+        val legacyPolicies = bucketAllocationPolicyDao.getAllForSnapshot().map { it.toDomainModel() }
         return CurrentCycleDefaultRepair(
             cycleStart = cycleStart,
             cycleEndExclusive = cycleEnd,
-            allocatedAmountCents = (settings.resolvedPortfolioMonthlyBudgetCents - namedCurrentAllocationTotal)
-                .coerceAtLeast(0L)
+            allocatedAmountCents = resolveCurrentCycleDefaultAllocation(
+                portfolioMonthlyBudgetCents = settings.resolvedPortfolioMonthlyBudgetCents,
+                namedBuckets = namedBucketsByUuid.values.toList(),
+                cycleStart = cycleStart,
+                baselines = baselines,
+                transfers = transfers,
+                legacyPolicies = legacyPolicies,
+                currentCycleBucketAllocationResolver = currentCycleBucketAllocationResolver
+            )
         )
     }
 }

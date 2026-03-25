@@ -1,6 +1,7 @@
 package net.loeu.wallybudget.domain.usecase
 
 import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
+import net.loeu.wallybudget.data.local.dao.BucketCycleBaselineDao
 import net.loeu.wallybudget.data.local.dao.BucketMonthlyHistoryDao
 import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
@@ -20,6 +21,7 @@ import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
+import net.loeu.wallybudget.domain.usecase.internal.newBucketCycleBaseline
 import net.loeu.wallybudget.domain.usecase.internal.newBucketAllocationPolicy
 import net.loeu.wallybudget.domain.usecase.internal.newBudgetPolicy
 import net.loeu.wallybudget.domain.usecase.internal.toStartOfDayMillis
@@ -30,7 +32,9 @@ import java.time.ZoneId
 class CompleteOnboardingUseCase(
     private val transactionRunner: TransactionRunner,
     private val budgetBucketDao: BudgetBucketDao,
-    private val bucketAllocationPolicyDao: BucketAllocationPolicyDao,
+    @Suppress("UNUSED_PARAMETER")
+    private val bucketAllocationPolicyDao: BucketAllocationPolicyDao? = null,
+    private val bucketCycleBaselineDao: BucketCycleBaselineDao? = null,
     private val bucketMonthlyHistoryDao: BucketMonthlyHistoryDao,
     private val budgetPolicyDao: BudgetPolicyDao,
     private val monthlyHistoryDao: MonthlyHistoryDao,
@@ -69,12 +73,23 @@ class CompleteOnboardingUseCase(
                         hybridLogicalClockService = hybridLogicalClockService
                     ).budgetPolicyToEntity()
                 )
-                bucketAllocationPolicyDao.insert(
+                bucketAllocationPolicyDao?.insert(
                     newBucketAllocationPolicy(
                         bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
                         cycleStart = previousCycleStart,
                         cycleEndExclusive = cycleStartDate,
                         allocatedAmountCents = monthlyBudgetCents,
+                        installId = installId,
+                        nowEpochMs = nowEpochMs,
+                        hybridLogicalClockService = hybridLogicalClockService
+                    ).toEntity()
+                )
+                bucketCycleBaselineDao?.insert(
+                    newBucketCycleBaseline(
+                        bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                        cycleStart = previousCycleStart,
+                        cycleEndExclusive = cycleStartDate,
+                        baselineAmountCents = monthlyBudgetCents,
                         installId = installId,
                         nowEpochMs = nowEpochMs,
                         hybridLogicalClockService = hybridLogicalClockService
@@ -175,12 +190,12 @@ class CompleteOnboardingUseCase(
                     )
                 )
             }
-            val existingCurrentBucketPolicy = bucketAllocationPolicyDao.findActivePolicyForCycle(
+            val existingCurrentBucketPolicy = bucketAllocationPolicyDao?.findActivePolicyForCycle(
                 bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
                 cycleStartDate = cycleStartDate.toString()
             )
             if (existingCurrentBucketPolicy == null) {
-                bucketAllocationPolicyDao.insert(
+                bucketAllocationPolicyDao?.insert(
                     newBucketAllocationPolicy(
                         bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
                         cycleStart = cycleStartDate,
@@ -192,7 +207,7 @@ class CompleteOnboardingUseCase(
                     ).toEntity()
                 )
             } else {
-                bucketAllocationPolicyDao.update(
+                bucketAllocationPolicyDao?.update(
                     existingCurrentBucketPolicy.copy(
                         cycleEndDateExclusive = currentCycleEnd.toString(),
                         allocatedAmountCents = monthlyBudgetCents,
@@ -200,6 +215,37 @@ class CompleteOnboardingUseCase(
                         lastModifiedByInstallId = installId,
                         modClock = hybridLogicalClockService.next(
                             previousClock = existingCurrentBucketPolicy.modClock,
+                            nowEpochMs = nowEpochMs,
+                            installId = installId
+                        )
+                    )
+                )
+            }
+            val existingCurrentBucketBaseline = bucketCycleBaselineDao?.findActiveBaselineForCycle(
+                bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                cycleStartDate = cycleStartDate.toString()
+            )
+            if (existingCurrentBucketBaseline == null) {
+                bucketCycleBaselineDao?.insert(
+                    newBucketCycleBaseline(
+                        bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                        cycleStart = cycleStartDate,
+                        cycleEndExclusive = currentCycleEnd,
+                        baselineAmountCents = monthlyBudgetCents,
+                        installId = installId,
+                        nowEpochMs = nowEpochMs,
+                        hybridLogicalClockService = hybridLogicalClockService
+                    ).toEntity()
+                )
+            } else {
+                bucketCycleBaselineDao?.update(
+                    existingCurrentBucketBaseline.copy(
+                        cycleEndDateExclusive = currentCycleEnd.toString(),
+                        baselineAmountCents = monthlyBudgetCents,
+                        updatedAtEpochMs = nowEpochMs,
+                        lastModifiedByInstallId = installId,
+                        modClock = hybridLogicalClockService.next(
+                            previousClock = existingCurrentBucketBaseline.modClock,
                             nowEpochMs = nowEpochMs,
                             installId = installId
                         )

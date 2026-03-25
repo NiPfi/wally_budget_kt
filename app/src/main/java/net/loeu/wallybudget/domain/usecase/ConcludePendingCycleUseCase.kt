@@ -4,7 +4,9 @@ import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
+import net.loeu.wallybudget.data.local.dao.BucketCycleBaselineDao
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
+import net.loeu.wallybudget.data.local.dao.BucketTransferDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.dao.FundDao
 import net.loeu.wallybudget.data.local.dao.FundTransactionDao
@@ -12,7 +14,9 @@ import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
 import net.loeu.wallybudget.data.local.db.TransactionRunner
 import net.loeu.wallybudget.data.local.entity.FundEntity
 import net.loeu.wallybudget.data.local.entity.FundTransactionEntity
+import net.loeu.wallybudget.data.local.entity.toDomainModel as baselineToDomainModel
 import net.loeu.wallybudget.data.local.entity.toDomainModel
+import net.loeu.wallybudget.data.local.entity.toDomainModel as transferToDomainModel
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.FundTransactionType
@@ -21,10 +25,12 @@ import net.loeu.wallybudget.domain.service.BucketAllocationResolver
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
+import net.loeu.wallybudget.domain.service.CurrentCycleBucketAllocationResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import net.loeu.wallybudget.domain.usecase.internal.archiveCycleIfNeeded
 import net.loeu.wallybudget.domain.usecase.internal.CycleRange
 import net.loeu.wallybudget.domain.usecase.internal.pendingCycleRangeOrNull
+import net.loeu.wallybudget.domain.usecase.internal.resolveCurrentCycleAllocationSnapshot
 import java.time.ZoneId
 import java.util.UUID
 
@@ -35,6 +41,8 @@ class ConcludePendingCycleUseCase(
     private val budgetAdjustmentDao: BudgetAdjustmentDao,
     private val budgetBucketDao: BudgetBucketDao,
     private val bucketAllocationPolicyDao: BucketAllocationPolicyDao,
+    private val bucketCycleBaselineDao: BucketCycleBaselineDao? = null,
+    private val bucketTransferDao: BucketTransferDao? = null,
     private val bucketAllocationAdjustmentDao: BucketAllocationAdjustmentDao,
     private val monthlyHistoryDao: MonthlyHistoryDao,
     private val fundDao: FundDao,
@@ -43,7 +51,10 @@ class ConcludePendingCycleUseCase(
     private val budgetCalculationService: BudgetCalculationService,
     private val cycleScheduleResolver: CycleScheduleResolver,
     private val budgetAdjustmentResolver: BudgetAdjustmentResolver,
-    private val bucketAllocationResolver: BucketAllocationResolver,
+    @Suppress("UNUSED_PARAMETER")
+    private val bucketAllocationResolver: BucketAllocationResolver? = null,
+    private val currentCycleBucketAllocationResolver: CurrentCycleBucketAllocationResolver =
+        CurrentCycleBucketAllocationResolver(),
     private val hybridLogicalClockService: HybridLogicalClockService,
     private val rebuildBucketMonthlyHistoryUseCase: RebuildBucketMonthlyHistoryUseCase
 ) {
@@ -159,12 +170,36 @@ class ConcludePendingCycleUseCase(
             startDateInclusive = pendingCycle.start.toString(),
             endDateExclusive = pendingCycle.endExclusive.toString()
         ).associate { it.bucketUuid to it.totalSpentCents }
-        val bucketPolicies = bucketAllocationPolicyDao.getAllForSnapshot()
+        val buckets = budgetBucketDao.getAllForSnapshot()
+            .filter { it.deletedAtEpochMs == null && it.closedAtEpochMs == null }
+            .map { it.toDomainModel() }
+        val baselines = bucketCycleBaselineDao?.getActiveForCycle(pendingCycle.start.toString())
+            ?.map { it.baselineToDomainModel() }.orEmpty()
+        val transfers = bucketTransferDao?.getForCycle(pendingCycle.start.toString())
+            ?.map { it.transferToDomainModel() }.orEmpty()
+        val legacyPolicies = bucketAllocationPolicyDao.getAllForSnapshot()
             .filter { it.deletedAtEpochMs == null && it.cycleStartDate == pendingCycle.start.toString() }
+            .map { it.toDomainModel() }
+        val allocationsByBucketUuid = resolveCurrentCycleAllocationSnapshot(
+            buckets = buckets,
+            cycleStart = pendingCycle.start,
+            baselines = baselines,
+            transfers = transfers,
+            legacyPolicies = legacyPolicies,
+            currentCycleBucketAllocationResolver = currentCycleBucketAllocationResolver
+        )
 
-        val netSurplusCents = bucketPolicies.sumOf { policy ->
-            val spent = spentByBucketUuid[policy.bucketUuid] ?: 0L
-            policy.allocatedAmountCents - spent
+        val netSurplusCents = if (buckets.isEmpty()) {
+            legacyPolicies.sumOf { policy ->
+                val spent = spentByBucketUuid[policy.bucketUuid] ?: 0L
+                policy.allocatedAmountCents - spent
+            }
+        } else {
+            buckets.sumOf { bucket ->
+                val spent = spentByBucketUuid[bucket.bucketUuid] ?: 0L
+                val allocation = allocationsByBucketUuid[bucket.bucketUuid] ?: bucket.defaultAllocatedAmountCents
+                allocation - spent
+            }
         }
         return netSurplusCents.coerceAtLeast(0L)
     }
