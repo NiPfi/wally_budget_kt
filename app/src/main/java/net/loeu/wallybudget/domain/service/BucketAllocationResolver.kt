@@ -13,6 +13,7 @@ data class ResolvedBucketAllocation(
 )
 
 class BucketAllocationResolver {
+    // Historical reconstruction only. Do not use for active/current-cycle reads.
     fun resolveBucketAllocation(
         cycleStart: LocalDate,
         cycleEndExclusive: LocalDate,

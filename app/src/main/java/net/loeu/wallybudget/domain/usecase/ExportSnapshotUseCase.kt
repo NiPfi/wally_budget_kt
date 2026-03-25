@@ -4,6 +4,8 @@ import android.net.Uri
 import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
+import net.loeu.wallybudget.data.local.dao.BucketCycleBaselineDao
+import net.loeu.wallybudget.data.local.dao.BucketTransferDao
 import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
@@ -20,6 +22,8 @@ import net.loeu.wallybudget.data.snapshot.model.SnapshotBudgetAdjustmentRecordV2
 import net.loeu.wallybudget.data.snapshot.model.SnapshotBudgetBucketRecordV3
 import net.loeu.wallybudget.data.snapshot.model.SnapshotBucketAllocationAdjustmentRecordV3
 import net.loeu.wallybudget.data.snapshot.model.SnapshotBucketAllocationPolicyRecordV3
+import net.loeu.wallybudget.data.snapshot.model.SnapshotBucketCycleBaselineRecordV1
+import net.loeu.wallybudget.data.snapshot.model.SnapshotBucketTransferRecordV1
 import net.loeu.wallybudget.data.snapshot.model.SnapshotEnvelopeV1
 import net.loeu.wallybudget.data.snapshot.model.SnapshotExpenseRecordV1
 import net.loeu.wallybudget.data.snapshot.model.SnapshotFundRecordV5
@@ -40,6 +44,8 @@ class ExportSnapshotUseCase(
     private val budgetBucketDao: BudgetBucketDao,
     private val bucketAllocationPolicyDao: BucketAllocationPolicyDao,
     private val bucketAllocationAdjustmentDao: BucketAllocationAdjustmentDao,
+    private val bucketCycleBaselineDao: BucketCycleBaselineDao,
+    private val bucketTransferDao: BucketTransferDao,
     private val fundDao: FundDao,
     private val fundTransactionDao: FundTransactionDao,
     private val userSettingsStore: UserSettingsStore,
@@ -151,6 +157,7 @@ class ExportSnapshotUseCase(
                         lastModifiedByInstallId = bucket.lastModifiedByInstallId,
                         createdAtEpochMs = bucket.createdAtEpochMs,
                         updatedAtEpochMs = bucket.updatedAtEpochMs,
+                        settledCloseCycleEndDateExclusive = bucket.settledCloseCycleEndDateExclusive,
                         closedAtEpochMs = bucket.closedAtEpochMs,
                         deletedAtEpochMs = bucket.deletedAtEpochMs,
                         modClock = bucket.modClock
@@ -196,6 +203,57 @@ class ExportSnapshotUseCase(
                         updatedAtEpochMs = adjustment.updatedAtEpochMs,
                         deletedAtEpochMs = adjustment.deletedAtEpochMs,
                         modClock = adjustment.modClock
+                    )
+                },
+            bucketTransfers = bucketTransferDao.getAllForSnapshot()
+                .sortedWith(
+                    compareBy(
+                        { it.cycleStartDate },
+                        { it.effectiveDate },
+                        { it.updatedAtEpochMs },
+                        { it.transferUuid }
+                    )
+                )
+                .map { transfer ->
+                    SnapshotBucketTransferRecordV1(
+                        transferUuid = transfer.transferUuid,
+                        fromBucketUuid = transfer.fromBucketUuid,
+                        toBucketUuid = transfer.toBucketUuid,
+                        amountCents = transfer.amountCents,
+                        reason = transfer.reason.name,
+                        cycleStartDate = transfer.cycleStartDate,
+                        cycleEndDateExclusive = transfer.cycleEndDateExclusive,
+                        effectiveDate = transfer.effectiveDate,
+                        originInstallId = transfer.originInstallId,
+                        lastModifiedByInstallId = transfer.lastModifiedByInstallId,
+                        createdAtEpochMs = transfer.createdAtEpochMs,
+                        updatedAtEpochMs = transfer.updatedAtEpochMs,
+                        deletedAtEpochMs = transfer.deletedAtEpochMs,
+                        modClock = transfer.modClock
+                    )
+                },
+            bucketCycleBaselines = bucketCycleBaselineDao.getAllForSnapshot()
+                .sortedWith(
+                    compareBy(
+                        { it.bucketUuid },
+                        { it.cycleStartDate },
+                        { it.updatedAtEpochMs },
+                        { it.baselineUuid }
+                    )
+                )
+                .map { baseline ->
+                    SnapshotBucketCycleBaselineRecordV1(
+                        baselineUuid = baseline.baselineUuid,
+                        bucketUuid = baseline.bucketUuid,
+                        cycleStartDate = baseline.cycleStartDate,
+                        cycleEndDateExclusive = baseline.cycleEndDateExclusive,
+                        baselineAmountCents = baseline.baselineAmountCents,
+                        originInstallId = baseline.originInstallId,
+                        lastModifiedByInstallId = baseline.lastModifiedByInstallId,
+                        createdAtEpochMs = baseline.createdAtEpochMs,
+                        updatedAtEpochMs = baseline.updatedAtEpochMs,
+                        deletedAtEpochMs = baseline.deletedAtEpochMs,
+                        modClock = baseline.modClock
                     )
                 },
             funds = fundDao.getAllForSnapshot()

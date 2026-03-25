@@ -8,43 +8,50 @@ import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
+import net.loeu.wallybudget.data.local.dao.BucketCycleBaselineDao
+import net.loeu.wallybudget.data.local.dao.BucketTransferDao
+import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.db.TransactionRunner
 import net.loeu.wallybudget.data.local.entity.BudgetAdjustmentEntity
 import net.loeu.wallybudget.data.local.entity.toDomainModel
+import net.loeu.wallybudget.data.local.entity.toDomainModel as bucketBaselineToDomainModel
+import net.loeu.wallybudget.data.local.entity.toDomainModel as bucketTransferToDomainModel
 import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.time.CurrentDateProvider
-import net.loeu.wallybudget.domain.model.BudgetAdjustment
 import net.loeu.wallybudget.domain.model.BudgetBucket
-import net.loeu.wallybudget.domain.model.BucketAllocationAdjustment
 import net.loeu.wallybudget.domain.model.BucketAllocationPolicy
+import net.loeu.wallybudget.domain.model.BucketCycleBaseline
 import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import net.loeu.wallybudget.domain.model.BudgetPolicy
+import net.loeu.wallybudget.domain.model.BucketTransferReason
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.PendingPaydayUndo
 import net.loeu.wallybudget.domain.model.UserSettings
-import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
-import net.loeu.wallybudget.domain.service.BucketAllocationResolver
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
+import net.loeu.wallybudget.domain.service.CurrentCycleBucketAllocationResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
-import net.loeu.wallybudget.domain.service.ImmediatePaydayChangePlan
 import net.loeu.wallybudget.domain.service.ResolvedCyclePolicy
 import net.loeu.wallybudget.domain.usecase.internal.deactivateInsertedAdjustment
 import net.loeu.wallybudget.domain.usecase.internal.deactivateInsertedBucketAdjustment
 import net.loeu.wallybudget.domain.usecase.internal.deactivateInsertedBucketPolicy
 import net.loeu.wallybudget.domain.usecase.internal.deactivateInsertedPolicy
-import net.loeu.wallybudget.domain.usecase.internal.newBudgetAdjustment
 import net.loeu.wallybudget.domain.usecase.internal.newBudgetPolicy
-import net.loeu.wallybudget.domain.usecase.internal.newBucketAllocationAdjustment
-import net.loeu.wallybudget.domain.usecase.internal.newBucketAllocationPolicy
+import net.loeu.wallybudget.domain.usecase.internal.insertBucketTransfer
+import net.loeu.wallybudget.domain.usecase.internal.newBucketCycleBaseline
+import net.loeu.wallybudget.domain.usecase.internal.resolveCurrentCycleCloseSettlement
+import net.loeu.wallybudget.domain.usecase.internal.resolveCurrentCycleReallocation
 import net.loeu.wallybudget.domain.usecase.internal.restoreAdjustment
 import net.loeu.wallybudget.domain.usecase.internal.restoreBucketAdjustment
 import net.loeu.wallybudget.domain.usecase.internal.restoreBucketPolicy
 import net.loeu.wallybudget.domain.usecase.internal.restorePolicy
+import net.loeu.wallybudget.domain.usecase.internal.resolveCurrentCycleDefaultAllocation
 import net.loeu.wallybudget.domain.usecase.internal.resolveSelectedOpenBucketUuid
+import net.loeu.wallybudget.domain.usecase.internal.upsertCurrentCycleBucketBaselineAmount
+import net.loeu.wallybudget.domain.usecase.internal.upsertCurrentCyclePortfolioPolicyAmount
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Locale
@@ -113,20 +120,17 @@ private data class UpdateBudgetSettingsContext(
     val policies: List<BudgetPolicy>,
     val currentPolicy: ResolvedCyclePolicy,
     val currentPolicyRecord: BudgetPolicy?,
-    val currentAdjustments: List<BudgetAdjustment>,
     val futurePolicies: List<BudgetPolicy>,
-    val paydayPlan: ImmediatePaydayChangePlan?,
     val buckets: List<BudgetBucket>,
-    val bucketPolicies: List<BucketAllocationPolicy>,
-    val bucketAdjustments: List<BucketAllocationAdjustment>
+    val bucketBaselines: List<BucketCycleBaseline>,
+    val bucketTransfers: List<net.loeu.wallybudget.domain.model.BucketTransfer>,
+    val bucketPolicies: List<BucketAllocationPolicy>
 )
 
 private data class UpdateBudgetSettingsMutation(
     val insertedPolicies: List<BudgetPolicy>,
-    val activeAdjustments: List<BudgetAdjustment>,
     val activeBuckets: List<BudgetBucket>,
     val activeBucketPolicies: List<BucketAllocationPolicy>,
-    val activeBucketAdjustments: List<BucketAllocationAdjustment>,
     val finalSelectedBucketUuid: String?
 )
 
@@ -138,11 +142,13 @@ class UpdateBudgetSettingsUseCase(
     private val budgetAdjustmentDao: BudgetAdjustmentDao,
     private val budgetBucketDao: BudgetBucketDao,
     private val bucketAllocationPolicyDao: BucketAllocationPolicyDao,
+    private val bucketCycleBaselineDao: BucketCycleBaselineDao? = null,
     private val bucketAllocationAdjustmentDao: BucketAllocationAdjustmentDao,
+    private val bucketTransferDao: BucketTransferDao,
+    private val expenseDao: ExpenseDao,
     private val currentDateProvider: CurrentDateProvider,
     private val cycleScheduleResolver: CycleScheduleResolver,
-    private val budgetAdjustmentResolver: BudgetAdjustmentResolver,
-    private val bucketAllocationResolver: BucketAllocationResolver,
+    private val currentCycleBucketAllocationResolver: CurrentCycleBucketAllocationResolver = CurrentCycleBucketAllocationResolver(),
     private val hybridLogicalClockService: HybridLogicalClockService
 ) {
     private val syncObservedDateUseCase = SyncObservedDateUseCase(userSettingsStore)
@@ -164,13 +170,8 @@ class UpdateBudgetSettingsUseCase(
         }
 
         val mutation = transactionRunner.inTransaction {
-            if (budgetChanged && request.budgetChangeMode == BudgetChangeMode.PRORATE_CURRENT_CYCLE) {
-                insertCurrentCycleAdjustment(context, request)
-                normalizeCycleAdjustments(
-                    settings = settings,
-                    cycleStart = context.currentPolicy.cycleStart,
-                    baseMonthlyBudgetCents = context.currentPolicy.budgetAmountCents
-                )
+            if (budgetChanged && request.budgetChangeMode == BudgetChangeMode.APPLY_CURRENT_NOW) {
+                upsertCurrentCycleBudgetPolicy(context, request.portfolioMonthlyBudgetCents)
             }
 
             val insertedPolicies = regeneratePolicies(
@@ -179,8 +180,7 @@ class UpdateBudgetSettingsUseCase(
                 today = context.today,
                 currentPolicy = context.currentPolicy,
                 currentPolicyRecord = context.currentPolicyRecord,
-                futurePolicies = context.futurePolicies,
-                paydayPlan = context.paydayPlan
+                futurePolicies = context.futurePolicies
             )
 
             val bucketMutation = if (shouldApplyBucketDrafts) {
@@ -194,15 +194,10 @@ class UpdateBudgetSettingsUseCase(
 
             UpdateBudgetSettingsMutation(
                 insertedPolicies = insertedPolicies,
-                activeAdjustments = budgetAdjustmentDao.getActiveForCycle(context.currentPolicy.cycleStart.toString())
-                    .map { it.toDomainModel() },
                 activeBuckets = budgetBucketDao.getAllForSnapshot()
                     .filter { it.deletedAtEpochMs == null }
                     .map { it.toDomainModel() },
                 activeBucketPolicies = bucketAllocationPolicyDao.getAllForSnapshot()
-                    .filter { it.deletedAtEpochMs == null }
-                    .map { it.toDomainModel() },
-                activeBucketAdjustments = bucketAllocationAdjustmentDao.getAllForSnapshot()
                     .filter { it.deletedAtEpochMs == null }
                     .map { it.toDomainModel() },
                 finalSelectedBucketUuid = bucketMutation.finalSelectedBucketUuid
@@ -218,10 +213,8 @@ class UpdateBudgetSettingsUseCase(
             mutation = mutation
         )
 
-        val rewrittenCurrentCycleEnd = context.paydayPlan?.rewrittenCurrentCycle?.cycleEndExclusive
-            ?: context.currentPolicy.cycleEndExclusive
-        val nextCycleStart = context.paydayPlan?.firstRegularCycle?.cycleStart
-            ?: context.currentPolicy.cycleEndExclusive
+        val rewrittenCurrentCycleEnd = context.currentPolicy.cycleEndExclusive
+        val nextCycleStart = context.currentPolicy.cycleEndExclusive
         return UpdateBudgetSettingsResult(
             summaryMessage = buildSummaryMessage(
                 settings = settings,
@@ -257,8 +250,8 @@ class UpdateBudgetSettingsUseCase(
         request: UpdateBudgetSettingsRequest,
         budgetChanged: Boolean,
         paydayChanged: Boolean,
-        bucketChanged: Boolean,
-        context: UpdateBudgetSettingsContext,
+        @Suppress("UNUSED_PARAMETER") bucketChanged: Boolean,
+        @Suppress("UNUSED_PARAMETER") context: UpdateBudgetSettingsContext,
         mutation: UpdateBudgetSettingsMutation
     ) {
         if (budgetChanged) {
@@ -268,16 +261,7 @@ class UpdateBudgetSettingsUseCase(
             userSettingsStore.updatePaydayDate(request.paydayDate)
         }
         userSettingsStore.updateSelectedBucket(mutation.finalSelectedBucketUuid)
-        if ((budgetChanged || paydayChanged) && !bucketChanged) {
-            userSettingsStore.savePendingPaydayUndo(
-                buildPendingPaydayUndo(
-                    context = context,
-                    mutation = mutation
-                )
-            )
-        } else {
-            userSettingsStore.clearPendingPaydayUndo()
-        }
+        userSettingsStore.clearPendingPaydayUndo()
     }
 
     private suspend fun restorePendingUndoBeforeApplyingNewSave(): Boolean {
@@ -319,7 +303,7 @@ class UpdateBudgetSettingsUseCase(
     }
 
     private suspend fun buildUpdateContext(
-        request: UpdateBudgetSettingsRequest
+        @Suppress("UNUSED_PARAMETER") request: UpdateBudgetSettingsRequest
     ): UpdateBudgetSettingsContext {
         val settings = userSettingsStore.ensureIdentity()
         val today = syncObservedDateUseCase(settings, currentDateProvider.currentDate())
@@ -332,33 +316,23 @@ class UpdateBudgetSettingsUseCase(
             policy.cycleStart() == currentPolicy.cycleStart &&
                 policy.cycleEndExclusive() == currentPolicy.cycleEndExclusive
         }
-        val currentAdjustments = budgetAdjustmentDao.getActiveForCycle(currentPolicy.cycleStart.toString())
-            .map { it.toDomainModel() }
         val futurePolicies = policies
             .filter { !it.cycleStart().isBefore(currentPolicy.cycleEndExclusive) }
             .sortedBy { it.cycleStartDate }
-        val paydayPlan = request.paydayDate.takeIf { it != settings.paydayDate }?.let { targetPayday ->
-            cycleScheduleResolver.planImmediatePaydayChange(
-                currentCycle = currentPolicy,
-                today = today,
-                targetMonthlyBudgetCents = request.portfolioMonthlyBudgetCents,
-                newPaydayDayOfMonth = targetPayday
-            )
-        }
         return UpdateBudgetSettingsContext(
             settings = settings,
             today = today,
             policies = policies,
             currentPolicy = currentPolicy,
             currentPolicyRecord = currentPolicyRecord,
-            currentAdjustments = currentAdjustments,
             futurePolicies = futurePolicies,
-            paydayPlan = paydayPlan,
             buckets = budgetBucketDao.getAllForSnapshot()
                 .map { it.toDomainModel() },
+            bucketBaselines = bucketCycleBaselineDao?.getActiveForCycle(currentPolicy.cycleStart.toString())
+                ?.map { it.bucketBaselineToDomainModel() }.orEmpty(),
+            bucketTransfers = bucketTransferDao.getForCycle(currentPolicy.cycleStart.toString())
+                .map { it.bucketTransferToDomainModel() },
             bucketPolicies = bucketAllocationPolicyDao.getAllForSnapshot()
-                .map { it.toDomainModel() },
-            bucketAdjustments = bucketAllocationAdjustmentDao.getAllForSnapshot()
                 .map { it.toDomainModel() }
         )
     }
@@ -479,76 +453,7 @@ class UpdateBudgetSettingsUseCase(
         }
     }
 
-    private suspend fun insertCurrentCycleAdjustment(
-        context: UpdateBudgetSettingsContext,
-        request: UpdateBudgetSettingsRequest
-    ): BudgetAdjustment? {
-        val currentMonthlyBudget = budgetAdjustmentResolver.currentMonthlyBudget(
-            cycleStart = context.currentPolicy.cycleStart,
-            cycleEndExclusive = context.currentPolicy.cycleEndExclusive,
-            baseMonthlyBudgetCents = context.currentPolicy.budgetAmountCents,
-            adjustments = context.currentAdjustments,
-            onDate = context.today
-        )
-        if (currentMonthlyBudget == request.portfolioMonthlyBudgetCents) {
-            return null
-        }
-        val adjustment = newBudgetAdjustment(
-            cycleStart = context.currentPolicy.cycleStart,
-            effectiveDate = context.today,
-            previousMonthlyBudgetCents = currentMonthlyBudget,
-            newMonthlyBudgetCents = request.portfolioMonthlyBudgetCents,
-            installId = context.settings.installDeviceId,
-            nowEpochMs = System.currentTimeMillis(),
-            hybridLogicalClockService = hybridLogicalClockService
-        )
-        budgetAdjustmentDao.insert(adjustment.toEntity())
-        return adjustment
-    }
-
-    private suspend fun normalizeCycleAdjustments(
-        settings: UserSettings,
-        cycleStart: LocalDate,
-        baseMonthlyBudgetCents: Long
-    ) {
-        val activeAdjustments = budgetAdjustmentDao.getActiveForCycle(cycleStart.toString())
-        if (activeAdjustments.isEmpty()) {
-            return
-        }
-
-        val nowEpochMs = System.currentTimeMillis()
-        val redundantAdjustmentUuids = mutableSetOf<String>()
-        var currentBudget = baseMonthlyBudgetCents
-
-        activeAdjustments
-            .groupBy { it.effectiveDate }
-            .toSortedMap()
-            .values
-            .forEach { sameDayAdjustments ->
-                sameDayAdjustments.dropLast(1).forEach { redundantAdjustmentUuids += it.adjustmentUuid }
-                val latestAdjustment = sameDayAdjustments.last()
-                if (latestAdjustment.newMonthlyBudgetCents == currentBudget) {
-                    redundantAdjustmentUuids += latestAdjustment.adjustmentUuid
-                } else {
-                    if (latestAdjustment.previousMonthlyBudgetCents != currentBudget) {
-                        budgetAdjustmentDao.update(
-                            normalizedAdjustmentEntity(
-                                entity = latestAdjustment,
-                                previousMonthlyBudgetCents = currentBudget,
-                                settings = settings,
-                                nowEpochMs = nowEpochMs
-                            )
-                        )
-                    }
-                    currentBudget = latestAdjustment.newMonthlyBudgetCents
-                }
-            }
-
-        if (redundantAdjustmentUuids.isNotEmpty()) {
-            budgetAdjustmentDao.deleteByAdjustmentUuids(redundantAdjustmentUuids.toList())
-        }
-    }
-
+    @Suppress("NestedBlockDepth")
     private suspend fun applyBucketDrafts(
         context: UpdateBudgetSettingsContext,
         bucketDrafts: List<BucketDraft>
@@ -564,6 +469,7 @@ class UpdateBudgetSettingsUseCase(
                     name = draft.name.trim(),
                     defaultAllocatedAmountCents = draft.defaultAllocatedAmountCents,
                     sortOrder = draft.sortOrder,
+                    settledCloseCycleEndDateExclusive = null,
                     closedAtEpochMs = null,
                     deletedAtEpochMs = null
                 ) ?: BudgetBucket(
@@ -591,19 +497,34 @@ class UpdateBudgetSettingsUseCase(
                         nowEpochMs = nowEpochMs
                     )
                     if (!draft.closeRequested) {
-                        if (draft.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID) {
-                            upsertCurrentCycleDefaultBucketPolicy(
-                                draft = draft,
-                                context = context,
-                                nowEpochMs = nowEpochMs
-                            )
-                        } else {
-                            ensureCurrentCycleBucketPolicy(
+                        if (draft.bucketUuid != DEFAULT_SPENDING_BUCKET_UUID) {
+                            bucketCycleBaselineDao?.let { baselineDao ->
+                                upsertCurrentCycleBucketBaselineAmount(
+                                bucketCycleBaselineDao = baselineDao,
                                 bucketUuid = draft.bucketUuid,
-                                allocatedAmountCents = draft.defaultAllocatedAmountCents,
-                                context = context,
-                                nowEpochMs = nowEpochMs
-                            )
+                                cycleStart = context.currentPolicy.cycleStart,
+                                cycleEndExclusive = context.currentPolicy.cycleEndExclusive,
+                                baselineAmountCents = 0L,
+                                installId = context.settings.installDeviceId,
+                                nowEpochMs = nowEpochMs,
+                                hybridLogicalClockService = hybridLogicalClockService
+                                )
+                            }
+                            if (draft.defaultAllocatedAmountCents > 0L) {
+                                insertBucketTransfer(
+                                    bucketTransferDao = bucketTransferDao,
+                                    fromBucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                                    toBucketUuid = draft.bucketUuid,
+                                    amountCents = draft.defaultAllocatedAmountCents,
+                                    reason = BucketTransferReason.MANUAL_REALLOCATION,
+                                    cycleStart = context.currentPolicy.cycleStart,
+                                    cycleEndExclusive = context.currentPolicy.cycleEndExclusive,
+                                    effectiveDate = context.today,
+                                    installId = context.settings.installDeviceId,
+                                    nowEpochMs = nowEpochMs,
+                                    hybridLogicalClockService = hybridLogicalClockService
+                                )
+                            }
                         }
                     }
                     return@forEach
@@ -613,6 +534,7 @@ class UpdateBudgetSettingsUseCase(
                     existing = existing,
                     draft = draft,
                     settings = settings,
+                    currentCycleEndExclusive = context.currentPolicy.cycleEndExclusive,
                     nowEpochMs = nowEpochMs
                 )
 
@@ -630,14 +552,8 @@ class UpdateBudgetSettingsUseCase(
                         nowEpochMs = nowEpochMs
                     )
                 } else {
-                    if (draft.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID) {
-                        upsertCurrentCycleDefaultBucketPolicy(
-                            draft = draft,
-                            context = context,
-                            nowEpochMs = nowEpochMs
-                        )
-                    } else {
-                        ensureCurrentCycleBucketPolicy(
+                    if (draft.bucketUuid != DEFAULT_SPENDING_BUCKET_UUID) {
+                        ensureCurrentCycleBucketBaseline(
                             bucketUuid = draft.bucketUuid,
                             allocatedAmountCents = existing.defaultAllocatedAmountCents,
                             context = context,
@@ -659,6 +575,12 @@ class UpdateBudgetSettingsUseCase(
                     )
                 }
             }
+
+        repairCurrentCycleDefaultBucketBaseline(
+            context = context,
+            portfolioMonthlyBudgetCents = context.settings.resolvedPortfolioMonthlyBudgetCents,
+            nowEpochMs = nowEpochMs
+        )
 
         return BucketMutationResult(
             finalSelectedBucketUuid = selectedBucketUuid
@@ -683,7 +605,8 @@ class UpdateBudgetSettingsUseCase(
                 lastModifiedByInstallId = installId,
                 createdAtEpochMs = nowEpochMs,
                 updatedAtEpochMs = nowEpochMs,
-                closedAtEpochMs = if (draft.closeRequested) nowEpochMs else null,
+                settledCloseCycleEndDateExclusive = null,
+                closedAtEpochMs = null,
                 deletedAtEpochMs = null,
                 modClock = hybridLogicalClockService.format(nowEpochMs, 0, installId)
             ).toEntity()
@@ -694,6 +617,7 @@ class UpdateBudgetSettingsUseCase(
         existing: BudgetBucket,
         draft: BucketDraft,
         settings: UserSettings,
+        currentCycleEndExclusive: LocalDate,
         nowEpochMs: Long
     ) {
         val entity = budgetBucketDao.findByBucketUuid(existing.bucketUuid) ?: return
@@ -704,7 +628,12 @@ class UpdateBudgetSettingsUseCase(
                 sortOrder = draft.sortOrder,
                 updatedAtEpochMs = nowEpochMs,
                 lastModifiedByInstallId = settings.installDeviceId,
-                closedAtEpochMs = if (draft.closeRequested) nowEpochMs else existing.closedAtEpochMs,
+                settledCloseCycleEndDateExclusive = if (draft.closeRequested) {
+                    existing.settledCloseCycleEndDateExclusive ?: currentCycleEndExclusive.toString()
+                } else {
+                    null
+                },
+                closedAtEpochMs = existing.closedAtEpochMs,
                 modClock = hybridLogicalClockService.next(
                     previousClock = existing.modClock,
                     nowEpochMs = nowEpochMs,
@@ -714,66 +643,58 @@ class UpdateBudgetSettingsUseCase(
         )
     }
 
-    private suspend fun upsertCurrentCycleDefaultBucketPolicy(
-        draft: BucketDraft,
-        context: UpdateBudgetSettingsContext,
-        nowEpochMs: Long
-    ) {
-        val existing = bucketAllocationPolicyDao.findActivePolicyForCycle(
-            bucketUuid = draft.bucketUuid,
-            cycleStartDate = context.currentPolicy.cycleStart.toString()
-        )
-        if (existing == null) {
-            ensureCurrentCycleBucketPolicy(
-                bucketUuid = draft.bucketUuid,
-                allocatedAmountCents = draft.defaultAllocatedAmountCents,
-                context = context,
-                nowEpochMs = nowEpochMs
-            )
-        } else if (existing.allocatedAmountCents != draft.defaultAllocatedAmountCents) {
-            bucketAllocationPolicyDao.update(
-                existing.copy(
-                    allocatedAmountCents = draft.defaultAllocatedAmountCents,
-                    updatedAtEpochMs = nowEpochMs,
-                    lastModifiedByInstallId = context.settings.installDeviceId,
-                    modClock = hybridLogicalClockService.next(
-                        previousClock = existing.modClock,
-                        nowEpochMs = nowEpochMs,
-                        installId = context.settings.installDeviceId
-                    )
-                )
-            )
-        }
-        val activeAdjustments = bucketAllocationAdjustmentDao.getActiveForCycle(
-            bucketUuid = draft.bucketUuid,
-            cycleStartDate = context.currentPolicy.cycleStart.toString()
-        )
-        if (activeAdjustments.isNotEmpty()) {
-            bucketAllocationAdjustmentDao.deleteByAdjustmentUuids(activeAdjustments.map { it.adjustmentUuid })
-        }
-    }
-
-    private suspend fun ensureCurrentCycleBucketPolicy(
+    private suspend fun ensureCurrentCycleBucketBaseline(
         bucketUuid: String,
         allocatedAmountCents: Long,
         context: UpdateBudgetSettingsContext,
         nowEpochMs: Long
     ) {
-        val existing = bucketAllocationPolicyDao.findActivePolicyForCycle(
-            bucketUuid = bucketUuid,
-            cycleStartDate = context.currentPolicy.cycleStart.toString()
-        )
-        if (existing != null) return
-        bucketAllocationPolicyDao.insert(
-            newBucketAllocationPolicy(
+        bucketCycleBaselineDao?.let { baselineDao ->
+            upsertCurrentCycleBucketBaselineAmount(
+                bucketCycleBaselineDao = baselineDao,
                 bucketUuid = bucketUuid,
                 cycleStart = context.currentPolicy.cycleStart,
                 cycleEndExclusive = context.currentPolicy.cycleEndExclusive,
-                allocatedAmountCents = allocatedAmountCents,
+                baselineAmountCents = allocatedAmountCents,
                 installId = context.settings.installDeviceId,
                 nowEpochMs = nowEpochMs,
                 hybridLogicalClockService = hybridLogicalClockService
-            ).toEntity()
+            )
+        }
+    }
+
+    private suspend fun repairCurrentCycleDefaultBucketBaseline(
+        context: UpdateBudgetSettingsContext,
+        portfolioMonthlyBudgetCents: Long,
+        nowEpochMs: Long
+    ) {
+        val baselineDao = bucketCycleBaselineDao ?: return
+        val baselines = baselineDao.getActiveForCycle(context.currentPolicy.cycleStart.toString())
+            .map { it.toDomainModel() }
+        val transfers = bucketTransferDao.getForCycle(context.currentPolicy.cycleStart.toString())
+            .map { it.toDomainModel() }
+        val namedBuckets = budgetBucketDao.getAllForSnapshot()
+            .map { it.toDomainModel() }
+            .filter {
+                it.bucketUuid != DEFAULT_SPENDING_BUCKET_UUID && it.isVisibleInCurrentCycle
+            }
+        val defaultBucketAllocation = resolveCurrentCycleDefaultAllocation(
+            portfolioMonthlyBudgetCents = portfolioMonthlyBudgetCents,
+            namedBuckets = namedBuckets,
+            cycleStart = context.currentPolicy.cycleStart,
+            baselines = baselines,
+            transfers = transfers,
+            currentCycleBucketAllocationResolver = currentCycleBucketAllocationResolver
+        )
+        upsertCurrentCycleBucketBaselineAmount(
+            bucketCycleBaselineDao = baselineDao,
+            bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+            cycleStart = context.currentPolicy.cycleStart,
+            cycleEndExclusive = context.currentPolicy.cycleEndExclusive,
+            baselineAmountCents = defaultBucketAllocation,
+            installId = context.settings.installDeviceId,
+            nowEpochMs = nowEpochMs,
+            hybridLogicalClockService = hybridLogicalClockService
         )
     }
 
@@ -783,43 +704,43 @@ class UpdateBudgetSettingsUseCase(
         context: UpdateBudgetSettingsContext,
         nowEpochMs: Long
     ) {
-        val currentPolicyEntity = bucketAllocationPolicyDao.findActivePolicyForCycle(
+        val currentAllocation = currentCycleBucketAllocationResolver.resolve(
             bucketUuid = bucket.bucketUuid,
-            cycleStartDate = context.currentPolicy.cycleStart.toString()
-        )
-        val baseAllocationCents = currentPolicyEntity?.allocatedAmountCents ?: bucket.defaultAllocatedAmountCents
-        val currentAdjustments = bucketAllocationAdjustmentDao.getActiveForCycle(
+            cycleStart = context.currentPolicy.cycleStart,
+            fallbackAllocationCents = bucket.defaultAllocatedAmountCents,
+            baselines = context.bucketBaselines,
+            transfers = context.bucketTransfers
+        ).effectiveAllocationCents
+        val targetAllocation = draft.defaultAllocatedAmountCents
+        val defaultBucket = context.buckets.firstOrNull { it.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
+        val defaultCurrentAllocation = currentCycleBucketAllocationResolver.resolve(
+            bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+            cycleStart = context.currentPolicy.cycleStart,
+            fallbackAllocationCents = defaultBucket?.defaultAllocatedAmountCents ?: 0L,
+            baselines = context.bucketBaselines,
+            transfers = context.bucketTransfers
+        ).effectiveAllocationCents
+        val reallocation = resolveCurrentCycleReallocation(
             bucketUuid = bucket.bucketUuid,
-            cycleStartDate = context.currentPolicy.cycleStart.toString()
-        ).map { it.toDomainModel() }
-        val currentAllocation = bucketAllocationResolver.currentAllocatedAmount(
+            currentAllocation = currentAllocation,
+            targetAllocation = targetAllocation,
+            defaultCurrentAllocation = defaultCurrentAllocation
+        ) ?: return
+        insertBucketTransfer(
+            bucketTransferDao = bucketTransferDao,
+            fromBucketUuid = reallocation.fromBucketUuid,
+            toBucketUuid = reallocation.toBucketUuid,
+            amountCents = reallocation.transferAmountCents,
+            reason = BucketTransferReason.MANUAL_REALLOCATION,
             cycleStart = context.currentPolicy.cycleStart,
             cycleEndExclusive = context.currentPolicy.cycleEndExclusive,
-            baseAllocatedAmountCents = baseAllocationCents,
-            adjustments = currentAdjustments,
-            onDate = context.today
+            effectiveDate = context.today,
+            installId = context.settings.installDeviceId,
+            nowEpochMs = nowEpochMs,
+            hybridLogicalClockService = hybridLogicalClockService
         )
-        if (currentAllocation == draft.defaultAllocatedAmountCents) {
-            return
-        }
-        bucketAllocationAdjustmentDao.insert(
-            newBucketAllocationAdjustment(
-                bucketUuid = bucket.bucketUuid,
-                cycleStart = context.currentPolicy.cycleStart,
-                effectiveDate = context.today,
-                previousAllocatedAmountCents = currentAllocation,
-                newAllocatedAmountCents = draft.defaultAllocatedAmountCents,
-                installId = context.settings.installDeviceId,
-                nowEpochMs = nowEpochMs,
-                hybridLogicalClockService = hybridLogicalClockService
-            ).toEntity()
-        )
-        normalizeBucketAdjustments(
-            bucketUuid = bucket.bucketUuid,
-            settings = context.settings,
-            cycleStart = context.currentPolicy.cycleStart,
-            baseAllocatedAmountCents = baseAllocationCents
-        )
+        clearCurrentCycleBucketAdjustments(bucket.bucketUuid, context)
+        clearCurrentCycleBucketAdjustments(DEFAULT_SPENDING_BUCKET_UUID, context)
     }
 
     private suspend fun zeroClosedBucket(
@@ -827,43 +748,48 @@ class UpdateBudgetSettingsUseCase(
         context: UpdateBudgetSettingsContext,
         nowEpochMs: Long
     ) {
-        val currentPolicyEntity = bucketAllocationPolicyDao.findActivePolicyForCycle(
+        if (bucket.isSettledClosing) return
+        val cycleStartDate = context.currentPolicy.cycleStart.toString()
+        val spent = expenseDao.totalSpentPerBucketInRange(
+            startDateInclusive = cycleStartDate,
+            endDateExclusive = context.currentPolicy.cycleEndExclusive.toString()
+        ).firstOrNull { it.bucketUuid == bucket.bucketUuid }?.totalSpentCents ?: 0L
+        val currentAllocation = currentCycleBucketAllocationResolver.resolve(
             bucketUuid = bucket.bucketUuid,
-            cycleStartDate = context.currentPolicy.cycleStart.toString()
+            cycleStart = context.currentPolicy.cycleStart,
+            fallbackAllocationCents = bucket.defaultAllocatedAmountCents,
+            baselines = context.bucketBaselines,
+            transfers = context.bucketTransfers
+        ).effectiveAllocationCents
+        val defaultAllocation = currentCycleBucketAllocationResolver.resolve(
+            bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+            cycleStart = context.currentPolicy.cycleStart,
+            fallbackAllocationCents = context.buckets.firstOrNull {
+                it.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID
+            }?.defaultAllocatedAmountCents ?: 0L,
+            baselines = context.bucketBaselines,
+            transfers = context.bucketTransfers
+        ).effectiveAllocationCents
+        val settlement = resolveCurrentCycleCloseSettlement(
+            currentAllocation = currentAllocation,
+            spentCents = spent,
+            defaultCurrentAllocation = defaultAllocation
         )
-        val baseAllocationCents = currentPolicyEntity?.allocatedAmountCents ?: bucket.defaultAllocatedAmountCents
-        val currentAdjustments = bucketAllocationAdjustmentDao.getActiveForCycle(
-            bucketUuid = bucket.bucketUuid,
-            cycleStartDate = context.currentPolicy.cycleStart.toString()
-        ).map { it.toDomainModel() }
-        val currentAllocation = bucketAllocationResolver.currentAllocatedAmount(
+        insertBucketTransfer(
+            bucketTransferDao = bucketTransferDao,
+            fromBucketUuid = bucket.bucketUuid,
+            toBucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+            amountCents = settlement.settlementCents,
+            reason = BucketTransferReason.CLOSE_SETTLEMENT,
             cycleStart = context.currentPolicy.cycleStart,
             cycleEndExclusive = context.currentPolicy.cycleEndExclusive,
-            baseAllocatedAmountCents = baseAllocationCents,
-            adjustments = currentAdjustments,
-            onDate = context.today
+            effectiveDate = context.today,
+            installId = context.settings.installDeviceId,
+            nowEpochMs = nowEpochMs,
+            hybridLogicalClockService = hybridLogicalClockService
         )
-        if (currentAllocation == 0L) {
-            return
-        }
-        bucketAllocationAdjustmentDao.insert(
-            newBucketAllocationAdjustment(
-                bucketUuid = bucket.bucketUuid,
-                cycleStart = context.currentPolicy.cycleStart,
-                effectiveDate = context.today,
-                previousAllocatedAmountCents = currentAllocation,
-                newAllocatedAmountCents = 0L,
-                installId = context.settings.installDeviceId,
-                nowEpochMs = nowEpochMs,
-                hybridLogicalClockService = hybridLogicalClockService
-            ).toEntity()
-        )
-        normalizeBucketAdjustments(
-            bucketUuid = bucket.bucketUuid,
-            settings = context.settings,
-            cycleStart = context.currentPolicy.cycleStart,
-            baseAllocatedAmountCents = baseAllocationCents
-        )
+        clearCurrentCycleBucketAdjustments(bucket.bucketUuid, context)
+        clearCurrentCycleBucketAdjustments(DEFAULT_SPENDING_BUCKET_UUID, context)
     }
 
     private suspend fun softDeleteFutureBucketPoliciesAndAdjustments(
@@ -879,79 +805,52 @@ class UpdateBudgetSettingsUseCase(
             .forEach { policy ->
                 deactivateInsertedBucketPolicy(bucketAllocationPolicyDao, policy, settings.installDeviceId, nowEpochMs, hybridLogicalClockService)
             }
-        context.bucketAdjustments
-            .filter { it.bucketUuid == bucketUuid }
-            .filter { it.deletedAtEpochMs == null && !it.cycleStart().isBefore(currentCycleEndExclusive) }
+        bucketAllocationAdjustmentDao.getAllForSnapshot()
+            .filter { it.deletedAtEpochMs == null && it.bucketUuid == bucketUuid }
+            .filter { LocalDate.parse(it.cycleStartDate) >= currentCycleEndExclusive }
             .forEach { adjustment ->
-                deactivateInsertedBucketAdjustment(bucketAllocationAdjustmentDao, adjustment, settings.installDeviceId, nowEpochMs, hybridLogicalClockService)
+                deactivateInsertedBucketAdjustment(
+                    bucketAllocationAdjustmentDao,
+                    adjustment.toDomainModel(),
+                    settings.installDeviceId,
+                    nowEpochMs,
+                    hybridLogicalClockService
+                )
             }
     }
 
-    private suspend fun normalizeBucketAdjustments(
+    private suspend fun clearCurrentCycleBucketAdjustments(
         bucketUuid: String,
-        settings: UserSettings,
-        cycleStart: LocalDate,
-        baseAllocatedAmountCents: Long
+        context: UpdateBudgetSettingsContext
     ) {
         val activeAdjustments = bucketAllocationAdjustmentDao.getActiveForCycle(
             bucketUuid = bucketUuid,
-            cycleStartDate = cycleStart.toString()
+            cycleStartDate = context.currentPolicy.cycleStart.toString()
         )
-        if (activeAdjustments.isEmpty()) return
-
-        val nowEpochMs = System.currentTimeMillis()
-        val redundantAdjustmentUuids = mutableSetOf<String>()
-        var currentAllocation = baseAllocatedAmountCents
-
-        activeAdjustments
-            .groupBy { it.effectiveDate }
-            .toSortedMap()
-            .values
-            .forEach { sameDayAdjustments ->
-                sameDayAdjustments.dropLast(1).forEach { redundantAdjustmentUuids += it.adjustmentUuid }
-                val latestAdjustment = sameDayAdjustments.last()
-                if (latestAdjustment.newAllocatedAmountCents == currentAllocation) {
-                    redundantAdjustmentUuids += latestAdjustment.adjustmentUuid
-                } else {
-                    if (latestAdjustment.previousAllocatedAmountCents != currentAllocation) {
-                        bucketAllocationAdjustmentDao.update(
-                            latestAdjustment.copy(
-                                previousAllocatedAmountCents = currentAllocation,
-                                updatedAtEpochMs = nowEpochMs,
-                                lastModifiedByInstallId = settings.installDeviceId,
-                                modClock = hybridLogicalClockService.next(
-                                    previousClock = latestAdjustment.modClock,
-                                    nowEpochMs = nowEpochMs,
-                                    installId = settings.installDeviceId
-                                )
-                            )
-                        )
-                    }
-                    currentAllocation = latestAdjustment.newAllocatedAmountCents
-                }
-            }
-
-        if (redundantAdjustmentUuids.isNotEmpty()) {
-            bucketAllocationAdjustmentDao.deleteByAdjustmentUuids(redundantAdjustmentUuids.toList())
+        if (activeAdjustments.isNotEmpty()) {
+            bucketAllocationAdjustmentDao.deleteByAdjustmentUuids(activeAdjustments.map { it.adjustmentUuid })
         }
     }
 
-    private fun normalizedAdjustmentEntity(
-        entity: BudgetAdjustmentEntity,
-        previousMonthlyBudgetCents: Long,
-        settings: UserSettings,
-        nowEpochMs: Long
-    ): BudgetAdjustmentEntity {
-        return entity.copy(
-            previousMonthlyBudgetCents = previousMonthlyBudgetCents,
-            updatedAtEpochMs = nowEpochMs,
-            lastModifiedByInstallId = settings.installDeviceId,
-            modClock = hybridLogicalClockService.next(
-                previousClock = entity.modClock,
-                nowEpochMs = nowEpochMs,
-                installId = settings.installDeviceId
-            )
+    private suspend fun upsertCurrentCycleBudgetPolicy(
+        context: UpdateBudgetSettingsContext,
+        targetBudgetCents: Long
+    ) {
+        val nowEpochMs = context.today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        upsertCurrentCyclePortfolioPolicyAmount(
+            budgetPolicyDao = budgetPolicyDao,
+            cycleStart = context.currentPolicy.cycleStart,
+            cycleEndExclusive = context.currentPolicy.cycleEndExclusive,
+            budgetAmountCents = targetBudgetCents,
+            paydayDayOfMonth = context.currentPolicy.paydayDayOfMonth,
+            installId = context.settings.installDeviceId,
+            nowEpochMs = nowEpochMs,
+            hybridLogicalClockService = hybridLogicalClockService
         )
+        val activeAdjustments = budgetAdjustmentDao.getActiveForCycle(context.currentPolicy.cycleStart.toString())
+        if (activeAdjustments.isNotEmpty()) {
+            budgetAdjustmentDao.deleteByAdjustmentUuids(activeAdjustments.map { it.adjustmentUuid })
+        }
     }
 
     private suspend fun regeneratePolicies(
@@ -960,45 +859,33 @@ class UpdateBudgetSettingsUseCase(
         today: LocalDate,
         currentPolicy: ResolvedCyclePolicy,
         currentPolicyRecord: BudgetPolicy?,
-        futurePolicies: List<BudgetPolicy>,
-        paydayPlan: ImmediatePaydayChangePlan?
+        futurePolicies: List<BudgetPolicy>
     ): List<BudgetPolicy> {
-        if (paydayPlan == null && futurePolicies.isEmpty()) {
+        val needsNextCyclePolicy = request.paydayDate != settings.paydayDate ||
+            (request.portfolioMonthlyBudgetCents != settings.resolvedPortfolioMonthlyBudgetCents &&
+                request.budgetChangeMode == BudgetChangeMode.APPLY_NEXT_CYCLE)
+        if (!needsNextCyclePolicy && futurePolicies.isEmpty()) {
             return emptyList()
         }
 
         val nowEpochMs = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         softDeletePolicies(futurePolicies, settings, nowEpochMs)
-
-        val insertedPolicies = mutableListOf<BudgetPolicy>()
-        if (paydayPlan != null) {
-            currentPolicyRecord?.let { softDeletePolicy(it, settings, nowEpochMs) }
-            insertedPolicies += insertBudgetPolicy(
-                settings = settings,
-                cycleStart = paydayPlan.rewrittenCurrentCycle.cycleStart,
-                cycleEndExclusive = paydayPlan.rewrittenCurrentCycle.cycleEndExclusive,
-                budgetAmountCents = paydayPlan.rewrittenCurrentCycle.budgetAmountCents,
-                paydayDayOfMonth = paydayPlan.rewrittenCurrentCycle.paydayDayOfMonth,
-                nowEpochMs = nowEpochMs
-            )
-            insertedPolicies += insertBudgetPolicy(
-                settings = settings,
-                cycleStart = paydayPlan.firstRegularCycle.cycleStart,
-                cycleEndExclusive = paydayPlan.firstRegularCycle.cycleEndExclusive,
-                budgetAmountCents = paydayPlan.firstRegularCycle.budgetAmountCents,
-                paydayDayOfMonth = paydayPlan.firstRegularCycle.paydayDayOfMonth,
-                nowEpochMs = nowEpochMs
-            )
-        } else {
-            insertedPolicies += insertNextCyclePolicy(
+        if (!needsNextCyclePolicy) {
+            return emptyList()
+        }
+        return listOf(
+            insertNextCyclePolicy(
                 settings = settings,
                 currentPolicy = currentPolicy,
-                targetBudget = request.portfolioMonthlyBudgetCents,
+                targetBudget = if (request.budgetChangeMode == BudgetChangeMode.APPLY_CURRENT_NOW) {
+                    currentPolicyRecord?.budgetAmountCents ?: request.portfolioMonthlyBudgetCents
+                } else {
+                    request.portfolioMonthlyBudgetCents
+                },
                 targetPayday = request.paydayDate,
                 nowEpochMs = nowEpochMs
             )
-        }
-        return insertedPolicies
+        )
     }
 
     private suspend fun softDeletePolicies(
@@ -1078,31 +965,12 @@ class UpdateBudgetSettingsUseCase(
         return policy
     }
 
-    private fun buildPendingPaydayUndo(
-        context: UpdateBudgetSettingsContext,
-        mutation: UpdateBudgetSettingsMutation
-    ): PendingPaydayUndo {
-        val policiesToRestore = context.policies.filter { it.deletedAtEpochMs == null }
-        val adjustmentsToRestore = context.currentAdjustments
-        return PendingPaydayUndo(
-            previousSettings = context.settings,
-            policiesToRestore = policiesToRestore,
-            policiesToDeactivate = mutation.insertedPolicies,
-            adjustmentsToRestore = adjustmentsToRestore,
-            adjustmentsToDeactivate = mutation.activeAdjustments,
-            expiresAtExclusive = listOfNotNull(
-                context.paydayPlan?.rewrittenCurrentCycle?.cycleEndExclusive,
-                context.currentPolicy.cycleEndExclusive
-            ).min().toString()
-        )
-    }
-
     private fun buildSummaryMessage(
         settings: UserSettings,
         request: UpdateBudgetSettingsRequest,
         effectiveDate: LocalDate,
-        originalCurrentCycleEnd: LocalDate,
-        rewrittenCurrentCycleEnd: LocalDate,
+        @Suppress("UNUSED_PARAMETER") originalCurrentCycleEnd: LocalDate,
+        @Suppress("UNUSED_PARAMETER") rewrittenCurrentCycleEnd: LocalDate,
         nextCycleStart: LocalDate,
         paydayChanged: Boolean,
         budgetChanged: Boolean,
@@ -1111,20 +979,12 @@ class UpdateBudgetSettingsUseCase(
         val parts = mutableListOf<String>()
         if (budgetChanged) {
             parts += when (request.budgetChangeMode) {
-                BudgetChangeMode.PRORATE_CURRENT_CYCLE -> "Portfolio budget prorated from $effectiveDate."
+                BudgetChangeMode.APPLY_CURRENT_NOW -> "Portfolio budget applied from $effectiveDate."
                 BudgetChangeMode.APPLY_NEXT_CYCLE -> "Portfolio budget changes on $nextCycleStart."
             }
         }
         if (paydayChanged) {
-            parts += "Payday switches from ${settings.paydayDate} to ${request.paydayDate} now."
-            parts += when {
-                rewrittenCurrentCycleEnd.isBefore(originalCurrentCycleEnd) ->
-                    "This cycle now ends on $rewrittenCurrentCycleEnd."
-                rewrittenCurrentCycleEnd.isAfter(originalCurrentCycleEnd) ->
-                    "This cycle extends to $rewrittenCurrentCycleEnd."
-                else ->
-                    "This cycle still ends on $rewrittenCurrentCycleEnd."
-            }
+            parts += "Payday changes from ${settings.paydayDate} to ${request.paydayDate} on $nextCycleStart."
         }
         if (bucketChanged) {
             parts += "Bucket settings updated."

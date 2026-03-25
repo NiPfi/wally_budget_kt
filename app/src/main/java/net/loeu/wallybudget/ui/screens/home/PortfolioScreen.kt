@@ -46,8 +46,8 @@ fun PortfolioScreen(
     var editingBucketState by remember { mutableStateOf<HomeBucketEditorState?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val orderedOpenSummaries = remember(bucketSummaries) {
-        bucketSummaries.filterNot { it.bucket.isClosed }
+    val visibleCurrentCycleSummaries = remember(bucketSummaries) {
+        bucketSummaries.filter { it.bucket.isVisibleInCurrentCycle }
     }
 
     fun openBucketEditor(bucketUuid: String) {
@@ -85,7 +85,7 @@ fun PortfolioScreen(
     ) { paddingValues ->
         PortfolioScreenContent(
             portfolioState = portfolioState,
-            bucketSummaries = orderedOpenSummaries,
+            bucketSummaries = visibleCurrentCycleSummaries,
             funds = funds,
             interactionsEnabled = interactionsEnabled,
             onEditBucket = ::openBucketEditor,
