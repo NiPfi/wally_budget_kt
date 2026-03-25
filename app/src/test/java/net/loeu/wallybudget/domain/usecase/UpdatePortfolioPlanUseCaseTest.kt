@@ -23,6 +23,58 @@ import java.time.LocalDate
 class UpdatePortfolioPlanUseCaseTest {
 
     @Test
+    fun invoke_budgetOnlySave_updatesCurrentPortfolioPolicy() = runBlocking {
+        val settingsStore = FakeUserSettingsStore(
+            UserSettings(
+                monthlyBudgetCents = 1_000_00L,
+                portfolioMonthlyBudgetCents = 1_000_00L,
+                paydayDate = 25,
+                selectedBucketUuid = DEFAULT_SPENDING_BUCKET_UUID
+            )
+        )
+        val budgetPolicyDao = FakeBudgetPolicyDao(
+            listOf(
+                BudgetPolicyEntity(
+                    id = 1L,
+                    policyUuid = "current-policy",
+                    cycleStartDate = "2026-03-25",
+                    cycleEndDateExclusive = "2026-04-25",
+                    budgetAmountCents = 1_000_00L,
+                    paydayDayOfMonth = 25,
+                    originInstallId = "test-install-id",
+                    lastModifiedByInstallId = "test-install-id",
+                    createdAtEpochMs = 1L,
+                    updatedAtEpochMs = 1L,
+                    modClock = "0000000000001-0000-test-install-id"
+                )
+            )
+        )
+        val useCase = UpdatePortfolioPlanUseCase(
+            transactionRunner = FakeTransactionRunner(),
+            userSettingsStore = settingsStore,
+            budgetPolicyDao = budgetPolicyDao,
+            budgetBucketDao = FakeBudgetBucketDao(
+                listOf(
+                    bucketEntity(defaultAllocatedAmountCents = 1_000_00L)
+                )
+            ),
+            bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(
+                listOf(bucketPolicyEntity(allocationUuid = "default-current", cycleStartDate = "2026-03-25", cycleEndDateExclusive = "2026-04-25", allocatedAmountCents = 1_000_00L))
+            ),
+            bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
+            bucketTransferDao = FakeBucketTransferDao(),
+            expenseDao = FakeExpenseDao(),
+            currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
+            cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService()),
+            hybridLogicalClockService = HybridLogicalClockService()
+        )
+
+        useCase(UpdatePortfolioPlanRequest(portfolioMonthlyBudgetCents = 3_500_00L))
+
+        assertEquals(3_500_00L, budgetPolicyDao.findActivePolicyForCycle("2026-03-25")?.budgetAmountCents)
+    }
+
+    @Test
     @Suppress("LongMethod")
     fun invoke_budgetOnlySavePreservesFutureBucketPolicies() = runBlocking {
         val settingsStore = FakeUserSettingsStore(

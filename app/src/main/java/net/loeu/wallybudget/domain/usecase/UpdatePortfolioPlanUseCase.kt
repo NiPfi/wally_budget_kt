@@ -24,6 +24,7 @@ import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
+import net.loeu.wallybudget.domain.usecase.internal.newBudgetPolicy
 import net.loeu.wallybudget.domain.usecase.internal.insertBucketTransfer
 import net.loeu.wallybudget.domain.usecase.internal.newBucketAllocationPolicy
 import net.loeu.wallybudget.domain.usecase.internal.resolveSelectedOpenBucketUuid
@@ -284,6 +285,11 @@ class UpdatePortfolioPlanUseCase(
             portfolioMonthlyBudgetCents = portfolioMonthlyBudgetCents,
             nowEpochMs = nowEpochMs
         )
+        upsertCurrentCyclePortfolioPolicy(
+            context = context,
+            portfolioMonthlyBudgetCents = portfolioMonthlyBudgetCents,
+            nowEpochMs = nowEpochMs
+        )
 
         return PortfolioPlanMutationResult(finalSelectedBucketUuid)
     }
@@ -470,6 +476,41 @@ class UpdatePortfolioPlanUseCase(
         @Suppress("UNUSED_PARAMETER") nowEpochMs: Long
     ) {
         return
+    }
+
+    private suspend fun upsertCurrentCyclePortfolioPolicy(
+        context: UpdatePortfolioPlanContext,
+        portfolioMonthlyBudgetCents: Long,
+        nowEpochMs: Long
+    ) {
+        val existing = budgetPolicyDao.findActivePolicyForCycle(context.currentCycleStart.toString())
+        if (existing == null) {
+            budgetPolicyDao.insert(
+                newBudgetPolicy(
+                    cycleStart = context.currentCycleStart,
+                    cycleEndExclusive = context.currentCycleEndExclusive,
+                    budgetAmountCents = portfolioMonthlyBudgetCents,
+                    paydayDayOfMonth = context.settings.paydayDate,
+                    installId = context.settings.installDeviceId,
+                    nowEpochMs = nowEpochMs,
+                    hybridLogicalClockService = hybridLogicalClockService
+                ).toEntity()
+            )
+            return
+        }
+        if (existing.budgetAmountCents == portfolioMonthlyBudgetCents) return
+        budgetPolicyDao.update(
+            existing.copy(
+                budgetAmountCents = portfolioMonthlyBudgetCents,
+                updatedAtEpochMs = nowEpochMs,
+                lastModifiedByInstallId = context.settings.installDeviceId,
+                modClock = hybridLogicalClockService.next(
+                    previousClock = existing.modClock,
+                    nowEpochMs = nowEpochMs,
+                    installId = context.settings.installDeviceId
+                )
+            )
+        )
     }
 
     private suspend fun invalidateOrExpirePendingPaydayUndo() {
