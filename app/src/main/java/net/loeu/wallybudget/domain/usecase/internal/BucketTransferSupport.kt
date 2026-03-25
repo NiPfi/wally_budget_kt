@@ -1,11 +1,9 @@
 package net.loeu.wallybudget.domain.usecase.internal
 
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
-import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
 import net.loeu.wallybudget.data.local.dao.BucketTransferDao
 import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.domain.model.BudgetBucket
-import net.loeu.wallybudget.domain.model.BucketAllocationPolicy
 import net.loeu.wallybudget.domain.model.BucketCycleBaseline
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.BucketTransfer
@@ -28,49 +26,6 @@ internal data class CurrentCycleCloseSettlement(
     val defaultBucketAllocationCents: Long,
     val settlementCents: Long
 )
-
-internal suspend fun upsertCurrentCycleBucketPolicyAmount(
-    bucketAllocationPolicyDao: BucketAllocationPolicyDao,
-    bucketUuid: String,
-    cycleStart: LocalDate,
-    cycleEndExclusive: LocalDate,
-    allocatedAmountCents: Long,
-    installId: String,
-    nowEpochMs: Long,
-    hybridLogicalClockService: HybridLogicalClockService
-) {
-    val existing = bucketAllocationPolicyDao.findActivePolicyForCycle(
-        bucketUuid = bucketUuid,
-        cycleStartDate = cycleStart.toString()
-    )
-    if (existing == null) {
-        bucketAllocationPolicyDao.insert(
-            newBucketAllocationPolicy(
-                bucketUuid = bucketUuid,
-                cycleStart = cycleStart,
-                cycleEndExclusive = cycleEndExclusive,
-                allocatedAmountCents = allocatedAmountCents,
-                installId = installId,
-                nowEpochMs = nowEpochMs,
-                hybridLogicalClockService = hybridLogicalClockService
-            ).toEntity()
-        )
-        return
-    }
-    if (existing.allocatedAmountCents == allocatedAmountCents) return
-    bucketAllocationPolicyDao.update(
-        existing.copy(
-            allocatedAmountCents = allocatedAmountCents,
-            updatedAtEpochMs = nowEpochMs,
-            lastModifiedByInstallId = installId,
-            modClock = hybridLogicalClockService.next(
-                previousClock = existing.modClock,
-                nowEpochMs = nowEpochMs,
-                installId = installId
-            )
-        )
-    )
-}
 
 internal suspend fun upsertCurrentCyclePortfolioPolicyAmount(
     budgetPolicyDao: BudgetPolicyDao,
@@ -130,7 +85,6 @@ internal fun resolveCurrentCycleAllocationSnapshot(
     cycleStart: LocalDate,
     baselines: List<BucketCycleBaseline>,
     transfers: List<BucketTransfer>,
-    legacyPolicies: List<BucketAllocationPolicy> = emptyList(),
     currentCycleBucketAllocationResolver: CurrentCycleBucketAllocationResolver = CurrentCycleBucketAllocationResolver()
 ): Map<String, Long> {
     return buckets.associate { bucket ->
@@ -139,8 +93,7 @@ internal fun resolveCurrentCycleAllocationSnapshot(
             cycleStart = cycleStart,
             fallbackAllocationCents = bucket.defaultAllocatedAmountCents,
             baselines = baselines,
-            transfers = transfers,
-            legacyPolicies = legacyPolicies
+            transfers = transfers
         ).effectiveAllocationCents
     }
 }
@@ -150,7 +103,6 @@ internal fun resolveCurrentCycleAllocationTotal(
     cycleStart: LocalDate,
     baselines: List<BucketCycleBaseline>,
     transfers: List<BucketTransfer>,
-    legacyPolicies: List<BucketAllocationPolicy> = emptyList(),
     currentCycleBucketAllocationResolver: CurrentCycleBucketAllocationResolver = CurrentCycleBucketAllocationResolver()
 ): Long {
     return resolveCurrentCycleAllocationSnapshot(
@@ -158,7 +110,6 @@ internal fun resolveCurrentCycleAllocationTotal(
         cycleStart = cycleStart,
         baselines = baselines,
         transfers = transfers,
-        legacyPolicies = legacyPolicies,
         currentCycleBucketAllocationResolver = currentCycleBucketAllocationResolver
     ).values.sum()
 }
@@ -169,7 +120,6 @@ internal fun resolveCurrentCycleDefaultAllocation(
     cycleStart: LocalDate,
     baselines: List<BucketCycleBaseline>,
     transfers: List<BucketTransfer>,
-    legacyPolicies: List<BucketAllocationPolicy> = emptyList(),
     currentCycleBucketAllocationResolver: CurrentCycleBucketAllocationResolver = CurrentCycleBucketAllocationResolver()
 ): Long {
     val namedCurrentAllocationTotal = resolveCurrentCycleAllocationTotal(
@@ -177,7 +127,6 @@ internal fun resolveCurrentCycleDefaultAllocation(
         cycleStart = cycleStart,
         baselines = baselines,
         transfers = transfers,
-        legacyPolicies = legacyPolicies,
         currentCycleBucketAllocationResolver = currentCycleBucketAllocationResolver
     )
     return (

@@ -1,6 +1,5 @@
 package net.loeu.wallybudget.domain.service
 
-import net.loeu.wallybudget.domain.model.BucketAllocationPolicy
 import net.loeu.wallybudget.domain.model.BucketCycleBaseline
 import net.loeu.wallybudget.domain.model.BucketTransfer
 import java.time.LocalDate
@@ -17,8 +16,7 @@ class CurrentCycleBucketAllocationResolver {
         cycleStart: LocalDate,
         fallbackAllocationCents: Long,
         baselines: List<BucketCycleBaseline>,
-        transfers: List<BucketTransfer>,
-        legacyPolicies: List<BucketAllocationPolicy> = emptyList()
+        transfers: List<BucketTransfer>
     ): ResolvedCurrentCycleBucketAllocation {
         val baselineAmountCents = baselines
             .lastOrNull {
@@ -27,11 +25,6 @@ class CurrentCycleBucketAllocationResolver {
                     it.cycleStart() == cycleStart
             }
             ?.baselineAmountCents
-            ?: legacyPolicies.lastOrNull {
-                it.deletedAtEpochMs == null &&
-                    it.bucketUuid == bucketUuid &&
-                    it.cycleStart() == cycleStart
-            }?.allocatedAmountCents
             ?: fallbackAllocationCents
         val transferDeltaCents = transfers
             .filter { it.deletedAtEpochMs == null && it.cycleStart() == cycleStart }

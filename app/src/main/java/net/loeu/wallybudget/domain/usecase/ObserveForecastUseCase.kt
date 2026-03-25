@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
-import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
 import net.loeu.wallybudget.data.local.dao.BucketCycleBaselineDao
 import net.loeu.wallybudget.data.local.dao.BucketMonthlyHistoryDao
 import net.loeu.wallybudget.data.local.dao.BucketTransferDao
@@ -23,7 +22,6 @@ import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.domain.config.ForecastConfig
 import net.loeu.wallybudget.domain.model.BucketAllocationAdjustment
-import net.loeu.wallybudget.domain.model.BucketAllocationPolicy
 import net.loeu.wallybudget.domain.model.BucketCycleBaseline
 import net.loeu.wallybudget.domain.model.BudgetPolicy
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
@@ -56,7 +54,6 @@ private data class ForecastComposedInputs(
 
 private data class CurrentPolicyBucketState(
     val portfolioPolicies: List<BudgetPolicy>,
-    val currentBucketPolicies: List<BucketAllocationPolicy>,
     val currentBaselines: List<BucketCycleBaseline>,
     val currentTransfers: List<net.loeu.wallybudget.domain.model.BucketTransfer>
 )
@@ -64,7 +61,6 @@ private data class CurrentPolicyBucketState(
 class ObserveForecastUseCase(
     private val budgetPolicyDao: BudgetPolicyDao,
     private val budgetBucketDao: BudgetBucketDao,
-    private val bucketAllocationPolicyDao: BucketAllocationPolicyDao? = null,
     @Suppress("UNUSED_PARAMETER")
     private val bucketAllocationAdjustmentDao:
         net.loeu.wallybudget.data.local.dao.BucketAllocationAdjustmentDao? = null,
@@ -119,9 +115,6 @@ class ObserveForecastUseCase(
         val budgetPolicies = budgetPolicyDao.observeActivePolicies().map { entries ->
             entries.map { it.policyToDomainModel() }
         }
-        val bucketPolicies = bucketAllocationPolicyDao?.observeActivePolicies()?.map { entries ->
-            entries.map { it.toDomainModel() }
-        } ?: flowOf(emptyList())
         val portfolioCurrentPolicy = observePortfolioCurrentPolicy(effectiveInputs, budgetPolicies)
         val currentBaselines = observeCurrentBaselines(currentPolicy = portfolioCurrentPolicy)
         val currentTransfers = observeCurrentTransfers(currentPolicy = portfolioCurrentPolicy)
@@ -129,7 +122,6 @@ class ObserveForecastUseCase(
             effectiveInputs = effectiveInputs,
             selectedBucket = selectedBucket,
             budgetPolicies = budgetPolicies,
-            bucketPolicies = bucketPolicies,
             baselines = currentBaselines,
             transfers = currentTransfers
         )
@@ -212,18 +204,15 @@ class ObserveForecastUseCase(
         effectiveInputs: Flow<EffectiveForecastInputs>,
         selectedBucket: Flow<net.loeu.wallybudget.domain.model.BudgetBucket?>,
         budgetPolicies: Flow<List<BudgetPolicy>>,
-        bucketPolicies: Flow<List<BucketAllocationPolicy>>,
         baselines: Flow<List<BucketCycleBaseline>>,
         transfers: Flow<List<net.loeu.wallybudget.domain.model.BucketTransfer>>
     ): Flow<ResolvedCyclePolicy> {
-        val currentBucketState = combine(budgetPolicies, bucketPolicies, baselines, transfers) {
+        val currentBucketState = combine(budgetPolicies, baselines, transfers) {
                 portfolioPolicies,
-                currentBucketPolicies,
                 currentBaselines,
                 currentTransfers ->
             CurrentPolicyBucketState(
                 portfolioPolicies = portfolioPolicies,
-                currentBucketPolicies = currentBucketPolicies,
                 currentBaselines = currentBaselines,
                 currentTransfers = currentTransfers
             )
@@ -240,7 +229,6 @@ class ObserveForecastUseCase(
                 cycleStart = portfolioPolicy.cycleStart,
                 fallbackAllocationCents = selectedBucketValue.defaultAllocatedAmountCents,
                 baselines = state.currentBaselines,
-                legacyPolicies = state.currentBucketPolicies,
                 transfers = state.currentTransfers
             ).effectiveAllocationCents
             portfolioPolicy.copy(budgetAmountCents = allocation)

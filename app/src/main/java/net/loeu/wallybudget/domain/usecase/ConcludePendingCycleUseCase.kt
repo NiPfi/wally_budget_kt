@@ -3,7 +3,6 @@ package net.loeu.wallybudget.domain.usecase
 import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationAdjustmentDao
-import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
 import net.loeu.wallybudget.data.local.dao.BucketCycleBaselineDao
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.BucketTransferDao
@@ -40,7 +39,6 @@ class ConcludePendingCycleUseCase(
     private val budgetPolicyDao: BudgetPolicyDao,
     private val budgetAdjustmentDao: BudgetAdjustmentDao,
     private val budgetBucketDao: BudgetBucketDao,
-    private val bucketAllocationPolicyDao: BucketAllocationPolicyDao,
     private val bucketCycleBaselineDao: BucketCycleBaselineDao? = null,
     private val bucketTransferDao: BucketTransferDao? = null,
     private val bucketAllocationAdjustmentDao: BucketAllocationAdjustmentDao,
@@ -177,29 +175,18 @@ class ConcludePendingCycleUseCase(
             ?.map { it.baselineToDomainModel() }.orEmpty()
         val transfers = bucketTransferDao?.getForCycle(pendingCycle.start.toString())
             ?.map { it.transferToDomainModel() }.orEmpty()
-        val legacyPolicies = bucketAllocationPolicyDao.getAllForSnapshot()
-            .filter { it.deletedAtEpochMs == null && it.cycleStartDate == pendingCycle.start.toString() }
-            .map { it.toDomainModel() }
         val allocationsByBucketUuid = resolveCurrentCycleAllocationSnapshot(
             buckets = buckets,
             cycleStart = pendingCycle.start,
             baselines = baselines,
             transfers = transfers,
-            legacyPolicies = legacyPolicies,
             currentCycleBucketAllocationResolver = currentCycleBucketAllocationResolver
         )
 
-        val netSurplusCents = if (buckets.isEmpty()) {
-            legacyPolicies.sumOf { policy ->
-                val spent = spentByBucketUuid[policy.bucketUuid] ?: 0L
-                policy.allocatedAmountCents - spent
-            }
-        } else {
-            buckets.sumOf { bucket ->
-                val spent = spentByBucketUuid[bucket.bucketUuid] ?: 0L
-                val allocation = allocationsByBucketUuid[bucket.bucketUuid] ?: bucket.defaultAllocatedAmountCents
-                allocation - spent
-            }
+        val netSurplusCents = buckets.sumOf { bucket ->
+            val spent = spentByBucketUuid[bucket.bucketUuid] ?: 0L
+            val allocation = allocationsByBucketUuid[bucket.bucketUuid] ?: bucket.defaultAllocatedAmountCents
+            allocation - spent
         }
         return netSurplusCents.coerceAtLeast(0L)
     }

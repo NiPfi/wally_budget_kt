@@ -192,16 +192,6 @@ class ObserveHomeOverviewUseCaseTest {
                 )
             ),
             budgetBucketDao = spendingBucketDao(defaultAllocatedAmountCents = 60_000L),
-            bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(
-                listOf(
-                    bucketPolicyEntity(
-                        allocationUuid = "default-current",
-                        cycleStartDate = "2026-03-25",
-                        cycleEndDateExclusive = "2026-04-25",
-                        allocatedAmountCents = 60_000L
-                    )
-                )
-            ),
             fundDao = FakeFundDao(
                 listOf(
                     fundEntity(
@@ -294,7 +284,6 @@ class ObserveHomeOverviewUseCaseTest {
         budgetPolicyDao: FakeBudgetPolicyDao = FakeBudgetPolicyDao(),
         budgetAdjustmentDao: FakeBudgetAdjustmentDao = FakeBudgetAdjustmentDao(),
         budgetBucketDao: FakeBudgetBucketDao = spendingBucketDao(),
-        bucketAllocationPolicyDao: FakeBucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(),
         bucketCycleBaselineDao: FakeBucketCycleBaselineDao = FakeBucketCycleBaselineDao(),
         bucketTransferDao: FakeBucketTransferDao = FakeBucketTransferDao(),
         bucketHistoryDao: FakeBucketMonthlyHistoryDao = FakeBucketMonthlyHistoryDao(),
@@ -308,7 +297,6 @@ class ObserveHomeOverviewUseCaseTest {
             budgetPolicyDao = budgetPolicyDao,
             budgetBucketDao = budgetBucketDao,
             fundDao = fundDao,
-            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketCycleBaselineDao = bucketCycleBaselineDao,
             bucketTransferDao = bucketTransferDao,
             bucketMonthlyHistoryDao = bucketHistoryDao,
@@ -368,7 +356,6 @@ class ObserveHomeOverviewUseCaseTest {
             budgetPolicyDao = settledClosePortfolioPolicyDao(currentCycleStart, currentCycleEnd),
             budgetBucketDao = settledCloseBucketDao(currentCycleEnd),
             bucketCycleBaselineDao = settledCloseBucketBaselineDao(currentCycleStart, currentCycleEnd),
-            bucketAllocationPolicyDao = settledCloseBucketPolicyDao(currentCycleStart, currentCycleEnd),
             bucketTransferDao = FakeBucketTransferDao(listOf(settlementTransfer(currentCycleStart, currentCycleEnd)))
         )
     }

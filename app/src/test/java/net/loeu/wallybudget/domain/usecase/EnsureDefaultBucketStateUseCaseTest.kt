@@ -1,3 +1,5 @@
+@file:Suppress("LongMethod")
+
 package net.loeu.wallybudget.domain.usecase
 
 import kotlinx.coroutines.runBlocking
@@ -14,22 +16,23 @@ import java.time.ZoneId
 class EnsureDefaultBucketStateUseCaseTest {
 
     @Test
-    fun invoke_repairsCurrentDefaultBucketPolicyFromCurrentCycleNamedPolicies() = runBlocking {
+    fun invoke_repairsCurrentDefaultBucketBaselineFromCurrentCycleNamedBuckets() = runBlocking {
         val cycleStart = LocalDate.of(2026, 3, 25)
         val cycleEnd = LocalDate.of(2026, 4, 25)
         val budgetBucketDao = migratedBudgetBucketDao()
         val bucketAllocationPolicyDao = staleCurrentBucketPolicyDao(cycleStart, cycleEnd)
-        val useCase = createUseCase(cycleStart, budgetBucketDao, bucketAllocationPolicyDao)
+        val bucketCycleBaselineDao = staleCurrentBucketBaselineDao(cycleStart, cycleEnd)
+        val useCase = createUseCase(cycleStart, budgetBucketDao, bucketCycleBaselineDao)
 
         useCase(now = LocalDate.of(2026, 4, 10))
 
-        val repairedDefaultCurrentPolicy = bucketAllocationPolicyDao.findActivePolicyForCycle(
+        val repairedDefaultCurrentBaseline = bucketCycleBaselineDao.findActiveBaselineForCycle(
             bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
             cycleStartDate = cycleStart.toString()
         )
         val repairedDefaultBucket = budgetBucketDao.findByBucketUuid(DEFAULT_SPENDING_BUCKET_UUID)
 
-        assertEquals(200_000L, repairedDefaultCurrentPolicy?.allocatedAmountCents)
+        assertEquals(200_000L, repairedDefaultCurrentBaseline?.baselineAmountCents)
         assertEquals(100_000L, repairedDefaultBucket?.defaultAllocatedAmountCents)
     }
 
@@ -82,21 +85,39 @@ class EnsureDefaultBucketStateUseCaseTest {
                 )
             )
         )
+        val bucketCycleBaselineDao = FakeBucketCycleBaselineDao(
+            listOf(
+                bucketCycleBaselineEntity(
+                    baselineUuid = "default-current",
+                    cycleStartDate = cycleStart.toString(),
+                    cycleEndDateExclusive = cycleEnd.toString(),
+                    baselineAmountCents = 3_500_00L
+                ),
+                bucketCycleBaselineEntity(
+                    id = 2L,
+                    baselineUuid = "closing-bills-current",
+                    bucketUuid = "closing-bills",
+                    cycleStartDate = cycleStart.toString(),
+                    cycleEndDateExclusive = cycleEnd.toString(),
+                    baselineAmountCents = 2_500_00L
+                )
+            )
+        )
 
-        createUseCase(cycleStart, budgetBucketDao, bucketAllocationPolicyDao)(now = LocalDate.of(2026, 4, 10))
+        createUseCase(cycleStart, budgetBucketDao, bucketCycleBaselineDao)(now = LocalDate.of(2026, 4, 10))
 
-        val repairedDefaultCurrentPolicy = bucketAllocationPolicyDao.findActivePolicyForCycle(
+        val repairedDefaultCurrentBaseline = bucketCycleBaselineDao.findActiveBaselineForCycle(
             bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
             cycleStartDate = cycleStart.toString()
         )
 
-        assertEquals(1_000_00L, repairedDefaultCurrentPolicy?.allocatedAmountCents)
+        assertEquals(1_000_00L, repairedDefaultCurrentBaseline?.baselineAmountCents)
     }
 
     private fun createUseCase(
         cycleStart: LocalDate,
         budgetBucketDao: FakeBudgetBucketDao,
-        bucketAllocationPolicyDao: FakeBucketAllocationPolicyDao
+        bucketCycleBaselineDao: FakeBucketCycleBaselineDao = FakeBucketCycleBaselineDao()
     ): EnsureDefaultBucketStateUseCase {
         return EnsureDefaultBucketStateUseCase(
             transactionRunner = FakeTransactionRunner(),
@@ -110,7 +131,7 @@ class EnsureDefaultBucketStateUseCaseTest {
                 )
             ),
             budgetBucketDao = budgetBucketDao,
-            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketCycleBaselineDao = bucketCycleBaselineDao,
             bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
             budgetCalculationService = BudgetCalculationService(),
             hybridLogicalClockService = HybridLogicalClockService()
@@ -157,6 +178,30 @@ class EnsureDefaultBucketStateUseCaseTest {
                     cycleStartDate = cycleStart.toString(),
                     cycleEndDateExclusive = cycleEnd.toString(),
                     allocatedAmountCents = 150_000L
+                )
+            )
+        )
+    }
+
+    private fun staleCurrentBucketBaselineDao(
+        cycleStart: LocalDate,
+        cycleEnd: LocalDate
+    ): FakeBucketCycleBaselineDao {
+        return FakeBucketCycleBaselineDao(
+            listOf(
+                bucketCycleBaselineEntity(
+                    baselineUuid = "default-current",
+                    cycleStartDate = cycleStart.toString(),
+                    cycleEndDateExclusive = cycleEnd.toString(),
+                    baselineAmountCents = 350_000L
+                ),
+                bucketCycleBaselineEntity(
+                    id = 2L,
+                    baselineUuid = "bills-current",
+                    bucketUuid = "bills",
+                    cycleStartDate = cycleStart.toString(),
+                    cycleEndDateExclusive = cycleEnd.toString(),
+                    baselineAmountCents = 150_000L
                 )
             )
         )

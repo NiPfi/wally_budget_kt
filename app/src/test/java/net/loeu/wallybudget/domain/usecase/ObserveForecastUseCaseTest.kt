@@ -1,4 +1,4 @@
-@file:Suppress("MaxLineLength")
+@file:Suppress("LongMethod", "MaxLineLength")
 
 package net.loeu.wallybudget.domain.usecase
 
@@ -96,7 +96,6 @@ class ObserveForecastUseCaseTest {
         val useCase = ObserveForecastUseCase(
             budgetPolicyDao = FakeBudgetPolicyDao(),
             budgetBucketDao = budgetBucketDao,
-            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
             bucketMonthlyHistoryDao = bucketHistoryDao,
             expenseDao = expenseDao,
@@ -137,6 +136,27 @@ class ObserveForecastUseCaseTest {
             )
         )
         val budgetCalculationService = BudgetCalculationService()
+        val bucketCycleBaselineDao = FakeBucketCycleBaselineDao(
+            listOf(
+                bucketCycleBaselineEntity(
+                    baselineUuid = "stale-baseline",
+                    cycleStartDate = "2026-03-25",
+                    cycleEndDateExclusive = "2026-04-25",
+                    baselineAmountCents = 100_000L,
+                    createdAtEpochMs = 1L,
+                    updatedAtEpochMs = 1L
+                ),
+                bucketCycleBaselineEntity(
+                    id = 2L,
+                    baselineUuid = "rewritten-baseline",
+                    cycleStartDate = "2026-03-25",
+                    cycleEndDateExclusive = "2026-04-20",
+                    baselineAmountCents = 80_000L,
+                    createdAtEpochMs = 2L,
+                    updatedAtEpochMs = 2L
+                )
+            )
+        )
         val useCase = ObserveForecastUseCase(
             budgetPolicyDao = FakeBudgetPolicyDao(
                 listOf(
@@ -148,7 +168,7 @@ class ObserveForecastUseCaseTest {
                 )
             ),
             budgetBucketDao = budgetBucketDao,
-            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketCycleBaselineDao = bucketCycleBaselineDao,
             bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
             bucketMonthlyHistoryDao = FakeBucketMonthlyHistoryDao(),
             expenseDao = FakeExpenseDao(),
@@ -254,7 +274,6 @@ class ObserveForecastUseCaseTest {
         val useCase = ObserveForecastUseCase(
             budgetPolicyDao = budgetPolicyDao,
             budgetBucketDao = budgetBucketDao,
-            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
             bucketMonthlyHistoryDao = bucketHistoryDao,
             expenseDao = FakeExpenseDao(),
@@ -267,7 +286,6 @@ class ObserveForecastUseCaseTest {
         val fallbackSelectedUseCase = ObserveForecastUseCase(
             budgetPolicyDao = budgetPolicyDao,
             budgetBucketDao = budgetBucketDao,
-            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
             bucketMonthlyHistoryDao = bucketHistoryDao,
             expenseDao = FakeExpenseDao(),

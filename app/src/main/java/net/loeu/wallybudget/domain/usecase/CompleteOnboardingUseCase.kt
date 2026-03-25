@@ -1,6 +1,5 @@
 package net.loeu.wallybudget.domain.usecase
 
-import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
 import net.loeu.wallybudget.data.local.dao.BucketCycleBaselineDao
 import net.loeu.wallybudget.data.local.dao.BucketMonthlyHistoryDao
 import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
@@ -22,7 +21,6 @@ import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import net.loeu.wallybudget.domain.usecase.internal.newBucketCycleBaseline
-import net.loeu.wallybudget.domain.usecase.internal.newBucketAllocationPolicy
 import net.loeu.wallybudget.domain.usecase.internal.newBudgetPolicy
 import net.loeu.wallybudget.domain.usecase.internal.toStartOfDayMillis
 import java.time.LocalDate
@@ -32,7 +30,6 @@ import java.time.ZoneId
 class CompleteOnboardingUseCase(
     private val transactionRunner: TransactionRunner,
     private val budgetBucketDao: BudgetBucketDao,
-    private val bucketAllocationPolicyDao: BucketAllocationPolicyDao? = null,
     private val bucketCycleBaselineDao: BucketCycleBaselineDao? = null,
     private val bucketMonthlyHistoryDao: BucketMonthlyHistoryDao,
     private val budgetPolicyDao: BudgetPolicyDao,
@@ -50,7 +47,6 @@ class CompleteOnboardingUseCase(
     ) {
         val settings = userSettingsStore.ensureIdentity()
         val installId = settings.installDeviceId
-        val allocationPolicyDao = bucketAllocationPolicyDao
         val baselineDao = bucketCycleBaselineDao
         val nowEpochMs = currentDateProvider.currentDate()
             .atStartOfDay(ZoneId.systemDefault())
@@ -73,17 +69,6 @@ class CompleteOnboardingUseCase(
                         nowEpochMs = nowEpochMs,
                         hybridLogicalClockService = hybridLogicalClockService
                     ).budgetPolicyToEntity()
-                )
-                allocationPolicyDao?.insert(
-                    newBucketAllocationPolicy(
-                        bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
-                        cycleStart = previousCycleStart,
-                        cycleEndExclusive = cycleStartDate,
-                        allocatedAmountCents = monthlyBudgetCents,
-                        installId = installId,
-                        nowEpochMs = nowEpochMs,
-                        hybridLogicalClockService = hybridLogicalClockService
-                    ).toEntity()
                 )
                 baselineDao?.insert(
                     newBucketCycleBaseline(
@@ -185,37 +170,6 @@ class CompleteOnboardingUseCase(
                         lastModifiedByInstallId = installId,
                         modClock = hybridLogicalClockService.next(
                             previousClock = existingCurrentPolicy.modClock,
-                            nowEpochMs = nowEpochMs,
-                            installId = installId
-                        )
-                    )
-                )
-            }
-            val existingCurrentBucketPolicy = allocationPolicyDao?.findActivePolicyForCycle(
-                bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
-                cycleStartDate = cycleStartDate.toString()
-            )
-            if (existingCurrentBucketPolicy == null) {
-                allocationPolicyDao?.insert(
-                    newBucketAllocationPolicy(
-                        bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
-                        cycleStart = cycleStartDate,
-                        cycleEndExclusive = currentCycleEnd,
-                        allocatedAmountCents = monthlyBudgetCents,
-                        installId = installId,
-                        nowEpochMs = nowEpochMs,
-                        hybridLogicalClockService = hybridLogicalClockService
-                    ).toEntity()
-                )
-            } else {
-                allocationPolicyDao.update(
-                    existingCurrentBucketPolicy.copy(
-                        cycleEndDateExclusive = currentCycleEnd.toString(),
-                        allocatedAmountCents = monthlyBudgetCents,
-                        updatedAtEpochMs = nowEpochMs,
-                        lastModifiedByInstallId = installId,
-                        modClock = hybridLogicalClockService.next(
-                            previousClock = existingCurrentBucketPolicy.modClock,
                             nowEpochMs = nowEpochMs,
                             installId = installId
                         )

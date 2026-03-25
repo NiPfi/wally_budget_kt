@@ -613,15 +613,12 @@ class UpdatePortfolioPlanUseCase(
             .map { it.bucketBaselineToDomainModel() }
         val transfers = bucketTransferDao.getForCycle(context.currentCycleStart.toString())
             .map { it.bucketTransferToDomainModel() }
-        val legacyPolicies = bucketAllocationPolicyDao.getAllForSnapshot()
-            .map { it.bucketPolicyToDomainModel() }
         val defaultBucketAllocation = resolveCurrentCycleDefaultAllocation(
             portfolioMonthlyBudgetCents = portfolioMonthlyBudgetCents,
             namedBuckets = namedBuckets,
             cycleStart = context.currentCycleStart,
             baselines = baselines,
             transfers = transfers,
-            legacyPolicies = legacyPolicies,
             currentCycleBucketAllocationResolver = currentCycleBucketAllocationResolver
         )
         upsertCurrentCycleBucketBaselineAmount(

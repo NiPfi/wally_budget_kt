@@ -49,7 +49,6 @@ class PerformMonthlyResetUseCaseTest {
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = budgetAdjustmentDao,
             budgetBucketDao = FakeBudgetBucketDao(),
-            bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(),
             monthlyHistoryDao = historyDao,
             userSettingsStore = userSettingsStore,
             budgetCalculationService = budgetCalculationService,
@@ -93,7 +92,6 @@ class PerformMonthlyResetUseCaseTest {
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = budgetAdjustmentDao,
             budgetBucketDao = FakeBudgetBucketDao(),
-            bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(),
             monthlyHistoryDao = historyDao,
             userSettingsStore = userSettingsStore,
             budgetCalculationService = budgetCalculationService,
@@ -138,7 +136,6 @@ class PerformMonthlyResetUseCaseTest {
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = budgetAdjustmentDao,
             budgetBucketDao = FakeBudgetBucketDao(),
-            bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(),
             monthlyHistoryDao = historyDao,
             userSettingsStore = userSettingsStore,
             budgetCalculationService = budgetCalculationService,
@@ -165,7 +162,7 @@ class PerformMonthlyResetUseCaseTest {
 
     @Test
     fun invoke_doesNotStampPoliciesForSettledClosingBuckets() = runBlocking {
-        val bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao()
+        val bucketCycleBaselineDao = FakeBucketCycleBaselineDao()
         val budgetBucketDao = FakeBudgetBucketDao(
             listOf(
                 bucketEntity(bucketUuid = "open", name = "Open", defaultAllocatedAmountCents = 80_000L),
@@ -185,7 +182,7 @@ class PerformMonthlyResetUseCaseTest {
             budgetPolicyDao = FakeBudgetPolicyDao(),
             budgetAdjustmentDao = FakeBudgetAdjustmentDao(),
             budgetBucketDao = budgetBucketDao,
-            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketCycleBaselineDao = bucketCycleBaselineDao,
             monthlyHistoryDao = FakeMonthlyHistoryDao(),
             userSettingsStore = FakeUserSettingsStore(),
             budgetCalculationService = budgetCalculationService,
@@ -204,8 +201,8 @@ class PerformMonthlyResetUseCaseTest {
             LocalDate.of(2026, 4, 26)
         )
 
-        assertNotNull(bucketAllocationPolicyDao.findActivePolicyForCycle("open", "2026-04-25"))
-        assertNull(bucketAllocationPolicyDao.findActivePolicyForCycle("closing", "2026-04-25"))
+        assertNotNull(bucketCycleBaselineDao.findActiveBaselineForCycle("open", "2026-04-25"))
+        assertNull(bucketCycleBaselineDao.findActiveBaselineForCycle("closing", "2026-04-25"))
     }
 
     private fun dateMillis(date: LocalDate): Long {

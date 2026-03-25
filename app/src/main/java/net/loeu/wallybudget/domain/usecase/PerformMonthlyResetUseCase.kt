@@ -3,7 +3,6 @@ package net.loeu.wallybudget.domain.usecase
 import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
-import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
 import net.loeu.wallybudget.data.local.dao.BucketCycleBaselineDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
@@ -24,7 +23,6 @@ import net.loeu.wallybudget.domain.usecase.internal.lastResetDateOrNull
 import net.loeu.wallybudget.domain.usecase.internal.newBucketCycleBaseline
 import net.loeu.wallybudget.domain.usecase.internal.newBudgetPolicy
 import net.loeu.wallybudget.domain.usecase.internal.pendingCycleRangeOrNull
-import net.loeu.wallybudget.domain.usecase.internal.upsertCurrentCycleBucketPolicyAmount
 import net.loeu.wallybudget.domain.usecase.internal.toStartOfDayMillis
 import java.time.Instant
 import java.time.LocalDate
@@ -37,7 +35,6 @@ class PerformMonthlyResetUseCase(
     private val budgetPolicyDao: BudgetPolicyDao,
     private val budgetAdjustmentDao: BudgetAdjustmentDao,
     private val budgetBucketDao: BudgetBucketDao,
-    private val bucketAllocationPolicyDao: BucketAllocationPolicyDao? = null,
     private val bucketCycleBaselineDao: BucketCycleBaselineDao? = null,
     private val monthlyHistoryDao: MonthlyHistoryDao,
     private val userSettingsStore: UserSettingsStore,
@@ -190,18 +187,6 @@ class PerformMonthlyResetUseCase(
                     it.settledCloseCycleEndDateExclusive == null
             }
             .forEach { bucket ->
-                bucketAllocationPolicyDao?.let { policyDao ->
-                    upsertCurrentCycleBucketPolicyAmount(
-                        bucketAllocationPolicyDao = policyDao,
-                        bucketUuid = bucket.bucketUuid,
-                        cycleStart = cycleStart,
-                        cycleEndExclusive = cycleEndExclusive,
-                        allocatedAmountCents = bucket.defaultAllocatedAmountCents,
-                        installId = settings.installDeviceId,
-                        nowEpochMs = nowEpochMs,
-                        hybridLogicalClockService = hybridLogicalClockService
-                    )
-                }
                 if (
                     bucketCycleBaselineDao?.findActiveBaselineForCycle(
                         bucket.bucketUuid,

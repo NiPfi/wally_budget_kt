@@ -1,3 +1,5 @@
+@file:Suppress("LongMethod", "MaxLineLength")
+
 package net.loeu.wallybudget.domain.usecase
 
 import kotlinx.coroutines.runBlocking
@@ -45,8 +47,8 @@ class ConcludePendingCycleUseCaseTest {
             budgetAdjustmentDao = budgetAdjustmentDao,
             budgetBucketDao = FakeBudgetBucketDao(),
             monthlyHistoryDao = historyDao,
-            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+            bucketCycleBaselineDao = FakeBucketCycleBaselineDao(),
             fundDao = fundDao,
             fundTransactionDao = fundTransactionDao,
             userSettingsStore = settingsStore,
@@ -86,13 +88,24 @@ class ConcludePendingCycleUseCaseTest {
         val groceriesExpense = expenseEntityOn(1L, pendingCycleStart.plusDays(2), 20_00L).copy(bucketUuid = "groceries")
         val fundDao = defaultFundDao(initialBalanceCents = 10_00L)
         val fundTransactionDao = FakeFundTransactionDao()
-        val bucketAllocationPolicyDao = bucketAllocationPolicyDao(pendingCycleStart, pendingCycleEnd)
         val bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao(pendingCycleStart)
         val useCase = concludePendingCycleUseCase(
             pendingCycleStart = pendingCycleStart,
             pendingCycleEnd = pendingCycleEnd,
             expenses = listOf(groceriesExpense),
-            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            budgetBucketDao = FakeBudgetBucketDao(
+                listOf(bucketEntity(bucketUuid = "groceries", name = "Groceries", defaultAllocatedAmountCents = 0L))
+            ),
+            bucketCycleBaselineDao = FakeBucketCycleBaselineDao(
+                listOf(
+                    bucketCycleBaselineEntity(
+                        bucketUuid = "groceries",
+                        cycleStartDate = pendingCycleStart.toString(),
+                        cycleEndDateExclusive = pendingCycleEnd.toString(),
+                        baselineAmountCents = 30_00L
+                    )
+                )
+            ),
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
             fundDao = fundDao,
             fundTransactionDao = fundTransactionDao
@@ -128,23 +141,27 @@ class ConcludePendingCycleUseCaseTest {
                 expenseEntityOn(1L, pendingCycleStart.plusDays(1), 60_00L).copy(bucketUuid = "groceries"),
                 expenseEntityOn(2L, pendingCycleStart.plusDays(2), 5_00L).copy(bucketUuid = "fun")
             ),
-            bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(
+            budgetBucketDao = FakeBudgetBucketDao(
                 listOf(
-                    bucketPolicyEntity(
-                        id = 1L,
-                        allocationUuid = "alloc-groceries",
+                    bucketEntity(bucketUuid = "groceries", name = "Groceries", defaultAllocatedAmountCents = 0L),
+                    bucketEntity(id = 2L, bucketUuid = "fun", name = "Fun", defaultAllocatedAmountCents = 0L, sortOrder = 1)
+                )
+            ),
+            bucketCycleBaselineDao = FakeBucketCycleBaselineDao(
+                listOf(
+                    bucketCycleBaselineEntity(
                         bucketUuid = "groceries",
                         cycleStartDate = pendingCycleStart.toString(),
                         cycleEndDateExclusive = pendingCycleEnd.toString(),
-                        allocatedAmountCents = 50_00L
+                        baselineAmountCents = 50_00L
                     ),
-                    bucketPolicyEntity(
+                    bucketCycleBaselineEntity(
                         id = 2L,
-                        allocationUuid = "alloc-fun",
+                        baselineUuid = "fun-baseline",
                         bucketUuid = "fun",
                         cycleStartDate = pendingCycleStart.toString(),
                         cycleEndDateExclusive = pendingCycleEnd.toString(),
-                        allocatedAmountCents = 20_00L
+                        baselineAmountCents = 20_00L
                     )
                 )
             ),
@@ -187,8 +204,8 @@ class ConcludePendingCycleUseCaseTest {
             budgetPolicyDao = FakeBudgetPolicyDao(listOf(budgetPolicyEntity(1L, pendingCycleStart, pendingCycleEnd))),
             budgetAdjustmentDao = FakeBudgetAdjustmentDao(),
             budgetBucketDao = budgetBucketDao,
-            bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(),
             bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
+            bucketCycleBaselineDao = FakeBucketCycleBaselineDao(),
             monthlyHistoryDao = FakeMonthlyHistoryDao(),
             fundDao = FakeFundDao(),
             fundTransactionDao = FakeFundTransactionDao(),
@@ -284,7 +301,8 @@ class ConcludePendingCycleUseCaseTest {
         pendingCycleStart: LocalDate,
         pendingCycleEnd: LocalDate,
         expenses: List<net.loeu.wallybudget.data.local.entity.ExpenseEntity>,
-        bucketAllocationPolicyDao: FakeBucketAllocationPolicyDao,
+        budgetBucketDao: FakeBudgetBucketDao = FakeBudgetBucketDao(),
+        bucketCycleBaselineDao: FakeBucketCycleBaselineDao = FakeBucketCycleBaselineDao(),
         bucketAllocationAdjustmentDao: FakeBucketAllocationAdjustmentDao,
         fundDao: FakeFundDao,
         fundTransactionDao: FakeFundTransactionDao
@@ -295,8 +313,8 @@ class ConcludePendingCycleUseCaseTest {
             expenseDao = FakeExpenseDao(expenses),
             budgetPolicyDao = FakeBudgetPolicyDao(listOf(budgetPolicyEntity(1L, pendingCycleStart, pendingCycleEnd))),
             budgetAdjustmentDao = FakeBudgetAdjustmentDao(),
-            budgetBucketDao = FakeBudgetBucketDao(),
-            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            budgetBucketDao = budgetBucketDao,
+            bucketCycleBaselineDao = bucketCycleBaselineDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
             monthlyHistoryDao = FakeMonthlyHistoryDao(),
             fundDao = fundDao,
@@ -308,7 +326,7 @@ class ConcludePendingCycleUseCaseTest {
             bucketAllocationResolver = BucketAllocationResolver(),
             hybridLogicalClockService = HybridLogicalClockService(),
             rebuildBucketMonthlyHistoryUseCase = RebuildBucketMonthlyHistoryUseCase(
-                bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+                bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(),
                 bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
                 expenseDao = FakeExpenseDao(expenses),
                 bucketMonthlyHistoryDao = FakeBucketMonthlyHistoryDao(),
