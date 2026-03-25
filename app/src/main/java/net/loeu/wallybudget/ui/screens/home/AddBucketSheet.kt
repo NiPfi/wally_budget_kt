@@ -21,11 +21,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -224,6 +226,13 @@ internal fun BucketNameAndAllocationFields(
 
 @Composable
 private fun CurrentAllocationsSection(bucketSummaries: List<BucketSummaryState>) {
+    val orderedSummaries = remember(bucketSummaries) {
+        bucketSummaries.sortedWith(
+            compareBy<BucketSummaryState> { it.bucket.isClosed }
+                .thenBy { it.bucket.sortOrder }
+                .thenBy { it.bucket.createdAtEpochMs }
+        )
+    }
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -232,22 +241,22 @@ private fun CurrentAllocationsSection(bucketSummaries: List<BucketSummaryState>)
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
-        bucketSummaries.forEachIndexed { index, summary ->
+        orderedSummaries.forEachIndexed { index, summary ->
             if (index > 0) {
                 HorizontalDivider()
             }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .alpha(if (summary.bucket.isClosed) 0.6f else 1f)
                     .padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.padding(end = 16.dp)) {
-                    Text(
-                        text = summary.bucket.name,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
+                    BucketRowName(
+                        name = summary.bucket.name,
+                        isClosed = summary.bucket.isClosed
                     )
                     Text(
                         text = summary.bucket.trackingMode.displayLabel(),
