@@ -6,6 +6,7 @@ import net.loeu.wallybudget.data.local.entity.BudgetPolicyEntity
 import net.loeu.wallybudget.data.local.entity.BucketAllocationAdjustmentEntity
 import net.loeu.wallybudget.data.local.entity.BucketAllocationPolicyEntity
 import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
+import net.loeu.wallybudget.data.local.entity.BucketCycleBaselineEntity
 import net.loeu.wallybudget.data.local.entity.BucketTransferEntity
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
 import net.loeu.wallybudget.data.local.entity.FundEntity
@@ -22,6 +23,7 @@ import net.loeu.wallybudget.domain.model.DEFAULT_FUND_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
+import net.loeu.wallybudget.data.snapshot.model.SnapshotBucketCycleBaselineRecordV1
 import net.loeu.wallybudget.domain.model.BucketTransferReason
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.FundTransactionType
@@ -85,6 +87,7 @@ class PrepareSnapshotImportUseCase(
                 budgetBuckets = envelope.toBudgetBucketEntities(),
                 bucketAllocationPolicies = envelope.toBucketAllocationPolicyEntities(),
                 bucketAllocationAdjustments = envelope.toBucketAllocationAdjustmentEntities(),
+                bucketCycleBaselines = envelope.toBucketCycleBaselineEntities(),
                 bucketTransfers = envelope.toBucketTransferEntities(),
                 funds = envelope.toFundEntities(),
                 fundTransactions = envelope.toFundTransactionEntities(),
@@ -298,6 +301,24 @@ class PrepareSnapshotImportUseCase(
                 effectiveDate = record.effectiveDate,
                 previousAllocatedAmountCents = record.previousMonthlyBudgetCents,
                 newAllocatedAmountCents = record.newMonthlyBudgetCents,
+                originInstallId = record.originInstallId,
+                lastModifiedByInstallId = record.lastModifiedByInstallId,
+                createdAtEpochMs = record.createdAtEpochMs,
+                updatedAtEpochMs = record.updatedAtEpochMs,
+                deletedAtEpochMs = record.deletedAtEpochMs,
+                modClock = record.modClock
+            )
+        }
+    }
+
+    private fun SnapshotEnvelopeV1.toBucketCycleBaselineEntities(): List<BucketCycleBaselineEntity> {
+        return bucketCycleBaselines.orEmpty().map { record ->
+            BucketCycleBaselineEntity(
+                baselineUuid = record.baselineUuid,
+                bucketUuid = record.bucketUuid,
+                cycleStartDate = record.cycleStartDate,
+                cycleEndDateExclusive = record.cycleEndDateExclusive,
+                baselineAmountCents = record.baselineAmountCents,
                 originInstallId = record.originInstallId,
                 lastModifiedByInstallId = record.lastModifiedByInstallId,
                 createdAtEpochMs = record.createdAtEpochMs,

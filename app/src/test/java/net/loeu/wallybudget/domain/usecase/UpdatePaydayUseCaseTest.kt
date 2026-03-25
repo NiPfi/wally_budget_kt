@@ -51,6 +51,43 @@ class UpdatePaydayUseCaseTest {
     }
 
     @Test
+    fun invoke_updatePayday_doesNotDeletePoliciesBeyondNextCycle() = runBlocking {
+        val settingsStore = FakeUserSettingsStore(
+            UserSettings(
+                monthlyBudgetCents = 100_000L,
+                portfolioMonthlyBudgetCents = 100_000L,
+                paydayDate = 25
+            )
+        )
+        val budgetPolicyDao = FakeBudgetPolicyDao(
+            listOf(
+                budgetPolicyEntity(1L, LocalDate.of(2026, 3, 25), LocalDate.of(2026, 4, 25)),
+                budgetPolicyEntity(2L, LocalDate.of(2026, 4, 25), LocalDate.of(2026, 5, 25)),
+                budgetPolicyEntity(3L, LocalDate.of(2026, 5, 25), LocalDate.of(2026, 6, 25))
+            )
+        )
+        val useCase = UpdatePaydayUseCase(
+            transactionRunner = FakeTransactionRunner(),
+            userSettingsStore = settingsStore,
+            budgetPolicyDao = budgetPolicyDao,
+            currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
+            cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService()),
+            hybridLogicalClockService = HybridLogicalClockService()
+        )
+
+        useCase(UpdatePaydayRequest(paydayDate = 20))
+
+        val oldNext = budgetPolicyDao.getAllForSnapshot().first { it.policyUuid == "policy-2" }
+        assertTrue("next-cycle policy should be soft-deleted", oldNext.deletedAtEpochMs != null)
+        val futurePolicy = budgetPolicyDao.getAllForSnapshot().first { it.policyUuid == "policy-3" }
+        assertTrue("future+2 policy must not be deleted", futurePolicy.deletedAtEpochMs == null)
+        val newNext = budgetPolicyDao.getAllForSnapshot()
+            .first { it.deletedAtEpochMs == null && it.policyUuid !in setOf("policy-1", "policy-2", "policy-3") }
+        assertEquals("2026-04-25", newNext.cycleStartDate)
+        assertEquals(20, newNext.paydayDayOfMonth)
+    }
+
+    @Test
     fun invoke_returnsNoOpWhenPaydayIsUnchanged() = runBlocking {
         val useCase = UpdatePaydayUseCase(
             transactionRunner = FakeTransactionRunner(),

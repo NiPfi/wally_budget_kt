@@ -277,12 +277,12 @@ class UpdatePortfolioPlanUseCase(
         bucketDrafts.sortedBy { it.sortOrder }.forEach { draft ->
             val existing = existingByUuid[draft.bucketUuid]
             if (existing == null) {
-                insertNewBucket(settings, draft, nowEpochMs)
-                if (!draft.closeRequested && draft.bucketUuid != DEFAULT_SPENDING_BUCKET_UUID) {
+                val effectiveBucketUuid = insertNewBucket(settings, draft, nowEpochMs)
+                if (!draft.closeRequested && effectiveBucketUuid != DEFAULT_SPENDING_BUCKET_UUID) {
                     bucketCycleBaselineDao?.let { baselineDao ->
                         upsertCurrentCycleBucketBaselineAmount(
                         bucketCycleBaselineDao = baselineDao,
-                        bucketUuid = draft.bucketUuid,
+                        bucketUuid = effectiveBucketUuid,
                         cycleStart = context.currentCycleStart,
                         cycleEndExclusive = context.currentCycleEndExclusive,
                         baselineAmountCents = 0L,
@@ -295,7 +295,7 @@ class UpdatePortfolioPlanUseCase(
                         insertBucketTransfer(
                             bucketTransferDao = bucketTransferDao,
                             fromBucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
-                            toBucketUuid = draft.bucketUuid,
+                            toBucketUuid = effectiveBucketUuid,
                             amountCents = draft.defaultAllocatedAmountCents,
                             reason = BucketTransferReason.MANUAL_REALLOCATION,
                             cycleStart = context.currentCycleStart,
@@ -332,12 +332,6 @@ class UpdatePortfolioPlanUseCase(
                 softDeleteFutureBucketPoliciesAndAdjustments(draft.bucketUuid, context, settings, nowEpochMs)
             }
         }
-        upsertFutureBucketPolicies(
-            context = context,
-            bucketDrafts = bucketDrafts,
-            portfolioMonthlyBudgetCents = portfolioMonthlyBudgetCents,
-            nowEpochMs = nowEpochMs
-        )
         upsertCurrentCyclePortfolioPolicy(
             context = context,
             portfolioMonthlyBudgetCents = portfolioMonthlyBudgetCents,
@@ -356,11 +350,12 @@ class UpdatePortfolioPlanUseCase(
         settings: UserSettings,
         draft: BucketDraft,
         nowEpochMs: Long
-    ) {
+    ): String {
         val installId = settings.installDeviceId
+        val bucketUuid = draft.bucketUuid.ifBlank { UUID.randomUUID().toString() }
         budgetBucketDao.insert(
             BudgetBucket(
-                bucketUuid = draft.bucketUuid.ifBlank { UUID.randomUUID().toString() },
+                bucketUuid = bucketUuid,
                 name = draft.name.trim(),
                 defaultAllocatedAmountCents = draft.defaultAllocatedAmountCents,
                 sortOrder = draft.sortOrder,
@@ -374,6 +369,7 @@ class UpdatePortfolioPlanUseCase(
                 modClock = hybridLogicalClockService.format(nowEpochMs, 0, installId)
             ).toEntity()
         )
+        return bucketUuid
     }
 
     private suspend fun ensureCurrentCycleBucketBaseline(
@@ -458,6 +454,8 @@ class UpdatePortfolioPlanUseCase(
             spentCents = spent,
             defaultCurrentAllocation = defaultAllocation
         )
+
+        if (settlement.settlementCents <= 0L) return
 
         insertBucketTransfer(
             bucketTransferDao = bucketTransferDao,
@@ -571,15 +569,6 @@ class UpdatePortfolioPlanUseCase(
                 )
             }
         }
-    }
-
-    private suspend fun upsertFutureBucketPolicies(
-        @Suppress("UNUSED_PARAMETER") context: UpdatePortfolioPlanContext,
-        @Suppress("UNUSED_PARAMETER") bucketDrafts: List<BucketDraft>,
-        @Suppress("UNUSED_PARAMETER") portfolioMonthlyBudgetCents: Long,
-        @Suppress("UNUSED_PARAMETER") nowEpochMs: Long
-    ) {
-        return
     }
 
     private suspend fun upsertCurrentCyclePortfolioPolicy(

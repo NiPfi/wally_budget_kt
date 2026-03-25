@@ -5,11 +5,8 @@ import net.loeu.wallybudget.domain.model.BucketSummaryState
 import net.loeu.wallybudget.domain.model.Fund
 import net.loeu.wallybudget.domain.model.PortfolioState
 import java.time.LocalDate
-import java.util.logging.Logger
 
 class PortfolioCalculationService {
-    private val logger = Logger.getLogger(PortfolioCalculationService::class.java.name)
-
     fun calculatePortfolioState(
         portfolioTotalBudgetCents: Long,
         bucketSummaries: List<BucketSummaryState>,
@@ -21,12 +18,7 @@ class PortfolioCalculationService {
     ): PortfolioState {
         val allocatedToBucketsCents = bucketSummaries.sumOf { it.allocatedThisCycleCents }
         val allocatedToFundsCents = 0L
-        if (allocatedToBucketsCents > portfolioTotalBudgetCents) {
-            logger.warning(
-                "Current plan exceeds portfolio budget: " +
-                    "buckets=$allocatedToBucketsCents budget=$portfolioTotalBudgetCents"
-            )
-        }
+        val isAllocatedOverBudget = allocatedToBucketsCents > portfolioTotalBudgetCents
         val completedCycleReserveCents = bucketHistory
             .filter { it.getCycleEnd() <= cycleStartDate }
             .sumOf { it.surplusCents }
@@ -45,7 +37,8 @@ class PortfolioCalculationService {
             netReserveCents = netReserveCents,
             totalFundBalanceCents = totalFundBalanceCents,
             cycleStartDate = cycleStartDate,
-            cycleEndDateExclusive = cycleEndDateExclusive
+            cycleEndDateExclusive = cycleEndDateExclusive,
+            isAllocatedOverBudget = isAllocatedOverBudget
         )
     }
 }

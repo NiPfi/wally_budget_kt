@@ -55,7 +55,7 @@ class UpdatePaydayUseCase(
                 currentPolicy = currentPolicy,
                 targetPayday = request.paydayDate,
                 today = today,
-                futurePolicies = policies.filter { !it.cycleStart().isBefore(currentPolicy.cycleEndExclusive) }
+                futurePolicies = policies.filter { it.cycleStart() == currentPolicy.cycleEndExclusive }
             )
         }
 

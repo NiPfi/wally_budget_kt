@@ -13,7 +13,8 @@ data class PortfolioState(
     val cycleStartDate: LocalDate,
     val cycleEndDateExclusive: LocalDate,
     val allocatedToFundsCents: Long = 0L,
-    val totalFundBalanceCents: Long = 0L
+    val totalFundBalanceCents: Long = 0L,
+    val isAllocatedOverBudget: Boolean = false
 )
 
 data class BucketSummaryState(

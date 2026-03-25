@@ -158,7 +158,7 @@ internal fun resolveCurrentCycleCloseSettlement(
     spentCents: Long,
     defaultCurrentAllocation: Long
 ): CurrentCycleCloseSettlement {
-    val settlementCents = currentAllocation - spentCents
+    val settlementCents = (currentAllocation - spentCents).coerceAtLeast(0L)
     return CurrentCycleCloseSettlement(
         closingBucketAllocationCents = spentCents,
         defaultBucketAllocationCents = defaultCurrentAllocation + settlementCents,
