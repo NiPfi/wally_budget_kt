@@ -16,6 +16,7 @@ import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BucketAllocationResolver
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
+import net.loeu.wallybudget.domain.service.CurrentCycleBucketAllocationResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import net.loeu.wallybudget.domain.service.PortfolioCalculationService
 import net.loeu.wallybudget.domain.service.SpendingForecastCalculator
@@ -81,7 +82,9 @@ class BudgetViewModelFactory(
                 BudgetDatabase.MIGRATION_9_10,
                 BudgetDatabase.MIGRATION_10_11,
                 BudgetDatabase.MIGRATION_11_12,
-                BudgetDatabase.MIGRATION_12_13
+                BudgetDatabase.MIGRATION_12_13,
+                BudgetDatabase.MIGRATION_13_14,
+                BudgetDatabase.MIGRATION_14_15
             )
             .build()
     }
@@ -116,6 +119,7 @@ class BudgetViewModelFactory(
     }
     private val budgetAdjustmentResolver by lazy { BudgetAdjustmentResolver() }
     private val bucketAllocationResolver by lazy { BucketAllocationResolver() }
+    private val currentCycleBucketAllocationResolver by lazy { CurrentCycleBucketAllocationResolver() }
     private val portfolioCalculationService by lazy { PortfolioCalculationService() }
     private val cycleScheduleResolver by lazy { CycleScheduleResolver(budgetCalculationService) }
 
@@ -126,7 +130,9 @@ class BudgetViewModelFactory(
     private val budgetAdjustmentDao by lazy { database.budgetAdjustmentDao() }
     private val budgetBucketDao by lazy { database.budgetBucketDao() }
     private val bucketAllocationPolicyDao by lazy { database.bucketAllocationPolicyDao() }
+    private val bucketCycleBaselineDao by lazy { database.bucketCycleBaselineDao() }
     private val bucketAllocationAdjustmentDao by lazy { database.bucketAllocationAdjustmentDao() }
+    private val bucketTransferDao by lazy { database.bucketTransferDao() }
     private val bucketMonthlyHistoryDao by lazy { database.bucketMonthlyHistoryDao() }
     private val fundDao by lazy { database.fundDao() }
     private val fundTransactionDao by lazy { database.fundTransactionDao() }
@@ -139,15 +145,15 @@ class BudgetViewModelFactory(
             budgetPolicyDao = budgetPolicyDao,
             budgetBucketDao = budgetBucketDao,
             fundDao = fundDao,
-            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
-            bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+            bucketCycleBaselineDao = bucketCycleBaselineDao,
+            bucketTransferDao = bucketTransferDao,
             bucketMonthlyHistoryDao = bucketMonthlyHistoryDao,
             userSettingsStore = userPreferencesManager,
             currentDateProvider = currentDateProvider,
             budgetCalculationService = budgetCalculationService,
             cycleScheduleResolver = cycleScheduleResolver,
             budgetAdjustmentResolver = budgetAdjustmentResolver,
-            bucketAllocationResolver = bucketAllocationResolver,
+            currentCycleBucketAllocationResolver = currentCycleBucketAllocationResolver,
             portfolioCalculationService = portfolioCalculationService
         )
     }
@@ -173,15 +179,16 @@ class BudgetViewModelFactory(
         ObserveForecastUseCase(
             budgetPolicyDao = budgetPolicyDao,
             budgetBucketDao = budgetBucketDao,
-            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
-            bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+            bucketCycleBaselineDao = bucketCycleBaselineDao,
+            bucketTransferDao = bucketTransferDao,
             bucketMonthlyHistoryDao = bucketMonthlyHistoryDao,
             expenseDao = expenseDao,
             userSettingsStore = userPreferencesManager,
             currentDateProvider = currentDateProvider,
             budgetCalculationService = budgetCalculationService,
             cycleScheduleResolver = cycleScheduleResolver,
-            bucketAllocationResolver = bucketAllocationResolver
+            bucketAllocationResolver = bucketAllocationResolver,
+            currentCycleBucketAllocationResolver = currentCycleBucketAllocationResolver
         )
     }
 
@@ -238,9 +245,13 @@ class BudgetViewModelFactory(
             budgetPolicyDao = budgetPolicyDao,
             budgetBucketDao = budgetBucketDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketCycleBaselineDao = bucketCycleBaselineDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+            bucketTransferDao = bucketTransferDao,
+            expenseDao = expenseDao,
             currentDateProvider = currentDateProvider,
             cycleScheduleResolver = cycleScheduleResolver,
+            currentCycleBucketAllocationResolver = currentCycleBucketAllocationResolver,
             hybridLogicalClockService = hybridLogicalClockService
         )
     }
@@ -249,9 +260,6 @@ class BudgetViewModelFactory(
             transactionRunner = database,
             userSettingsStore = userPreferencesManager,
             budgetPolicyDao = budgetPolicyDao,
-            budgetAdjustmentDao = budgetAdjustmentDao,
-            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
-            bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
             currentDateProvider = currentDateProvider,
             cycleScheduleResolver = cycleScheduleResolver,
             hybridLogicalClockService = hybridLogicalClockService
@@ -278,7 +286,7 @@ class BudgetViewModelFactory(
         CompleteOnboardingUseCase(
             transactionRunner = database,
             budgetBucketDao = budgetBucketDao,
-            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketCycleBaselineDao = bucketCycleBaselineDao,
             bucketMonthlyHistoryDao = bucketMonthlyHistoryDao,
             budgetPolicyDao = budgetPolicyDao,
             monthlyHistoryDao = monthlyHistoryDao,
@@ -293,9 +301,11 @@ class BudgetViewModelFactory(
             transactionRunner = database,
             userSettingsStore = userPreferencesManager,
             budgetBucketDao = budgetBucketDao,
-            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketCycleBaselineDao = bucketCycleBaselineDao,
+            bucketTransferDao = bucketTransferDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
             budgetCalculationService = budgetCalculationService,
+            currentCycleBucketAllocationResolver = currentCycleBucketAllocationResolver,
             hybridLogicalClockService = hybridLogicalClockService
         )
     }
@@ -313,6 +323,8 @@ class BudgetViewModelFactory(
             expenseDao = expenseDao,
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = budgetAdjustmentDao,
+            budgetBucketDao = budgetBucketDao,
+            bucketCycleBaselineDao = bucketCycleBaselineDao,
             monthlyHistoryDao = monthlyHistoryDao,
             userSettingsStore = userPreferencesManager,
             budgetCalculationService = budgetCalculationService,
@@ -328,7 +340,9 @@ class BudgetViewModelFactory(
             expenseDao = expenseDao,
             budgetPolicyDao = budgetPolicyDao,
             budgetAdjustmentDao = budgetAdjustmentDao,
-            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            budgetBucketDao = budgetBucketDao,
+            bucketCycleBaselineDao = bucketCycleBaselineDao,
+            bucketTransferDao = bucketTransferDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
             monthlyHistoryDao = monthlyHistoryDao,
             fundDao = fundDao,
@@ -337,7 +351,7 @@ class BudgetViewModelFactory(
             budgetCalculationService = budgetCalculationService,
             cycleScheduleResolver = cycleScheduleResolver,
             budgetAdjustmentResolver = budgetAdjustmentResolver,
-            bucketAllocationResolver = bucketAllocationResolver,
+            currentCycleBucketAllocationResolver = currentCycleBucketAllocationResolver,
             hybridLogicalClockService = hybridLogicalClockService,
             rebuildBucketMonthlyHistoryUseCase = rebuildBucketMonthlyHistoryUseCase
         )
@@ -354,6 +368,8 @@ class BudgetViewModelFactory(
             budgetBucketDao = budgetBucketDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+            bucketCycleBaselineDao = bucketCycleBaselineDao,
+            bucketTransferDao = bucketTransferDao,
             fundDao = fundDao,
             fundTransactionDao = fundTransactionDao,
             userSettingsStore = userPreferencesManager,
@@ -378,6 +394,8 @@ class BudgetViewModelFactory(
             budgetBucketDao = budgetBucketDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+            bucketCycleBaselineDao = bucketCycleBaselineDao,
+            bucketTransferDao = bucketTransferDao,
             bucketMonthlyHistoryDao = bucketMonthlyHistoryDao,
             fundDao = fundDao,
             fundTransactionDao = fundTransactionDao,

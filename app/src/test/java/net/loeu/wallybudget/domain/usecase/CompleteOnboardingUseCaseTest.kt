@@ -1,7 +1,6 @@
 package net.loeu.wallybudget.domain.usecase
 
 import kotlinx.coroutines.runBlocking
-import net.loeu.wallybudget.data.local.entity.BucketAllocationPolicyEntity
 import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
@@ -20,7 +19,7 @@ class CompleteOnboardingUseCaseTest {
     fun invoke_persistsSettings_andArchivesPreviousCycleWhenProvided() = runBlocking {
         val transactionRunner = FakeTransactionRunner()
         val budgetBucketDao = FakeBudgetBucketDao()
-        val bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao()
+        val bucketCycleBaselineDao = FakeBucketCycleBaselineDao()
         val bucketMonthlyHistoryDao = FakeBucketMonthlyHistoryDao()
         val budgetPolicyDao = FakeBudgetPolicyDao()
         val historyDao = FakeMonthlyHistoryDao()
@@ -29,7 +28,7 @@ class CompleteOnboardingUseCaseTest {
         val useCase = CompleteOnboardingUseCase(
             transactionRunner = transactionRunner,
             budgetBucketDao = budgetBucketDao,
-            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketCycleBaselineDao = bucketCycleBaselineDao,
             bucketMonthlyHistoryDao = bucketMonthlyHistoryDao,
             budgetPolicyDao = budgetPolicyDao,
             monthlyHistoryDao = historyDao,
@@ -55,7 +54,7 @@ class CompleteOnboardingUseCaseTest {
         assertEquals(25, settingsStore.currentSettings.paydayDate)
         assertEquals(DEFAULT_SPENDING_BUCKET_UUID, settingsStore.currentSettings.selectedBucketUuid)
         assertEquals(1, budgetBucketDao.countAll())
-        assertEquals(2, bucketAllocationPolicyDao.countAll())
+        assertEquals(2, bucketCycleBaselineDao.countAll())
         assertTrue(settingsStore.currentSettings.isOnboardingCompleted)
         assertTrue(settingsStore.completedOnboarding)
     }
@@ -81,20 +80,13 @@ class CompleteOnboardingUseCaseTest {
                 )
             )
         )
-        val bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(
+        val bucketCycleBaselineDao = FakeBucketCycleBaselineDao(
             listOf(
-                BucketAllocationPolicyEntity(
-                    id = 1L,
-                    allocationUuid = "seeded-default-policy",
-                    bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                bucketCycleBaselineEntity(
+                    baselineUuid = "seeded-default-baseline",
                     cycleStartDate = "2026-03-25",
                     cycleEndDateExclusive = "2026-04-25",
-                    allocatedAmountCents = 0L,
-                    originInstallId = "test-install-id",
-                    lastModifiedByInstallId = "test-install-id",
-                    createdAtEpochMs = 1L,
-                    updatedAtEpochMs = 1L,
-                    modClock = "0000000000001-0000-test-install-id"
+                    baselineAmountCents = 0L
                 )
             )
         )
@@ -102,7 +94,7 @@ class CompleteOnboardingUseCaseTest {
         val useCase = CompleteOnboardingUseCase(
             transactionRunner = FakeTransactionRunner(),
             budgetBucketDao = budgetBucketDao,
-            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketCycleBaselineDao = bucketCycleBaselineDao,
             bucketMonthlyHistoryDao = FakeBucketMonthlyHistoryDao(),
             budgetPolicyDao = budgetPolicyDao,
             monthlyHistoryDao = FakeMonthlyHistoryDao(),
@@ -120,14 +112,14 @@ class CompleteOnboardingUseCaseTest {
         )
 
         val updatedBucket = budgetBucketDao.findByBucketUuid(DEFAULT_SPENDING_BUCKET_UUID)
-        val updatedPolicy = bucketAllocationPolicyDao.findActivePolicyForCycle(
+        val updatedBaseline = bucketCycleBaselineDao.findActiveBaselineForCycle(
             bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
             cycleStartDate = "2026-03-25"
         )
         assertEquals(100_000L, updatedBucket?.defaultAllocatedAmountCents)
-        assertEquals(100_000L, updatedPolicy?.allocatedAmountCents)
-        assertEquals("2026-04-25", updatedPolicy?.cycleEndDateExclusive)
+        assertEquals(100_000L, updatedBaseline?.baselineAmountCents)
+        assertEquals("2026-04-25", updatedBaseline?.cycleEndDateExclusive)
         assertEquals(1, budgetBucketDao.countAll())
-        assertEquals(1, bucketAllocationPolicyDao.countAll())
+        assertEquals(1, bucketCycleBaselineDao.countAll())
     }
 }

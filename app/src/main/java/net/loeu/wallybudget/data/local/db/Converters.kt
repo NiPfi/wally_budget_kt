@@ -1,6 +1,7 @@
 package net.loeu.wallybudget.data.local.db
 
 import androidx.room.TypeConverter
+import net.loeu.wallybudget.domain.model.BucketTransferReason
 import net.loeu.wallybudget.domain.model.FundTransactionType
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 
@@ -53,5 +54,15 @@ class Converters {
     @TypeConverter
     fun toFundTransactionType(value: String?): FundTransactionType? {
         return value?.let { FundTransactionType.valueOf(it) }
+    }
+
+    @TypeConverter
+    fun fromBucketTransferReason(value: BucketTransferReason?): String? {
+        return value?.name
+    }
+
+    @TypeConverter
+    fun toBucketTransferReason(value: String?): BucketTransferReason? {
+        return value?.let { BucketTransferReason.valueOf(it) }
     }
 }

@@ -11,3 +11,4 @@ local.properties
 /release-signing/
 .vscode/.tmp/android-debug.env
 .plans/
+.claude/

@@ -251,6 +251,41 @@ class HomeScreenTest {
         assertEquals(DEFAULT_SPENDING_BUCKET_UUID, resolved)
     }
 
+    @Test
+    fun orderedOpenBucketSummaries_excludesClosedBucketsFromPagerSource() {
+        val defaultBucket = bucket(
+            bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+            name = "Default",
+            defaultAllocatedAmountCents = 200_00L,
+            sortOrder = 0
+        )
+        val openBucket = bucket(
+            bucketUuid = "travel",
+            name = "Travel",
+            defaultAllocatedAmountCents = 50_00L,
+            sortOrder = 1
+        )
+        val closedBucket = bucket(
+            bucketUuid = "bills",
+            name = "Bills",
+            defaultAllocatedAmountCents = 75_00L,
+            sortOrder = 2
+        ).copy(closedAtEpochMs = 10L)
+
+        val ordered = orderedOpenBucketSummaries(
+            listOf(
+                summary(closedBucket, allocatedThisCycleCents = 75_00L),
+                summary(openBucket, allocatedThisCycleCents = 50_00L),
+                summary(defaultBucket, allocatedThisCycleCents = 200_00L)
+            )
+        )
+
+        assertEquals(
+            listOf(DEFAULT_SPENDING_BUCKET_UUID, "travel"),
+            ordered.map { it.bucket.bucketUuid }
+        )
+    }
+
     private fun summary(bucket: BudgetBucket, allocatedThisCycleCents: Long) = BucketSummaryState(
         bucket = bucket,
         allocatedThisCycleCents = allocatedThisCycleCents,

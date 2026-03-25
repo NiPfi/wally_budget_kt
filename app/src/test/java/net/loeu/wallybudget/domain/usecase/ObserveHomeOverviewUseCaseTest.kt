@@ -4,15 +4,19 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import net.loeu.wallybudget.data.local.entity.BucketMonthlyHistoryEntity
 import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
+import net.loeu.wallybudget.data.local.entity.BucketTransferEntity
 import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.UserSettings
+import net.loeu.wallybudget.domain.model.BucketTransferReason
+import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.service.BucketAllocationResolver
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
+import net.loeu.wallybudget.domain.service.CurrentCycleBucketAllocationResolver
 import net.loeu.wallybudget.domain.service.PortfolioCalculationService
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -158,6 +162,57 @@ class ObserveHomeOverviewUseCaseTest {
     }
 
     @Test
+    fun invoke_usesCurrentPortfolioPolicyDirectly_andExcludesFundsFromPlannedTotals() = runBlocking {
+        val useCase = createUseCase(
+            expenseDao = FakeExpenseDao(
+                listOf(expenseEntityOn(1L, LocalDate.of(2026, 4, 10), 20_000L))
+            ),
+            settingsStore = FakeUserSettingsStore(
+                userSettings(
+                    monthlyBudgetCents = 100_000L,
+                    portfolioMonthlyBudgetCents = 100_000L,
+                    lastResetDate = LocalDate.of(2026, 3, 25),
+                    pendingCycleStartDate = "2026-03-25",
+                    pendingCycleEndDateExclusive = "2026-04-25"
+                )
+            ),
+            currentDate = LocalDate.of(2026, 4, 10),
+            budgetPolicyDao = FakeBudgetPolicyDao(
+                listOf(budgetPolicyEntity(1L, LocalDate.of(2026, 3, 25), LocalDate.of(2026, 4, 25), 100_000L))
+            ),
+            budgetAdjustmentDao = FakeBudgetAdjustmentDao(
+                listOf(
+                    budgetAdjustmentEntity(
+                        id = 1L,
+                        cycleStart = LocalDate.of(2026, 3, 25),
+                        effectiveDate = LocalDate.of(2026, 4, 1),
+                        previousMonthlyBudgetCents = 100_000L,
+                        newMonthlyBudgetCents = 120_000L
+                    )
+                )
+            ),
+            budgetBucketDao = spendingBucketDao(defaultAllocatedAmountCents = 60_000L),
+            fundDao = FakeFundDao(
+                listOf(
+                    fundEntity(
+                        uuid = DEFAULT_FUND_UUID,
+                        balanceCents = 43_48L,
+                        allocationPerCycleCents = 40_000L
+                    )
+                )
+            )
+        )
+
+        val state = useCase().first()
+
+        assertEquals(100_000L, state.portfolioState.portfolioTotalBudgetCents)
+        assertEquals(60_000L, state.portfolioState.allocatedToBucketsCents)
+        assertEquals(0L, state.portfolioState.allocatedToFundsCents)
+        assertEquals(40_000L, state.portfolioState.unassignedPlannedBudgetCents)
+        assertEquals(80_000L, state.portfolioState.remainingThisCycleCents)
+    }
+
+    @Test
     fun invoke_buildsContinuousExpenseSectionsForSelectedBucket() = runBlocking {
         val expenseDao = FakeExpenseDao(
             listOf(
@@ -206,6 +261,22 @@ class ObserveHomeOverviewUseCaseTest {
         )
     }
 
+    @Test
+    fun invoke_doesNotDoubleCountSettlementTransfersInCurrentCycleTotals() = runBlocking {
+        val useCase = createSettledCloseOverviewUseCase()
+
+        val state = useCase().first()
+        val defaultBucketSummary = state.bucketSummaries
+            .first { it.bucket.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
+        val billsBucketSummary = state.bucketSummaries
+            .first { it.bucket.bucketUuid == "bills" }
+
+        assertEquals(350_000L, state.portfolioState.allocatedToBucketsCents)
+        assertEquals(225_000L, state.portfolioState.remainingThisCycleCents)
+        assertEquals(225_000L, defaultBucketSummary.allocatedThisCycleCents)
+        assertEquals(125_000L, billsBucketSummary.allocatedThisCycleCents)
+    }
+
     private fun createUseCase(
         expenseDao: FakeExpenseDao,
         settingsStore: FakeUserSettingsStore,
@@ -213,9 +284,10 @@ class ObserveHomeOverviewUseCaseTest {
         budgetPolicyDao: FakeBudgetPolicyDao = FakeBudgetPolicyDao(),
         budgetAdjustmentDao: FakeBudgetAdjustmentDao = FakeBudgetAdjustmentDao(),
         budgetBucketDao: FakeBudgetBucketDao = spendingBucketDao(),
-        bucketAllocationPolicyDao: FakeBucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(),
-        bucketAllocationAdjustmentDao: FakeBucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
-        bucketHistoryDao: FakeBucketMonthlyHistoryDao = FakeBucketMonthlyHistoryDao()
+        bucketCycleBaselineDao: FakeBucketCycleBaselineDao = FakeBucketCycleBaselineDao(),
+        bucketTransferDao: FakeBucketTransferDao = FakeBucketTransferDao(),
+        bucketHistoryDao: FakeBucketMonthlyHistoryDao = FakeBucketMonthlyHistoryDao(),
+        fundDao: FakeFundDao = FakeFundDao()
     ): ObserveHomeOverviewUseCase {
         val budgetCalculationService = BudgetCalculationService()
         return ObserveHomeOverviewUseCase(
@@ -224,16 +296,16 @@ class ObserveHomeOverviewUseCaseTest {
             budgetAdjustmentDao = budgetAdjustmentDao,
             budgetPolicyDao = budgetPolicyDao,
             budgetBucketDao = budgetBucketDao,
-            fundDao = FakeFundDao(),
-            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
-            bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+            fundDao = fundDao,
+            bucketCycleBaselineDao = bucketCycleBaselineDao,
+            bucketTransferDao = bucketTransferDao,
             bucketMonthlyHistoryDao = bucketHistoryDao,
             userSettingsStore = settingsStore,
             currentDateProvider = FakeCurrentDateProvider(currentDate),
             budgetCalculationService = budgetCalculationService,
             cycleScheduleResolver = CycleScheduleResolver(budgetCalculationService),
             budgetAdjustmentResolver = BudgetAdjustmentResolver(),
-            bucketAllocationResolver = BucketAllocationResolver(),
+            currentCycleBucketAllocationResolver = CurrentCycleBucketAllocationResolver(),
             portfolioCalculationService = PortfolioCalculationService()
         )
     }
@@ -266,6 +338,154 @@ class ObserveHomeOverviewUseCaseTest {
             balanceBehavior = BucketBalanceBehavior.RETAIN_IN_BUCKET,
             defaultAllocatedAmountCents = 100_000L,
             sortOrder = 1,
+            originInstallId = "test-install-id",
+            lastModifiedByInstallId = "test-install-id",
+            createdAtEpochMs = 1L,
+            updatedAtEpochMs = 1L,
+            modClock = "0000000000001-0000-test-install-id"
+        )
+    }
+
+    private fun createSettledCloseOverviewUseCase(): ObserveHomeOverviewUseCase {
+        val currentCycleStart = LocalDate.of(2026, 3, 25)
+        val currentCycleEnd = LocalDate.of(2026, 4, 25)
+        return createUseCase(
+            expenseDao = settledCloseExpenseDao(),
+            settingsStore = settledCloseSettingsStore(currentCycleStart, currentCycleEnd),
+            currentDate = LocalDate.of(2026, 4, 10),
+            budgetPolicyDao = settledClosePortfolioPolicyDao(currentCycleStart, currentCycleEnd),
+            budgetBucketDao = settledCloseBucketDao(currentCycleEnd),
+            bucketCycleBaselineDao = settledCloseBucketBaselineDao(currentCycleStart, currentCycleEnd),
+            bucketTransferDao = FakeBucketTransferDao(listOf(settlementTransfer(currentCycleStart, currentCycleEnd)))
+        )
+    }
+
+    private fun settledCloseExpenseDao(): FakeExpenseDao {
+        return FakeExpenseDao(
+            listOf(
+                expenseEntityOn(1L, LocalDate.of(2026, 4, 10), 125_000L)
+                    .copy(bucketUuid = "bills")
+            )
+        )
+    }
+
+    private fun settledCloseSettingsStore(
+        currentCycleStart: LocalDate,
+        currentCycleEnd: LocalDate
+    ): FakeUserSettingsStore {
+        return FakeUserSettingsStore(
+            userSettings(
+                monthlyBudgetCents = 100_000L,
+                portfolioMonthlyBudgetCents = 350_000L,
+                lastResetDate = currentCycleStart,
+                pendingCycleStartDate = currentCycleStart.toString(),
+                pendingCycleEndDateExclusive = currentCycleEnd.toString()
+            )
+        )
+    }
+
+    private fun settledClosePortfolioPolicyDao(
+        currentCycleStart: LocalDate,
+        currentCycleEnd: LocalDate
+    ): FakeBudgetPolicyDao {
+        return FakeBudgetPolicyDao(
+            listOf(
+                budgetPolicyEntity(
+                    id = 1L,
+                    cycleStart = currentCycleStart,
+                    cycleEndExclusive = currentCycleEnd,
+                    budgetAmountCents = 350_000L
+                )
+            )
+        )
+    }
+
+    private fun settledCloseBucketDao(currentCycleEnd: LocalDate): FakeBudgetBucketDao {
+        return FakeBudgetBucketDao(
+            listOf(
+                bucketEntity(
+                    bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                    name = DEFAULT_SPENDING_BUCKET_NAME,
+                    defaultAllocatedAmountCents = 100_000L
+                ),
+                bucketEntity(
+                    id = 2L,
+                    bucketUuid = "bills",
+                    name = "Bills",
+                    trackingMode = BucketTrackingMode.CYCLE_RESERVE,
+                    balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
+                    defaultAllocatedAmountCents = 250_000L,
+                    sortOrder = 1,
+                    settledCloseCycleEndDateExclusive = currentCycleEnd.toString()
+                )
+            )
+        )
+    }
+
+    private fun settledCloseBucketPolicyDao(
+        currentCycleStart: LocalDate,
+        currentCycleEnd: LocalDate
+    ): FakeBucketAllocationPolicyDao {
+        return FakeBucketAllocationPolicyDao(
+            listOf(
+                bucketPolicyEntity(
+                    allocationUuid = "default-current",
+                    cycleStartDate = currentCycleStart.toString(),
+                    cycleEndDateExclusive = currentCycleEnd.toString(),
+                    allocatedAmountCents = 225_000L
+                ),
+                bucketPolicyEntity(
+                    id = 2L,
+                    allocationUuid = "bills-current",
+                    bucketUuid = "bills",
+                    cycleStartDate = currentCycleStart.toString(),
+                    cycleEndDateExclusive = currentCycleEnd.toString(),
+                    allocatedAmountCents = 125_000L
+                )
+            )
+        )
+    }
+
+    private fun settledCloseBucketBaselineDao(
+        currentCycleStart: LocalDate,
+        currentCycleEnd: LocalDate
+    ): FakeBucketCycleBaselineDao {
+        return FakeBucketCycleBaselineDao(
+            listOf(
+                bucketCycleBaselineEntity(
+                    id = 1L,
+                    baselineUuid = "default-baseline",
+                    bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                    cycleStartDate = currentCycleStart.toString(),
+                    cycleEndDateExclusive = currentCycleEnd.toString(),
+                    baselineAmountCents = 100_000L
+                ),
+                bucketCycleBaselineEntity(
+                    id = 2L,
+                    baselineUuid = "bills-baseline",
+                    bucketUuid = "bills",
+                    cycleStartDate = currentCycleStart.toString(),
+                    cycleEndDateExclusive = currentCycleEnd.toString(),
+                    baselineAmountCents = 250_000L
+                )
+            )
+        )
+    }
+
+    private fun settlementTransfer(
+        currentCycleStart: LocalDate,
+        currentCycleEnd: LocalDate
+    ): BucketTransferEntity {
+        return BucketTransferEntity(
+            id = 1L,
+            transferUuid = "settlement-1",
+            fromBucketUuid = "bills",
+            toBucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+            amountCents = 125_000L,
+            reason = BucketTransferReason.CLOSE_SETTLEMENT,
+            cycleStartDate = currentCycleStart.toString(),
+            cycleEndDateExclusive = currentCycleEnd.toString(),
+            effectiveDate = LocalDate.of(2026, 4, 10).toString(),
             originInstallId = "test-install-id",
             lastModifiedByInstallId = "test-install-id",
             createdAtEpochMs = 1L,

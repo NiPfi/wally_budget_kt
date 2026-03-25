@@ -1,6 +1,6 @@
 package net.loeu.wallybudget.domain.model
 
 enum class BudgetChangeMode {
-    PRORATE_CURRENT_CYCLE,
+    APPLY_CURRENT_NOW,
     APPLY_NEXT_CYCLE
 }
