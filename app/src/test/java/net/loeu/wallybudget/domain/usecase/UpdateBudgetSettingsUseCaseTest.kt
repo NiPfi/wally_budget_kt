@@ -136,7 +136,6 @@ class UpdateBudgetSettingsUseCaseTest {
             expenseDao = FakeExpenseDao(),
             currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
             cycleScheduleResolver = CycleScheduleResolver(budgetCalculationService),
-            budgetAdjustmentResolver = BudgetAdjustmentResolver(),
             hybridLogicalClockService = HybridLogicalClockService()
         )
     }

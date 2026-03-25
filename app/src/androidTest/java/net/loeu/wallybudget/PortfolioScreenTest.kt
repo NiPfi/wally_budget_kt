@@ -47,10 +47,19 @@ class PortfolioScreenTest {
     fun tappingBucketRowOpensBucketSettingsSheet() {
         setPortfolioContent()
 
+        composeRule.onNodeWithText("Current cycle buckets").assertIsDisplayed()
         composeRule.onNodeWithTag("bucket_row_travel").performClick()
 
         composeRule.onNodeWithText("Bucket settings").assertIsDisplayed()
         composeRule.onNodeWithText("Close bucket").assertIsDisplayed()
+    }
+
+    @Test
+    fun settledClosingBucketRemainsVisibleAndIsReadOnly() {
+        setPortfolioContent()
+
+        composeRule.onNodeWithTag("bucket_row_bills").assertIsDisplayed().assertHasNoClickAction()
+        composeRule.onNodeWithText("Bills").assertIsDisplayed()
     }
 
     @Test
@@ -115,6 +124,8 @@ class PortfolioScreenTest {
         composeRule.onNodeWithText("Discard changes?").assertIsDisplayed()
         composeRule.onNodeWithText("Keep editing").performClick()
         composeRule.onNodeWithText("Bucket settings").assertIsDisplayed()
+        composeRule.onNodeWithText("Cancel").performClick()
+        composeRule.onNodeWithText("Discard changes?").assertIsDisplayed()
         composeRule.onNodeWithText("Discard changes").performClick()
         composeRule.onAllNodesWithText("Bucket settings").assertCountEquals(0)
     }
@@ -160,11 +171,29 @@ class PortfolioScreenTest {
                 name = "Travel",
                 defaultAllocatedAmountCents = 30_00L,
                 sortOrder = 1
-            )
+            ),
+            testBucket(
+                bucketUuid = "bills",
+                name = "Bills",
+                defaultAllocatedAmountCents = 25_00L,
+                sortOrder = 2
+            ).copy(settledCloseCycleEndDateExclusive = "2026-04-01")
         )
         val initialSummaries = listOf(
-            testSummary(initialBuckets[0], allocatedThisCycleCents = 70_00L),
-            testSummary(initialBuckets[1], allocatedThisCycleCents = 30_00L)
+            testSummary(initialBuckets[0], allocatedThisCycleCents = 45_00L),
+            testSummary(initialBuckets[1], allocatedThisCycleCents = 30_00L),
+            testSummary(initialBuckets[2], allocatedThisCycleCents = 25_00L)
+        )
+        val initialPortfolioState = PortfolioState(
+            portfolioTotalBudgetCents = 100_00L,
+            allocatedToBucketsCents = 100_00L,
+            unassignedPlannedBudgetCents = 0L,
+            totalSpentThisCycleCents = 15_00L,
+            remainingThisCycleCents = 85_00L,
+            completedCycleReserveCents = 0L,
+            netReserveCents = 0L,
+            cycleStartDate = LocalDate.of(2026, 3, 1),
+            cycleEndDateExclusive = LocalDate.of(2026, 4, 1)
         )
 
         composeRule.setContent {
@@ -179,17 +208,7 @@ class PortfolioScreenTest {
 
             WallyBudgetTheme {
                 PortfolioScreen(
-                    portfolioState = PortfolioState(
-                        portfolioTotalBudgetCents = 100_00L,
-                        allocatedToBucketsCents = 100_00L,
-                        unassignedPlannedBudgetCents = 0L,
-                        totalSpentThisCycleCents = 10_00L,
-                        remainingThisCycleCents = 90_00L,
-                        completedCycleReserveCents = 0L,
-                        netReserveCents = 0L,
-                        cycleStartDate = LocalDate.of(2026, 3, 1),
-                        cycleEndDateExclusive = LocalDate.of(2026, 4, 1)
-                    ),
+                    portfolioState = initialPortfolioState,
                     bucketSummaries = summaries,
                     funds = listOf(testFund()),
                     allBuckets = buckets,

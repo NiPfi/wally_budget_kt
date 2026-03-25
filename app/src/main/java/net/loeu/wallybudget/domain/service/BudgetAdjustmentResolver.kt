@@ -13,6 +13,7 @@ data class ResolvedCycleBudget(
 )
 
 class BudgetAdjustmentResolver {
+    // Historical reconstruction only. Do not use for active/current-cycle reads.
     fun resolveCycleBudget(
         cycleStart: LocalDate,
         cycleEndExclusive: LocalDate,

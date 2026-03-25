@@ -181,7 +181,11 @@ class PerformMonthlyResetUseCase(
     ) {
         val nowEpochMs = cycleStart.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         budgetBucketDao.getAllForSnapshot()
-            .filter { it.deletedAtEpochMs == null && it.closedAtEpochMs == null }
+            .filter {
+                it.deletedAtEpochMs == null &&
+                    it.closedAtEpochMs == null &&
+                    it.settledCloseCycleEndDateExclusive == null
+            }
             .forEach { bucket ->
                 if (
                     bucketAllocationPolicyDao.findActivePolicyForCycle(

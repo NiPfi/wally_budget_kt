@@ -13,6 +13,7 @@ import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertNotNull
 import org.junit.Test
 import java.time.LocalDate
 
@@ -164,6 +165,61 @@ class ConcludePendingCycleUseCaseTest {
         assertEquals(1, fundTransactionDao.currentTransactions.size)
         assertEquals(5_00L, fundTransactionDao.currentTransactions.single().amountCents)
         assertEquals(15_00L, fundDao.findByUuid(DEFAULT_FUND_UUID)?.balanceCents)
+    }
+
+    @Test
+    fun invoke_finalizesSettledClosingBucketsAtRollover() = runBlocking {
+        val pendingCycleStart = LocalDate.of(2026, 3, 25)
+        val pendingCycleEnd = LocalDate.of(2026, 4, 25)
+        val budgetBucketDao = FakeBudgetBucketDao(
+            listOf(
+                bucketEntity(
+                    bucketUuid = "bills",
+                    name = "Bills",
+                    defaultAllocatedAmountCents = 200_00L,
+                    settledCloseCycleEndDateExclusive = pendingCycleEnd.toString()
+                )
+            )
+        )
+        val useCase = ConcludePendingCycleUseCase(
+            transactionRunner = FakeTransactionRunner(),
+            expenseDao = FakeExpenseDao(),
+            budgetPolicyDao = FakeBudgetPolicyDao(listOf(budgetPolicyEntity(1L, pendingCycleStart, pendingCycleEnd))),
+            budgetAdjustmentDao = FakeBudgetAdjustmentDao(),
+            budgetBucketDao = budgetBucketDao,
+            bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(),
+            bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
+            monthlyHistoryDao = FakeMonthlyHistoryDao(),
+            fundDao = FakeFundDao(),
+            fundTransactionDao = FakeFundTransactionDao(),
+            userSettingsStore = FakeUserSettingsStore(),
+            budgetCalculationService = BudgetCalculationService(),
+            cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService()),
+            budgetAdjustmentResolver = BudgetAdjustmentResolver(),
+            bucketAllocationResolver = BucketAllocationResolver(),
+            hybridLogicalClockService = HybridLogicalClockService(),
+            rebuildBucketMonthlyHistoryUseCase = RebuildBucketMonthlyHistoryUseCase(
+                bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(),
+                bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
+                expenseDao = FakeExpenseDao(),
+                bucketMonthlyHistoryDao = FakeBucketMonthlyHistoryDao(),
+                budgetCalculationService = BudgetCalculationService(),
+                bucketAllocationResolver = BucketAllocationResolver()
+            )
+        )
+
+        useCase(
+            UserSettings(
+                monthlyBudgetCents = 100_000L,
+                paydayDate = 25,
+                pendingCycleStartDate = pendingCycleStart.toString(),
+                pendingCycleEndDateExclusive = pendingCycleEnd.toString()
+            )
+        )
+
+        val updatedBucket = budgetBucketDao.findByBucketUuid("bills")
+        assertNotNull(updatedBucket?.closedAtEpochMs)
+        assertNull(updatedBucket?.settledCloseCycleEndDateExclusive)
     }
 
     private fun defaultFundDao(initialBalanceCents: Long): FakeFundDao {

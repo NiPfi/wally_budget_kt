@@ -116,6 +116,9 @@ data class BudgetBucket(
     val isClosed: Boolean
         get() = isSettledClosing || closedAtEpochMs != null || deletedAtEpochMs != null
 
+    val isVisibleInCurrentCycle: Boolean
+        get() = deletedAtEpochMs == null && closedAtEpochMs == null
+
     val isOpenForEditing: Boolean
         get() = !isClosed
 

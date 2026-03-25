@@ -20,11 +20,11 @@ class PortfolioCalculationService {
         cycleEndDateExclusive: LocalDate
     ): PortfolioState {
         val allocatedToBucketsCents = bucketSummaries.sumOf { it.allocatedThisCycleCents }
-        val allocatedToFundsCents = funds.sumOf { it.allocationPerCycleCents }
-        val totalPlannedCents = allocatedToBucketsCents + allocatedToFundsCents
-        if (totalPlannedCents > portfolioTotalBudgetCents) {
+        val allocatedToFundsCents = 0L
+        if (allocatedToBucketsCents > portfolioTotalBudgetCents) {
             logger.warning(
-                "Current plan exceeds portfolio budget: planned=$totalPlannedCents budget=$portfolioTotalBudgetCents"
+                "Current plan exceeds portfolio budget: " +
+                    "buckets=$allocatedToBucketsCents budget=$portfolioTotalBudgetCents"
             )
         }
         val completedCycleReserveCents = bucketHistory
@@ -38,7 +38,7 @@ class PortfolioCalculationService {
             portfolioTotalBudgetCents = portfolioTotalBudgetCents,
             allocatedToBucketsCents = allocatedToBucketsCents,
             allocatedToFundsCents = allocatedToFundsCents,
-            unassignedPlannedBudgetCents = (portfolioTotalBudgetCents - totalPlannedCents).coerceAtLeast(0L),
+            unassignedPlannedBudgetCents = (portfolioTotalBudgetCents - allocatedToBucketsCents).coerceAtLeast(0L),
             totalSpentThisCycleCents = totalSpentThisCycleCents,
             remainingThisCycleCents = remainingThisCycleCents,
             completedCycleReserveCents = completedCycleReserveCents,

@@ -9,6 +9,7 @@ import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.LocalDate
 import java.time.ZoneId
@@ -160,6 +161,51 @@ class PerformMonthlyResetUseCaseTest {
         assertEquals(1, userSettingsStore.clearPendingCount)
         assertNotNull(historyDao.findByCycleStart("2026-02-25"))
         assertEquals("2026-03-25", userSettingsStore.currentSettings.pendingCycleStartDate)
+    }
+
+    @Test
+    fun invoke_doesNotStampPoliciesForSettledClosingBuckets() = runBlocking {
+        val bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao()
+        val budgetBucketDao = FakeBudgetBucketDao(
+            listOf(
+                bucketEntity(bucketUuid = "open", name = "Open", defaultAllocatedAmountCents = 80_000L),
+                bucketEntity(
+                    id = 2L,
+                    bucketUuid = "closing",
+                    name = "Closing",
+                    defaultAllocatedAmountCents = 20_000L,
+                    sortOrder = 1,
+                    settledCloseCycleEndDateExclusive = "2026-04-25"
+                )
+            )
+        )
+        val useCase = PerformMonthlyResetUseCase(
+            transactionRunner = FakeTransactionRunner(),
+            expenseDao = FakeExpenseDao(),
+            budgetPolicyDao = FakeBudgetPolicyDao(),
+            budgetAdjustmentDao = FakeBudgetAdjustmentDao(),
+            budgetBucketDao = budgetBucketDao,
+            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            monthlyHistoryDao = FakeMonthlyHistoryDao(),
+            userSettingsStore = FakeUserSettingsStore(),
+            budgetCalculationService = budgetCalculationService,
+            cycleScheduleResolver = cycleScheduleResolver,
+            budgetAdjustmentResolver = budgetAdjustmentResolver,
+            rebuildBucketMonthlyHistoryUseCase = bucketHistoryRebuildUseCase(FakeExpenseDao()),
+            hybridLogicalClockService = HybridLogicalClockService()
+        )
+
+        useCase(
+            UserSettings(
+                monthlyBudgetCents = 100_000L,
+                paydayDate = 25,
+                lastResetTimestamp = dateMillis(LocalDate.of(2026, 3, 25))
+            ),
+            LocalDate.of(2026, 4, 26)
+        )
+
+        assertNotNull(bucketAllocationPolicyDao.findActivePolicyForCycle("open", "2026-04-25"))
+        assertNull(bucketAllocationPolicyDao.findActivePolicyForCycle("closing", "2026-04-25"))
     }
 
     private fun dateMillis(date: LocalDate): Long {

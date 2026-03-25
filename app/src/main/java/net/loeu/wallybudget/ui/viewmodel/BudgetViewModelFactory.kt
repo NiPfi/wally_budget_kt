@@ -142,7 +142,6 @@ class BudgetViewModelFactory(
             budgetBucketDao = budgetBucketDao,
             fundDao = fundDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
-            bucketTransferDao = bucketTransferDao,
             bucketMonthlyHistoryDao = bucketMonthlyHistoryDao,
             userSettingsStore = userPreferencesManager,
             currentDateProvider = currentDateProvider,

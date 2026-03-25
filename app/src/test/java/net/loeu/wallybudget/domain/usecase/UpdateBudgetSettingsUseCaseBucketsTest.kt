@@ -7,12 +7,11 @@ import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
 import net.loeu.wallybudget.domain.model.BudgetChangeMode
 import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
+import net.loeu.wallybudget.domain.model.BucketTransferReason
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.UserSettings
-import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
-import net.loeu.wallybudget.domain.service.BucketAllocationResolver
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import org.junit.Assert.assertEquals
@@ -32,6 +31,14 @@ class UpdateBudgetSettingsUseCaseBucketsTest {
         val budgetBucketDao: FakeBudgetBucketDao,
         val bucketAllocationPolicyDao: FakeBucketAllocationPolicyDao,
         val bucketAllocationAdjustmentDao: FakeBucketAllocationAdjustmentDao,
+        val bucketTransferDao: FakeBucketTransferDao,
+        val useCase: UpdateBudgetSettingsUseCase
+    )
+
+    private data class ReallocationFixture(
+        val bucketAllocationPolicyDao: FakeBucketAllocationPolicyDao,
+        val bucketAllocationAdjustmentDao: FakeBucketAllocationAdjustmentDao,
+        val bucketTransferDao: FakeBucketTransferDao,
         val useCase: UpdateBudgetSettingsUseCase
     )
 
@@ -62,17 +69,52 @@ class UpdateBudgetSettingsUseCaseBucketsTest {
         assertNull(fixture.settingsStore.pendingPaydayUndo.first())
     }
 
+    @Test
+    fun invoke_midCycleReallocationRewritesPolicies_andCreatesTransferWithoutAdjustment() = runBlocking {
+        val fixture = createReallocationFixture()
+
+        fixture.useCase(
+            requestFor(
+                spendingBucketDraft().copy(defaultAllocatedAmountCents = 250_000L),
+                BucketDraft(
+                    bucketUuid = "bills-bucket",
+                    name = "Bills",
+                    trackingMode = BucketTrackingMode.CYCLE_RESERVE,
+                    balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
+                    defaultAllocatedAmountCents = 200_000L,
+                    sortOrder = 1,
+                    isPrimary = false
+                )
+            )
+        )
+
+        val policiesByBucket = fixture.bucketAllocationPolicyDao.getAllForSnapshot()
+            .filter { it.deletedAtEpochMs == null }
+            .associateBy { it.bucketUuid }
+        val transfer = fixture.bucketTransferDao.getForCycle("2026-11-25").single()
+
+        assertEquals(250_000L, policiesByBucket.getValue(DEFAULT_SPENDING_BUCKET_UUID).allocatedAmountCents)
+        assertEquals(200_000L, policiesByBucket.getValue("bills-bucket").allocatedAmountCents)
+        assertTrue(fixture.bucketAllocationAdjustmentDao.getAllForSnapshot().isEmpty())
+        assertEquals(BucketTransferReason.MANUAL_REALLOCATION, transfer.reason)
+        assertEquals(DEFAULT_SPENDING_BUCKET_UUID, transfer.fromBucketUuid)
+        assertEquals("bills-bucket", transfer.toBucketUuid)
+        assertEquals(50_000L, transfer.amountCents)
+    }
+
     private fun createFixture(): BucketSaveFixture {
         val settingsStore = migratedSettingsStore()
         val budgetPolicyDao = migratedBudgetPolicyDao()
         val budgetBucketDao = migratedBudgetBucketDao()
         val bucketAllocationPolicyDao = migratedBucketAllocationPolicyDao()
         val bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao()
+        val bucketTransferDao = FakeBucketTransferDao()
         return BucketSaveFixture(
             settingsStore = settingsStore,
             budgetBucketDao = budgetBucketDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+            bucketTransferDao = bucketTransferDao,
             useCase = updateBudgetSettingsUseCase(
                 settingsStore = settingsStore,
                 budgetPolicyDao = budgetPolicyDao,
@@ -80,6 +122,52 @@ class UpdateBudgetSettingsUseCaseBucketsTest {
                 budgetBucketDao = budgetBucketDao,
                 bucketAllocationPolicyDao = bucketAllocationPolicyDao,
                 bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+                bucketTransferDao = bucketTransferDao,
+                currentDate = LocalDate.of(2026, 12, 4)
+            )
+        )
+    }
+
+    private fun createReallocationFixture(): ReallocationFixture {
+        val bucketTransferDao = FakeBucketTransferDao()
+        val bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao()
+        val bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(
+            listOf(
+                bucketAllocationPolicyEntity(
+                    id = 1L,
+                    allocationUuid = "default-current",
+                    bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                    cycleStart = LocalDate.of(2026, 11, 25),
+                    cycleEndExclusive = LocalDate.of(2026, 12, 25),
+                    allocatedAmountCents = 300_000L
+                ),
+                bucketAllocationPolicyEntity(
+                    id = 2L,
+                    allocationUuid = "bills-current",
+                    bucketUuid = "bills-bucket",
+                    cycleStart = LocalDate.of(2026, 11, 25),
+                    cycleEndExclusive = LocalDate.of(2026, 12, 25),
+                    allocatedAmountCents = 150_000L
+                )
+            )
+        )
+        return ReallocationFixture(
+            bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+            bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+            bucketTransferDao = bucketTransferDao,
+            useCase = updateBudgetSettingsUseCase(
+                settingsStore = migratedSettingsStore(),
+                budgetPolicyDao = migratedBudgetPolicyDao(),
+                budgetAdjustmentDao = FakeBudgetAdjustmentDao(),
+                budgetBucketDao = FakeBudgetBucketDao(
+                    listOf(
+                        budgetBucketEntity(1L, DEFAULT_SPENDING_BUCKET_UUID, DEFAULT_SPENDING_BUCKET_NAME, 100_000L, 0),
+                        budgetBucketEntity(2L, "bills-bucket", "Bills", 150_000L, 1)
+                    )
+                ),
+                bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+                bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
+                bucketTransferDao = bucketTransferDao,
                 currentDate = LocalDate.of(2026, 12, 4)
             )
         )
@@ -208,6 +296,7 @@ class UpdateBudgetSettingsUseCaseBucketsTest {
         budgetBucketDao: FakeBudgetBucketDao,
         bucketAllocationPolicyDao: FakeBucketAllocationPolicyDao,
         bucketAllocationAdjustmentDao: FakeBucketAllocationAdjustmentDao,
+        bucketTransferDao: FakeBucketTransferDao = FakeBucketTransferDao(),
         currentDate: LocalDate
     ): UpdateBudgetSettingsUseCase {
         return UpdateBudgetSettingsUseCase(
@@ -218,11 +307,10 @@ class UpdateBudgetSettingsUseCaseBucketsTest {
             budgetBucketDao = budgetBucketDao,
             bucketAllocationPolicyDao = bucketAllocationPolicyDao,
             bucketAllocationAdjustmentDao = bucketAllocationAdjustmentDao,
-            bucketTransferDao = FakeBucketTransferDao(),
+            bucketTransferDao = bucketTransferDao,
             expenseDao = FakeExpenseDao(),
             currentDateProvider = FakeCurrentDateProvider(currentDate),
             cycleScheduleResolver = cycleScheduleResolver,
-            budgetAdjustmentResolver = BudgetAdjustmentResolver(),
             hybridLogicalClockService = hybridLogicalClockService
         )
     }

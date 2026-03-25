@@ -108,7 +108,8 @@ class ConcludePendingCycleUseCase(
         installId: String
     ) {
         val sortedFunds = activeFunds.sortedWith(compareBy({ it.sortOrder }, { it.createdAtEpochMs }, { it.uuid }))
-        val totalFundAllocationCents = sortedFunds.sumOf { it.allocationPerCycleCents }
+        // allocationPerCycleCents is retained as a closeout deposit weight/base contribution only.
+        val totalFundCloseoutWeightCents = sortedFunds.sumOf { it.allocationPerCycleCents }
         var remainderCents = totalSurplusCents
         val zeroAllocationSurplusRecipientUuid = sortedFunds.firstOrNull { it.uuid == DEFAULT_FUND_UUID }?.uuid
             ?: sortedFunds.first().uuid
@@ -119,14 +120,15 @@ class ConcludePendingCycleUseCase(
                 index = index,
                 lastIndex = sortedFunds.lastIndex,
                 totalSurplusCents = totalSurplusCents,
-                totalFundAllocationCents = totalFundAllocationCents,
+                totalFundCloseoutWeightCents = totalFundCloseoutWeightCents,
                 zeroAllocationSurplusRecipientUuid = zeroAllocationSurplusRecipientUuid,
                 remainderCents = remainderCents
             )
-            if (totalSurplusCents > 0L && totalFundAllocationCents > 0L && index != sortedFunds.lastIndex) {
+            if (totalSurplusCents > 0L && totalFundCloseoutWeightCents > 0L && index != sortedFunds.lastIndex) {
                 remainderCents -= surplusShare
             }
-            val depositAmount = fund.allocationPerCycleCents + surplusShare
+            val fundCloseoutBaseContribution = fund.allocationPerCycleCents
+            val depositAmount = fundCloseoutBaseContribution + surplusShare
             if (depositAmount <= 0L) return@forEachIndexed
 
             fundTransactionDao.insert(
@@ -208,19 +210,19 @@ class ConcludePendingCycleUseCase(
         index: Int,
         lastIndex: Int,
         totalSurplusCents: Long,
-        totalFundAllocationCents: Long,
+        totalFundCloseoutWeightCents: Long,
         zeroAllocationSurplusRecipientUuid: String,
         remainderCents: Long
     ): Long {
         return when {
             totalSurplusCents <= 0L -> 0L
-            totalFundAllocationCents <= 0L -> if (fund.uuid == zeroAllocationSurplusRecipientUuid) {
+            totalFundCloseoutWeightCents <= 0L -> if (fund.uuid == zeroAllocationSurplusRecipientUuid) {
                 totalSurplusCents
             } else {
                 0L
             }
             index == lastIndex -> remainderCents
-            else -> (totalSurplusCents * fund.allocationPerCycleCents) / totalFundAllocationCents
+            else -> (totalSurplusCents * fund.allocationPerCycleCents) / totalFundCloseoutWeightCents
         }
     }
 }

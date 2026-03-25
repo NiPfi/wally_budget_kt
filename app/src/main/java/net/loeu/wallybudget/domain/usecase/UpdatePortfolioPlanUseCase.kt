@@ -25,9 +25,12 @@ import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import net.loeu.wallybudget.domain.usecase.internal.newBudgetPolicy
+import net.loeu.wallybudget.domain.usecase.internal.resolveCurrentCycleCloseSettlement
+import net.loeu.wallybudget.domain.usecase.internal.upsertCurrentCyclePortfolioPolicyAmount
 import net.loeu.wallybudget.domain.usecase.internal.insertBucketTransfer
 import net.loeu.wallybudget.domain.usecase.internal.newBucketAllocationPolicy
 import net.loeu.wallybudget.domain.usecase.internal.resolveSelectedOpenBucketUuid
+import net.loeu.wallybudget.domain.usecase.internal.resolveCurrentCycleReallocation
 import net.loeu.wallybudget.domain.usecase.internal.upsertCurrentCycleBucketPolicyAmount
 import java.time.LocalDate
 import java.time.ZoneId
@@ -388,13 +391,17 @@ class UpdatePortfolioPlanUseCase(
         val defaultAllocation = defaultPolicy?.allocatedAmountCents
             ?: defaultBucket?.defaultAllocatedAmountCents
             ?: 0L
-        val settlementCents = currentAllocation - spent
+        val settlement = resolveCurrentCycleCloseSettlement(
+            currentAllocation = currentAllocation,
+            spentCents = spent,
+            defaultCurrentAllocation = defaultAllocation
+        )
 
         insertBucketTransfer(
             bucketTransferDao = bucketTransferDao,
             fromBucketUuid = bucket.bucketUuid,
             toBucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
-            amountCents = settlementCents,
+            amountCents = settlement.settlementCents,
             reason = BucketTransferReason.CLOSE_SETTLEMENT,
             cycleStart = context.currentCycleStart,
             cycleEndExclusive = context.currentCycleEndExclusive,
@@ -403,10 +410,15 @@ class UpdatePortfolioPlanUseCase(
             nowEpochMs = nowEpochMs,
             hybridLogicalClockService = hybridLogicalClockService
         )
-        upsertCurrentCycleBucketPolicy(bucket.bucketUuid, spent, context, nowEpochMs)
+        upsertCurrentCycleBucketPolicy(
+            bucket.bucketUuid,
+            settlement.closingBucketAllocationCents,
+            context,
+            nowEpochMs
+        )
         upsertCurrentCycleBucketPolicy(
             DEFAULT_SPENDING_BUCKET_UUID,
-            defaultAllocation + settlementCents,
+            settlement.defaultBucketAllocationCents,
             context,
             nowEpochMs
         )
@@ -483,33 +495,15 @@ class UpdatePortfolioPlanUseCase(
         portfolioMonthlyBudgetCents: Long,
         nowEpochMs: Long
     ) {
-        val existing = budgetPolicyDao.findActivePolicyForCycle(context.currentCycleStart.toString())
-        if (existing == null) {
-            budgetPolicyDao.insert(
-                newBudgetPolicy(
-                    cycleStart = context.currentCycleStart,
-                    cycleEndExclusive = context.currentCycleEndExclusive,
-                    budgetAmountCents = portfolioMonthlyBudgetCents,
-                    paydayDayOfMonth = context.settings.paydayDate,
-                    installId = context.settings.installDeviceId,
-                    nowEpochMs = nowEpochMs,
-                    hybridLogicalClockService = hybridLogicalClockService
-                ).toEntity()
-            )
-            return
-        }
-        if (existing.budgetAmountCents == portfolioMonthlyBudgetCents) return
-        budgetPolicyDao.update(
-            existing.copy(
-                budgetAmountCents = portfolioMonthlyBudgetCents,
-                updatedAtEpochMs = nowEpochMs,
-                lastModifiedByInstallId = context.settings.installDeviceId,
-                modClock = hybridLogicalClockService.next(
-                    previousClock = existing.modClock,
-                    nowEpochMs = nowEpochMs,
-                    installId = context.settings.installDeviceId
-                )
-            )
+        upsertCurrentCyclePortfolioPolicyAmount(
+            budgetPolicyDao = budgetPolicyDao,
+            cycleStart = context.currentCycleStart,
+            cycleEndExclusive = context.currentCycleEndExclusive,
+            budgetAmountCents = portfolioMonthlyBudgetCents,
+            paydayDayOfMonth = context.settings.paydayDate,
+            installId = context.settings.installDeviceId,
+            nowEpochMs = nowEpochMs,
+            hybridLogicalClockService = hybridLogicalClockService
         )
     }
 
