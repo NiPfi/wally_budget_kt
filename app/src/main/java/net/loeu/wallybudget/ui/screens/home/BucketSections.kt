@@ -13,6 +13,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.Modifier
@@ -29,11 +30,10 @@ internal fun ActiveBucketsSection(
     enabled: Boolean = true,
     onEditBucket: (String) -> Unit
 ) {
-    val orderedSummaries = bucketSummaries.sortedWith(
-        compareBy<BucketSummaryState> { it.bucket.isClosed }
-            .thenBy { it.bucket.sortOrder }
-            .thenBy { it.bucket.createdAtEpochMs }
-    )
+    val bucketComparator = compareBucketsClosedLast()
+    val orderedSummaries = remember(bucketSummaries) {
+        bucketSummaries.sortedWith { a, b -> bucketComparator.compare(a.bucket, b.bucket) }
+    }
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)

@@ -226,12 +226,9 @@ internal fun BucketNameAndAllocationFields(
 
 @Composable
 private fun CurrentAllocationsSection(bucketSummaries: List<BucketSummaryState>) {
+    val bucketComparator = compareBucketsClosedLast()
     val orderedSummaries = remember(bucketSummaries) {
-        bucketSummaries.sortedWith(
-            compareBy<BucketSummaryState> { it.bucket.isClosed }
-                .thenBy { it.bucket.sortOrder }
-                .thenBy { it.bucket.createdAtEpochMs }
-        )
+        bucketSummaries.sortedWith { a, b -> bucketComparator.compare(a.bucket, b.bucket) }
     }
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp)
