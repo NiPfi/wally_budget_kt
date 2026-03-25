@@ -526,18 +526,16 @@ class UpdateBudgetSettingsUseCase(
                                     hybridLogicalClockService = hybridLogicalClockService
                                 )
                             }
-                            bucketAllocationPolicyDao?.let { policyDao ->
-                                upsertCurrentCycleBucketPolicyAmount(
-                                    bucketAllocationPolicyDao = policyDao,
-                                    bucketUuid = draft.bucketUuid,
-                                    cycleStart = context.currentPolicy.cycleStart,
-                                    cycleEndExclusive = context.currentPolicy.cycleEndExclusive,
-                                    allocatedAmountCents = draft.defaultAllocatedAmountCents,
-                                    installId = context.settings.installDeviceId,
-                                    nowEpochMs = nowEpochMs,
-                                    hybridLogicalClockService = hybridLogicalClockService
-                                )
-                            }
+                            upsertCurrentCycleBucketPolicyAmount(
+                                bucketAllocationPolicyDao = bucketAllocationPolicyDao,
+                                bucketUuid = draft.bucketUuid,
+                                cycleStart = context.currentPolicy.cycleStart,
+                                cycleEndExclusive = context.currentPolicy.cycleEndExclusive,
+                                allocatedAmountCents = draft.defaultAllocatedAmountCents,
+                                installId = context.settings.installDeviceId,
+                                nowEpochMs = nowEpochMs,
+                                hybridLogicalClockService = hybridLogicalClockService
+                            )
                         }
                     }
                     return@forEach

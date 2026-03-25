@@ -64,7 +64,6 @@ private data class CurrentPolicyBucketState(
 class ObserveForecastUseCase(
     private val budgetPolicyDao: BudgetPolicyDao,
     private val budgetBucketDao: BudgetBucketDao,
-    @Suppress("UNUSED_PARAMETER")
     private val bucketAllocationPolicyDao: BucketAllocationPolicyDao? = null,
     @Suppress("UNUSED_PARAMETER")
     private val bucketAllocationAdjustmentDao:

@@ -37,7 +37,6 @@ class PerformMonthlyResetUseCase(
     private val budgetPolicyDao: BudgetPolicyDao,
     private val budgetAdjustmentDao: BudgetAdjustmentDao,
     private val budgetBucketDao: BudgetBucketDao,
-    @Suppress("UNUSED_PARAMETER")
     private val bucketAllocationPolicyDao: BucketAllocationPolicyDao? = null,
     private val bucketCycleBaselineDao: BucketCycleBaselineDao? = null,
     private val monthlyHistoryDao: MonthlyHistoryDao,

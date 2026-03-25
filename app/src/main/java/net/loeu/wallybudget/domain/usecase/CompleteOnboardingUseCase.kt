@@ -32,7 +32,6 @@ import java.time.ZoneId
 class CompleteOnboardingUseCase(
     private val transactionRunner: TransactionRunner,
     private val budgetBucketDao: BudgetBucketDao,
-    @Suppress("UNUSED_PARAMETER")
     private val bucketAllocationPolicyDao: BucketAllocationPolicyDao? = null,
     private val bucketCycleBaselineDao: BucketCycleBaselineDao? = null,
     private val bucketMonthlyHistoryDao: BucketMonthlyHistoryDao,
@@ -51,6 +50,8 @@ class CompleteOnboardingUseCase(
     ) {
         val settings = userSettingsStore.ensureIdentity()
         val installId = settings.installDeviceId
+        val allocationPolicyDao = bucketAllocationPolicyDao
+        val baselineDao = bucketCycleBaselineDao
         val nowEpochMs = currentDateProvider.currentDate()
             .atStartOfDay(ZoneId.systemDefault())
             .toInstant()
@@ -73,7 +74,7 @@ class CompleteOnboardingUseCase(
                         hybridLogicalClockService = hybridLogicalClockService
                     ).budgetPolicyToEntity()
                 )
-                bucketAllocationPolicyDao?.insert(
+                allocationPolicyDao?.insert(
                     newBucketAllocationPolicy(
                         bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
                         cycleStart = previousCycleStart,
@@ -84,7 +85,7 @@ class CompleteOnboardingUseCase(
                         hybridLogicalClockService = hybridLogicalClockService
                     ).toEntity()
                 )
-                bucketCycleBaselineDao?.insert(
+                baselineDao?.insert(
                     newBucketCycleBaseline(
                         bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
                         cycleStart = previousCycleStart,
@@ -190,12 +191,12 @@ class CompleteOnboardingUseCase(
                     )
                 )
             }
-            val existingCurrentBucketPolicy = bucketAllocationPolicyDao?.findActivePolicyForCycle(
+            val existingCurrentBucketPolicy = allocationPolicyDao?.findActivePolicyForCycle(
                 bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
                 cycleStartDate = cycleStartDate.toString()
             )
             if (existingCurrentBucketPolicy == null) {
-                bucketAllocationPolicyDao?.insert(
+                allocationPolicyDao?.insert(
                     newBucketAllocationPolicy(
                         bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
                         cycleStart = cycleStartDate,
@@ -207,7 +208,7 @@ class CompleteOnboardingUseCase(
                     ).toEntity()
                 )
             } else {
-                bucketAllocationPolicyDao?.update(
+                allocationPolicyDao.update(
                     existingCurrentBucketPolicy.copy(
                         cycleEndDateExclusive = currentCycleEnd.toString(),
                         allocatedAmountCents = monthlyBudgetCents,
@@ -221,12 +222,12 @@ class CompleteOnboardingUseCase(
                     )
                 )
             }
-            val existingCurrentBucketBaseline = bucketCycleBaselineDao?.findActiveBaselineForCycle(
+            val existingCurrentBucketBaseline = baselineDao?.findActiveBaselineForCycle(
                 bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
                 cycleStartDate = cycleStartDate.toString()
             )
             if (existingCurrentBucketBaseline == null) {
-                bucketCycleBaselineDao?.insert(
+                baselineDao?.insert(
                     newBucketCycleBaseline(
                         bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
                         cycleStart = cycleStartDate,
@@ -238,7 +239,7 @@ class CompleteOnboardingUseCase(
                     ).toEntity()
                 )
             } else {
-                bucketCycleBaselineDao?.update(
+                baselineDao.update(
                     existingCurrentBucketBaseline.copy(
                         cycleEndDateExclusive = currentCycleEnd.toString(),
                         baselineAmountCents = monthlyBudgetCents,
