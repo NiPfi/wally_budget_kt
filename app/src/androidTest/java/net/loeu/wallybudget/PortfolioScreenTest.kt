@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -59,6 +60,7 @@ class PortfolioScreenTest {
         setPortfolioContent()
 
         composeRule.onNodeWithTag("bucket_row_bills").assertIsDisplayed().assertHasNoClickAction()
+        composeRule.onNodeWithContentDescription("Closed bucket").assertIsDisplayed()
         composeRule.onNodeWithText("Bills").assertIsDisplayed()
     }
 
@@ -156,10 +158,7 @@ class PortfolioScreenTest {
     }
 
     private fun setPortfolioContent(
-        saveCalls: MutableList<List<BucketDraft>> = mutableListOf(),
-        onContentReady: (((() -> Unit)) -> Unit)? = null
-    ) {
-        val initialBuckets = listOf(
+        initialBuckets: List<BudgetBucket> = listOf(
             testBucket(
                 bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
                 name = DEFAULT_SPENDING_BUCKET_NAME,
@@ -178,12 +177,20 @@ class PortfolioScreenTest {
                 defaultAllocatedAmountCents = 25_00L,
                 sortOrder = 2
             ).copy(settledCloseCycleEndDateExclusive = "2026-04-01")
-        )
-        val initialSummaries = listOf(
-            testSummary(initialBuckets[0], allocatedThisCycleCents = 45_00L),
-            testSummary(initialBuckets[1], allocatedThisCycleCents = 30_00L),
-            testSummary(initialBuckets[2], allocatedThisCycleCents = 25_00L)
-        )
+        ),
+        initialSummaries: List<BucketSummaryState> = emptyList(),
+        saveCalls: MutableList<List<BucketDraft>> = mutableListOf(),
+        onContentReady: (((() -> Unit)) -> Unit)? = null
+    ) {
+        val resolvedInitialSummaries = if (initialSummaries.isEmpty()) {
+            listOf(
+                testSummary(initialBuckets[0], allocatedThisCycleCents = 45_00L),
+                testSummary(initialBuckets[1], allocatedThisCycleCents = 30_00L),
+                testSummary(initialBuckets[2], allocatedThisCycleCents = 25_00L)
+            )
+        } else {
+            initialSummaries
+        }
         val initialPortfolioState = PortfolioState(
             portfolioTotalBudgetCents = 100_00L,
             allocatedToBucketsCents = 100_00L,
@@ -198,7 +205,7 @@ class PortfolioScreenTest {
 
         composeRule.setContent {
             var buckets by remember { mutableStateOf(initialBuckets) }
-            var summaries by remember { mutableStateOf(initialSummaries) }
+            var summaries by remember { mutableStateOf(resolvedInitialSummaries) }
             onContentReady?.invoke {
                 buckets = buckets.map { bucket ->
                     if (bucket.bucketUuid == "travel") bucket.copy(closedAtEpochMs = 10L) else bucket
