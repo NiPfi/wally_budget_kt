@@ -57,9 +57,6 @@ class ObserveHistoryUseCase(
         val allBuckets = budgetBucketDao.observeAll().map { entries ->
             entries.map { it.bucketToDomainModel() }
         }
-        val bucketPolicies = bucketAllocationPolicyDao.observeActivePolicies().map { entries ->
-            entries.map { it.bucketPolicyToDomainModel() }
-        }
         val bucketHistory = bucketMonthlyHistoryDao.observeAll().map { entries ->
             entries.map { it.bucketHistoryToDomainModel() }
         }
@@ -68,15 +65,13 @@ class ObserveHistoryUseCase(
             portfolioOverviewFlow,
             allExpenses,
             history,
-            budgetPolicies,
-            bucketPolicies
-        ) { portfolioOverviewState, expenses, historyEntries, budgetPoliciesValue, bucketPoliciesValue ->
+            budgetPolicies
+        ) { portfolioOverviewState, expenses, historyEntries, budgetPoliciesValue ->
             HistorySupportingInputs(
                 portfolioOverviewState = portfolioOverviewState,
                 expenses = expenses,
                 historyEntries = historyEntries,
-                budgetPolicies = budgetPoliciesValue,
-                bucketPolicies = bucketPoliciesValue
+                budgetPolicies = budgetPoliciesValue
             )
         }
 
@@ -103,7 +98,6 @@ class ObserveHistoryUseCase(
                     settings = settings,
                     portfolioPolicies = supportingInputs.budgetPolicies,
                     allBuckets = buckets,
-                    bucketPolicies = supportingInputs.bucketPolicies,
                     bucketHistory = bucketHistoryValue
                 ),
                 bucketNameByUuid = bucketNameByUuid
@@ -119,7 +113,6 @@ class ObserveHistoryUseCase(
         settings: net.loeu.wallybudget.domain.model.UserSettings,
         portfolioPolicies: List<BudgetPolicy>,
         allBuckets: List<BudgetBucket>,
-        bucketPolicies: List<net.loeu.wallybudget.domain.model.BucketAllocationPolicy>,
         bucketHistory: List<net.loeu.wallybudget.domain.model.BucketMonthlyHistory>
     ): List<ExpenseCycleSection> {
         val sections = mutableListOf<ExpenseCycleSection>()
@@ -162,8 +155,7 @@ class ObserveHistoryUseCase(
             today = portfolioOverviewState.effectiveCurrentDate,
             settings = settings,
             portfolioPolicies = portfolioPolicies,
-            allBuckets = allBuckets,
-            bucketPolicies = bucketPolicies
+            allBuckets = allBuckets
         )
         if (futureSections.isNotEmpty()) {
             sections += futureSections
@@ -219,8 +211,7 @@ class ObserveHistoryUseCase(
         today: LocalDate,
         settings: net.loeu.wallybudget.domain.model.UserSettings,
         portfolioPolicies: List<BudgetPolicy>,
-        allBuckets: List<BudgetBucket>,
-        bucketPolicies: List<net.loeu.wallybudget.domain.model.BucketAllocationPolicy>
+        allBuckets: List<BudgetBucket>
     ): List<ExpenseCycleSection> {
         val futureExpenses = allExpenses.filter { it.recordedDate().isAfter(today) }
         if (futureExpenses.isEmpty()) return emptyList()
@@ -241,12 +232,7 @@ class ObserveHistoryUseCase(
                     .map { (bucketUuid, bucketExpenses) ->
                         val spent = bucketExpenses.sumOf { it.amountCents }
                         val bucket = allBuckets.firstOrNull { it.bucketUuid == bucketUuid }
-                        val allocated = bucketPolicies.firstOrNull {
-                            it.bucketUuid == bucketUuid &&
-                                it.deletedAtEpochMs == null &&
-                                it.cycleStart() == policy.cycleStart &&
-                                it.cycleEndExclusive() == policy.cycleEndExclusive
-                        }?.allocatedAmountCents ?: bucket?.defaultAllocatedAmountCents ?: 0L
+                        val allocated = bucket?.defaultAllocatedAmountCents ?: 0L
                         val remaining = allocated - spent
                         CycleBucketSummary(
                             bucketUuid = bucketUuid,
@@ -344,8 +330,7 @@ private data class HistorySupportingInputs(
     val portfolioOverviewState: PortfolioOverviewState,
     val expenses: List<Expense>,
     val historyEntries: List<MonthlyHistory>,
-    val budgetPolicies: List<BudgetPolicy>,
-    val bucketPolicies: List<net.loeu.wallybudget.domain.model.BucketAllocationPolicy>
+    val budgetPolicies: List<BudgetPolicy>
 )
 
 private fun List<Expense>.filterByDateRange(

@@ -26,16 +26,22 @@ internal fun ActiveBucketsSection(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        SectionHeading("Active buckets")
+        SectionHeading("Current cycle buckets")
         bucketSummaries.forEachIndexed { index, summary ->
             if (index > 0) {
                 HorizontalDivider()
+            }
+            val rowEnabled = enabled && summary.bucket.isOpenForEditing
+            val rowModifier = if (rowEnabled) {
+                Modifier.clickable { onEditBucket(summary.bucket.bucketUuid) }
+            } else {
+                Modifier
             }
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("bucket_row_${summary.bucket.bucketUuid}")
-                    .clickable(enabled = enabled) { onEditBucket(summary.bucket.bucketUuid) }
+                    .then(rowModifier)
                     .padding(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {

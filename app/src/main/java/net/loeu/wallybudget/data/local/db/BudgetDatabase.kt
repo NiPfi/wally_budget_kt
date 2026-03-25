@@ -13,6 +13,8 @@ import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
+import net.loeu.wallybudget.data.local.dao.BucketCycleBaselineDao
+import net.loeu.wallybudget.data.local.dao.BucketTransferDao
 import net.loeu.wallybudget.data.local.dao.BucketMonthlyHistoryDao
 import net.loeu.wallybudget.data.local.dao.CycleOverviewDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
@@ -24,6 +26,8 @@ import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
 import net.loeu.wallybudget.data.local.entity.BudgetPolicyEntity
 import net.loeu.wallybudget.data.local.entity.BucketAllocationAdjustmentEntity
 import net.loeu.wallybudget.data.local.entity.BucketAllocationPolicyEntity
+import net.loeu.wallybudget.data.local.entity.BucketCycleBaselineEntity
+import net.loeu.wallybudget.data.local.entity.BucketTransferEntity
 import net.loeu.wallybudget.data.local.entity.BucketMonthlyHistoryEntity
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
 import net.loeu.wallybudget.data.local.entity.FundEntity
@@ -42,12 +46,14 @@ import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
         BudgetAdjustmentEntity::class,
         BudgetBucketEntity::class,
         BucketAllocationPolicyEntity::class,
+        BucketCycleBaselineEntity::class,
+        BucketTransferEntity::class,
         BucketAllocationAdjustmentEntity::class,
         BucketMonthlyHistoryEntity::class,
         FundEntity::class,
         FundTransactionEntity::class
     ],
-    version = 13,
+    version = 15,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -60,6 +66,8 @@ abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
     abstract fun budgetAdjustmentDao(): BudgetAdjustmentDao
     abstract fun budgetBucketDao(): BudgetBucketDao
     abstract fun bucketAllocationPolicyDao(): BucketAllocationPolicyDao
+    abstract fun bucketCycleBaselineDao(): BucketCycleBaselineDao
+    abstract fun bucketTransferDao(): BucketTransferDao
     abstract fun bucketAllocationAdjustmentDao(): BucketAllocationAdjustmentDao
     abstract fun bucketMonthlyHistoryDao(): BucketMonthlyHistoryDao
     abstract fun fundDao(): FundDao
@@ -1062,6 +1070,118 @@ abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_funds_deletedAtEpochMs` ON `funds` (`deletedAtEpochMs`)")
 
                 db.execSQL("PRAGMA foreign_keys=ON")
+            }
+        }
+
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `bucket_transfers` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `transferUuid` TEXT NOT NULL,
+                        `fromBucketUuid` TEXT,
+                        `toBucketUuid` TEXT,
+                        `amountCents` INTEGER NOT NULL,
+                        `reason` TEXT NOT NULL,
+                        `cycleStartDate` TEXT NOT NULL,
+                        `cycleEndDateExclusive` TEXT NOT NULL,
+                        `effectiveDate` TEXT NOT NULL,
+                        `originInstallId` TEXT NOT NULL,
+                        `lastModifiedByInstallId` TEXT NOT NULL,
+                        `createdAtEpochMs` INTEGER NOT NULL,
+                        `updatedAtEpochMs` INTEGER NOT NULL,
+                        `deletedAtEpochMs` INTEGER,
+                        `modClock` TEXT NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_bucket_transfers_transferUuid` ON `bucket_transfers` (`transferUuid`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_bucket_transfers_cycleStartDate` ON `bucket_transfers` (`cycleStartDate`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_bucket_transfers_fromBucketUuid` ON `bucket_transfers` (`fromBucketUuid`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_bucket_transfers_toBucketUuid` ON `bucket_transfers` (`toBucketUuid`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_bucket_transfers_deletedAtEpochMs` ON `bucket_transfers` (`deletedAtEpochMs`)"
+                )
+                db.execSQL(
+                    "ALTER TABLE `budget_buckets` ADD COLUMN `settledCloseCycleEndDateExclusive` TEXT DEFAULT NULL"
+                )
+            }
+        }
+
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `bucket_cycle_baselines` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `baselineUuid` TEXT NOT NULL,
+                        `bucketUuid` TEXT NOT NULL,
+                        `cycleStartDate` TEXT NOT NULL,
+                        `cycleEndDateExclusive` TEXT NOT NULL,
+                        `baselineAmountCents` INTEGER NOT NULL,
+                        `originInstallId` TEXT NOT NULL,
+                        `lastModifiedByInstallId` TEXT NOT NULL,
+                        `createdAtEpochMs` INTEGER NOT NULL,
+                        `updatedAtEpochMs` INTEGER NOT NULL,
+                        `deletedAtEpochMs` INTEGER,
+                        `modClock` TEXT NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_bucket_cycle_baselines_baselineUuid` ON `bucket_cycle_baselines` (`baselineUuid`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_bucket_cycle_baselines_bucketUuid` ON `bucket_cycle_baselines` (`bucketUuid`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_bucket_cycle_baselines_cycleStartDate` ON `bucket_cycle_baselines` (`cycleStartDate`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_bucket_cycle_baselines_cycleEndDateExclusive` ON `bucket_cycle_baselines` (`cycleEndDateExclusive`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_bucket_cycle_baselines_deletedAtEpochMs` ON `bucket_cycle_baselines` (`deletedAtEpochMs`)"
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `bucket_cycle_baselines` (
+                        `baselineUuid`,
+                        `bucketUuid`,
+                        `cycleStartDate`,
+                        `cycleEndDateExclusive`,
+                        `baselineAmountCents`,
+                        `originInstallId`,
+                        `lastModifiedByInstallId`,
+                        `createdAtEpochMs`,
+                        `updatedAtEpochMs`,
+                        `deletedAtEpochMs`,
+                        `modClock`
+                    )
+                    SELECT
+                        `allocationUuid`,
+                        `bucketUuid`,
+                        `cycleStartDate`,
+                        `cycleEndDateExclusive`,
+                        `allocatedAmountCents`,
+                        `originInstallId`,
+                        `lastModifiedByInstallId`,
+                        `createdAtEpochMs`,
+                        `updatedAtEpochMs`,
+                        `deletedAtEpochMs`,
+                        `modClock`
+                    FROM `bucket_allocation_policies`
+                    """.trimIndent()
+                )
             }
         }
     }

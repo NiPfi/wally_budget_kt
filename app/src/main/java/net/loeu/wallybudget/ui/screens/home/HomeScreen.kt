@@ -133,11 +133,7 @@ fun HomeScreen(
     val canEditExpenses = !isLoadingData && timelineLockReason == null
     val openBuckets = allBuckets.filterNot { it.isClosed }
     val orderedOpenSummaries = remember(bucketSummaries) {
-        bucketSummaries.sortedWith(
-            compareBy<BucketSummaryState> { it.bucket.bucketUuid != DEFAULT_SPENDING_BUCKET_UUID }
-                .thenBy { it.bucket.sortOrder }
-                .thenBy { it.bucket.createdAtEpochMs }
-        )
+        orderedOpenBucketSummaries(bucketSummaries)
     }
     val initialBucketUuid = remember(orderedOpenSummaries, userSettings.selectedBucketUuid) {
         resolveSelectedOpenBucketUuid(
@@ -315,6 +311,16 @@ fun HomeScreen(
         onRestoreExpense = onRestoreExpense,
         scope = scope
     )
+}
+
+internal fun orderedOpenBucketSummaries(bucketSummaries: List<BucketSummaryState>): List<BucketSummaryState> {
+    return bucketSummaries
+        .filterNot { it.bucket.isClosed }
+        .sortedWith(
+            compareBy<BucketSummaryState> { it.bucket.bucketUuid != DEFAULT_SPENDING_BUCKET_UUID }
+                .thenBy { it.bucket.sortOrder }
+                .thenBy { it.bucket.createdAtEpochMs }
+        )
 }
 
 @Composable

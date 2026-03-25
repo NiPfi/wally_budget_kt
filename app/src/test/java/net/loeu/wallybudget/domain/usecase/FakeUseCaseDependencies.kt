@@ -7,7 +7,9 @@ import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
 import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
+import net.loeu.wallybudget.data.local.dao.BucketCycleBaselineDao
 import net.loeu.wallybudget.data.local.dao.BucketMonthlyHistoryDao
+import net.loeu.wallybudget.data.local.dao.BucketTransferDao
 import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.CycleOverviewDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
@@ -18,8 +20,10 @@ import net.loeu.wallybudget.data.local.entity.BudgetAdjustmentEntity
 import net.loeu.wallybudget.data.local.entity.BudgetPolicyEntity
 import net.loeu.wallybudget.data.local.entity.BucketAllocationAdjustmentEntity
 import net.loeu.wallybudget.data.local.entity.BucketAllocationPolicyEntity
+import net.loeu.wallybudget.data.local.entity.BucketCycleBaselineEntity
 import net.loeu.wallybudget.data.local.entity.BucketMonthlyHistoryEntity
 import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
+import net.loeu.wallybudget.data.local.entity.BucketTransferEntity
 import net.loeu.wallybudget.data.local.db.TransactionRunner
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
 import net.loeu.wallybudget.data.local.entity.FundEntity
@@ -605,6 +609,77 @@ internal class FakeBucketAllocationPolicyDao(
     }
 }
 
+internal class FakeBucketCycleBaselineDao(
+    initialBaselines: List<BucketCycleBaselineEntity> = emptyList()
+) : BucketCycleBaselineDao {
+    private val baselines = initialBaselines.toMutableList()
+    private val baselineFlow = MutableStateFlow(sortedBaselines())
+    private var nextId = (baselines.maxOfOrNull { it.id } ?: 0L) + 1L
+
+    override suspend fun insert(entity: BucketCycleBaselineEntity): Long {
+        val inserted = if (entity.id == 0L) entity.copy(id = nextId++) else entity
+        baselines.removeAll { it.id == inserted.id || it.baselineUuid == inserted.baselineUuid }
+        baselines += inserted
+        refresh()
+        return inserted.id
+    }
+
+    override suspend fun insert(entities: List<BucketCycleBaselineEntity>): List<Long> = entities.map { insert(it) }
+
+    override fun observeActiveForCycle(cycleStartDate: String): Flow<List<BucketCycleBaselineEntity>> =
+        baselineFlow.map { current ->
+            current.filter { it.deletedAtEpochMs == null && it.cycleStartDate == cycleStartDate }
+        }
+
+    override suspend fun getActiveForCycle(cycleStartDate: String): List<BucketCycleBaselineEntity> {
+        return sortedBaselines().filter { it.deletedAtEpochMs == null && it.cycleStartDate == cycleStartDate }
+    }
+
+    override suspend fun findActiveBaselineForCycle(
+        bucketUuid: String,
+        cycleStartDate: String
+    ): BucketCycleBaselineEntity? {
+        return baselines
+            .filter {
+                it.deletedAtEpochMs == null &&
+                    it.bucketUuid == bucketUuid &&
+                    it.cycleStartDate == cycleStartDate
+            }
+            .maxByOrNull { it.updatedAtEpochMs }
+    }
+
+    override suspend fun findByBaselineUuid(baselineUuid: String): BucketCycleBaselineEntity? = baselines
+        .filter { it.baselineUuid == baselineUuid }
+        .maxByOrNull { it.updatedAtEpochMs }
+
+    override suspend fun getAllForSnapshot(): List<BucketCycleBaselineEntity> = sortedBaselines()
+
+    override suspend fun countAll(): Int = baselines.size
+
+    override suspend fun deleteAll() {
+        baselines.clear()
+        refresh()
+    }
+
+    override suspend fun update(baseline: BucketCycleBaselineEntity) {
+        baselines.replaceAll { existing ->
+            if (existing.id == baseline.id || existing.baselineUuid == baseline.baselineUuid) baseline else existing
+        }
+        refresh()
+    }
+
+    private fun refresh() {
+        baselineFlow.value = sortedBaselines()
+    }
+
+    private fun sortedBaselines(): List<BucketCycleBaselineEntity> {
+        return baselines.sortedWith(
+            compareBy<BucketCycleBaselineEntity> { it.cycleStartDate }
+                .thenBy { it.updatedAtEpochMs }
+        )
+    }
+}
+
 internal class FakeBucketAllocationAdjustmentDao(
     initialAdjustments: List<BucketAllocationAdjustmentEntity> = emptyList()
 ) : BucketAllocationAdjustmentDao {
@@ -687,6 +762,53 @@ internal class FakeBucketAllocationAdjustmentDao(
                 .thenBy { it.cycleStartDate }
                 .thenBy { it.effectiveDate }
                 .thenBy { it.updatedAtEpochMs }
+        )
+    }
+}
+
+internal class FakeBucketTransferDao(
+    initialTransfers: List<BucketTransferEntity> = emptyList()
+) : BucketTransferDao {
+    private val transfers = initialTransfers.toMutableList()
+    private val transferFlow = MutableStateFlow(sortedTransfers())
+    private var nextId = (transfers.maxOfOrNull { it.id } ?: 0L) + 1L
+
+    override suspend fun insert(entity: BucketTransferEntity): Long {
+        val inserted = if (entity.id == 0L) entity.copy(id = nextId++) else entity
+        transfers.removeAll { it.id == inserted.id || it.transferUuid == inserted.transferUuid }
+        transfers += inserted
+        refresh()
+        return inserted.id
+    }
+
+    override suspend fun insert(entities: List<BucketTransferEntity>): List<Long> = entities.map { insert(it) }
+
+    override fun observeForCycle(cycleStartDate: String): Flow<List<BucketTransferEntity>> =
+        transferFlow.map { current ->
+            current.filter { it.deletedAtEpochMs == null && it.cycleStartDate == cycleStartDate }
+        }
+
+    override suspend fun getForCycle(cycleStartDate: String): List<BucketTransferEntity> {
+        return sortedTransfers().filter { it.deletedAtEpochMs == null && it.cycleStartDate == cycleStartDate }
+    }
+
+    override suspend fun getAllForSnapshot(): List<BucketTransferEntity> = sortedTransfers()
+
+    override suspend fun deleteAll() {
+        transfers.clear()
+        refresh()
+    }
+
+    private fun refresh() {
+        transferFlow.value = sortedTransfers()
+    }
+
+    private fun sortedTransfers(): List<BucketTransferEntity> {
+        return transfers.sortedWith(
+            compareBy<BucketTransferEntity> { it.cycleStartDate }
+                .thenBy { it.effectiveDate }
+                .thenBy { it.updatedAtEpochMs }
+                .thenBy { it.transferUuid }
         )
     }
 }
@@ -972,6 +1094,7 @@ internal fun bucketEntity(
     createdAtEpochMs: Long = 1L,
     updatedAtEpochMs: Long = createdAtEpochMs,
     closedAtEpochMs: Long? = null,
+    settledCloseCycleEndDateExclusive: String? = null,
     deletedAtEpochMs: Long? = null,
     modClock: String = "%013d-%04d-%s".format(updatedAtEpochMs, 0, lastModifiedByInstallId)
 ): BudgetBucketEntity {
@@ -987,6 +1110,7 @@ internal fun bucketEntity(
         lastModifiedByInstallId = lastModifiedByInstallId,
         createdAtEpochMs = createdAtEpochMs,
         updatedAtEpochMs = updatedAtEpochMs,
+        settledCloseCycleEndDateExclusive = settledCloseCycleEndDateExclusive,
         closedAtEpochMs = closedAtEpochMs,
         deletedAtEpochMs = deletedAtEpochMs,
         modClock = modClock
@@ -1014,6 +1138,36 @@ internal fun bucketPolicyEntity(
         cycleStartDate = cycleStartDate,
         cycleEndDateExclusive = cycleEndDateExclusive,
         allocatedAmountCents = allocatedAmountCents,
+        originInstallId = originInstallId,
+        lastModifiedByInstallId = lastModifiedByInstallId,
+        createdAtEpochMs = createdAtEpochMs,
+        updatedAtEpochMs = updatedAtEpochMs,
+        deletedAtEpochMs = deletedAtEpochMs,
+        modClock = modClock
+    )
+}
+
+internal fun bucketCycleBaselineEntity(
+    id: Long = 1L,
+    baselineUuid: String = "bucket-baseline-1",
+    bucketUuid: String = DEFAULT_SPENDING_BUCKET_UUID,
+    cycleStartDate: String = "2026-03-01",
+    cycleEndDateExclusive: String = "2026-04-01",
+    baselineAmountCents: Long = 0L,
+    originInstallId: String = "test-install-id",
+    lastModifiedByInstallId: String = "test-install-id",
+    createdAtEpochMs: Long = 1L,
+    updatedAtEpochMs: Long = createdAtEpochMs,
+    deletedAtEpochMs: Long? = null,
+    modClock: String = "%013d-%04d-%s".format(updatedAtEpochMs, 0, lastModifiedByInstallId)
+): BucketCycleBaselineEntity {
+    return BucketCycleBaselineEntity(
+        id = id,
+        baselineUuid = baselineUuid,
+        bucketUuid = bucketUuid,
+        cycleStartDate = cycleStartDate,
+        cycleEndDateExclusive = cycleEndDateExclusive,
+        baselineAmountCents = baselineAmountCents,
         originInstallId = originInstallId,
         lastModifiedByInstallId = lastModifiedByInstallId,
         createdAtEpochMs = createdAtEpochMs,

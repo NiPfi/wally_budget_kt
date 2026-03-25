@@ -3,6 +3,8 @@ package net.loeu.wallybudget.domain.usecase
 import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationAdjustmentDao
 import net.loeu.wallybudget.data.local.dao.BucketAllocationPolicyDao
+import net.loeu.wallybudget.data.local.dao.BucketCycleBaselineDao
+import net.loeu.wallybudget.data.local.dao.BucketTransferDao
 import net.loeu.wallybudget.data.local.dao.BucketMonthlyHistoryDao
 import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
@@ -22,6 +24,8 @@ class ApplyOnboardingRestoreUseCase(
     private val budgetBucketDao: BudgetBucketDao,
     private val bucketAllocationPolicyDao: BucketAllocationPolicyDao,
     private val bucketAllocationAdjustmentDao: BucketAllocationAdjustmentDao,
+    private val bucketCycleBaselineDao: BucketCycleBaselineDao,
+    private val bucketTransferDao: BucketTransferDao,
     private val bucketMonthlyHistoryDao: BucketMonthlyHistoryDao,
     private val fundDao: FundDao,
     private val fundTransactionDao: FundTransactionDao,
@@ -42,6 +46,8 @@ class ApplyOnboardingRestoreUseCase(
             budgetBucketDao.deleteAll()
             bucketAllocationPolicyDao.deleteAll()
             bucketAllocationAdjustmentDao.deleteAll()
+            bucketCycleBaselineDao.deleteAll()
+            bucketTransferDao.deleteAll()
             bucketMonthlyHistoryDao.deleteAll()
             fundTransactionDao.deleteAll()
             fundDao.deleteAll()
@@ -50,6 +56,8 @@ class ApplyOnboardingRestoreUseCase(
             budgetBucketDao.insert(preparedSnapshotImport.budgetBuckets)
             bucketAllocationPolicyDao.insert(preparedSnapshotImport.bucketAllocationPolicies)
             bucketAllocationAdjustmentDao.insert(preparedSnapshotImport.bucketAllocationAdjustments)
+            bucketCycleBaselineDao.insert(preparedSnapshotImport.bucketCycleBaselines)
+            bucketTransferDao.insert(preparedSnapshotImport.bucketTransfers)
             fundDao.insert(preparedSnapshotImport.funds)
             fundTransactionDao.insert(preparedSnapshotImport.fundTransactions)
             expenseDao.insert(preparedSnapshotImport.expenses)

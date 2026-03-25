@@ -31,6 +31,7 @@ data class BudgetBucketEntity(
     val lastModifiedByInstallId: String,
     val createdAtEpochMs: Long,
     val updatedAtEpochMs: Long,
+    val settledCloseCycleEndDateExclusive: String? = null,
     val closedAtEpochMs: Long? = null,
     val deletedAtEpochMs: Long? = null,
     val modClock: String
@@ -48,6 +49,7 @@ data class BudgetBucketEntity(
         lastModifiedByInstallId: String,
         createdAtEpochMs: Long,
         updatedAtEpochMs: Long,
+        settledCloseCycleEndDateExclusive: String? = null,
         closedAtEpochMs: Long? = null,
         deletedAtEpochMs: Long? = null,
         modClock: String
@@ -63,6 +65,7 @@ data class BudgetBucketEntity(
         lastModifiedByInstallId = lastModifiedByInstallId,
         createdAtEpochMs = createdAtEpochMs,
         updatedAtEpochMs = updatedAtEpochMs,
+        settledCloseCycleEndDateExclusive = settledCloseCycleEndDateExclusive,
         closedAtEpochMs = closedAtEpochMs,
         deletedAtEpochMs = deletedAtEpochMs,
         modClock = modClock
@@ -79,6 +82,7 @@ fun BudgetBucketEntity.toDomainModel(): BudgetBucket {
         lastModifiedByInstallId = lastModifiedByInstallId,
         createdAtEpochMs = createdAtEpochMs,
         updatedAtEpochMs = updatedAtEpochMs,
+        settledCloseCycleEndDateExclusive = settledCloseCycleEndDateExclusive,
         closedAtEpochMs = closedAtEpochMs,
         deletedAtEpochMs = deletedAtEpochMs,
         modClock = modClock
@@ -96,6 +100,7 @@ fun BudgetBucket.toEntity(id: Long = 0L): BudgetBucketEntity {
         lastModifiedByInstallId = lastModifiedByInstallId,
         createdAtEpochMs = createdAtEpochMs,
         updatedAtEpochMs = updatedAtEpochMs,
+        settledCloseCycleEndDateExclusive = settledCloseCycleEndDateExclusive,
         closedAtEpochMs = closedAtEpochMs,
         deletedAtEpochMs = deletedAtEpochMs,
         modClock = modClock

@@ -1,13 +1,16 @@
 package net.loeu.wallybudget.domain.usecase
 
 import net.loeu.wallybudget.data.local.dao.BudgetAdjustmentDao
+import net.loeu.wallybudget.data.local.dao.BudgetBucketDao
 import net.loeu.wallybudget.data.local.dao.BudgetPolicyDao
+import net.loeu.wallybudget.data.local.dao.BucketCycleBaselineDao
 import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
 import net.loeu.wallybudget.data.local.db.TransactionRunner
 import net.loeu.wallybudget.data.local.entity.toDomainModel as adjustmentToDomainModel
 import net.loeu.wallybudget.data.local.entity.toDomainModel as policyToDomainModel
 import net.loeu.wallybudget.data.local.entity.toEntity as budgetPolicyToEntity
+import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
@@ -17,6 +20,7 @@ import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import net.loeu.wallybudget.domain.usecase.internal.CycleRange
 import net.loeu.wallybudget.domain.usecase.internal.archiveCycleIfNeeded
 import net.loeu.wallybudget.domain.usecase.internal.lastResetDateOrNull
+import net.loeu.wallybudget.domain.usecase.internal.newBucketCycleBaseline
 import net.loeu.wallybudget.domain.usecase.internal.newBudgetPolicy
 import net.loeu.wallybudget.domain.usecase.internal.pendingCycleRangeOrNull
 import net.loeu.wallybudget.domain.usecase.internal.toStartOfDayMillis
@@ -30,6 +34,8 @@ class PerformMonthlyResetUseCase(
     private val expenseDao: ExpenseDao,
     private val budgetPolicyDao: BudgetPolicyDao,
     private val budgetAdjustmentDao: BudgetAdjustmentDao,
+    private val budgetBucketDao: BudgetBucketDao,
+    private val bucketCycleBaselineDao: BucketCycleBaselineDao? = null,
     private val monthlyHistoryDao: MonthlyHistoryDao,
     private val userSettingsStore: UserSettingsStore,
     private val budgetCalculationService: BudgetCalculationService,
@@ -122,6 +128,11 @@ class PerformMonthlyResetUseCase(
                 cycleStart = currentCycleStart,
                 cyclePolicy = currentPolicy
             )
+            stampBucketBaselinesForCycle(
+                settings = ensuredSettings,
+                cycleStart = currentCycleStart,
+                cycleEndExclusive = currentPolicy.cycleEndExclusive
+            )
         }
 
         if (clearPending) userSettingsStore.clearPendingCycle()
@@ -161,6 +172,40 @@ class PerformMonthlyResetUseCase(
             cycleEndDateExclusive = cycleRange.endExclusive,
             detectedAtTimestamp = Instant.now().toEpochMilli()
         )
+    }
+
+    private suspend fun stampBucketBaselinesForCycle(
+        settings: UserSettings,
+        cycleStart: LocalDate,
+        cycleEndExclusive: LocalDate
+    ) {
+        val nowEpochMs = cycleStart.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        budgetBucketDao.getAllForSnapshot()
+            .filter {
+                it.deletedAtEpochMs == null &&
+                    it.closedAtEpochMs == null &&
+                    it.settledCloseCycleEndDateExclusive == null
+            }
+            .forEach { bucket ->
+                if (
+                    bucketCycleBaselineDao?.findActiveBaselineForCycle(
+                        bucket.bucketUuid,
+                        cycleStart.toString()
+                    ) == null
+                ) {
+                    bucketCycleBaselineDao?.insert(
+                        newBucketCycleBaseline(
+                            bucketUuid = bucket.bucketUuid,
+                            cycleStart = cycleStart,
+                            cycleEndExclusive = cycleEndExclusive,
+                            baselineAmountCents = bucket.defaultAllocatedAmountCents,
+                            installId = settings.installDeviceId,
+                            nowEpochMs = nowEpochMs,
+                            hybridLogicalClockService = hybridLogicalClockService
+                        ).toEntity()
+                    )
+                }
+            }
     }
 
     private suspend fun recoverMissingPendingCycle(
