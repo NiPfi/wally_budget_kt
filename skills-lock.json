@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "jetpack-compose": {
+      "source": "aldefy/compose-skill",
+      "sourceType": "github",
+      "computedHash": "f83fb5e13b56e91a45fc6af1308bf6c9b172613addf72bd7023c47a43431ab71"
+    }
+  }
+}

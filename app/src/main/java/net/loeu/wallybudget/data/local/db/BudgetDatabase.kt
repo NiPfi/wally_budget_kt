@@ -53,7 +53,7 @@ import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
         FundEntity::class,
         FundTransactionEntity::class
     ],
-    version = 15,
+    version = 16,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -1113,6 +1113,14 @@ abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
                 )
                 db.execSQL(
                     "ALTER TABLE `budget_buckets` ADD COLUMN `settledCloseCycleEndDateExclusive` TEXT DEFAULT NULL"
+                )
+            }
+        }
+
+        val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `budget_buckets` ADD COLUMN `monthScoped` INTEGER NOT NULL DEFAULT 0"
                 )
             }
         }

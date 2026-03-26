@@ -9,7 +9,8 @@ internal data class HomeBucketEditorState(
     val bucketUuid: String,
     val name: String,
     val amountText: String,
-    val isSystemDefault: Boolean
+    val isSystemDefault: Boolean,
+    val monthScoped: Boolean = false
 )
 
 internal const val BUCKET_CHANGED_SNACKBAR_MESSAGE = "This bucket changed before your update could be saved."
@@ -36,7 +37,8 @@ internal fun buildExistingHomeBucketDrafts(
                 balanceBehavior = bucket.balanceBehavior,
                 defaultAllocatedAmountCents = effectiveAllocation,
                 sortOrder = bucket.sortOrder,
-                closeRequested = bucket.isClosed
+                closeRequested = bucket.isClosed,
+                monthScoped = bucket.monthScoped
             )
         }
 }
