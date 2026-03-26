@@ -83,8 +83,7 @@ class UpdateBudgetSettingsUseCaseBucketsTest {
                     trackingMode = BucketTrackingMode.CYCLE_RESERVE,
                     balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
                     defaultAllocatedAmountCents = 200_000L,
-                    sortOrder = 1,
-                    isPrimary = false
+                    sortOrder = 1
                 )
             )
         )
@@ -305,8 +304,7 @@ class UpdateBudgetSettingsUseCaseBucketsTest {
                 trackingMode = BucketTrackingMode.CYCLE_RESERVE,
                 balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
                 defaultAllocatedAmountCents = 150_000L,
-                sortOrder = 1,
-                isPrimary = false
+                sortOrder = 1
             )
         )
     }
@@ -320,8 +318,7 @@ class UpdateBudgetSettingsUseCaseBucketsTest {
                 trackingMode = BucketTrackingMode.CYCLE_RESERVE,
                 balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
                 defaultAllocatedAmountCents = 150_000L,
-                sortOrder = 1,
-                isPrimary = false
+                sortOrder = 1
             ),
             BucketDraft(
                 bucketUuid = "travel-bucket",
@@ -329,8 +326,7 @@ class UpdateBudgetSettingsUseCaseBucketsTest {
                 trackingMode = BucketTrackingMode.CYCLE_RESERVE,
                 balanceBehavior = BucketBalanceBehavior.RETAIN_IN_BUCKET,
                 defaultAllocatedAmountCents = 30_000L,
-                sortOrder = 2,
-                isPrimary = false
+                sortOrder = 2
             )
         )
     }
@@ -342,8 +338,7 @@ class UpdateBudgetSettingsUseCaseBucketsTest {
             trackingMode = BucketTrackingMode.DAILY_TARGET,
             balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
             defaultAllocatedAmountCents = 100_000L,
-            sortOrder = 0,
-            isPrimary = true
+            sortOrder = 0
         )
     }
 

@@ -59,7 +59,8 @@ fun PortfolioScreen(
             amountText = CurrencyFormatter.centsToDecimalString(
                 summary?.allocatedThisCycleCents ?: bucket.defaultAllocatedAmountCents
             ),
-            isSystemDefault = bucket.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID
+            isSystemDefault = bucket.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID,
+            monthScoped = bucket.monthScoped
         )
     }
 

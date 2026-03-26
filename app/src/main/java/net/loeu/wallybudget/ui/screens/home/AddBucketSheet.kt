@@ -17,6 +17,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -77,6 +78,7 @@ internal fun AddBucketForm(
 ) {
     var name by rememberSaveable { mutableStateOf("") }
     var amountText by rememberSaveable { mutableStateOf("0.00") }
+    var monthScoped by rememberSaveable { mutableStateOf(false) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
     val allocatedToNamedBucketsCents = bucketSummaries
         .filterNot { it.bucket.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID || it.bucket.isClosed }
@@ -127,6 +129,27 @@ internal fun AddBucketForm(
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Month scoped",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            text = "Shows cycle totals only — no daily pacing.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = monthScoped,
+                        onCheckedChange = { monthScoped = it }
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Button(
@@ -157,11 +180,13 @@ internal fun AddBucketForm(
                                             balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
                                             defaultAllocatedAmountCents = allocationCents,
                                             sortOrder = (existingBuckets.maxOfOrNull { it.sortOrder } ?: -1) + 1,
-                                            closeRequested = false
+                                            closeRequested = false,
+                                            monthScoped = monthScoped
                                         )
                                     )
                                     name = ""
                                     amountText = "0.00"
+                                    monthScoped = false
                                     errorMessage = null
                                 }
                             }
