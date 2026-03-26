@@ -19,11 +19,13 @@ class CurrentCycleBucketAllocationResolver {
         transfers: List<BucketTransfer>
     ): ResolvedCurrentCycleBucketAllocation {
         val baselineAmountCents = baselines
-            .lastOrNull {
+            .asSequence()
+            .filter {
                 it.deletedAtEpochMs == null &&
                     it.bucketUuid == bucketUuid &&
                     it.cycleStart() == cycleStart
             }
+            .maxWithOrNull(compareBy<BucketCycleBaseline> { it.updatedAtEpochMs }.thenBy { it.baselineUuid })
             ?.baselineAmountCents
             ?: fallbackAllocationCents
         val transferDeltaCents = transfers

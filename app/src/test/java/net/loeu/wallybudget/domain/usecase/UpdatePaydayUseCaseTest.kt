@@ -9,6 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
+import java.time.ZoneId
 
 class UpdatePaydayUseCaseTest {
 
@@ -85,6 +86,48 @@ class UpdatePaydayUseCaseTest {
             .first { it.deletedAtEpochMs == null && it.policyUuid !in setOf("policy-1", "policy-2", "policy-3") }
         assertEquals("2026-04-25", newNext.cycleStartDate)
         assertEquals(20, newNext.paydayDayOfMonth)
+    }
+
+    @Test
+    fun invoke_updatePayday_usesMonotonicTimestampWhenDeletingFuturePolicy() = runBlocking {
+        val currentDate = LocalDate.of(2026, 4, 10)
+        val futurePolicyUpdatedAt = currentDate.atTime(15, 30).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val existingFuturePolicy = budgetPolicyEntity(
+            id = 2L,
+            cycleStart = LocalDate.of(2026, 4, 25),
+            cycleEndExclusive = LocalDate.of(2026, 5, 25)
+        ).copy(
+            updatedAtEpochMs = futurePolicyUpdatedAt,
+            modClock = "%013d-%04d-%s".format(futurePolicyUpdatedAt, 0, "test-install-id")
+        )
+        val budgetPolicyDao = FakeBudgetPolicyDao(
+            listOf(
+                budgetPolicyEntity(1L, LocalDate.of(2026, 3, 25), LocalDate.of(2026, 4, 25)),
+                existingFuturePolicy
+            )
+        )
+        val useCase = UpdatePaydayUseCase(
+            transactionRunner = FakeTransactionRunner(),
+            userSettingsStore = FakeUserSettingsStore(
+                UserSettings(
+                    monthlyBudgetCents = 100_000L,
+                    portfolioMonthlyBudgetCents = 100_000L,
+                    paydayDate = 25
+                )
+            ),
+            budgetPolicyDao = budgetPolicyDao,
+            currentDateProvider = FakeCurrentDateProvider(currentDate),
+            cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService()),
+            hybridLogicalClockService = HybridLogicalClockService()
+        )
+
+        useCase(UpdatePaydayRequest(paydayDate = 20))
+
+        val deletedFuturePolicy = budgetPolicyDao.getAllForSnapshot().first { it.policyUuid == "policy-2" }
+        assertTrue(deletedFuturePolicy.deletedAtEpochMs != null)
+        assertEquals(futurePolicyUpdatedAt + 1, deletedFuturePolicy.deletedAtEpochMs)
+        assertEquals(deletedFuturePolicy.deletedAtEpochMs, deletedFuturePolicy.updatedAtEpochMs)
+        assertTrue(deletedFuturePolicy.modClock != existingFuturePolicy.modClock)
     }
 
     @Test
