@@ -108,6 +108,44 @@ class UpdateExpenseUseCaseTest {
         assertEquals(existing.modClock, unchanged.modClock)
     }
 
+    @Test
+    fun invoke_rejectsEditedExpenseWhenPersistedRecordIsNotCurrentDay() = runBlocking {
+        val currentDate = LocalDate.of(2026, 3, 24)
+        val existing = expenseEntity(
+            id = 10L,
+            recordUuid = "expense-4",
+            amountCents = 2_450L,
+            description = "Train ticket",
+            expenseDate = currentDate.minusDays(2).toString(),
+            modClock = "0000000000001-0000-test-install-id"
+        )
+        val expenseDao = FakeExpenseDao(listOf(existing))
+        val useCase = UpdateExpenseUseCase(
+            expenseDao = expenseDao,
+            userSettingsStore = FakeUserSettingsStore(),
+            currentDateProvider = FakeCurrentDateProvider(currentDate),
+            hybridLogicalClockService = HybridLogicalClockService()
+        )
+
+        val exception = try {
+            useCase(
+                existing.toDomainModel().copy(
+                    expenseDate = currentDate.toString(),
+                    description = "Updated train ticket"
+                )
+            )
+            throw AssertionError("Expected ExpenseEditNotAllowedException but none was thrown")
+        } catch (error: ExpenseEditNotAllowedException) {
+            error
+        }
+
+        assertEquals("Only current-day expenses can be edited.", exception.message)
+        val unchanged = requireNotNull(expenseDao.findByRecordUuid("expense-4"))
+        assertEquals(existing.description, unchanged.description)
+        assertEquals(existing.expenseDate, unchanged.expenseDate)
+        assertEquals(existing.modClock, unchanged.modClock)
+    }
+
     private fun expenseEntity(
         id: Long,
         recordUuid: String,
