@@ -15,7 +15,9 @@ data class BudgetBucket(
     val settledCloseCycleEndDateExclusive: String? = null,
     val closedAtEpochMs: Long? = null,
     val deletedAtEpochMs: Long? = null,
-    val modClock: String
+    val modClock: String,
+    /** When true, the bucket displays cycle-total spending only (no daily pacing). */
+    val monthScoped: Boolean = false
 ) {
     @Suppress("UNUSED_PARAMETER")
     constructor(

@@ -37,6 +37,7 @@ internal data class OverviewContentState(
     val spendingForecast: SpendingForecast,
     val onEditTodayExpense: ((Expense) -> Unit)?,
     val isLoading: Boolean,
+    val isBodyLoading: Boolean,
     val headerTitle: String?,
     val headerAnalysisAction: (() -> Unit)?,
     val headerSettingsAction: (() -> Unit)?,
@@ -105,7 +106,7 @@ internal fun OverviewContentLayout(
             density = config.density,
             topContentPaddingPx = headerMetrics.topContentPaddingPx,
             bottomContentPadding = config.bottomContentPadding,
-            isLoading = contentState.isLoading,
+            isLoading = contentState.isBodyLoading,
             onShowForecastDetails = onShowForecastDetails,
             showSpendingDetailsSection = config.showSpendingDetailsSection,
             showTodayExpensesSection = config.showTodayExpensesSection

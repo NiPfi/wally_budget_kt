@@ -34,7 +34,9 @@ data class BudgetBucketEntity(
     val settledCloseCycleEndDateExclusive: String? = null,
     val closedAtEpochMs: Long? = null,
     val deletedAtEpochMs: Long? = null,
-    val modClock: String
+    val modClock: String,
+    @ColumnInfo(defaultValue = "0")
+    val monthScoped: Boolean = false
 ) {
     @Suppress("UNUSED_PARAMETER")
     constructor(
@@ -85,7 +87,8 @@ fun BudgetBucketEntity.toDomainModel(): BudgetBucket {
         settledCloseCycleEndDateExclusive = settledCloseCycleEndDateExclusive,
         closedAtEpochMs = closedAtEpochMs,
         deletedAtEpochMs = deletedAtEpochMs,
-        modClock = modClock
+        modClock = modClock,
+        monthScoped = monthScoped
     )
 }
 
@@ -103,6 +106,7 @@ fun BudgetBucket.toEntity(id: Long = 0L): BudgetBucketEntity {
         settledCloseCycleEndDateExclusive = settledCloseCycleEndDateExclusive,
         closedAtEpochMs = closedAtEpochMs,
         deletedAtEpochMs = deletedAtEpochMs,
-        modClock = modClock
+        modClock = modClock,
+        monthScoped = monthScoped
     )
 }
