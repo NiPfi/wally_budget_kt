@@ -14,8 +14,8 @@ import net.loeu.wallybudget.domain.model.BudgetPolicy
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import net.loeu.wallybudget.domain.service.ResolvedCyclePolicy
+import net.loeu.wallybudget.domain.usecase.internal.deactivateInsertedPolicy
 import net.loeu.wallybudget.domain.usecase.internal.newBudgetPolicy
-import java.time.LocalDate
 
 data class UpdatePaydayRequest(
     val paydayDate: Int
@@ -76,19 +76,12 @@ class UpdatePaydayUseCase(
         futurePolicies: List<BudgetPolicy>
     ) {
         futurePolicies.forEach { policy ->
-            val entity = budgetPolicyDao.findByPolicyUuid(policy.policyUuid) ?: return@forEach
-            val tombstoneEpochMs = maxOf(requestNowEpochMs, entity.updatedAtEpochMs + 1)
-            budgetPolicyDao.update(
-                entity.copy(
-                    deletedAtEpochMs = tombstoneEpochMs,
-                    updatedAtEpochMs = tombstoneEpochMs,
-                    lastModifiedByInstallId = settings.installDeviceId,
-                    modClock = hybridLogicalClockService.next(
-                        entity.modClock,
-                        tombstoneEpochMs,
-                        settings.installDeviceId
-                    )
-                )
+            deactivateInsertedPolicy(
+                budgetPolicyDao = budgetPolicyDao,
+                policy = policy,
+                installDeviceId = settings.installDeviceId,
+                nowEpochMs = requestNowEpochMs,
+                hybridLogicalClockService = hybridLogicalClockService
             )
         }
 
