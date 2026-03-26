@@ -70,118 +70,200 @@ internal fun BucketEditorSheet(
         onDismissRequest = onRequestDismiss,
         sheetState = sheetState
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            BucketEditorHeader(
-                canCloseBucket = canCloseBucket,
-                onRequestClose = { showCloseConfirmation = true }
-            )
-            BucketNameAndAllocationFields(
-                name = name,
-                onNameChange = {
-                    name = it
-                    errorMessage = null
-                },
-                amountText = amountText,
-                onAmountChange = {
-                    if (!editor.isSystemDefault) {
-                        amountText = it
-                    }
-                    errorMessage = null
-                },
-                isAllocationEditable = !editor.isSystemDefault,
-                allocationLabel = if (editor.isSystemDefault) "Computed remainder" else "Cycle allocation",
-                supportingText = if (editor.isSystemDefault) {
-                    "This system bucket always absorbs the leftover portfolio budget after your named buckets."
+        BucketEditorSheetContent(
+            editor = editor,
+            name = name,
+            onNameChange = {
+                name = it
+                errorMessage = null
+            },
+            amountText = amountText,
+            onAmountChange = {
+                if (!editor.isSystemDefault) {
+                    amountText = it
+                }
+                errorMessage = null
+            },
+            monthScoped = monthScoped,
+            onMonthScopedChange = { monthScoped = it },
+            errorMessage = errorMessage,
+            canCloseBucket = canCloseBucket,
+            onRequestClose = { showCloseConfirmation = true },
+            onCancel = {
+                if (isDirty) {
+                    showDiscardConfirmation = true
                 } else {
-                    null
-                },
-                errorMessage = errorMessage
-            )
-            if (!editor.isSystemDefault) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Month scoped",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Text(
-                            text = "Shows cycle totals only — no daily pacing.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = monthScoped,
-                        onCheckedChange = { monthScoped = it }
-                    )
+                    onRequestDismiss()
+                }
+            },
+            onSave = {
+                when (val result = validateBucketEditorSaveRequest(
+                    editor = editor,
+                    name = name,
+                    amountText = amountText,
+                    monthScoped = monthScoped,
+                    allBuckets = allBuckets,
+                    bucketSummaries = bucketSummaries,
+                    portfolioBudgetCents = portfolioBudgetCents
+                )) {
+                    is BucketEditorValidationResult.Invalid -> errorMessage = result.message
+                    is BucketEditorValidationResult.Valid -> onSubmit(result.draft)
                 }
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Button(
-                    onClick = {
-                        if (isDirty) {
-                            showDiscardConfirmation = true
-                        } else {
-                            onRequestDismiss()
-                        }
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Cancel")
-                }
-                Button(
-                    onClick = {
-                        when (val result = validateBucketEditorSaveRequest(
-                            editor = editor,
-                            name = name,
-                            amountText = amountText,
-                            monthScoped = monthScoped,
-                            allBuckets = allBuckets,
-                            bucketSummaries = bucketSummaries,
-                            portfolioBudgetCents = portfolioBudgetCents
-                        )) {
-                            is BucketEditorValidationResult.Invalid -> errorMessage = result.message
-                            is BucketEditorValidationResult.Valid -> onSubmit(result.draft)
-                        }
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Save")
-                }
-            }
-        }
+        )
     }
 
+    BucketEditorConfirmationDialogs(
+        showDiscardConfirmation = showDiscardConfirmation,
+        onDismissDiscardConfirmation = { showDiscardConfirmation = false },
+        onConfirmDiscard = {
+            showDiscardConfirmation = false
+            onRequestDismiss()
+        },
+        showCloseConfirmation = showCloseConfirmation,
+        onDismissCloseConfirmation = { showCloseConfirmation = false },
+        onConfirmClose = {
+            showCloseConfirmation = false
+            onSubmit(
+                buildBucketEditorDraft(
+                    editor = editor,
+                    allBuckets = allBuckets,
+                    name = name,
+                    amountText = amountText,
+                    monthScoped = monthScoped,
+                    closeRequested = true
+                )
+            )
+        }
+    )
+}
+
+@Composable
+private fun BucketEditorSheetContent(
+    editor: HomeBucketEditorState,
+    name: String,
+    onNameChange: (String) -> Unit,
+    amountText: String,
+    onAmountChange: (String) -> Unit,
+    monthScoped: Boolean,
+    onMonthScopedChange: (Boolean) -> Unit,
+    errorMessage: String?,
+    canCloseBucket: Boolean,
+    onRequestClose: () -> Unit,
+    onCancel: () -> Unit,
+    onSave: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        BucketEditorHeader(
+            canCloseBucket = canCloseBucket,
+            onRequestClose = onRequestClose
+        )
+        BucketNameAndAllocationFields(
+            name = name,
+            onNameChange = onNameChange,
+            amountText = amountText,
+            onAmountChange = onAmountChange,
+            isAllocationEditable = !editor.isSystemDefault,
+            allocationLabel = if (editor.isSystemDefault) "Computed remainder" else "Cycle allocation",
+            supportingText = if (editor.isSystemDefault) {
+                "This system bucket always absorbs the leftover portfolio budget after your named buckets."
+            } else {
+                null
+            },
+            errorMessage = errorMessage
+        )
+        if (!editor.isSystemDefault) {
+            MonthScopedToggle(
+                monthScoped = monthScoped,
+                onMonthScopedChange = onMonthScopedChange
+            )
+        }
+        BucketEditorActionRow(
+            onCancel = onCancel,
+            onSave = onSave
+        )
+    }
+}
+
+@Composable
+private fun MonthScopedToggle(
+    monthScoped: Boolean,
+    onMonthScopedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Month scoped",
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Text(
+                text = "Shows cycle totals only — no daily pacing.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(
+            checked = monthScoped,
+            onCheckedChange = onMonthScopedChange
+        )
+    }
+}
+
+@Composable
+private fun BucketEditorActionRow(
+    onCancel: () -> Unit,
+    onSave: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Button(
+            onClick = onCancel,
+            modifier = Modifier.weight(1f)
+        ) {
+            Text("Cancel")
+        }
+        Button(
+            onClick = onSave,
+            modifier = Modifier.weight(1f)
+        ) {
+            Text("Save")
+        }
+    }
+}
+
+@Composable
+private fun BucketEditorConfirmationDialogs(
+    showDiscardConfirmation: Boolean,
+    onDismissDiscardConfirmation: () -> Unit,
+    onConfirmDiscard: () -> Unit,
+    showCloseConfirmation: Boolean,
+    onDismissCloseConfirmation: () -> Unit,
+    onConfirmClose: () -> Unit
+) {
     if (showDiscardConfirmation) {
         AlertDialog(
-            onDismissRequest = { showDiscardConfirmation = false },
+            onDismissRequest = onDismissDiscardConfirmation,
             title = { Text("Discard changes?") },
             text = { Text("Your edits will be lost.") },
             dismissButton = {
-                TextButton(onClick = { showDiscardConfirmation = false }) {
+                TextButton(onClick = onDismissDiscardConfirmation) {
                     Text("Keep editing")
                 }
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDiscardConfirmation = false
-                        onRequestDismiss()
-                    }
-                ) {
+                TextButton(onClick = onConfirmDiscard) {
                     Text("Discard changes")
                 }
             }
@@ -190,7 +272,7 @@ internal fun BucketEditorSheet(
 
     if (showCloseConfirmation) {
         AlertDialog(
-            onDismissRequest = { showCloseConfirmation = false },
+            onDismissRequest = onDismissCloseConfirmation,
             title = { Text("Close bucket?") },
             text = {
                 Text(
@@ -199,26 +281,12 @@ internal fun BucketEditorSheet(
                 )
             },
             dismissButton = {
-                TextButton(onClick = { showCloseConfirmation = false }) {
+                TextButton(onClick = onDismissCloseConfirmation) {
                     Text("Cancel")
                 }
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        showCloseConfirmation = false
-                        onSubmit(
-                            buildBucketEditorDraft(
-                                editor = editor,
-                                allBuckets = allBuckets,
-                                name = name,
-                                amountText = amountText,
-                                monthScoped = monthScoped,
-                                closeRequested = true
-                            )
-                        )
-                    }
-                ) {
+                TextButton(onClick = onConfirmClose) {
                     Text("Close bucket")
                 }
             }
