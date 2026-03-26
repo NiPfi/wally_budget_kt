@@ -9,7 +9,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
-import java.time.ZoneId
 
 class UpdatePaydayUseCaseTest {
 
@@ -33,6 +32,7 @@ class UpdatePaydayUseCaseTest {
             userSettingsStore = settingsStore,
             budgetPolicyDao = budgetPolicyDao,
             currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
+            currentEpochTimeProvider = FakeCurrentEpochTimeProvider(1_000_000L),
             cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService()),
             hybridLogicalClockService = HybridLogicalClockService()
         )
@@ -91,7 +91,8 @@ class UpdatePaydayUseCaseTest {
     @Test
     fun invoke_updatePayday_usesMonotonicTimestampWhenDeletingFuturePolicy() = runBlocking {
         val currentDate = LocalDate.of(2026, 4, 10)
-        val futurePolicyUpdatedAt = currentDate.atTime(15, 30).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val requestNowEpochMs = 1_000_000L
+        val futurePolicyUpdatedAt = requestNowEpochMs + 60_000L
         val existingFuturePolicy = budgetPolicyEntity(
             id = 2L,
             cycleStart = LocalDate.of(2026, 4, 25),
@@ -117,6 +118,7 @@ class UpdatePaydayUseCaseTest {
             ),
             budgetPolicyDao = budgetPolicyDao,
             currentDateProvider = FakeCurrentDateProvider(currentDate),
+            currentEpochTimeProvider = FakeCurrentEpochTimeProvider(requestNowEpochMs),
             cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService()),
             hybridLogicalClockService = HybridLogicalClockService()
         )
@@ -137,6 +139,7 @@ class UpdatePaydayUseCaseTest {
             userSettingsStore = FakeUserSettingsStore(UserSettings(paydayDate = 25)),
             budgetPolicyDao = FakeBudgetPolicyDao(),
             currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
+            currentEpochTimeProvider = FakeCurrentEpochTimeProvider(1_000_000L),
             cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService()),
             hybridLogicalClockService = HybridLogicalClockService()
         )

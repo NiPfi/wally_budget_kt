@@ -8,6 +8,8 @@ import net.loeu.wallybudget.data.local.entity.toDomainModel
 import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.time.CurrentDateProvider
+import net.loeu.wallybudget.data.time.CurrentEpochTimeProvider
+import net.loeu.wallybudget.data.time.SystemCurrentEpochTimeProvider
 import net.loeu.wallybudget.domain.model.BudgetPolicy
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
@@ -28,6 +30,7 @@ class UpdatePaydayUseCase(
     private val userSettingsStore: UserSettingsStore,
     private val budgetPolicyDao: BudgetPolicyDao,
     private val currentDateProvider: CurrentDateProvider,
+    private val currentEpochTimeProvider: CurrentEpochTimeProvider = SystemCurrentEpochTimeProvider(),
     private val cycleScheduleResolver: CycleScheduleResolver,
     private val hybridLogicalClockService: HybridLogicalClockService
 ) {
@@ -53,7 +56,7 @@ class UpdatePaydayUseCase(
                 settings = settings,
                 currentPolicy = currentPolicy,
                 targetPayday = request.paydayDate,
-                requestNowEpochMs = System.currentTimeMillis(),
+                requestNowEpochMs = currentEpochTimeProvider.currentEpochTimeMs(),
                 futurePolicies = policies.filter { it.cycleStart() == currentPolicy.cycleEndExclusive }
             )
         }
