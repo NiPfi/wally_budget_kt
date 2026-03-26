@@ -48,6 +48,7 @@ import net.loeu.wallybudget.ui.screens.expenses.ExpenseItem
 import net.loeu.wallybudget.ui.screens.overview.AnimatedCounter
 import net.loeu.wallybudget.ui.screens.overview.CollapsingSummaryLayout
 import net.loeu.wallybudget.ui.screens.overview.CollapsingSummaryLayoutConfig
+import net.loeu.wallybudget.ui.screens.overview.LoadingExpenseRow
 import net.loeu.wallybudget.ui.screens.overview.LoadingValuePlaceholder
 import net.loeu.wallybudget.ui.screens.overview.LocalCollapsingHeaderIsForMeasurement
 import net.loeu.wallybudget.ui.screens.overview.MergedSummaryHeaderSurface
@@ -108,7 +109,8 @@ internal fun BucketHomePage(
                     onNavigateToAnalysis = onNavigateToAnalysis,
                     showTopRightSettingsAction = showTopRightSettingsAction,
                     onNavigateToSettings = onNavigateToSettings,
-                    modifier = modifier
+                    modifier = modifier,
+                    isLoading = true
                 )
             } else if (
                 placeholderOverview != null &&
@@ -122,7 +124,8 @@ internal fun BucketHomePage(
                     activeCycleExpenseSections = emptyList(),
                     spendingForecast = SpendingForecast(),
                     onEditTodayExpense = null,
-                    isLoading = true,
+                    isLoading = false,
+                    isBodyLoading = true,
                     headerTitle = pageTitle,
                     headerAnalysisAction = onNavigateToAnalysis,
                     headerSettingsAction = if (showTopRightSettingsAction) onNavigateToSettings else null,
@@ -156,7 +159,7 @@ internal fun BucketHomePage(
             onNavigateToSettings = onNavigateToSettings,
             modifier = modifier
         )
-    } else if (selectedBucketOverview.budgetState != null && spendingForecast != null) {
+    } else if (selectedBucketOverview.budgetState != null) {
         OverviewPage(
             modifier = Modifier
                 .then(modifier)
@@ -164,13 +167,14 @@ internal fun BucketHomePage(
             budgetState = selectedBucketOverview.budgetState,
             todayExpenses = selectedBucketOverview.todayExpenses,
             activeCycleExpenseSections = selectedBucketOverview.activeCycleExpenseSections,
-            spendingForecast = spendingForecast,
+            spendingForecast = spendingForecast ?: SpendingForecast(),
             onEditTodayExpense = if (canEditExpenses) {
                 { expense -> onEditExpense(expense) }
             } else {
                 null
             },
             isLoading = isLoadingData,
+            isBodyLoading = isLoadingData || spendingForecast == null,
             headerTitle = pageTitle,
             headerAnalysisAction = onNavigateToAnalysis,
             headerSettingsAction = if (showTopRightSettingsAction) onNavigateToSettings else null,
@@ -442,14 +446,22 @@ private fun ReserveDetailsSection(
 private fun ReserveExpensesSection(
     selectedBucketOverview: SelectedBucketOverview,
     canEditExpenses: Boolean,
-    onEditExpense: (Expense) -> Unit
+    onEditExpense: (Expense) -> Unit,
+    isLoading: Boolean = false
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         SectionHeading("Cycle expenses")
-        if (selectedBucketOverview.activeCycleExpenseSections.isEmpty()) {
+        if (isLoading) {
+            repeat(3) {
+                LoadingExpenseRow()
+                if (it != 2) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
+            }
+        } else if (selectedBucketOverview.activeCycleExpenseSections.isEmpty()) {
             Text(
                 text = "No expenses recorded in this bucket this cycle.",
                 style = MaterialTheme.typography.bodyMedium,
@@ -489,7 +501,8 @@ private fun MonthScopedBucketPage(
     onNavigateToAnalysis: (() -> Unit)?,
     showTopRightSettingsAction: Boolean,
     onNavigateToSettings: (() -> Unit)?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isLoading: Boolean = false
 ) {
     val layoutState = rememberOverviewPageLayoutState(
         defaultCollapsedHeader = false,
@@ -528,7 +541,8 @@ private fun MonthScopedBucketPage(
                     ReserveExpensesSection(
                         selectedBucketOverview = selectedBucketOverview,
                         canEditExpenses = canEditExpenses,
-                        onEditExpense = onEditExpense
+                        onEditExpense = onEditExpense,
+                        isLoading = isLoading
                     )
                 }
             }

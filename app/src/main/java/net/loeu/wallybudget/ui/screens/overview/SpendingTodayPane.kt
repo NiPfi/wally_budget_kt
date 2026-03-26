@@ -150,7 +150,7 @@ private fun TodayExpensesHeader(
 }
 
 @Composable
-private fun LoadingExpenseRow() {
+internal fun LoadingExpenseRow() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
