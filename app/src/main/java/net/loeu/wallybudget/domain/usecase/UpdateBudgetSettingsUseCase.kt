@@ -64,28 +64,9 @@ data class BucketDraft(
     val balanceBehavior: BucketBalanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
     val defaultAllocatedAmountCents: Long,
     val sortOrder: Int,
-    val closeRequested: Boolean = false
-) {
-    @Suppress("UNUSED_PARAMETER")
-    constructor(
-        bucketUuid: String,
-        name: String,
-        trackingMode: BucketTrackingMode,
-        balanceBehavior: BucketBalanceBehavior,
-        defaultAllocatedAmountCents: Long,
-        sortOrder: Int,
-        isPrimary: Boolean,
-        closeRequested: Boolean = false
-    ) : this(
-        bucketUuid = bucketUuid,
-        name = name,
-        trackingMode = trackingMode,
-        balanceBehavior = balanceBehavior,
-        defaultAllocatedAmountCents = defaultAllocatedAmountCents,
-        sortOrder = sortOrder,
-        closeRequested = closeRequested
-    )
-}
+    val closeRequested: Boolean = false,
+    val monthScoped: Boolean = false
+)
 
 data class UpdateBudgetSettingsRequest(
     val portfolioMonthlyBudgetCents: Long,
@@ -377,7 +358,8 @@ class UpdateBudgetSettingsUseCase(
                         balanceBehavior = bucket.balanceBehavior,
                         defaultAllocatedAmountCents = bucket.defaultAllocatedAmountCents,
                         sortOrder = bucket.sortOrder,
-                        closeRequested = bucket.isClosed
+                        closeRequested = bucket.isClosed,
+                        monthScoped = bucket.monthScoped
                     )
                 },
             context = context,
@@ -449,7 +431,8 @@ class UpdateBudgetSettingsUseCase(
             existing.balanceBehavior != draft.balanceBehavior ||
             existing.defaultAllocatedAmountCents != draft.defaultAllocatedAmountCents ||
             existing.sortOrder != draft.sortOrder ||
-            draft.closeRequested != existing.isClosed
+            draft.closeRequested != existing.isClosed ||
+            existing.monthScoped != draft.monthScoped
         }
     }
 
@@ -597,8 +580,6 @@ class UpdateBudgetSettingsUseCase(
             BudgetBucket(
                 bucketUuid = draft.bucketUuid.ifBlank { UUID.randomUUID().toString() },
                 name = draft.name.trim(),
-                trackingMode = draft.trackingMode,
-                balanceBehavior = draft.balanceBehavior,
                 defaultAllocatedAmountCents = draft.defaultAllocatedAmountCents,
                 sortOrder = draft.sortOrder,
                 originInstallId = installId,
@@ -608,7 +589,8 @@ class UpdateBudgetSettingsUseCase(
                 settledCloseCycleEndDateExclusive = null,
                 closedAtEpochMs = null,
                 deletedAtEpochMs = null,
-                modClock = hybridLogicalClockService.format(nowEpochMs, 0, installId)
+                modClock = hybridLogicalClockService.format(nowEpochMs, 0, installId),
+                monthScoped = draft.monthScoped
             ).toEntity()
         )
     }
@@ -638,7 +620,8 @@ class UpdateBudgetSettingsUseCase(
                     previousClock = existing.modClock,
                     nowEpochMs = nowEpochMs,
                     installId = settings.installDeviceId
-                )
+                ),
+                monthScoped = draft.monthScoped
             ).toEntity(id = entity.id)
         )
     }

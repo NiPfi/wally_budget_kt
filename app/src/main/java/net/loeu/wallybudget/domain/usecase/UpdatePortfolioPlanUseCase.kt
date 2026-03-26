@@ -176,7 +176,8 @@ class UpdatePortfolioPlanUseCase(
                         name = bucket.name,
                         defaultAllocatedAmountCents = bucket.defaultAllocatedAmountCents,
                         sortOrder = bucket.sortOrder,
-                        closeRequested = bucket.isClosed
+                        closeRequested = bucket.isClosed,
+                        monthScoped = bucket.monthScoped
                     )
                 },
             context = context,
@@ -240,7 +241,8 @@ class UpdatePortfolioPlanUseCase(
             existing.name != draft.name ||
                 existing.defaultAllocatedAmountCents != draft.defaultAllocatedAmountCents ||
                 existing.sortOrder != draft.sortOrder ||
-                draft.closeRequested != existing.isClosed
+                draft.closeRequested != existing.isClosed ||
+                existing.monthScoped != draft.monthScoped
         }
     }
 
@@ -259,7 +261,8 @@ class UpdatePortfolioPlanUseCase(
                 sortOrder = draft.sortOrder,
                 settledCloseCycleEndDateExclusive = null,
                 closedAtEpochMs = null,
-                deletedAtEpochMs = null
+                deletedAtEpochMs = null,
+                monthScoped = draft.monthScoped
             ) ?: BudgetBucket(
                 bucketUuid = draft.bucketUuid.ifBlank { UUID.randomUUID().toString() },
                 name = draft.name.trim(),
@@ -269,7 +272,8 @@ class UpdatePortfolioPlanUseCase(
                 lastModifiedByInstallId = settings.installDeviceId,
                 createdAtEpochMs = nowEpochMs,
                 updatedAtEpochMs = nowEpochMs,
-                modClock = ""
+                modClock = "",
+                monthScoped = draft.monthScoped
             )
         }
         val finalSelectedBucketUuid = resolveSelectedOpenBucketUuid(settings.selectedBucketUuid, openBuckets)
@@ -366,7 +370,8 @@ class UpdatePortfolioPlanUseCase(
                 settledCloseCycleEndDateExclusive = null,
                 closedAtEpochMs = null,
                 deletedAtEpochMs = null,
-                modClock = hybridLogicalClockService.format(nowEpochMs, 0, installId)
+                modClock = hybridLogicalClockService.format(nowEpochMs, 0, installId),
+                monthScoped = draft.monthScoped
             ).toEntity()
         )
         return bucketUuid
@@ -417,7 +422,8 @@ class UpdatePortfolioPlanUseCase(
                     previousClock = existing.modClock,
                     nowEpochMs = nowEpochMs,
                     installId = settings.installDeviceId
-                )
+                ),
+                monthScoped = draft.monthScoped
             ).toEntity(id = entity.id)
         )
     }

@@ -16,6 +16,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -52,12 +53,13 @@ internal fun BucketEditorSheet(
     val editor = state ?: return
     var name by remember(editor) { mutableStateOf(editor.name) }
     var amountText by remember(editor) { mutableStateOf(editor.amountText) }
+    var monthScoped by remember(editor) { mutableStateOf(editor.monthScoped) }
     var errorMessage by remember(editor) { mutableStateOf<String?>(null) }
     var showDiscardConfirmation by remember(editor) { mutableStateOf(false) }
     var showCloseConfirmation by remember(editor) { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val isDirty = remember(editor, name, amountText) {
-        name != editor.name || amountText != editor.amountText
+    val isDirty = remember(editor, name, amountText, monthScoped) {
+        name != editor.name || amountText != editor.amountText || monthScoped != editor.monthScoped
     }
     val canCloseBucket = remember(editor.bucketUuid, allBuckets) {
         editor.bucketUuid != DEFAULT_SPENDING_BUCKET_UUID &&
@@ -101,6 +103,29 @@ internal fun BucketEditorSheet(
                 },
                 errorMessage = errorMessage
             )
+            if (!editor.isSystemDefault) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Month scoped",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            text = "Shows cycle totals only — no daily pacing.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = monthScoped,
+                        onCheckedChange = { monthScoped = it }
+                    )
+                }
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -123,6 +148,7 @@ internal fun BucketEditorSheet(
                             editor = editor,
                             name = name,
                             amountText = amountText,
+                            monthScoped = monthScoped,
                             allBuckets = allBuckets,
                             bucketSummaries = bucketSummaries,
                             portfolioBudgetCents = portfolioBudgetCents
@@ -187,6 +213,7 @@ internal fun BucketEditorSheet(
                                 allBuckets = allBuckets,
                                 name = name,
                                 amountText = amountText,
+                                monthScoped = monthScoped,
                                 closeRequested = true
                             )
                         )
@@ -247,6 +274,7 @@ private fun validateBucketEditorSaveRequest(
     editor: HomeBucketEditorState,
     name: String,
     amountText: String,
+    monthScoped: Boolean,
     allBuckets: List<BudgetBucket>,
     bucketSummaries: List<BucketSummaryState>,
     portfolioBudgetCents: Long
@@ -276,6 +304,7 @@ private fun validateBucketEditorSaveRequest(
                 allBuckets = allBuckets,
                 name = name,
                 amountText = amountText,
+                monthScoped = monthScoped,
                 closeRequested = false
             )
         )
@@ -287,6 +316,7 @@ private fun buildBucketEditorDraft(
     allBuckets: List<BudgetBucket>,
     name: String,
     amountText: String,
+    monthScoped: Boolean,
     closeRequested: Boolean
 ): BucketDraft {
     val latestBucket = allBuckets.firstOrNull { it.bucketUuid == editor.bucketUuid }
@@ -301,6 +331,7 @@ private fun buildBucketEditorDraft(
             CurrencyFormatter.parseAmountToCents(amountText) ?: 0L
         },
         sortOrder = latestBucket?.sortOrder ?: 0,
-        closeRequested = closeRequested
+        closeRequested = closeRequested,
+        monthScoped = if (editor.isSystemDefault) false else monthScoped
     )
 }
