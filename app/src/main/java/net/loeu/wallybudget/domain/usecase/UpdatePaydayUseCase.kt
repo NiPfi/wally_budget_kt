@@ -8,13 +8,14 @@ import net.loeu.wallybudget.data.local.entity.toDomainModel
 import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.time.CurrentDateProvider
+import net.loeu.wallybudget.data.time.CurrentEpochTimeProvider
+import net.loeu.wallybudget.data.time.SystemCurrentEpochTimeProvider
 import net.loeu.wallybudget.domain.model.BudgetPolicy
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import net.loeu.wallybudget.domain.service.ResolvedCyclePolicy
 import net.loeu.wallybudget.domain.usecase.internal.newBudgetPolicy
 import java.time.LocalDate
-import java.time.ZoneId
 
 data class UpdatePaydayRequest(
     val paydayDate: Int
@@ -29,6 +30,7 @@ class UpdatePaydayUseCase(
     private val userSettingsStore: UserSettingsStore,
     private val budgetPolicyDao: BudgetPolicyDao,
     private val currentDateProvider: CurrentDateProvider,
+    private val currentEpochTimeProvider: CurrentEpochTimeProvider = SystemCurrentEpochTimeProvider(),
     private val cycleScheduleResolver: CycleScheduleResolver,
     private val hybridLogicalClockService: HybridLogicalClockService
 ) {
@@ -54,7 +56,7 @@ class UpdatePaydayUseCase(
                 settings = settings,
                 currentPolicy = currentPolicy,
                 targetPayday = request.paydayDate,
-                today = today,
+                requestNowEpochMs = currentEpochTimeProvider.currentEpochTimeMs(),
                 futurePolicies = policies.filter { it.cycleStart() == currentPolicy.cycleEndExclusive }
             )
         }
@@ -70,18 +72,22 @@ class UpdatePaydayUseCase(
         settings: net.loeu.wallybudget.domain.model.UserSettings,
         currentPolicy: ResolvedCyclePolicy,
         targetPayday: Int,
-        today: LocalDate,
+        requestNowEpochMs: Long,
         futurePolicies: List<BudgetPolicy>
     ) {
-        val nowEpochMs = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         futurePolicies.forEach { policy ->
             val entity = budgetPolicyDao.findByPolicyUuid(policy.policyUuid) ?: return@forEach
+            val tombstoneEpochMs = maxOf(requestNowEpochMs, entity.updatedAtEpochMs + 1)
             budgetPolicyDao.update(
                 entity.copy(
-                    deletedAtEpochMs = nowEpochMs,
-                    updatedAtEpochMs = nowEpochMs,
+                    deletedAtEpochMs = tombstoneEpochMs,
+                    updatedAtEpochMs = tombstoneEpochMs,
                     lastModifiedByInstallId = settings.installDeviceId,
-                    modClock = hybridLogicalClockService.next(entity.modClock, nowEpochMs, settings.installDeviceId)
+                    modClock = hybridLogicalClockService.next(
+                        entity.modClock,
+                        tombstoneEpochMs,
+                        settings.installDeviceId
+                    )
                 )
             )
         }
@@ -99,7 +105,7 @@ class UpdatePaydayUseCase(
                 budgetAmountCents = settings.resolvedPortfolioMonthlyBudgetCents,
                 paydayDayOfMonth = targetPayday,
                 installId = settings.installDeviceId,
-                nowEpochMs = nowEpochMs,
+                nowEpochMs = requestNowEpochMs,
                 hybridLogicalClockService = hybridLogicalClockService
             ).toEntity()
         )

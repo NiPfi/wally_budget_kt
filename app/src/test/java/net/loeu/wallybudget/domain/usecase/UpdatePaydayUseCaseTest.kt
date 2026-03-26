@@ -32,6 +32,7 @@ class UpdatePaydayUseCaseTest {
             userSettingsStore = settingsStore,
             budgetPolicyDao = budgetPolicyDao,
             currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
+            currentEpochTimeProvider = FakeCurrentEpochTimeProvider(1_000_000L),
             cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService()),
             hybridLogicalClockService = HybridLogicalClockService()
         )
@@ -88,12 +89,57 @@ class UpdatePaydayUseCaseTest {
     }
 
     @Test
+    fun invoke_updatePayday_usesMonotonicTimestampWhenDeletingFuturePolicy() = runBlocking {
+        val currentDate = LocalDate.of(2026, 4, 10)
+        val requestNowEpochMs = 1_000_000L
+        val futurePolicyUpdatedAt = requestNowEpochMs + 60_000L
+        val existingFuturePolicy = budgetPolicyEntity(
+            id = 2L,
+            cycleStart = LocalDate.of(2026, 4, 25),
+            cycleEndExclusive = LocalDate.of(2026, 5, 25)
+        ).copy(
+            updatedAtEpochMs = futurePolicyUpdatedAt,
+            modClock = "%013d-%04d-%s".format(futurePolicyUpdatedAt, 0, "test-install-id")
+        )
+        val budgetPolicyDao = FakeBudgetPolicyDao(
+            listOf(
+                budgetPolicyEntity(1L, LocalDate.of(2026, 3, 25), LocalDate.of(2026, 4, 25)),
+                existingFuturePolicy
+            )
+        )
+        val useCase = UpdatePaydayUseCase(
+            transactionRunner = FakeTransactionRunner(),
+            userSettingsStore = FakeUserSettingsStore(
+                UserSettings(
+                    monthlyBudgetCents = 100_000L,
+                    portfolioMonthlyBudgetCents = 100_000L,
+                    paydayDate = 25
+                )
+            ),
+            budgetPolicyDao = budgetPolicyDao,
+            currentDateProvider = FakeCurrentDateProvider(currentDate),
+            currentEpochTimeProvider = FakeCurrentEpochTimeProvider(requestNowEpochMs),
+            cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService()),
+            hybridLogicalClockService = HybridLogicalClockService()
+        )
+
+        useCase(UpdatePaydayRequest(paydayDate = 20))
+
+        val deletedFuturePolicy = budgetPolicyDao.getAllForSnapshot().first { it.policyUuid == "policy-2" }
+        assertTrue(deletedFuturePolicy.deletedAtEpochMs != null)
+        assertEquals(futurePolicyUpdatedAt + 1, deletedFuturePolicy.deletedAtEpochMs)
+        assertEquals(deletedFuturePolicy.deletedAtEpochMs, deletedFuturePolicy.updatedAtEpochMs)
+        assertTrue(deletedFuturePolicy.modClock != existingFuturePolicy.modClock)
+    }
+
+    @Test
     fun invoke_returnsNoOpWhenPaydayIsUnchanged() = runBlocking {
         val useCase = UpdatePaydayUseCase(
             transactionRunner = FakeTransactionRunner(),
             userSettingsStore = FakeUserSettingsStore(UserSettings(paydayDate = 25)),
             budgetPolicyDao = FakeBudgetPolicyDao(),
             currentDateProvider = FakeCurrentDateProvider(LocalDate.of(2026, 4, 10)),
+            currentEpochTimeProvider = FakeCurrentEpochTimeProvider(1_000_000L),
             cycleScheduleResolver = CycleScheduleResolver(BudgetCalculationService()),
             hybridLogicalClockService = HybridLogicalClockService()
         )

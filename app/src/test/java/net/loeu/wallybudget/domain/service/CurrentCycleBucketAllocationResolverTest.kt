@@ -87,8 +87,45 @@ class CurrentCycleBucketAllocationResolverTest {
         assertEquals(125_000L, closingAllocation.effectiveAllocationCents)
     }
 
-    private fun baseline(bucketUuid: String, amountCents: Long) = BucketCycleBaseline(
-        baselineUuid = "$bucketUuid-baseline",
+    @Test
+    fun resolve_prefersNewestMatchingBaselineRegardlessOfInputOrder() {
+        val allocation = resolver.resolve(
+            bucketUuid = "bills",
+            cycleStart = cycleStart,
+            fallbackAllocationCents = 0L,
+            baselines = listOf(
+                baseline("bills", 225_000L, baselineUuid = "newer", updatedAtEpochMs = 20L),
+                baseline("bills", 150_000L, baselineUuid = "older", updatedAtEpochMs = 10L)
+            ),
+            transfers = emptyList()
+        )
+
+        assertEquals(225_000L, allocation.baselineAmountCents)
+    }
+
+    @Test
+    fun resolve_breaksUpdatedAtTiesByBaselineUuid() {
+        val allocation = resolver.resolve(
+            bucketUuid = "bills",
+            cycleStart = cycleStart,
+            fallbackAllocationCents = 0L,
+            baselines = listOf(
+                baseline("bills", 150_000L, baselineUuid = "baseline-a", updatedAtEpochMs = 10L),
+                baseline("bills", 175_000L, baselineUuid = "baseline-z", updatedAtEpochMs = 10L)
+            ),
+            transfers = emptyList()
+        )
+
+        assertEquals(175_000L, allocation.baselineAmountCents)
+    }
+
+    private fun baseline(
+        bucketUuid: String,
+        amountCents: Long,
+        baselineUuid: String = "$bucketUuid-baseline",
+        updatedAtEpochMs: Long = 1L
+    ) = BucketCycleBaseline(
+        baselineUuid = baselineUuid,
         bucketUuid = bucketUuid,
         cycleStartDate = cycleStart.toString(),
         cycleEndDateExclusive = cycleStart.plusMonths(1).toString(),
@@ -96,7 +133,7 @@ class CurrentCycleBucketAllocationResolverTest {
         originInstallId = "test-install-id",
         lastModifiedByInstallId = "test-install-id",
         createdAtEpochMs = 1L,
-        updatedAtEpochMs = 1L,
+        updatedAtEpochMs = updatedAtEpochMs,
         modClock = "0000000000001-0000-test-install-id"
     )
 

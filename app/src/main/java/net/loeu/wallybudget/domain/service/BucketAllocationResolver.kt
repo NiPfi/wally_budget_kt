@@ -3,7 +3,6 @@ package net.loeu.wallybudget.domain.service
 import net.loeu.wallybudget.domain.model.BucketAllocationAdjustment
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
-import kotlin.math.roundToLong
 
 data class ResolvedBucketAllocation(
     val effectiveCycleAllocationCents: Long,
@@ -29,13 +28,20 @@ class BucketAllocationResolver {
             adjustments = adjustments
         )
         val effectiveCycleAllocationCents = segments.sumOf { it.segmentAllocationCents }
-        val allocatedBeforeDateCents = segments.sumOf { segment ->
-            segment.allocatedBefore(normalizedToday)
-        }
-        val plannedTodayAllocationCents = segments.firstOrNull { segment ->
+        val allocatedBeforeDateCents = allocatedBeforeDate(segments, normalizedToday)
+        val activeSegment = segments.firstOrNull { segment ->
             !normalizedToday.isBefore(segment.start) && normalizedToday.isBefore(segment.endExclusive)
-        }?.dailyAllocationCents ?: 0L
-        val effectiveRecurringAllocationCents = segments.lastOrNull()?.allocatedAmountCents ?: baseAllocatedAmountCents
+        }
+        val plannedTodayAllocationCents = if (activeSegment == null) {
+            0L
+        } else {
+            allocatedBeforeDate(
+                segments,
+                minOf(normalizedToday.plusDays(1), cycleEndExclusive)
+            ) - allocatedBeforeDateCents
+        }
+        val effectiveRecurringAllocationCents =
+            segments.lastOrNull()?.allocatedAmountCents ?: baseAllocatedAmountCents
 
         return ResolvedBucketAllocation(
             effectiveCycleAllocationCents = effectiveCycleAllocationCents,
@@ -71,6 +77,13 @@ class BucketAllocationResolver {
             .lastOrNull { !normalizedDate.isBefore(it.start) }
             ?.allocatedAmountCents
             ?: baseAllocatedAmountCents
+    }
+
+    private fun allocatedBeforeDate(
+        segments: List<BucketAllocationSegment>,
+        date: LocalDate
+    ): Long {
+        return segments.sumOf { segment -> segment.allocatedBefore(date) }
     }
 
     private fun segmentsForCycle(
@@ -137,14 +150,16 @@ private data class BucketAllocationSegment(
 ) {
     private val days: Int = ChronoUnit.DAYS.between(start, endExclusive).toInt().coerceAtLeast(1)
 
-    val dailyAllocationCents: Long = (allocatedAmountCents.toDouble() / fullCycleDays).roundToLong()
-
-    val segmentAllocationCents: Long = ((allocatedAmountCents.toDouble() * days) / fullCycleDays).roundToLong()
+    val segmentAllocationCents: Long = proportionalAllocation(days)
 
     fun allocatedBefore(date: LocalDate): Long {
         if (!date.isAfter(start)) return 0L
         val coveredDays = ChronoUnit.DAYS.between(start, minOf(date, endExclusive)).toInt().coerceAtLeast(0)
-        return ((allocatedAmountCents.toDouble() * coveredDays) / fullCycleDays).roundToLong()
+        return proportionalAllocation(coveredDays)
+    }
+
+    private fun proportionalAllocation(coveredDays: Int): Long {
+        return Math.floorDiv(allocatedAmountCents * coveredDays.toLong(), fullCycleDays.toLong())
     }
 }
 
