@@ -12,6 +12,7 @@ import net.loeu.wallybudget.data.snapshot.SnapshotCompatibilityService
 import net.loeu.wallybudget.data.snapshot.SnapshotHasher
 import net.loeu.wallybudget.data.snapshot.SnapshotJsonCodec
 import net.loeu.wallybudget.data.time.SystemCurrentDateProvider
+import net.loeu.wallybudget.data.time.SystemCurrentEpochTimeProvider
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BucketAllocationResolver
@@ -262,6 +263,7 @@ class BudgetViewModelFactory(
             userSettingsStore = userPreferencesManager,
             budgetPolicyDao = budgetPolicyDao,
             currentDateProvider = currentDateProvider,
+            currentEpochTimeProvider = SystemCurrentEpochTimeProvider(),
             cycleScheduleResolver = cycleScheduleResolver,
             hybridLogicalClockService = hybridLogicalClockService
         )

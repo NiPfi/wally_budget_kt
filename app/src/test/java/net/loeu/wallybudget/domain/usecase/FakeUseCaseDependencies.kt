@@ -33,6 +33,7 @@ import net.loeu.wallybudget.data.local.querymodel.BucketSpendRow
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.local.querymodel.ExpenseDayTotalRow
 import net.loeu.wallybudget.data.time.CurrentDateProvider
+import net.loeu.wallybudget.data.time.CurrentEpochTimeProvider
 import net.loeu.wallybudget.domain.model.PendingPaydayUndo
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
@@ -170,6 +171,16 @@ internal class FakeCurrentDateProvider(
 
     fun setCurrentDate(date: LocalDate) {
         currentDateFlow.value = date
+    }
+}
+
+internal class FakeCurrentEpochTimeProvider(
+    private var currentEpochTimeMs: Long
+) : CurrentEpochTimeProvider {
+    override fun currentEpochTimeMs(): Long = currentEpochTimeMs
+
+    fun setCurrentEpochTimeMs(value: Long) {
+        currentEpochTimeMs = value
     }
 }
 
