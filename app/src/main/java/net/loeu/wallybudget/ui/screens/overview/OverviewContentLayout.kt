@@ -242,7 +242,7 @@ private fun OverviewBodyContent(
 }
 
 @Composable
-private fun OverviewSectionBlock(
+internal fun OverviewSectionBlock(
     modifier: Modifier = Modifier,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit
 ) {

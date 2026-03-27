@@ -41,11 +41,12 @@ import net.loeu.wallybudget.ui.screens.expenses.ExpenseItem
 import net.loeu.wallybudget.ui.screens.overview.AnimatedCounter
 import net.loeu.wallybudget.ui.screens.overview.CollapsingSummaryLayout
 import net.loeu.wallybudget.ui.screens.overview.CollapsingSummaryLayoutConfig
-import net.loeu.wallybudget.ui.screens.overview.LoadingExpenseRow
+import net.loeu.wallybudget.ui.screens.overview.LoadingExpenseList
 import net.loeu.wallybudget.ui.screens.overview.LoadingValuePlaceholder
 import net.loeu.wallybudget.ui.screens.overview.LocalCollapsingHeaderIsForMeasurement
 import net.loeu.wallybudget.ui.screens.overview.MergedSummaryHeaderSurface
 import net.loeu.wallybudget.ui.screens.overview.OverviewPage
+import net.loeu.wallybudget.ui.screens.overview.OverviewSectionBlock
 import net.loeu.wallybudget.ui.screens.overview.PlaceholderShimmerProvider
 import net.loeu.wallybudget.ui.screens.overview.rememberOverviewPageLayoutState
 import net.loeu.wallybudget.ui.screens.overview.summaryCardColors
@@ -201,12 +202,12 @@ internal fun BucketHomePage(
                 verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
                 item {
-                    OverviewLikeSection {
+                    OverviewSectionBlock {
                         ReserveDetailsSection(selectedBucketOverview = selectedBucketOverview)
                     }
                 }
                 item {
-                    OverviewLikeSection {
+                    OverviewSectionBlock {
                         ReserveExpensesSection(
                             selectedBucketOverview = selectedBucketOverview,
                             canEditExpenses = canEditExpenses,
@@ -444,12 +445,7 @@ private fun ReserveExpensesSection(
     ) {
         SectionHeading("Cycle expenses")
         if (isLoading) {
-            repeat(3) {
-                LoadingExpenseRow()
-                if (it != 2) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                }
-            }
+            LoadingExpenseList()
         } else if (selectedBucketOverview.activeCycleExpenseSections.isEmpty()) {
             Text(
                 text = "No expenses recorded in this bucket this cycle.",
@@ -520,12 +516,12 @@ private fun MonthScopedBucketPage(
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             item {
-                OverviewLikeSection {
+                OverviewSectionBlock {
                     CycleBudgetProgressSection(selectedBucketOverview = selectedBucketOverview)
                 }
             }
             item {
-                OverviewLikeSection {
+                OverviewSectionBlock {
                     ReserveExpensesSection(
                         selectedBucketOverview = selectedBucketOverview,
                         canEditExpenses = canEditExpenses,
@@ -821,19 +817,6 @@ private fun CycleBudgetProgressFallback(summary: BucketSummaryState) {
         PlainMetricRow("Allocated", CurrencyFormatter.format(summary.allocatedThisCycleCents))
         PlainMetricRow("Spent", CurrencyFormatter.format(summary.spentThisCycleCents))
         PlainMetricRow("Remaining", CurrencyFormatter.formatSigned(summary.remainingThisCycleCents))
-    }
-}
-
-@Composable
-private fun OverviewLikeSection(
-    content: @Composable () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp)
-    ) {
-        content()
     }
 }
 

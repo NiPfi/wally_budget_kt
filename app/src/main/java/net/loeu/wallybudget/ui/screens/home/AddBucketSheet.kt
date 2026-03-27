@@ -17,7 +17,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -127,27 +126,10 @@ internal fun AddBucketForm(
                     supportingText = null,
                     errorMessage = errorMessage
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Month scoped",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Text(
-                            text = "Shows cycle totals only — no daily pacing.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = monthScoped,
-                        onCheckedChange = { monthScoped = it }
-                    )
-                }
+                MonthScopedToggle(
+                    monthScoped = monthScoped,
+                    onMonthScopedChange = { monthScoped = it }
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
