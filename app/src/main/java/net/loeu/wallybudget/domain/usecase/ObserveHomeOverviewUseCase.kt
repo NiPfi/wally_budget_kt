@@ -364,7 +364,7 @@ private fun buildSelectedBucketOverview(
         },
         isEditable = true,
         today = today
-    )
+    ).filter { it.expenses.isNotEmpty() }
     return SelectedBucketOverview(
         bucket = selectedBucket,
         summary = selectedBucketSummary,
