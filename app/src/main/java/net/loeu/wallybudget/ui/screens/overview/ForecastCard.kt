@@ -25,6 +25,8 @@ import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.config.ForecastConfig
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.ui.CurrencyPlaceholderSamples
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 
 @Composable
 fun ForecastCard(
@@ -40,6 +42,10 @@ fun ForecastCard(
         isLowConfidence -> "Low confidence forecast"
         else -> "Forecast confidence normal"
     }
+
+    val daysElapsed = ChronoUnit.DAYS.between(budgetState.cycleStartDate, LocalDate.now()).toInt()
+        .coerceAtLeast(0)
+    val totalDaysInCycle = daysElapsed + budgetState.daysRemainingInCycle
 
     Column(
         modifier = modifier
@@ -58,14 +64,15 @@ fun ForecastCard(
             spendingForecast = spendingForecast,
             isLoading = isLoading
         )
-
-        ForecastRangeIndicator(
+        ForecastProjectionChart(
+            totalSpentCents = budgetState.totalSpentThisCycleCents,
+            daysElapsed = daysElapsed,
+            totalDaysInCycle = totalDaysInCycle,
+            budgetLimitCents = budgetState.monthlyBudgetCents,
+            projectedCents = spendingForecast.projectedTotalSpentCents,
             lowerBoundCents = spendingForecast.lowerBoundCents,
             upperBoundCents = spendingForecast.upperBoundCents,
-            projectedCents = spendingForecast.projectedTotalSpentCents,
-            budgetLimitCents = budgetState.monthlyBudgetCents,
             isLoading = isLoading,
-            scale = 1f
         )
     }
 }
