@@ -19,12 +19,19 @@ fun resolveAdbExecutable(): String {
         }
     }
 
+    fun expandHomePath(path: String): String = when {
+        path == "~" -> System.getProperty("user.home")
+        path.startsWith("~/") -> System.getProperty("user.home") + path.substring(1)
+        else -> path
+    }
+
     val sdkDir = sequenceOf(
         localProperties.getProperty("sdk.dir"),
         System.getenv("ANDROID_SDK_ROOT"),
         System.getenv("ANDROID_HOME")
     )
         .filterNotNull()
+        .map(::expandHomePath)
         .map { path -> File(path) }
         .firstOrNull { it.exists() }
         ?: throw org.gradle.api.GradleException(
