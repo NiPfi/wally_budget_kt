@@ -6,6 +6,7 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.detekt)
 }
@@ -208,6 +209,7 @@ dependencies {
     implementation(libs.androidx.compose.adaptive.navigation.suite)
     implementation(libs.androidx.appcompat)
     implementation(libs.gson)
+    implementation(libs.kotlinx.serialization.json)
 
     // Room
     implementation(libs.androidx.room.runtime)
@@ -215,6 +217,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     // DataStore
+    implementation(libs.androidx.datastore)
     implementation(libs.androidx.datastore.preferences)
 
     // Navigation
