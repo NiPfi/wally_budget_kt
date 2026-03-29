@@ -230,6 +230,7 @@ fun HomeScreen(
                     BucketHomePage(
                         selectedBucketOverview = selectedBucketOverview,
                         spendingForecast = spendingForecast,
+                        effectiveCurrentDate = currentDate,
                         bucketUuid = pageBucketUuid,
                         pageTitle = orderedOpenSummaries.firstOrNull { it.bucket.bucketUuid == pageBucketUuid }?.bucket?.name
                             ?: "Bucket",

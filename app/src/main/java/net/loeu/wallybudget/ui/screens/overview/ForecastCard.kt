@@ -28,10 +28,20 @@ import net.loeu.wallybudget.ui.CurrencyPlaceholderSamples
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
+internal fun calculateForecastCycleProgress(
+    budgetState: BudgetState,
+    effectiveCurrentDate: LocalDate,
+): Pair<Int, Int> {
+    val daysElapsed = ChronoUnit.DAYS.between(budgetState.cycleStartDate, effectiveCurrentDate).toInt()
+        .coerceAtLeast(0)
+    return daysElapsed to (daysElapsed + budgetState.daysRemainingInCycle)
+}
+
 @Composable
 fun ForecastCard(
     spendingForecast: SpendingForecast,
     budgetState: BudgetState,
+    effectiveCurrentDate: LocalDate,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     isLoading: Boolean = false
@@ -43,9 +53,10 @@ fun ForecastCard(
         else -> "Forecast confidence normal"
     }
 
-    val daysElapsed = ChronoUnit.DAYS.between(budgetState.cycleStartDate, LocalDate.now()).toInt()
-        .coerceAtLeast(0)
-    val totalDaysInCycle = daysElapsed + budgetState.daysRemainingInCycle
+    val (daysElapsed, totalDaysInCycle) = calculateForecastCycleProgress(
+        budgetState = budgetState,
+        effectiveCurrentDate = effectiveCurrentDate,
+    )
 
     Column(
         modifier = modifier

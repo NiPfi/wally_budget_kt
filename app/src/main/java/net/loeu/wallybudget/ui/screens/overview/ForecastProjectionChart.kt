@@ -33,8 +33,9 @@ private const val CHART_HEIGHT_DP = 108
 private const val BOTTOM_PAD_DP = 22
 private const val ANIM_DURATION_MS = 1400
 private const val TOP_MARGIN_RATIO = 1.10
+private const val MIN_VISUALIZATION_MAX_CENTS = 1.0
 
-private data class ChartLayout(
+internal data class ChartLayout(
     val chartW: Float,
     val chartH: Float,
     val todayX: Float,
@@ -58,7 +59,7 @@ private data class ChartColors(
     val labelSecondary: Color,
 )
 
-private data class ChartParams(
+internal data class ChartParams(
     val totalDays: Int,
     val daysElapsed: Int,
     val budgetCents: Long,
@@ -90,15 +91,16 @@ private fun chartColors(isOverBudget: Boolean): ChartColors {
     )
 }
 
-private fun computeChartLayout(params: ChartParams, chartW: Float, chartH: Float): ChartLayout {
+internal fun computeChartLayout(params: ChartParams, chartW: Float, chartH: Float): ChartLayout {
     val maxAmount = maxOf(params.budgetCents, params.upperBoundCents, params.totalSpentCents, params.projectedCents)
-    val maxCents = maxAmount.toDouble() * TOP_MARGIN_RATIO
+    val maxCents = maxOf(maxAmount.toDouble() * TOP_MARGIN_RATIO, MIN_VISUALIZATION_MAX_CENTS)
+    val inclusiveTodayDayIndex = (params.daysElapsed + 1).coerceAtMost(params.totalDays)
     fun dayToX(day: Int): Float = (day.toFloat() / params.totalDays) * chartW
     fun centsToY(cents: Long): Float = (chartH * (1.0 - cents.toDouble() / maxCents)).toFloat()
     return ChartLayout(
         chartW = chartW,
         chartH = chartH,
-        todayX = dayToX(params.daysElapsed),
+        todayX = dayToX(inclusiveTodayDayIndex),
         budgetY = centsToY(params.budgetCents),
         spentY = centsToY(params.totalSpentCents),
         projectedEndY = centsToY(params.projectedCents),
@@ -189,7 +191,10 @@ private fun DrawScope.drawBudgetLine(layout: ChartLayout, color: Color) {
         start = Offset(0f, layout.budgetY),
         end = Offset(layout.chartW, layout.budgetY),
         strokeWidth = 1.dp.toPx(),
-        pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 5f), 0f),
+        pathEffect = PathEffect.dashPathEffect(
+            intervals = floatArrayOf(8.dp.toPx(), 5.dp.toPx()),
+            phase = 0f,
+        ),
     )
 }
 
@@ -204,8 +209,14 @@ private fun DrawScope.drawHistorical(layout: ChartLayout, color: Color) {
 }
 
 private fun DrawScope.drawProjection(layout: ChartLayout, colors: ChartColors) {
-    val shortDash = PathEffect.dashPathEffect(floatArrayOf(5f, 5f), 0f)
-    val longDash = PathEffect.dashPathEffect(floatArrayOf(10f, 6f), 0f)
+    val shortDash = PathEffect.dashPathEffect(
+        intervals = floatArrayOf(5.dp.toPx(), 5.dp.toPx()),
+        phase = 0f,
+    )
+    val longDash = PathEffect.dashPathEffect(
+        intervals = floatArrayOf(10.dp.toPx(), 6.dp.toPx()),
+        phase = 0f,
+    )
     val origin = Offset(layout.todayX, layout.spentY)
     drawLine(
         color = colors.lowerBound,
@@ -239,7 +250,10 @@ private fun DrawScope.drawTodayMarker(layout: ChartLayout, color: Color) {
         start = Offset(layout.todayX, 0f),
         end = Offset(layout.todayX, layout.chartH),
         strokeWidth = 1.dp.toPx(),
-        pathEffect = PathEffect.dashPathEffect(floatArrayOf(3f, 3f), 0f),
+        pathEffect = PathEffect.dashPathEffect(
+            intervals = floatArrayOf(3.dp.toPx(), 3.dp.toPx()),
+            phase = 0f,
+        ),
     )
 }
 
@@ -264,8 +278,12 @@ private fun DrawScope.drawChartLabels(
     drawText(startResult, color = colors.labelSecondary, topLeft = Offset(0f, yAxis))
 
     val todayResult = measurer.measure("Today", style)
+    val minTodayLabelX = startResult.size.width.toFloat() + 4.dp.toPx()
+    val maxTodayLabelX = layout.chartW - todayResult.size.width
+    val safeMinTodayLabelX = minOf(minTodayLabelX, maxTodayLabelX)
+    val safeMaxTodayLabelX = maxOf(minTodayLabelX, maxTodayLabelX)
     val todayLabelX = (layout.todayX - todayResult.size.width / 2f)
-        .coerceIn(startResult.size.width.toFloat() + 4.dp.toPx(), layout.chartW - todayResult.size.width)
+        .coerceIn(safeMinTodayLabelX, safeMaxTodayLabelX)
     drawText(todayResult, color = colors.labelSecondary, topLeft = Offset(todayLabelX, yAxis))
 
     val endResult = measurer.measure("Day ${params.totalDays}", style)
