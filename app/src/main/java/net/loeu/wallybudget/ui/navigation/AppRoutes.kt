@@ -29,10 +29,11 @@ object CycleCloseoutReviewRoute
 
 internal data class TopLevelDestination(
     val route: Any,
-    val routeClass: KClass<out Any>,
     val iconRes: Int,
     val label: String
-)
+) {
+    val routeClass: KClass<out Any> = route::class
+}
 
 internal enum class NavigationChromeDestination {
     Analysis,
@@ -43,19 +44,16 @@ internal enum class NavigationChromeDestination {
 internal val primaryTopLevelDestinations = listOf(
     TopLevelDestination(
         route = HomeRoute,
-        routeClass = HomeRoute::class,
         iconRes = R.drawable.ic_money_bag,
         label = BUCKETS_NAVIGATION_LABEL
     ),
     TopLevelDestination(
         route = PortfolioRoute,
-        routeClass = PortfolioRoute::class,
         iconRes = R.drawable.ic_finance,
         label = "Portfolio"
     ),
     TopLevelDestination(
         route = HistoryRoute,
-        routeClass = HistoryRoute::class,
         iconRes = R.drawable.ic_history,
         label = "History"
     )
@@ -63,7 +61,6 @@ internal val primaryTopLevelDestinations = listOf(
 
 internal val settingsTopLevelDestination = TopLevelDestination(
     route = SettingsRoute,
-    routeClass = SettingsRoute::class,
     iconRes = R.drawable.ic_settings,
     label = "Settings"
 )
