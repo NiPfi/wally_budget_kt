@@ -13,3 +13,4 @@ local.properties
 .plans/
 .claude/
 .agents/
+.vscode/settings.json
