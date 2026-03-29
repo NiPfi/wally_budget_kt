@@ -54,6 +54,7 @@ class HomeOverviewOrderTest {
                         paydayDate = 1,
                         cycleStartDate = today.minusDays(12)
                     ),
+                    effectiveCurrentDate = today,
                     todayExpenses = listOf(todayExpense),
                     activeCycleExpenseSections = listOf(
                         ExpenseDaySection(
@@ -113,6 +114,7 @@ class HomeOverviewOrderTest {
                         paydayDate = 1,
                         cycleStartDate = today.minusDays(12)
                     ),
+                    effectiveCurrentDate = today,
                     todayExpenses = emptyList(),
                     activeCycleExpenseSections = List(20) { index ->
                         ExpenseDaySection(

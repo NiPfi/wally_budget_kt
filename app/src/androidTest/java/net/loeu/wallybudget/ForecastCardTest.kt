@@ -77,6 +77,7 @@ class ForecastCardTest {
                         paydayDate = 1,
                         cycleStartDate = LocalDate.of(2026, 3, 7)
                     ),
+                    effectiveCurrentDate = LocalDate.of(2026, 3, 19),
                     isLoading = isLoading,
                     onClick = {}
                 )

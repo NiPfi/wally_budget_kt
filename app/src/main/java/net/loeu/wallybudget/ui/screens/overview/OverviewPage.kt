@@ -35,11 +35,13 @@ import net.loeu.wallybudget.domain.config.ForecastConfig
 import net.loeu.wallybudget.ui.calculateAvailableRecoverableOverspendCentsFromForecast
 import net.loeu.wallybudget.ui.calculateSafeToSpendNowCents
 import net.loeu.wallybudget.util.CurrencyFormatter
+import java.time.LocalDate
 import kotlin.math.roundToInt
 
 @Composable
 fun OverviewPage(
     budgetState: BudgetState,
+    effectiveCurrentDate: LocalDate,
     todayExpenses: List<Expense>,
     activeCycleExpenseSections: List<ExpenseDaySection>,
     spendingForecast: SpendingForecast,
@@ -88,6 +90,7 @@ fun OverviewPage(
     OverviewContentLayout(
         contentState = OverviewContentState(
             budgetState = budgetState,
+            effectiveCurrentDate = effectiveCurrentDate,
             todayExpenses = todayExpenses,
             activeCycleExpenseSections = activeCycleExpenseSections,
             spendingForecast = spendingForecast,
