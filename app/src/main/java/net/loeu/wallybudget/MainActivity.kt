@@ -30,21 +30,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.navigation.NavDestination
+import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import net.loeu.wallybudget.ui.navigation.Screen
-import net.loeu.wallybudget.ui.screens.analysis.AnalysisScreen
+import net.loeu.wallybudget.ui.navigation.AnalysisRoute
+import net.loeu.wallybudget.ui.navigation.CycleCloseoutReviewRoute
+import net.loeu.wallybudget.ui.navigation.CycleCloseoutRoute
+import net.loeu.wallybudget.ui.navigation.HomeRoute
+import net.loeu.wallybudget.ui.navigation.NavigationChromeDestination
+import net.loeu.wallybudget.ui.navigation.SettingsRoute
+import net.loeu.wallybudget.ui.navigation.TopLevelDestination
+import net.loeu.wallybudget.ui.navigation.primaryTopLevelDestinations
+import net.loeu.wallybudget.ui.navigation.settingsTopLevelDestination
 import net.loeu.wallybudget.ui.screens.closeout.CycleCloseoutReviewScreen
 import net.loeu.wallybudget.ui.screens.closeout.CycleCloseoutScreen
-import net.loeu.wallybudget.ui.screens.history.HistoryScreen
 import net.loeu.wallybudget.ui.screens.home.AddExpenseSheet
-import net.loeu.wallybudget.ui.screens.home.HomeScreen
 import net.loeu.wallybudget.ui.screens.onboarding.OnboardingScreen
 import net.loeu.wallybudget.ui.screens.overview.PlaceholderShimmerProvider
-import net.loeu.wallybudget.ui.screens.settings.SettingsScreen
 import net.loeu.wallybudget.ui.theme.WallyBudgetTheme
 import net.loeu.wallybudget.ui.viewmodel.BudgetViewModel
 import net.loeu.wallybudget.ui.viewmodel.BudgetViewModelFactory
@@ -78,16 +85,26 @@ import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.model.recordedDate
 
-private const val BUCKETS_NAVIGATION_LABEL = "Buckets"
-
 internal fun shouldShowNavigationChrome(
-    currentRoute: String?,
+    currentDestination: NavigationChromeDestination,
     usesVerticalNavigation: Boolean
 ): Boolean {
-    return when (currentRoute) {
-        Screen.Analysis.route -> false
-        Screen.Settings.route -> usesVerticalNavigation
+    return when (currentDestination) {
+        NavigationChromeDestination.Analysis -> false
+        NavigationChromeDestination.Settings -> usesVerticalNavigation
         else -> true
+    }
+}
+
+private fun NavDestination?.toNavigationChromeDestination(): NavigationChromeDestination {
+    return when {
+        this?.hierarchy?.any { destination -> destination.hasRoute<AnalysisRoute>() } == true ->
+            NavigationChromeDestination.Analysis
+        this?.hierarchy?.any { destination ->
+            destination.hasRoute<SettingsRoute>()
+        } == true ->
+            NavigationChromeDestination.Settings
+        else -> NavigationChromeDestination.Other
     }
 }
 
@@ -266,7 +283,7 @@ private fun MainNavigationShell(
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
+    val currentDestination = navBackStackEntry?.destination
     val navigationLayoutType = mainNavigationLayoutType()
     val usesVerticalNavigation = when (navigationLayoutType) {
         NavigationSuiteType.NavigationRail,
@@ -276,7 +293,7 @@ private fun MainNavigationShell(
         else -> false
     }
     val showNavigationChrome = shouldShowNavigationChrome(
-        currentRoute = currentRoute,
+        currentDestination = currentDestination.toNavigationChromeDestination(),
         usesVerticalNavigation = usesVerticalNavigation
     )
 
@@ -330,7 +347,7 @@ private fun MainNavigationShell(
             },
             navigationItems = {
                 MainNavigationItems(
-                    currentRoute = currentRoute,
+                    currentDestination = currentDestination,
                     usesVerticalNavigation = usesVerticalNavigation,
                     onNavigate = navController::navigateToTopLevel
                 )
@@ -360,32 +377,37 @@ private fun mainNavigationLayoutType(): NavigationSuiteType {
 
 @Composable
 private fun MainNavigationItems(
-    currentRoute: String?,
+    currentDestination: NavDestination?,
     usesVerticalNavigation: Boolean,
-    onNavigate: (Screen) -> Unit
+    onNavigate: (TopLevelDestination) -> Unit
 ) {
-    val primaryScreens = listOf(Screen.Home, Screen.Portfolio, Screen.History)
     if (usesVerticalNavigation) {
         Column {
-            primaryScreens.forEach { screen ->
+            primaryTopLevelDestinations.forEach { destination ->
                 MainTopLevelNavigationItem(
-                    screen = screen,
-                    selected = currentRoute == screen.route,
-                    onClick = { onNavigate(screen) }
+                    destination = destination,
+                    selected = currentDestination?.hierarchy?.any {
+                        it.hasRoute(destination.routeClass)
+                    } == true,
+                    onClick = { onNavigate(destination) }
                 )
             }
         }
         MainTopLevelNavigationItem(
-            screen = Screen.Settings,
-            selected = currentRoute == Screen.Settings.route,
-            onClick = { onNavigate(Screen.Settings) }
+            destination = settingsTopLevelDestination,
+            selected = currentDestination?.hierarchy?.any {
+                it.hasRoute(settingsTopLevelDestination.routeClass)
+            } == true,
+            onClick = { onNavigate(settingsTopLevelDestination) }
         )
     } else {
-        primaryScreens.forEach { screen ->
+        primaryTopLevelDestinations.forEach { destination ->
             MainTopLevelNavigationItem(
-                screen = screen,
-                selected = currentRoute == screen.route,
-                onClick = { onNavigate(screen) }
+                destination = destination,
+                selected = currentDestination?.hierarchy?.any {
+                    it.hasRoute(destination.routeClass)
+                } == true,
+                onClick = { onNavigate(destination) }
             )
         }
     }
@@ -393,34 +415,26 @@ private fun MainNavigationItems(
 
 @Composable
 private fun MainTopLevelNavigationItem(
-    screen: Screen,
+    destination: TopLevelDestination,
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    val (iconRes, label) = when (screen) {
-        Screen.Home -> R.drawable.ic_money_bag to BUCKETS_NAVIGATION_LABEL
-        Screen.Portfolio -> R.drawable.ic_finance to "Portfolio"
-        Screen.Analysis -> R.drawable.ic_analytics to "Analysis"
-        Screen.History -> R.drawable.ic_history to "History"
-        Screen.Settings -> R.drawable.ic_settings to "Settings"
-        else -> R.drawable.ic_money_bag to BUCKETS_NAVIGATION_LABEL
-    }
     MainNavigationItem(
         selected = selected,
         onClick = onClick,
         icon = {
             Icon(
-                painter = painterResource(iconRes),
+                painter = painterResource(destination.iconRes),
                 contentDescription = null
             )
         },
-        label = { Text(label) }
+        label = { Text(destination.label) }
     )
 }
 
-private fun NavHostController.navigateToTopLevel(screen: Screen) {
-    navigate(screen.route) {
-        popUpTo(Screen.Home.route) { saveState = true }
+private fun NavHostController.navigateToTopLevel(destination: TopLevelDestination) {
+    navigate(destination.route) {
+        popUpTo<HomeRoute> { saveState = true }
         launchSingleTop = true
         restoreState = true
     }
@@ -466,7 +480,7 @@ private fun MainNavigationHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Home.route
+        startDestination = HomeRoute
     ) {
         addHomeDestination(
             navController = navController,
@@ -649,17 +663,17 @@ private fun PendingCycleFlow(
     var expenseBeingEdited by remember { mutableStateOf<Expense?>(null) }
     NavHost(
         navController = navController,
-        startDestination = Screen.CycleCloseout.route,
+        startDestination = CycleCloseoutRoute,
         modifier = modifier.fillMaxSize()
     ) {
-        composable(Screen.CycleCloseout.route) {
+        composable<CycleCloseoutRoute> {
             CycleCloseoutScreen(
                 pendingCycle = pendingCycle,
-                onReviewCycle = { navController.navigate(Screen.CycleCloseoutReview.route) },
+                onReviewCycle = { navController.navigate(CycleCloseoutReviewRoute) },
                 onConcludeCycle = onConcludeCycle
             )
         }
-        composable(Screen.CycleCloseoutReview.route) {
+        composable<CycleCloseoutReviewRoute> {
             CycleCloseoutReviewScreen(
                 pendingCycle = pendingCycle,
                 onNavigateBack = { navController.popBackStack() }

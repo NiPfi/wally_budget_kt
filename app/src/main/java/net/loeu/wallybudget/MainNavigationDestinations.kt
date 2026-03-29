@@ -1,6 +1,5 @@
 package net.loeu.wallybudget
 
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.navigation.NavGraphBuilder
@@ -10,7 +9,6 @@ import kotlinx.coroutines.flow.StateFlow
 import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.BucketSummaryState
-import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.ExpenseCycleSection
@@ -21,7 +19,11 @@ import net.loeu.wallybudget.domain.model.SelectedBucketOverview
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.usecase.BucketDraft
-import net.loeu.wallybudget.ui.navigation.Screen
+import net.loeu.wallybudget.ui.navigation.AnalysisRoute
+import net.loeu.wallybudget.ui.navigation.HistoryRoute
+import net.loeu.wallybudget.ui.navigation.HomeRoute
+import net.loeu.wallybudget.ui.navigation.PortfolioRoute
+import net.loeu.wallybudget.ui.navigation.SettingsRoute
 import net.loeu.wallybudget.ui.screens.analysis.AnalysisScreen
 import net.loeu.wallybudget.ui.screens.history.HistoryScreen
 import net.loeu.wallybudget.ui.screens.home.HomeScreen
@@ -52,7 +54,7 @@ internal fun NavGraphBuilder.addHomeDestination(
     timelineLockReason: String?,
     usesVerticalNavigation: Boolean
 ) {
-    composable(Screen.Home.route) {
+    composable<HomeRoute> {
         HomeScreen(
             bucketSummaries = bucketSummaries,
             selectedBucketOverview = selectedBucketOverview,
@@ -67,7 +69,7 @@ internal fun NavGraphBuilder.addHomeDestination(
             onRestoreExpense = onRestoreExpense,
             onUpdateExpense = onUpdateExpense,
             onDeleteExpense = onDeleteExpense,
-            onNavigateToAnalysis = { navController.navigate(Screen.Analysis.route) },
+            onNavigateToAnalysis = { navController.navigate(AnalysisRoute) },
             showTopRightSettingsAction = !usesVerticalNavigation,
             showAddExpenseSheet = showAddExpenseSheet,
             onShowAddExpenseSheet = onShowAddExpenseSheet,
@@ -90,7 +92,7 @@ internal fun NavGraphBuilder.addPortfolioDestination(
     timelineLockReason: String?,
     usesVerticalNavigation: Boolean
 ) {
-    composable(Screen.Portfolio.route) {
+    composable<PortfolioRoute> {
         PortfolioScreen(
             portfolioState = portfolioState,
             bucketSummaries = bucketSummaries,
@@ -98,7 +100,7 @@ internal fun NavGraphBuilder.addPortfolioDestination(
             allBuckets = allBuckets,
             userSettings = userSettings,
             onSavePortfolioPlan = onSavePortfolioPlan,
-            onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+            onNavigateToSettings = { navController.navigate(SettingsRoute) },
             showTopRightSettingsAction = !usesVerticalNavigation,
             interactionsEnabled = timelineLockReason == null
         )
@@ -112,12 +114,12 @@ internal fun NavGraphBuilder.addHistoryDestination(
     timelineLockReason: String?,
     usesVerticalNavigation: Boolean
 ) {
-    composable(Screen.History.route) {
+    composable<HistoryRoute> {
         HistoryScreen(
             historySections = historySections,
             historyBucketNameByUuid = historyBucketNameByUuid,
             onNavigateToSettings = if (usesVerticalNavigation) null else {
-                { navController.navigate(Screen.Settings.route) }
+                { navController.navigate(SettingsRoute) }
             },
             interactionsEnabled = timelineLockReason == null,
             timelineLockReason = timelineLockReason
@@ -136,7 +138,7 @@ internal fun NavGraphBuilder.addAnalysisDestination(
     timelineLockReason: String?,
     usesVerticalNavigation: Boolean
 ) {
-    composable(Screen.Analysis.route) {
+    composable<AnalysisRoute> {
         val monthlyHistory by monthlyHistoryState.collectAsState()
         AnalysisScreen(
             budgetState = budgetState,
@@ -146,7 +148,7 @@ internal fun NavGraphBuilder.addAnalysisDestination(
             isLoading = isHomeDataLoading || monthlyHistory == null,
             onNavigateBack = { navController.popBackStack() },
             onNavigateToSettings = if (usesVerticalNavigation) null else {
-                { navController.navigate(Screen.Settings.route) }
+                { navController.navigate(SettingsRoute) }
             }
         )
     }
@@ -170,7 +172,7 @@ internal fun NavGraphBuilder.addSettingsDestination(
     snapshotErrorMessage: String?,
     isSnapshotBusy: Boolean
 ) {
-    composable(Screen.Settings.route) {
+    composable<SettingsRoute> {
         SettingsScreen(
             userSettings = userSettings,
             allBuckets = allBuckets,
