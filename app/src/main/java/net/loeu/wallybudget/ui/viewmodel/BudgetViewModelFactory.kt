@@ -3,8 +3,7 @@ package net.loeu.wallybudget.ui.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.room.Room
-import net.loeu.wallybudget.data.local.db.BudgetDatabase
+import net.loeu.wallybudget.data.local.db.BudgetDatabaseFactory
 import net.loeu.wallybudget.data.local.preferences.UserPreferencesManager
 import net.loeu.wallybudget.data.snapshot.AndroidDocumentUriGateway
 import net.loeu.wallybudget.data.snapshot.GzipSnapshotCodec
@@ -66,29 +65,10 @@ class BudgetViewModelFactory(
     }
 
     private val database by lazy {
-        Room.databaseBuilder(
-            context.applicationContext,
-            BudgetDatabase::class.java,
-            "budget_database"
+        BudgetDatabaseFactory.create(
+            context = context.applicationContext,
+            installId = installId
         )
-            .addMigrations(
-                BudgetDatabase.MIGRATION_1_2,
-                BudgetDatabase.MIGRATION_2_3,
-                BudgetDatabase.MIGRATION_3_4,
-                BudgetDatabase.MIGRATION_4_5,
-                BudgetDatabase.MIGRATION_5_6,
-                BudgetDatabase.MIGRATION_6_7,
-                BudgetDatabase.migration7To8(installId),
-                BudgetDatabase.MIGRATION_8_9,
-                BudgetDatabase.MIGRATION_9_10,
-                BudgetDatabase.MIGRATION_10_11,
-                BudgetDatabase.MIGRATION_11_12,
-                BudgetDatabase.MIGRATION_12_13,
-                BudgetDatabase.MIGRATION_13_14,
-                BudgetDatabase.MIGRATION_14_15,
-                BudgetDatabase.MIGRATION_15_16
-            )
-            .build()
     }
 
     private val currentDateProvider by lazy {

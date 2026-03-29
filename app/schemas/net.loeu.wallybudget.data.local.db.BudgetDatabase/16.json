@@ -1,0 +1,1387 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 16,
+    "identityHash": "abf9178996c9d520758e036d5b787d75",
+    "entities": [
+      {
+        "tableName": "expenses",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `recordUuid` TEXT NOT NULL, `bucketUuid` TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001', `amountCents` INTEGER NOT NULL, `description` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, `expenseDate` TEXT NOT NULL, `icon` TEXT, `originInstallId` TEXT NOT NULL, `lastModifiedByInstallId` TEXT NOT NULL, `createdAtEpochMs` INTEGER NOT NULL, `updatedAtEpochMs` INTEGER NOT NULL, `deletedAtEpochMs` INTEGER, `modClock` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordUuid",
+            "columnName": "recordUuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bucketUuid",
+            "columnName": "bucketUuid",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'00000000-0000-0000-0000-000000000001'"
+          },
+          {
+            "fieldPath": "amountCents",
+            "columnName": "amountCents",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "expenseDate",
+            "columnName": "expenseDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "icon",
+            "columnName": "icon",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "originInstallId",
+            "columnName": "originInstallId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedByInstallId",
+            "columnName": "lastModifiedByInstallId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMs",
+            "columnName": "createdAtEpochMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMs",
+            "columnName": "updatedAtEpochMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAtEpochMs",
+            "columnName": "deletedAtEpochMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "modClock",
+            "columnName": "modClock",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_expenses_timestamp",
+            "unique": false,
+            "columnNames": [
+              "timestamp"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_expenses_timestamp` ON `${TABLE_NAME}` (`timestamp`)"
+          },
+          {
+            "name": "index_expenses_expenseDate",
+            "unique": false,
+            "columnNames": [
+              "expenseDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_expenses_expenseDate` ON `${TABLE_NAME}` (`expenseDate`)"
+          },
+          {
+            "name": "index_expenses_bucketUuid",
+            "unique": false,
+            "columnNames": [
+              "bucketUuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_expenses_bucketUuid` ON `${TABLE_NAME}` (`bucketUuid`)"
+          },
+          {
+            "name": "index_expenses_recordUuid",
+            "unique": true,
+            "columnNames": [
+              "recordUuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_expenses_recordUuid` ON `${TABLE_NAME}` (`recordUuid`)"
+          },
+          {
+            "name": "index_expenses_deletedAtEpochMs",
+            "unique": false,
+            "columnNames": [
+              "deletedAtEpochMs"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_expenses_deletedAtEpochMs` ON `${TABLE_NAME}` (`deletedAtEpochMs`)"
+          }
+        ]
+      },
+      {
+        "tableName": "monthly_history",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`cycleStartDate` TEXT NOT NULL, `budgetAmountCents` INTEGER NOT NULL, `totalSpentCents` INTEGER NOT NULL, `surplusCents` INTEGER NOT NULL, `cycleEndDate` TEXT NOT NULL, `endTimestamp` INTEGER NOT NULL, PRIMARY KEY(`cycleStartDate`))",
+        "fields": [
+          {
+            "fieldPath": "cycleStartDate",
+            "columnName": "cycleStartDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "budgetAmountCents",
+            "columnName": "budgetAmountCents",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalSpentCents",
+            "columnName": "totalSpentCents",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "surplusCents",
+            "columnName": "surplusCents",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cycleEndDate",
+            "columnName": "cycleEndDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endTimestamp",
+            "columnName": "endTimestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "cycleStartDate"
+          ]
+        }
+      },
+      {
+        "tableName": "budget_policies",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `policyUuid` TEXT NOT NULL, `cycleStartDate` TEXT NOT NULL, `cycleEndDateExclusive` TEXT NOT NULL, `budgetAmountCents` INTEGER NOT NULL, `paydayDayOfMonth` INTEGER NOT NULL, `originInstallId` TEXT NOT NULL, `lastModifiedByInstallId` TEXT NOT NULL, `createdAtEpochMs` INTEGER NOT NULL, `updatedAtEpochMs` INTEGER NOT NULL, `deletedAtEpochMs` INTEGER, `modClock` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "policyUuid",
+            "columnName": "policyUuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cycleStartDate",
+            "columnName": "cycleStartDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cycleEndDateExclusive",
+            "columnName": "cycleEndDateExclusive",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "budgetAmountCents",
+            "columnName": "budgetAmountCents",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "paydayDayOfMonth",
+            "columnName": "paydayDayOfMonth",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "originInstallId",
+            "columnName": "originInstallId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedByInstallId",
+            "columnName": "lastModifiedByInstallId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMs",
+            "columnName": "createdAtEpochMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMs",
+            "columnName": "updatedAtEpochMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAtEpochMs",
+            "columnName": "deletedAtEpochMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "modClock",
+            "columnName": "modClock",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_budget_policies_cycleStartDate",
+            "unique": false,
+            "columnNames": [
+              "cycleStartDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_budget_policies_cycleStartDate` ON `${TABLE_NAME}` (`cycleStartDate`)"
+          },
+          {
+            "name": "index_budget_policies_cycleEndDateExclusive",
+            "unique": false,
+            "columnNames": [
+              "cycleEndDateExclusive"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_budget_policies_cycleEndDateExclusive` ON `${TABLE_NAME}` (`cycleEndDateExclusive`)"
+          },
+          {
+            "name": "index_budget_policies_deletedAtEpochMs",
+            "unique": false,
+            "columnNames": [
+              "deletedAtEpochMs"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_budget_policies_deletedAtEpochMs` ON `${TABLE_NAME}` (`deletedAtEpochMs`)"
+          },
+          {
+            "name": "index_budget_policies_policyUuid",
+            "unique": true,
+            "columnNames": [
+              "policyUuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_budget_policies_policyUuid` ON `${TABLE_NAME}` (`policyUuid`)"
+          }
+        ]
+      },
+      {
+        "tableName": "budget_adjustments",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `adjustmentUuid` TEXT NOT NULL, `cycleStartDate` TEXT NOT NULL, `effectiveDate` TEXT NOT NULL, `previousMonthlyBudgetCents` INTEGER NOT NULL, `newMonthlyBudgetCents` INTEGER NOT NULL, `originInstallId` TEXT NOT NULL, `lastModifiedByInstallId` TEXT NOT NULL, `createdAtEpochMs` INTEGER NOT NULL, `updatedAtEpochMs` INTEGER NOT NULL, `deletedAtEpochMs` INTEGER, `modClock` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "adjustmentUuid",
+            "columnName": "adjustmentUuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cycleStartDate",
+            "columnName": "cycleStartDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "effectiveDate",
+            "columnName": "effectiveDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "previousMonthlyBudgetCents",
+            "columnName": "previousMonthlyBudgetCents",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "newMonthlyBudgetCents",
+            "columnName": "newMonthlyBudgetCents",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "originInstallId",
+            "columnName": "originInstallId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedByInstallId",
+            "columnName": "lastModifiedByInstallId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMs",
+            "columnName": "createdAtEpochMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMs",
+            "columnName": "updatedAtEpochMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAtEpochMs",
+            "columnName": "deletedAtEpochMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "modClock",
+            "columnName": "modClock",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_budget_adjustments_cycleStartDate",
+            "unique": false,
+            "columnNames": [
+              "cycleStartDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_budget_adjustments_cycleStartDate` ON `${TABLE_NAME}` (`cycleStartDate`)"
+          },
+          {
+            "name": "index_budget_adjustments_effectiveDate",
+            "unique": false,
+            "columnNames": [
+              "effectiveDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_budget_adjustments_effectiveDate` ON `${TABLE_NAME}` (`effectiveDate`)"
+          },
+          {
+            "name": "index_budget_adjustments_deletedAtEpochMs",
+            "unique": false,
+            "columnNames": [
+              "deletedAtEpochMs"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_budget_adjustments_deletedAtEpochMs` ON `${TABLE_NAME}` (`deletedAtEpochMs`)"
+          },
+          {
+            "name": "index_budget_adjustments_adjustmentUuid",
+            "unique": true,
+            "columnNames": [
+              "adjustmentUuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_budget_adjustments_adjustmentUuid` ON `${TABLE_NAME}` (`adjustmentUuid`)"
+          }
+        ]
+      },
+      {
+        "tableName": "budget_buckets",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `bucketUuid` TEXT NOT NULL, `name` TEXT NOT NULL, `trackingMode` TEXT NOT NULL, `balanceBehavior` TEXT NOT NULL, `defaultAllocatedAmountCents` INTEGER NOT NULL DEFAULT 0, `sortOrder` INTEGER NOT NULL, `originInstallId` TEXT NOT NULL, `lastModifiedByInstallId` TEXT NOT NULL, `createdAtEpochMs` INTEGER NOT NULL, `updatedAtEpochMs` INTEGER NOT NULL, `settledCloseCycleEndDateExclusive` TEXT, `closedAtEpochMs` INTEGER, `deletedAtEpochMs` INTEGER, `modClock` TEXT NOT NULL, `monthScoped` INTEGER NOT NULL DEFAULT 0)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bucketUuid",
+            "columnName": "bucketUuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trackingMode",
+            "columnName": "trackingMode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "balanceBehavior",
+            "columnName": "balanceBehavior",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "defaultAllocatedAmountCents",
+            "columnName": "defaultAllocatedAmountCents",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "sortOrder",
+            "columnName": "sortOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "originInstallId",
+            "columnName": "originInstallId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedByInstallId",
+            "columnName": "lastModifiedByInstallId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMs",
+            "columnName": "createdAtEpochMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMs",
+            "columnName": "updatedAtEpochMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "settledCloseCycleEndDateExclusive",
+            "columnName": "settledCloseCycleEndDateExclusive",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "closedAtEpochMs",
+            "columnName": "closedAtEpochMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "deletedAtEpochMs",
+            "columnName": "deletedAtEpochMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "modClock",
+            "columnName": "modClock",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "monthScoped",
+            "columnName": "monthScoped",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_budget_buckets_bucketUuid",
+            "unique": true,
+            "columnNames": [
+              "bucketUuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_budget_buckets_bucketUuid` ON `${TABLE_NAME}` (`bucketUuid`)"
+          },
+          {
+            "name": "index_budget_buckets_sortOrder",
+            "unique": false,
+            "columnNames": [
+              "sortOrder"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_budget_buckets_sortOrder` ON `${TABLE_NAME}` (`sortOrder`)"
+          },
+          {
+            "name": "index_budget_buckets_closedAtEpochMs",
+            "unique": false,
+            "columnNames": [
+              "closedAtEpochMs"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_budget_buckets_closedAtEpochMs` ON `${TABLE_NAME}` (`closedAtEpochMs`)"
+          },
+          {
+            "name": "index_budget_buckets_deletedAtEpochMs",
+            "unique": false,
+            "columnNames": [
+              "deletedAtEpochMs"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_budget_buckets_deletedAtEpochMs` ON `${TABLE_NAME}` (`deletedAtEpochMs`)"
+          }
+        ]
+      },
+      {
+        "tableName": "bucket_allocation_policies",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `allocationUuid` TEXT NOT NULL, `bucketUuid` TEXT NOT NULL, `cycleStartDate` TEXT NOT NULL, `cycleEndDateExclusive` TEXT NOT NULL, `allocatedAmountCents` INTEGER NOT NULL, `originInstallId` TEXT NOT NULL, `lastModifiedByInstallId` TEXT NOT NULL, `createdAtEpochMs` INTEGER NOT NULL, `updatedAtEpochMs` INTEGER NOT NULL, `deletedAtEpochMs` INTEGER, `modClock` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "allocationUuid",
+            "columnName": "allocationUuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bucketUuid",
+            "columnName": "bucketUuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cycleStartDate",
+            "columnName": "cycleStartDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cycleEndDateExclusive",
+            "columnName": "cycleEndDateExclusive",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "allocatedAmountCents",
+            "columnName": "allocatedAmountCents",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "originInstallId",
+            "columnName": "originInstallId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedByInstallId",
+            "columnName": "lastModifiedByInstallId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMs",
+            "columnName": "createdAtEpochMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMs",
+            "columnName": "updatedAtEpochMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAtEpochMs",
+            "columnName": "deletedAtEpochMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "modClock",
+            "columnName": "modClock",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_bucket_allocation_policies_allocationUuid",
+            "unique": true,
+            "columnNames": [
+              "allocationUuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_bucket_allocation_policies_allocationUuid` ON `${TABLE_NAME}` (`allocationUuid`)"
+          },
+          {
+            "name": "index_bucket_allocation_policies_bucketUuid",
+            "unique": false,
+            "columnNames": [
+              "bucketUuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_bucket_allocation_policies_bucketUuid` ON `${TABLE_NAME}` (`bucketUuid`)"
+          },
+          {
+            "name": "index_bucket_allocation_policies_cycleStartDate",
+            "unique": false,
+            "columnNames": [
+              "cycleStartDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_bucket_allocation_policies_cycleStartDate` ON `${TABLE_NAME}` (`cycleStartDate`)"
+          },
+          {
+            "name": "index_bucket_allocation_policies_cycleEndDateExclusive",
+            "unique": false,
+            "columnNames": [
+              "cycleEndDateExclusive"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_bucket_allocation_policies_cycleEndDateExclusive` ON `${TABLE_NAME}` (`cycleEndDateExclusive`)"
+          },
+          {
+            "name": "index_bucket_allocation_policies_deletedAtEpochMs",
+            "unique": false,
+            "columnNames": [
+              "deletedAtEpochMs"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_bucket_allocation_policies_deletedAtEpochMs` ON `${TABLE_NAME}` (`deletedAtEpochMs`)"
+          }
+        ]
+      },
+      {
+        "tableName": "bucket_cycle_baselines",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `baselineUuid` TEXT NOT NULL, `bucketUuid` TEXT NOT NULL, `cycleStartDate` TEXT NOT NULL, `cycleEndDateExclusive` TEXT NOT NULL, `baselineAmountCents` INTEGER NOT NULL, `originInstallId` TEXT NOT NULL, `lastModifiedByInstallId` TEXT NOT NULL, `createdAtEpochMs` INTEGER NOT NULL, `updatedAtEpochMs` INTEGER NOT NULL, `deletedAtEpochMs` INTEGER, `modClock` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "baselineUuid",
+            "columnName": "baselineUuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bucketUuid",
+            "columnName": "bucketUuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cycleStartDate",
+            "columnName": "cycleStartDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cycleEndDateExclusive",
+            "columnName": "cycleEndDateExclusive",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "baselineAmountCents",
+            "columnName": "baselineAmountCents",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "originInstallId",
+            "columnName": "originInstallId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedByInstallId",
+            "columnName": "lastModifiedByInstallId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMs",
+            "columnName": "createdAtEpochMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMs",
+            "columnName": "updatedAtEpochMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAtEpochMs",
+            "columnName": "deletedAtEpochMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "modClock",
+            "columnName": "modClock",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_bucket_cycle_baselines_baselineUuid",
+            "unique": true,
+            "columnNames": [
+              "baselineUuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_bucket_cycle_baselines_baselineUuid` ON `${TABLE_NAME}` (`baselineUuid`)"
+          },
+          {
+            "name": "index_bucket_cycle_baselines_bucketUuid",
+            "unique": false,
+            "columnNames": [
+              "bucketUuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_bucket_cycle_baselines_bucketUuid` ON `${TABLE_NAME}` (`bucketUuid`)"
+          },
+          {
+            "name": "index_bucket_cycle_baselines_cycleStartDate",
+            "unique": false,
+            "columnNames": [
+              "cycleStartDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_bucket_cycle_baselines_cycleStartDate` ON `${TABLE_NAME}` (`cycleStartDate`)"
+          },
+          {
+            "name": "index_bucket_cycle_baselines_cycleEndDateExclusive",
+            "unique": false,
+            "columnNames": [
+              "cycleEndDateExclusive"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_bucket_cycle_baselines_cycleEndDateExclusive` ON `${TABLE_NAME}` (`cycleEndDateExclusive`)"
+          },
+          {
+            "name": "index_bucket_cycle_baselines_deletedAtEpochMs",
+            "unique": false,
+            "columnNames": [
+              "deletedAtEpochMs"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_bucket_cycle_baselines_deletedAtEpochMs` ON `${TABLE_NAME}` (`deletedAtEpochMs`)"
+          }
+        ]
+      },
+      {
+        "tableName": "bucket_transfers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `transferUuid` TEXT NOT NULL, `fromBucketUuid` TEXT, `toBucketUuid` TEXT, `amountCents` INTEGER NOT NULL, `reason` TEXT NOT NULL, `cycleStartDate` TEXT NOT NULL, `cycleEndDateExclusive` TEXT NOT NULL, `effectiveDate` TEXT NOT NULL, `originInstallId` TEXT NOT NULL, `lastModifiedByInstallId` TEXT NOT NULL, `createdAtEpochMs` INTEGER NOT NULL, `updatedAtEpochMs` INTEGER NOT NULL, `deletedAtEpochMs` INTEGER, `modClock` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "transferUuid",
+            "columnName": "transferUuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fromBucketUuid",
+            "columnName": "fromBucketUuid",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "toBucketUuid",
+            "columnName": "toBucketUuid",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "amountCents",
+            "columnName": "amountCents",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reason",
+            "columnName": "reason",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cycleStartDate",
+            "columnName": "cycleStartDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cycleEndDateExclusive",
+            "columnName": "cycleEndDateExclusive",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "effectiveDate",
+            "columnName": "effectiveDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "originInstallId",
+            "columnName": "originInstallId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedByInstallId",
+            "columnName": "lastModifiedByInstallId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMs",
+            "columnName": "createdAtEpochMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMs",
+            "columnName": "updatedAtEpochMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAtEpochMs",
+            "columnName": "deletedAtEpochMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "modClock",
+            "columnName": "modClock",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_bucket_transfers_transferUuid",
+            "unique": true,
+            "columnNames": [
+              "transferUuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_bucket_transfers_transferUuid` ON `${TABLE_NAME}` (`transferUuid`)"
+          },
+          {
+            "name": "index_bucket_transfers_cycleStartDate",
+            "unique": false,
+            "columnNames": [
+              "cycleStartDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_bucket_transfers_cycleStartDate` ON `${TABLE_NAME}` (`cycleStartDate`)"
+          },
+          {
+            "name": "index_bucket_transfers_fromBucketUuid",
+            "unique": false,
+            "columnNames": [
+              "fromBucketUuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_bucket_transfers_fromBucketUuid` ON `${TABLE_NAME}` (`fromBucketUuid`)"
+          },
+          {
+            "name": "index_bucket_transfers_toBucketUuid",
+            "unique": false,
+            "columnNames": [
+              "toBucketUuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_bucket_transfers_toBucketUuid` ON `${TABLE_NAME}` (`toBucketUuid`)"
+          },
+          {
+            "name": "index_bucket_transfers_deletedAtEpochMs",
+            "unique": false,
+            "columnNames": [
+              "deletedAtEpochMs"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_bucket_transfers_deletedAtEpochMs` ON `${TABLE_NAME}` (`deletedAtEpochMs`)"
+          }
+        ]
+      },
+      {
+        "tableName": "bucket_allocation_adjustments",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `adjustmentUuid` TEXT NOT NULL, `bucketUuid` TEXT NOT NULL, `cycleStartDate` TEXT NOT NULL, `effectiveDate` TEXT NOT NULL, `previousAllocatedAmountCents` INTEGER NOT NULL, `newAllocatedAmountCents` INTEGER NOT NULL, `originInstallId` TEXT NOT NULL, `lastModifiedByInstallId` TEXT NOT NULL, `createdAtEpochMs` INTEGER NOT NULL, `updatedAtEpochMs` INTEGER NOT NULL, `deletedAtEpochMs` INTEGER, `modClock` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "adjustmentUuid",
+            "columnName": "adjustmentUuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bucketUuid",
+            "columnName": "bucketUuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cycleStartDate",
+            "columnName": "cycleStartDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "effectiveDate",
+            "columnName": "effectiveDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "previousAllocatedAmountCents",
+            "columnName": "previousAllocatedAmountCents",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "newAllocatedAmountCents",
+            "columnName": "newAllocatedAmountCents",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "originInstallId",
+            "columnName": "originInstallId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedByInstallId",
+            "columnName": "lastModifiedByInstallId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMs",
+            "columnName": "createdAtEpochMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMs",
+            "columnName": "updatedAtEpochMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAtEpochMs",
+            "columnName": "deletedAtEpochMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "modClock",
+            "columnName": "modClock",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_bucket_allocation_adjustments_adjustmentUuid",
+            "unique": true,
+            "columnNames": [
+              "adjustmentUuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_bucket_allocation_adjustments_adjustmentUuid` ON `${TABLE_NAME}` (`adjustmentUuid`)"
+          },
+          {
+            "name": "index_bucket_allocation_adjustments_bucketUuid",
+            "unique": false,
+            "columnNames": [
+              "bucketUuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_bucket_allocation_adjustments_bucketUuid` ON `${TABLE_NAME}` (`bucketUuid`)"
+          },
+          {
+            "name": "index_bucket_allocation_adjustments_cycleStartDate",
+            "unique": false,
+            "columnNames": [
+              "cycleStartDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_bucket_allocation_adjustments_cycleStartDate` ON `${TABLE_NAME}` (`cycleStartDate`)"
+          },
+          {
+            "name": "index_bucket_allocation_adjustments_effectiveDate",
+            "unique": false,
+            "columnNames": [
+              "effectiveDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_bucket_allocation_adjustments_effectiveDate` ON `${TABLE_NAME}` (`effectiveDate`)"
+          },
+          {
+            "name": "index_bucket_allocation_adjustments_deletedAtEpochMs",
+            "unique": false,
+            "columnNames": [
+              "deletedAtEpochMs"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_bucket_allocation_adjustments_deletedAtEpochMs` ON `${TABLE_NAME}` (`deletedAtEpochMs`)"
+          }
+        ]
+      },
+      {
+        "tableName": "bucket_monthly_history",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`bucketUuid` TEXT NOT NULL, `cycleStartDate` TEXT NOT NULL, `budgetAmountCents` INTEGER NOT NULL, `totalSpentCents` INTEGER NOT NULL, `surplusCents` INTEGER NOT NULL, `cycleEndDate` TEXT NOT NULL, `endTimestamp` INTEGER NOT NULL, PRIMARY KEY(`bucketUuid`, `cycleStartDate`))",
+        "fields": [
+          {
+            "fieldPath": "bucketUuid",
+            "columnName": "bucketUuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cycleStartDate",
+            "columnName": "cycleStartDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "budgetAmountCents",
+            "columnName": "budgetAmountCents",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalSpentCents",
+            "columnName": "totalSpentCents",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "surplusCents",
+            "columnName": "surplusCents",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cycleEndDate",
+            "columnName": "cycleEndDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endTimestamp",
+            "columnName": "endTimestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "bucketUuid",
+            "cycleStartDate"
+          ]
+        }
+      },
+      {
+        "tableName": "funds",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`uuid` TEXT NOT NULL, `name` TEXT NOT NULL, `balanceCents` INTEGER NOT NULL DEFAULT 0, `allocationPerCycleCents` INTEGER NOT NULL DEFAULT 0, `targetAmountCents` INTEGER, `sortOrder` INTEGER NOT NULL DEFAULT 0, `originInstallId` TEXT NOT NULL, `lastModifiedByInstallId` TEXT NOT NULL, `createdAtEpochMs` INTEGER NOT NULL, `updatedAtEpochMs` INTEGER NOT NULL, `closedAtEpochMs` INTEGER, `deletedAtEpochMs` INTEGER, `modClock` TEXT NOT NULL, PRIMARY KEY(`uuid`))",
+        "fields": [
+          {
+            "fieldPath": "uuid",
+            "columnName": "uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "balanceCents",
+            "columnName": "balanceCents",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "allocationPerCycleCents",
+            "columnName": "allocationPerCycleCents",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "targetAmountCents",
+            "columnName": "targetAmountCents",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sortOrder",
+            "columnName": "sortOrder",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "originInstallId",
+            "columnName": "originInstallId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedByInstallId",
+            "columnName": "lastModifiedByInstallId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMs",
+            "columnName": "createdAtEpochMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMs",
+            "columnName": "updatedAtEpochMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "closedAtEpochMs",
+            "columnName": "closedAtEpochMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "deletedAtEpochMs",
+            "columnName": "deletedAtEpochMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "modClock",
+            "columnName": "modClock",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "uuid"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_funds_sortOrder",
+            "unique": false,
+            "columnNames": [
+              "sortOrder"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_funds_sortOrder` ON `${TABLE_NAME}` (`sortOrder`)"
+          },
+          {
+            "name": "index_funds_closedAtEpochMs",
+            "unique": false,
+            "columnNames": [
+              "closedAtEpochMs"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_funds_closedAtEpochMs` ON `${TABLE_NAME}` (`closedAtEpochMs`)"
+          },
+          {
+            "name": "index_funds_deletedAtEpochMs",
+            "unique": false,
+            "columnNames": [
+              "deletedAtEpochMs"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_funds_deletedAtEpochMs` ON `${TABLE_NAME}` (`deletedAtEpochMs`)"
+          }
+        ]
+      },
+      {
+        "tableName": "fund_transactions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`uuid` TEXT NOT NULL, `fundUuid` TEXT NOT NULL, `amountCents` INTEGER NOT NULL, `type` TEXT NOT NULL, `description` TEXT NOT NULL, `dateEpochMs` INTEGER NOT NULL, PRIMARY KEY(`uuid`), FOREIGN KEY(`fundUuid`) REFERENCES `funds`(`uuid`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "uuid",
+            "columnName": "uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fundUuid",
+            "columnName": "fundUuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "amountCents",
+            "columnName": "amountCents",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dateEpochMs",
+            "columnName": "dateEpochMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "uuid"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_fund_transactions_fundUuid",
+            "unique": false,
+            "columnNames": [
+              "fundUuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_fund_transactions_fundUuid` ON `${TABLE_NAME}` (`fundUuid`)"
+          },
+          {
+            "name": "index_fund_transactions_dateEpochMs",
+            "unique": false,
+            "columnNames": [
+              "dateEpochMs"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_fund_transactions_dateEpochMs` ON `${TABLE_NAME}` (`dateEpochMs`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "funds",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "fundUuid"
+            ],
+            "referencedColumns": [
+              "uuid"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'abf9178996c9d520758e036d5b787d75')"
+    ]
+  }
+}
