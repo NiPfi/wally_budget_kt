@@ -2,66 +2,15 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-repo_root="$(cd "${script_dir}/.." && pwd)"
-app_id="net.loeu.wallybudget"
-activity_name="${app_id}/.MainActivity"
+source "${script_dir}/android-common.sh"
+
 mode="${1:-launch}"
 
 if [[ "${mode}" != "launch" && "${mode}" != "deploy" ]]; then
     echo "Usage: ${0} [launch|deploy]" >&2
     exit 1
 fi
-
-sdk_dir=""
-if [[ -f "${repo_root}/local.properties" ]]; then
-    sdk_dir="$(
-        sed -n 's/^sdk\.dir=//p' "${repo_root}/local.properties" |
-            sed 's/\\:/:/g; s/\\\\/\\/g' |
-            head -n 1
-    )"
-fi
-
-if [[ -z "${sdk_dir}" && -n "${ANDROID_SDK_ROOT:-}" ]]; then
-    sdk_dir="${ANDROID_SDK_ROOT}"
-fi
-
-if [[ -z "${sdk_dir}" && -n "${ANDROID_HOME:-}" ]]; then
-    sdk_dir="${ANDROID_HOME}"
-fi
-
-if [[ -z "${sdk_dir}" && -d "${HOME}/Android/Sdk" ]]; then
-    sdk_dir="${HOME}/Android/Sdk"
-fi
-
-if [[ -z "${sdk_dir}" ]]; then
-    echo "Unable to locate Android SDK. Set sdk.dir in local.properties, ANDROID_SDK_ROOT, or use ${HOME}/Android/Sdk." >&2
-    exit 1
-fi
-
-adb="${sdk_dir}/platform-tools/adb"
-if [[ ! -x "${adb}" ]]; then
-    echo "Unable to locate adb at ${adb}." >&2
-    exit 1
-fi
-
-mapfile -t emulator_serials < <(
-    "${adb}" devices |
-        tail -n +2 |
-        sed '/^[[:space:]]*$/d' |
-        awk '$2 == "device" { print $1 }'
-)
-
-if [[ "${#emulator_serials[@]}" -eq 0 ]]; then
-    echo "No connected Android device or emulator detected. Connect one target, then rerun this launch profile." >&2
-    exit 1
-fi
-
-if [[ "${#emulator_serials[@]}" -ne 1 ]]; then
-    echo "Multiple Android targets detected: ${emulator_serials[*]}. Leave one target connected and retry." >&2
-    exit 1
-fi
-
-serial="${emulator_serials[0]}"
+serial="$(find_running_emulator)"
 
 if [[ "${mode}" == "deploy" ]]; then
     (
@@ -81,4 +30,4 @@ elif ! "${adb}" -s "${serial}" shell pm path "${app_id}" >/dev/null 2>&1; then
     exit 1
 fi
 
-"${adb}" -s "${serial}" shell am start -W -S -n "${activity_name}"
+"${adb}" -s "${serial}" shell am start -W -S -n "${launch_component}"
