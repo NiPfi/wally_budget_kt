@@ -5,6 +5,7 @@ package net.loeu.wallybudget.domain.usecase
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import net.loeu.wallybudget.data.local.entity.BucketAllocationPolicyEntity
+import net.loeu.wallybudget.data.local.entity.BucketTransferEntity
 import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
 import net.loeu.wallybudget.data.local.entity.toDomainModel as bucketBaselineToDomainModel
 import net.loeu.wallybudget.data.local.entity.toDomainModel as bucketTransferToDomainModel
@@ -128,6 +129,150 @@ class UpdateBudgetSettingsUseCaseBucketsTest {
         assertEquals(DEFAULT_SPENDING_BUCKET_UUID, transfer.fromBucketUuid)
         assertEquals("bills-bucket", transfer.toBucketUuid)
         assertEquals(50_000L, transfer.amountCents)
+    }
+
+    @Test
+    fun invoke_monthScopedTogglePreservesRestoredCurrentCycleAllocation() = runBlocking {
+        val bucketTransferDao = FakeBucketTransferDao(
+            listOf(
+                BucketTransferEntity(
+                    id = 1L,
+                    transferUuid = "restore-bills-transfer",
+                    fromBucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                    toBucketUuid = "bills-bucket",
+                    amountCents = 300_000L,
+                    reason = BucketTransferReason.MANUAL_REALLOCATION,
+                    cycleStartDate = "2026-11-25",
+                    cycleEndDateExclusive = "2026-12-25",
+                    effectiveDate = "2026-11-25",
+                    originInstallId = "test-install-id",
+                    lastModifiedByInstallId = "test-install-id",
+                    createdAtEpochMs = 1L,
+                    updatedAtEpochMs = 1L,
+                    modClock = hybridLogicalClockService.format(1L, 0, "test-install-id")
+                )
+            )
+        )
+        val bucketCycleBaselineDao = FakeBucketCycleBaselineDao(
+            listOf(
+                bucketCycleBaselineEntity(
+                    baselineUuid = "default-current",
+                    cycleStartDate = "2026-11-25",
+                    cycleEndDateExclusive = "2026-12-25",
+                    baselineAmountCents = 400_000L
+                ),
+                bucketCycleBaselineEntity(
+                    id = 2L,
+                    baselineUuid = "bills-current",
+                    bucketUuid = "bills-bucket",
+                    cycleStartDate = "2026-11-25",
+                    cycleEndDateExclusive = "2026-12-25",
+                    baselineAmountCents = 0L
+                )
+            )
+        )
+        val budgetBucketDao = FakeBudgetBucketDao(
+            listOf(
+                budgetBucketEntity(1L, DEFAULT_SPENDING_BUCKET_UUID, DEFAULT_SPENDING_BUCKET_NAME, 100_000L, 0),
+                budgetBucketEntity(2L, "bills-bucket", "Bills", 300_000L, 1)
+            )
+        )
+        val useCase = updateBudgetSettingsUseCase(
+            settingsStore = FakeUserSettingsStore(
+                UserSettings(
+                    monthlyBudgetCents = 100_000L,
+                    portfolioMonthlyBudgetCents = 400_000L,
+                    paydayDate = 25,
+                    primaryBucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                    selectedBucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                    lastResetTimestamp = LocalDate.of(2026, 11, 25)
+                        .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                )
+            ),
+            budgetPolicyDao = FakeBudgetPolicyDao(
+                listOf(
+                    budgetPolicyEntity(
+                        id = 1L,
+                        cycleStart = LocalDate.of(2026, 11, 25),
+                        cycleEndExclusive = LocalDate.of(2026, 12, 25),
+                        budgetAmountCents = 400_000L
+                    )
+                )
+            ),
+            budgetAdjustmentDao = FakeBudgetAdjustmentDao(),
+            budgetBucketDao = budgetBucketDao,
+            bucketAllocationPolicyDao = FakeBucketAllocationPolicyDao(
+                listOf(
+                    bucketAllocationPolicyEntity(
+                        id = 1L,
+                        allocationUuid = "default-current",
+                        bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                        cycleStart = LocalDate.of(2026, 11, 25),
+                        cycleEndExclusive = LocalDate.of(2026, 12, 25),
+                        allocatedAmountCents = 100_000L
+                    ),
+                    bucketAllocationPolicyEntity(
+                        id = 2L,
+                        allocationUuid = "bills-current",
+                        bucketUuid = "bills-bucket",
+                        cycleStart = LocalDate.of(2026, 11, 25),
+                        cycleEndExclusive = LocalDate.of(2026, 12, 25),
+                        allocatedAmountCents = 300_000L
+                    )
+                )
+            ),
+            bucketCycleBaselineDao = bucketCycleBaselineDao,
+            bucketAllocationAdjustmentDao = FakeBucketAllocationAdjustmentDao(),
+            bucketTransferDao = bucketTransferDao,
+            currentDate = LocalDate.of(2026, 12, 4)
+        )
+
+        useCase(
+            UpdateBudgetSettingsRequest(
+                portfolioMonthlyBudgetCents = 400_000L,
+                paydayDate = 25,
+                buckets = listOf(
+                    spendingBucketDraft().copy(defaultAllocatedAmountCents = 100_000L),
+                    BucketDraft(
+                        bucketUuid = "bills-bucket",
+                        name = "Bills",
+                        trackingMode = BucketTrackingMode.CYCLE_RESERVE,
+                        balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
+                        defaultAllocatedAmountCents = 300_000L,
+                        sortOrder = 1,
+                        monthScoped = true
+                    )
+                ),
+                budgetChangeMode = BudgetChangeMode.APPLY_CURRENT_NOW
+            )
+        )
+
+        val baselines = bucketCycleBaselineDao.getActiveForCycle("2026-11-25").map { it.bucketBaselineToDomainModel() }
+        val transfers = bucketTransferDao.getForCycle("2026-11-25").map { it.bucketTransferToDomainModel() }
+        val resolver = CurrentCycleBucketAllocationResolver()
+
+        assertEquals(0L, bucketCycleBaselineDao.findActiveBaselineForCycle("bills-bucket", "2026-11-25")?.baselineAmountCents)
+        assertEquals(1, transfers.size)
+        assertEquals(
+            300_000L,
+            resolver.resolve(
+                bucketUuid = "bills-bucket",
+                cycleStart = LocalDate.of(2026, 11, 25),
+                fallbackAllocationCents = 300_000L,
+                baselines = baselines,
+                transfers = transfers
+            ).effectiveAllocationCents
+        )
+        assertEquals(
+            100_000L,
+            resolver.resolve(
+                bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
+                cycleStart = LocalDate.of(2026, 11, 25),
+                fallbackAllocationCents = 100_000L,
+                baselines = baselines,
+                transfers = transfers
+            ).effectiveAllocationCents
+        )
     }
 
     private fun createFixture(): BucketSaveFixture {

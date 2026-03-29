@@ -20,6 +20,7 @@ Use Kotlin with 4-space indentation, Java/Kotlin 17 targets, and package paths t
 
 ## Testing Guidelines
 Name tests with the subject under test plus `Test`, for example `BudgetCalculationServiceTest.kt`. Keep fast logic tests in `src/test` and database/UI/device behavior in `src/androidTest`. Add or update tests with every behavior change, especially around `domain/usecase`, Room migrations, and Compose screens. When finishing code changes, run `./gradlew detekt` in addition to the relevant test task unless there is a clear reason you cannot.
+For any change to bucket allocation math, transfers, baselines, or default-bucket repair logic, add or update a unit test that proves portfolio totals are conserved and funds do not "appear" or disappear across internal bucket movements.
 
 ## Commit & Pull Request Guidelines
 Recent history uses short, imperative commit subjects such as `Fix onboarding snapshot restore overwrite (#48)` and `Address PR #47 review feedback`. Keep subjects concise, action-first, and reference issues or PRs when useful. PRs should describe the user-visible change, list verification steps run, and include screenshots or recordings for UI changes.
