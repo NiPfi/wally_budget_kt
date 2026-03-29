@@ -389,12 +389,35 @@ class UpdatePortfolioPlanUseCase(
                 bucketUuid = bucketUuid,
                 cycleStart = context.currentCycleStart,
                 cycleEndExclusive = context.currentCycleEndExclusive,
-                baselineAmountCents = allocatedAmountCents,
+                baselineAmountCents = currentCycleBaselineAmount(
+                    bucketUuid = bucketUuid,
+                    cycleStart = context.currentCycleStart,
+                    baselines = context.currentCycleBaselines,
+                    fallbackAllocationCents = allocatedAmountCents
+                ),
                 installId = context.settings.installDeviceId,
                 nowEpochMs = nowEpochMs,
                 hybridLogicalClockService = hybridLogicalClockService
             )
         }
+    }
+
+    private fun currentCycleBaselineAmount(
+        bucketUuid: String,
+        cycleStart: LocalDate,
+        baselines: List<BucketCycleBaseline>,
+        fallbackAllocationCents: Long
+    ): Long {
+        return baselines
+            .asSequence()
+            .filter {
+                it.deletedAtEpochMs == null &&
+                    it.bucketUuid == bucketUuid &&
+                    it.cycleStart() == cycleStart
+            }
+            .maxWithOrNull(compareBy<BucketCycleBaseline> { it.updatedAtEpochMs }.thenBy { it.baselineUuid })
+            ?.baselineAmountCents
+            ?: fallbackAllocationCents
     }
 
     private suspend fun updateExistingBucket(
