@@ -84,8 +84,10 @@ class EmulatorSeedInstrumentedTest {
 
     private fun resetAppStorage(targetContext: android.content.Context) {
         targetContext.deleteDatabase(BUDGET_DATABASE_NAME)
-        targetContext.filesDir.resolve("datastore/$DATASTORE_NAME").delete()
-        targetContext.filesDir.resolve("datastore/$DATASTORE_NAME.bak").delete()
+        DATASTORE_FILES.forEach { dataStoreName ->
+            targetContext.filesDir.resolve("datastore/$dataStoreName").delete()
+            targetContext.filesDir.resolve("datastore/$dataStoreName.bak").delete()
+        }
     }
 
     private fun isProbablyEmulator(): Boolean {
@@ -321,6 +323,9 @@ class EmulatorSeedInstrumentedTest {
     }
 
     companion object {
-        private const val DATASTORE_NAME = "user_settings.preferences_pb"
+        private val DATASTORE_FILES = listOf(
+            "user_settings.preferences_pb",
+            "user_settings.json"
+        )
     }
 }
