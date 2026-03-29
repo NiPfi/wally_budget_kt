@@ -49,6 +49,25 @@ class UserPreferencesStoreMigrationTest {
     }
 
     @Test
+    fun legacyDecoder_returnsNullWhenRequiredFieldsAreMissing() {
+        val decoded = legacyDecoder.decodeOrNull(
+            """
+            {
+              "previousSettings": {},
+              "policiesToRestore": [
+                {
+                  "policyUuid": null
+                }
+              ],
+              "expiresAtExclusive": "2026-12-23"
+            }
+            """.trimIndent()
+        )
+
+        assertNull(decoded)
+    }
+
+    @Test
     fun migration_movesLegacyPreferencesIntoTypedStore_andDeletesLegacyFiles() = runBlocking {
         val tempDir = Files.createTempDirectory("user-preferences-migration").toFile()
         val legacyFile = tempDir.resolve("user_settings.preferences_pb")

@@ -18,6 +18,8 @@ internal class LegacyPaydayUndoJsonDecoder(
             null
         } catch (_: JsonIOException) {
             null
+        } catch (_: IllegalArgumentException) {
+            null
         } catch (_: IllegalStateException) {
             null
         }

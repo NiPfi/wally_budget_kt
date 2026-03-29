@@ -1,9 +1,6 @@
 package net.loeu.wallybudget.data.local.preferences
 
 import android.content.Context
-import androidx.datastore.dataStoreFile
-import androidx.datastore.core.DataStore
-import androidx.datastore.core.DataStoreFactory
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import net.loeu.wallybudget.domain.model.PendingPaydayUndo
@@ -17,19 +14,7 @@ class UserPreferencesManager(
     private val context: Context,
     private val hybridLogicalClockService: HybridLogicalClockService = HybridLogicalClockService()
 ) : UserSettingsStore {
-
-    private val legacyPaydayUndoJsonDecoder = LegacyPaydayUndoJsonDecoder()
-
-    private val dataStore: DataStore<UserPreferencesState> = DataStoreFactory.create(
-        serializer = UserPreferencesSerializer,
-        migrations = listOf(
-            LegacyUserPreferencesMigration.fromContext(
-                context = context,
-                legacyPaydayUndoJsonDecoder = legacyPaydayUndoJsonDecoder
-            )
-        ),
-        produceFile = { context.dataStoreFile(DATASTORE_FILE_NAME) }
-    )
+    private val dataStore = context.applicationContext.userPreferencesDataStore
 
     override val userSettings: Flow<UserSettings> = dataStore.data.map(UserPreferencesState::toDomainUserSettings)
 
@@ -211,7 +196,6 @@ class UserPreferencesManager(
     }
 
     companion object {
-        private const val DATASTORE_FILE_NAME = "user_settings.json"
         private const val INSTALL_ID_PREFS = "install_identity"
         private const val INSTALL_ID_KEY = "install_device_id"
 
