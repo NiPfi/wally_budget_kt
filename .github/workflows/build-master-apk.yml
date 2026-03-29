@@ -112,25 +112,59 @@ jobs:
               )
               return json.loads(completed.stdout)
 
-          def extract_summary(body: str) -> str:
-              match = re.search(
-                  r"(?ims)^##\s+Summary\s*$\n(.*?)(?=^##\s+|\Z)",
-                  body or "",
-              )
-              if not match:
-                  return ""
-              summary = match.group(1).strip()
-              summary = re.sub(
+          def strip_template_hints(text: str) -> str:
+              text = re.sub(
                   r"(?im)^\s*-\s+Describe the user-visible changes in this PR\.\s*$",
                   "",
-                  summary,
+                  text,
               )
-              summary = re.sub(
+              text = re.sub(
                   r"(?im)^\s*-\s+Keep this short and release-note ready\.\s*$",
                   "",
-                  summary,
+                  text,
               )
-              return summary.strip()
+              return text.strip()
+
+          def extract_section(body: str, headings: tuple[str, ...]) -> str:
+              for heading in headings:
+                  match = re.search(
+                      rf"(?ims)^#{{1,6}}\s+{re.escape(heading)}\s*$\n(.*?)(?=^#{{1,6}}\s+|\Z)",
+                      body or "",
+                  )
+                  if match:
+                      section = strip_template_hints(match.group(1))
+                      if section:
+                          return section
+              return ""
+
+          def extract_leading_block(body: str) -> str:
+              lines = (body or "").splitlines()
+              block_lines = []
+              in_block = False
+
+              for line in lines:
+                  if not in_block:
+                      if not line.strip():
+                          continue
+                      if re.match(r"^#{1,6}\s+", line):
+                          continue
+                      in_block = True
+
+                  if re.match(r"^#{1,6}\s+", line):
+                      break
+
+                  block_lines.append(line)
+
+              return strip_template_hints("\n".join(block_lines))
+
+          def extract_summary(body: str) -> str:
+              summary = extract_section(body, ("Summary", "Changes", "Highlights"))
+              if summary:
+                  return summary
+              return extract_leading_block(body)
+
+          def no_summary_message() -> str:
+              return "- No summary content was found in the merged PR body."
 
           pulls = gh_json(
               f"repos/{repo}/commits/{github_sha}/pulls",
@@ -148,13 +182,14 @@ jobs:
                       "",
                   ]
               )
+              summary = extract_summary(pr.get("body", ""))
               if summary:
                   lines.extend(["## Changes", summary, ""])
               else:
                   lines.extend(
                       [
                           "## Changes",
-                          "- No `## Summary` section was found in the merged PR body.",
+                          no_summary_message(),
                           "",
                       ]
                   )
