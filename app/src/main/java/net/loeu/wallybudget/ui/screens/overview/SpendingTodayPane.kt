@@ -84,12 +84,7 @@ private fun TodayExpensesSection(
         TodayExpensesHeader(totalSpentCents = totalSpentCents, isLoading = isLoading)
 
         if (isLoading) {
-            repeat(3) {
-                LoadingExpenseRow()
-                if (it != 2) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                }
-            }
+            LoadingExpenseList()
         } else if (todayExpenses.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -146,6 +141,16 @@ private fun TodayExpensesHeader(
             placeholder = isLoading,
             placeholderText = CurrencyPlaceholderSamples.amount(88_800L)
         )
+    }
+}
+
+@Composable
+internal fun LoadingExpenseList(count: Int = 3) {
+    repeat(count) {
+        LoadingExpenseRow()
+        if (it != count - 1) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        }
     }
 }
 

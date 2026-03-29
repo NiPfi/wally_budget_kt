@@ -26,9 +26,10 @@ class ExpenseDateMigrationTest {
     fun migration6To7_backfillsExpenseDateFromCurrentLocalDayView() {
         val timestamp = Instant.parse("2026-03-02T23:30:00Z").toEpochMilli()
         createVersion6Database(timestamp)
+        val installId = "expense-date-migration-test"
 
         val database = Room.databaseBuilder(context, BudgetDatabase::class.java, databaseName)
-            .addMigrations(BudgetDatabase.MIGRATION_6_7)
+            .addMigrations(*BudgetDatabaseMigrations.all(installId))
             .allowMainThreadQueries()
             .build()
 

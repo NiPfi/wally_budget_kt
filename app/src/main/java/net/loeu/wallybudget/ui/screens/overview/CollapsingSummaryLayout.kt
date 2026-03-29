@@ -57,11 +57,13 @@ internal fun CollapsingSummaryLayout(
         val collapseProgress =
             if (maxCollapsePx == 0f) 0f else (clampedCollapseOffsetPx / maxCollapsePx).coerceIn(0f, 1f)
 
+        val currentTopPaddingPx = (headerMetrics.topContentPaddingPx - clampedCollapseOffsetPx.roundToInt())
+            .coerceAtLeast(0)
         val contentPlaceables = subcompose("content") {
             body(
                 layoutState.listState,
                 PaddingValues(
-                    top = with(layoutState.density) { headerMetrics.topContentPaddingPx.toDp() },
+                    top = with(layoutState.density) { currentTopPaddingPx.toDp() },
                     bottom = config.bottomContentPadding
                 )
             )
@@ -75,7 +77,6 @@ internal fun CollapsingSummaryLayout(
             placeCollapsingSummaryLayout(
                 contentPlaceables = contentPlaceables,
                 headerPlaceables = headerPlaceables,
-                collapseOffsetPx = clampedCollapseOffsetPx,
                 headerMetrics = headerMetrics
             )
         }
@@ -145,11 +146,9 @@ private fun SubcomposeMeasureScope.measureCollapsingHeaderHeight(
 private fun Placeable.PlacementScope.placeCollapsingSummaryLayout(
     contentPlaceables: List<Placeable>,
     headerPlaceables: List<Placeable>,
-    collapseOffsetPx: Float,
     headerMetrics: CollapsingHeaderMetrics
 ) {
-    val contentOffsetY = -collapseOffsetPx.roundToInt()
-    contentPlaceables.forEach { it.placeRelative(0, contentOffsetY) }
+    contentPlaceables.forEach { it.placeRelative(0, 0) }
     headerPlaceables.forEach {
         it.placeRelative(headerMetrics.horizontalPaddingPx, headerMetrics.topPaddingPx)
     }

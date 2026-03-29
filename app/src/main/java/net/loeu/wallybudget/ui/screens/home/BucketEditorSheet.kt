@@ -192,7 +192,7 @@ private fun BucketEditorSheetContent(
 }
 
 @Composable
-private fun MonthScopedToggle(
+internal fun MonthScopedToggle(
     monthScoped: Boolean,
     onMonthScopedChange: (Boolean) -> Unit
 ) {

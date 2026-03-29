@@ -1,10 +1,10 @@
 package net.loeu.wallybudget.seeding
 
 import android.os.Build
-import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import net.loeu.wallybudget.data.local.db.BudgetDatabase
+import net.loeu.wallybudget.data.local.db.BUDGET_DATABASE_NAME
+import net.loeu.wallybudget.data.local.db.BudgetDatabaseFactory
 import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.data.local.preferences.UserPreferencesManager
 import net.loeu.wallybudget.domain.model.Expense
@@ -32,20 +32,10 @@ class EmulatorSeedInstrumentedTest {
         val targetContext = InstrumentationRegistry.getInstrumentation().targetContext
         resetAppStorage(targetContext)
 
-        val database = Room.databaseBuilder(
-            targetContext,
-            BudgetDatabase::class.java,
-            DATABASE_NAME
+        val database = BudgetDatabaseFactory.create(
+            context = targetContext,
+            installId = UserPreferencesManager.getOrCreateInstallId(targetContext)
         )
-            .addMigrations(
-                BudgetDatabase.MIGRATION_1_2,
-                BudgetDatabase.MIGRATION_2_3,
-                BudgetDatabase.MIGRATION_3_4,
-                BudgetDatabase.MIGRATION_4_5,
-                BudgetDatabase.MIGRATION_5_6,
-                BudgetDatabase.MIGRATION_6_7
-            )
-            .build()
 
         try {
             val today = LocalDate.now()
@@ -93,7 +83,7 @@ class EmulatorSeedInstrumentedTest {
     }
 
     private fun resetAppStorage(targetContext: android.content.Context) {
-        targetContext.deleteDatabase(DATABASE_NAME)
+        targetContext.deleteDatabase(BUDGET_DATABASE_NAME)
         targetContext.filesDir.resolve("datastore/$DATASTORE_NAME").delete()
         targetContext.filesDir.resolve("datastore/$DATASTORE_NAME.bak").delete()
     }
@@ -140,6 +130,7 @@ class EmulatorSeedInstrumentedTest {
                 .toInstant()
                 .toEpochMilli()
             return Expense(
+                recordUuid = "seed-$timestamp-$amountCents-${description.hashCode()}",
                 amountCents = amountCents,
                 description = description,
                 timestamp = timestamp,
@@ -330,7 +321,6 @@ class EmulatorSeedInstrumentedTest {
     }
 
     companion object {
-        private const val DATABASE_NAME = "budget_database"
         private const val DATASTORE_NAME = "user_settings.preferences_pb"
     }
 }
