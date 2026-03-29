@@ -25,11 +25,23 @@ import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.config.ForecastConfig
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.ui.CurrencyPlaceholderSamples
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
+
+internal fun calculateForecastCycleProgress(
+    budgetState: BudgetState,
+    effectiveCurrentDate: LocalDate,
+): Pair<Int, Int> {
+    val daysElapsed = ChronoUnit.DAYS.between(budgetState.cycleStartDate, effectiveCurrentDate).toInt()
+        .coerceAtLeast(0)
+    return daysElapsed to (daysElapsed + budgetState.daysRemainingInCycle)
+}
 
 @Composable
 fun ForecastCard(
     spendingForecast: SpendingForecast,
     budgetState: BudgetState,
+    effectiveCurrentDate: LocalDate,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     isLoading: Boolean = false
@@ -40,6 +52,11 @@ fun ForecastCard(
         isLowConfidence -> "Low confidence forecast"
         else -> "Forecast confidence normal"
     }
+
+    val (daysElapsed, totalDaysInCycle) = calculateForecastCycleProgress(
+        budgetState = budgetState,
+        effectiveCurrentDate = effectiveCurrentDate,
+    )
 
     Column(
         modifier = modifier
@@ -58,14 +75,15 @@ fun ForecastCard(
             spendingForecast = spendingForecast,
             isLoading = isLoading
         )
-
-        ForecastRangeIndicator(
+        ForecastProjectionChart(
+            totalSpentCents = budgetState.totalSpentThisCycleCents,
+            daysElapsed = daysElapsed,
+            totalDaysInCycle = totalDaysInCycle,
+            budgetLimitCents = budgetState.monthlyBudgetCents,
+            projectedCents = spendingForecast.projectedTotalSpentCents,
             lowerBoundCents = spendingForecast.lowerBoundCents,
             upperBoundCents = spendingForecast.upperBoundCents,
-            projectedCents = spendingForecast.projectedTotalSpentCents,
-            budgetLimitCents = budgetState.monthlyBudgetCents,
             isLoading = isLoading,
-            scale = 1f
         )
     }
 }

@@ -51,6 +51,7 @@ import net.loeu.wallybudget.ui.screens.overview.PlaceholderShimmerProvider
 import net.loeu.wallybudget.ui.screens.overview.rememberOverviewPageLayoutState
 import net.loeu.wallybudget.ui.screens.overview.summaryCardColors
 import net.loeu.wallybudget.util.CurrencyFormatter
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 internal val HomeFabSize = 56.dp
@@ -60,6 +61,7 @@ internal val HomeFabListClearance = 16.dp
 internal fun BucketHomePage(
     selectedBucketOverview: SelectedBucketOverview,
     spendingForecast: SpendingForecast?,
+    effectiveCurrentDate: LocalDate,
     bucketUuid: String,
     pageTitle: String,
     pageSummary: BucketSummaryState?,
@@ -111,6 +113,7 @@ internal fun BucketHomePage(
                 OverviewPage(
                     modifier = modifier.fillMaxSize(),
                     budgetState = placeholderBudgetState,
+                    effectiveCurrentDate = effectiveCurrentDate,
                     todayExpenses = emptyList(),
                     activeCycleExpenseSections = emptyList(),
                     spendingForecast = SpendingForecast(),
@@ -155,6 +158,7 @@ internal fun BucketHomePage(
                 .then(modifier)
                 .fillMaxSize(),
             budgetState = selectedBucketOverview.budgetState,
+            effectiveCurrentDate = effectiveCurrentDate,
             todayExpenses = selectedBucketOverview.todayExpenses,
             activeCycleExpenseSections = selectedBucketOverview.activeCycleExpenseSections,
             spendingForecast = spendingForecast ?: SpendingForecast(),

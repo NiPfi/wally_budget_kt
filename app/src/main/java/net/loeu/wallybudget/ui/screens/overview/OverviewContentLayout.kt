@@ -21,9 +21,11 @@ import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseDaySection
 import net.loeu.wallybudget.domain.model.SpendingForecast
+import java.time.LocalDate
 
 internal data class OverviewContentState(
     val budgetState: BudgetState,
+    val effectiveCurrentDate: LocalDate,
     val todayExpenses: List<Expense>,
     val activeCycleExpenseSections: List<ExpenseDaySection>,
     val spendingForecast: SpendingForecast,
@@ -87,6 +89,7 @@ internal fun OverviewContentLayout(
     ) { listState, contentPadding ->
         OverviewBodyContent(
             budgetState = contentState.budgetState,
+            effectiveCurrentDate = contentState.effectiveCurrentDate,
             todayExpenses = contentState.todayExpenses,
             activeCycleExpenseSections = contentState.activeCycleExpenseSections,
             spendingForecast = contentState.spendingForecast,
@@ -195,6 +198,7 @@ private fun CurrentSummaryHeader(
 @Composable
 private fun OverviewBodyContent(
     budgetState: BudgetState,
+    effectiveCurrentDate: LocalDate,
     todayExpenses: List<Expense>,
     activeCycleExpenseSections: List<ExpenseDaySection>,
     spendingForecast: SpendingForecast,
@@ -219,6 +223,7 @@ private fun OverviewBodyContent(
                 ForecastCard(
                     spendingForecast = spendingForecast,
                     budgetState = budgetState,
+                    effectiveCurrentDate = effectiveCurrentDate,
                     isLoading = isLoading,
                     onClick = onShowForecastDetails
                 )
