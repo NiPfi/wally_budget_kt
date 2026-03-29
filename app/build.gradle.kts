@@ -216,6 +216,7 @@ dependencies {
     implementation(libs.androidx.compose.adaptive.navigation.suite)
     implementation(libs.androidx.appcompat)
     implementation(libs.gson)
+    implementation(libs.kotlinx.serialization.json)
 
     // Room
     implementation(libs.androidx.room.runtime)
@@ -223,6 +224,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     // DataStore
+    implementation(libs.androidx.datastore)
     implementation(libs.androidx.datastore.preferences)
 
     // Navigation

@@ -1,15 +1,6 @@
 package net.loeu.wallybudget.data.local.preferences
 
 import android.content.Context
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.intPreferencesKey
-import androidx.datastore.preferences.core.longPreferencesKey
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import net.loeu.wallybudget.domain.model.PendingPaydayUndo
@@ -18,154 +9,75 @@ import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import java.time.LocalDate
 import java.util.UUID
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_settings")
-
 @Suppress("TooManyFunctions")
 class UserPreferencesManager(
     private val context: Context,
-    private val hybridLogicalClockService: HybridLogicalClockService = HybridLogicalClockService(),
-    private val paydayUndoJsonCodec: PaydayUndoJsonCodec = PaydayUndoJsonCodec()
+    private val hybridLogicalClockService: HybridLogicalClockService = HybridLogicalClockService()
 ) : UserSettingsStore {
+    private val dataStore = context.applicationContext.userPreferencesDataStore
 
-    private object PreferenceKeys {
-        val MONTHLY_BUDGET_CENTS = longPreferencesKey("monthly_budget_cents")
-        val PORTFOLIO_MONTHLY_BUDGET_CENTS = longPreferencesKey("portfolio_monthly_budget_cents")
-        val PAYDAY_DATE = intPreferencesKey("payday_date")
-        val LAST_RESET_TIMESTAMP = longPreferencesKey("last_reset_timestamp")
-        val LAST_SEEN_DATE = stringPreferencesKey("last_seen_date")
-        val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
-        val PENDING_CYCLE_START_DATE = stringPreferencesKey("pending_cycle_start_date")
-        val PENDING_CYCLE_END_DATE_EXCLUSIVE = stringPreferencesKey("pending_cycle_end_date_exclusive")
-        val PENDING_CYCLE_DETECTED_AT_TIMESTAMP = longPreferencesKey("pending_cycle_detected_at_timestamp")
-        val PRIMARY_BUCKET_UUID = stringPreferencesKey("primary_bucket_uuid")
-        val SELECTED_BUCKET_UUID = stringPreferencesKey("selected_bucket_uuid")
-        val INSTALL_DEVICE_ID = stringPreferencesKey("install_device_id")
-        val SETTINGS_RECORD_UUID = stringPreferencesKey("settings_record_uuid")
-        val SETTINGS_UPDATED_AT_EPOCH_MS = longPreferencesKey("settings_updated_at_epoch_ms")
-        val SETTINGS_MOD_CLOCK = stringPreferencesKey("settings_mod_clock")
-        val SETTINGS_LAST_MODIFIED_BY_INSTALL_ID = stringPreferencesKey("settings_last_modified_by_install_id")
-        val PENDING_SETTINGS_UNDO_JSON = stringPreferencesKey("pending_settings_undo_json")
-    }
+    override val userSettings: Flow<UserSettings> = dataStore.data.map(UserPreferencesState::toDomainUserSettings)
 
-    override val userSettings: Flow<UserSettings> = context.dataStore.data.map { preferences ->
-        UserSettings(
-            monthlyBudgetCents = preferences[PreferenceKeys.MONTHLY_BUDGET_CENTS] ?: 0L,
-            portfolioMonthlyBudgetCents = preferences[PreferenceKeys.PORTFOLIO_MONTHLY_BUDGET_CENTS],
-            paydayDate = preferences[PreferenceKeys.PAYDAY_DATE] ?: 1,
-            lastResetTimestamp = preferences[PreferenceKeys.LAST_RESET_TIMESTAMP] ?: 0L,
-            lastSeenDate = preferences[PreferenceKeys.LAST_SEEN_DATE],
-            isOnboardingCompleted = preferences[PreferenceKeys.ONBOARDING_COMPLETED] ?: false,
-            pendingCycleStartDate = preferences[PreferenceKeys.PENDING_CYCLE_START_DATE],
-            pendingCycleEndDateExclusive = preferences[PreferenceKeys.PENDING_CYCLE_END_DATE_EXCLUSIVE],
-            pendingCycleDetectedAtTimestamp = preferences[PreferenceKeys.PENDING_CYCLE_DETECTED_AT_TIMESTAMP] ?: 0L,
-            selectedBucketUuid = preferences[PreferenceKeys.SELECTED_BUCKET_UUID],
-            installDeviceId = preferences[PreferenceKeys.INSTALL_DEVICE_ID] ?: "",
-            settingsRecordUuid = preferences[PreferenceKeys.SETTINGS_RECORD_UUID] ?: "",
-            settingsUpdatedAtEpochMs = preferences[PreferenceKeys.SETTINGS_UPDATED_AT_EPOCH_MS] ?: 0L,
-            settingsModClock = preferences[PreferenceKeys.SETTINGS_MOD_CLOCK] ?: "",
-            settingsLastModifiedByInstallId =
-                preferences[PreferenceKeys.SETTINGS_LAST_MODIFIED_BY_INSTALL_ID] ?: ""
-        )
-    }
-
-    override val pendingPaydayUndo: Flow<PendingPaydayUndo?> = context.dataStore.data.map { preferences ->
-        preferences[PreferenceKeys.PENDING_SETTINGS_UNDO_JSON]
-            ?.let(paydayUndoJsonCodec::decodeOrNull)
+    override val pendingPaydayUndo: Flow<PendingPaydayUndo?> = dataStore.data.map { preferences ->
+        preferences.pendingPaydayUndo?.toDomain()
     }
 
     override suspend fun ensureIdentity(): UserSettings {
-        val sharedInstallId = getOrCreateInstallId(context)
-        context.dataStore.edit { preferences ->
-            val installId = preferences[PreferenceKeys.INSTALL_DEVICE_ID]
-                ?: sharedInstallId.also {
-                    preferences[PreferenceKeys.INSTALL_DEVICE_ID] = it
-                }
-            if (preferences[PreferenceKeys.SETTINGS_RECORD_UUID] == null) {
-                preferences[PreferenceKeys.SETTINGS_RECORD_UUID] = UUID.randomUUID().toString()
-            }
-            if (preferences[PreferenceKeys.SETTINGS_LAST_MODIFIED_BY_INSTALL_ID] == null) {
-                preferences[PreferenceKeys.SETTINGS_LAST_MODIFIED_BY_INSTALL_ID] = installId
-            }
-            if (preferences[PreferenceKeys.SETTINGS_MOD_CLOCK] == null) {
-                preferences[PreferenceKeys.SETTINGS_MOD_CLOCK] = hybridLogicalClockService.format(
-                    epochMs = System.currentTimeMillis(),
-                    counter = 0,
-                    installId = installId
-                )
-            }
-            if (preferences[PreferenceKeys.SETTINGS_UPDATED_AT_EPOCH_MS] == null) {
-                preferences[PreferenceKeys.SETTINGS_UPDATED_AT_EPOCH_MS] = System.currentTimeMillis()
-            }
-        }
-        return userSettings.first()
+        return dataStore.updateData { currentState ->
+            ensureSettingsIdentity(currentState)
+        }.toDomainUserSettings()
     }
 
     override suspend fun updateMonthlyBudget(amountCents: Long) {
-        context.dataStore.edit { preferences ->
-            ensureSettingsIdentity(preferences)
-            preferences[PreferenceKeys.MONTHLY_BUDGET_CENTS] = amountCents
-            touchSettingsMetadata(preferences)
+        updateSettingsState { settings ->
+            settings.copy(monthlyBudgetCents = amountCents)
         }
     }
 
     override suspend fun updatePortfolioMonthlyBudget(amountCents: Long?) {
-        context.dataStore.edit { preferences ->
-            ensureSettingsIdentity(preferences)
-            if (amountCents == null) {
-                preferences.remove(PreferenceKeys.PORTFOLIO_MONTHLY_BUDGET_CENTS)
-            } else {
-                preferences[PreferenceKeys.PORTFOLIO_MONTHLY_BUDGET_CENTS] = amountCents
-            }
-            touchSettingsMetadata(preferences)
+        updateSettingsState { settings ->
+            settings.copy(portfolioMonthlyBudgetCents = amountCents)
         }
     }
 
     override suspend fun updateCycleSettings(monthlyBudgetCents: Long, paydayDate: Int) {
-        context.dataStore.edit { preferences ->
-            ensureSettingsIdentity(preferences)
-            preferences[PreferenceKeys.MONTHLY_BUDGET_CENTS] = monthlyBudgetCents
-            preferences[PreferenceKeys.PAYDAY_DATE] = paydayDate
-            touchSettingsMetadata(preferences)
+        updateSettingsState { settings ->
+            settings.copy(
+                monthlyBudgetCents = monthlyBudgetCents,
+                paydayDate = paydayDate
+            )
         }
     }
 
     override suspend fun updatePaydayDate(day: Int) {
-        context.dataStore.edit { preferences ->
-            ensureSettingsIdentity(preferences)
-            preferences[PreferenceKeys.PAYDAY_DATE] = day
-            touchSettingsMetadata(preferences)
+        updateSettingsState { settings ->
+            settings.copy(paydayDate = day)
         }
     }
 
     override suspend fun updateSelectedBucket(selectedBucketUuid: String?) {
-        context.dataStore.edit { preferences ->
-            ensureSettingsIdentity(preferences)
-            selectedBucketUuid?.let { preferences[PreferenceKeys.SELECTED_BUCKET_UUID] = it }
-                ?: preferences.remove(PreferenceKeys.SELECTED_BUCKET_UUID)
-            preferences.remove(PreferenceKeys.PRIMARY_BUCKET_UUID)
-            touchSettingsMetadata(preferences)
+        updateSettingsState { settings ->
+            settings.copy(selectedBucketUuid = selectedBucketUuid)
         }
     }
 
     override suspend fun updateLastResetTimestamp(timestamp: Long) {
-        context.dataStore.edit { preferences ->
-            ensureSettingsIdentity(preferences)
-            preferences[PreferenceKeys.LAST_RESET_TIMESTAMP] = timestamp
-            touchSettingsMetadata(preferences)
+        updateSettingsState { settings ->
+            settings.copy(lastResetTimestamp = timestamp)
         }
     }
 
     override suspend fun updateLastSeenDate(date: LocalDate) {
-        context.dataStore.edit { preferences ->
-            preferences[PreferenceKeys.LAST_SEEN_DATE] = date.toString()
+        dataStore.updateData { currentState ->
+            currentState.copy(
+                settings = currentState.settings.copy(lastSeenDate = date.toString())
+            )
         }
     }
 
     override suspend fun completeOnboarding() {
-        context.dataStore.edit { preferences ->
-            ensureSettingsIdentity(preferences)
-            preferences[PreferenceKeys.ONBOARDING_COMPLETED] = true
-            touchSettingsMetadata(preferences)
+        updateSettingsState { settings ->
+            settings.copy(isOnboardingCompleted = true)
         }
     }
 
@@ -174,113 +86,112 @@ class UserPreferencesManager(
         cycleEndDateExclusive: LocalDate,
         detectedAtTimestamp: Long
     ) {
-        context.dataStore.edit { preferences ->
-            ensureSettingsIdentity(preferences)
-            preferences[PreferenceKeys.PENDING_CYCLE_START_DATE] = cycleStartDate.toString()
-            preferences[PreferenceKeys.PENDING_CYCLE_END_DATE_EXCLUSIVE] = cycleEndDateExclusive.toString()
-            preferences[PreferenceKeys.PENDING_CYCLE_DETECTED_AT_TIMESTAMP] = detectedAtTimestamp
-            touchSettingsMetadata(preferences)
+        updateSettingsState { settings ->
+            settings.copy(
+                pendingCycleStartDate = cycleStartDate.toString(),
+                pendingCycleEndDateExclusive = cycleEndDateExclusive.toString(),
+                pendingCycleDetectedAtTimestamp = detectedAtTimestamp
+            )
         }
     }
 
     override suspend fun clearPendingCycle() {
-        context.dataStore.edit { preferences ->
-            ensureSettingsIdentity(preferences)
-            preferences.remove(PreferenceKeys.PENDING_CYCLE_START_DATE)
-            preferences.remove(PreferenceKeys.PENDING_CYCLE_END_DATE_EXCLUSIVE)
-            preferences.remove(PreferenceKeys.PENDING_CYCLE_DETECTED_AT_TIMESTAMP)
-            touchSettingsMetadata(preferences)
+        updateSettingsState { settings ->
+            settings.copy(
+                pendingCycleStartDate = null,
+                pendingCycleEndDateExclusive = null,
+                pendingCycleDetectedAtTimestamp = 0L
+            )
         }
     }
 
     override suspend fun savePendingPaydayUndo(pendingPaydayUndo: PendingPaydayUndo) {
-        context.dataStore.edit { preferences ->
-            preferences[PreferenceKeys.PENDING_SETTINGS_UNDO_JSON] = paydayUndoJsonCodec.encode(pendingPaydayUndo)
+        dataStore.updateData { currentState ->
+            currentState.copy(pendingPaydayUndo = pendingPaydayUndo.toState())
         }
     }
 
     override suspend fun clearPendingPaydayUndo() {
-        context.dataStore.edit { preferences ->
-            preferences.remove(PreferenceKeys.PENDING_SETTINGS_UNDO_JSON)
+        dataStore.updateData { currentState ->
+            currentState.copy(pendingPaydayUndo = null)
         }
     }
 
-    @Suppress("CyclomaticComplexMethod")
     override suspend fun restoreFromSnapshot(settings: UserSettings, onboardingCompleted: Boolean) {
-        context.dataStore.edit { preferences ->
-            val installId = preferences[PreferenceKeys.INSTALL_DEVICE_ID]
+        dataStore.updateData { currentState ->
+            val currentInstallId = currentState.settings.installDeviceId.takeIf { it.isNotBlank() }
+            val restoredInstallId = currentInstallId
                 ?: settings.installDeviceId.takeIf { it.isNotBlank() }
-                ?: UUID.randomUUID().toString().also {
-                    preferences[PreferenceKeys.INSTALL_DEVICE_ID] = it
-                }
-            preferences[PreferenceKeys.MONTHLY_BUDGET_CENTS] = settings.monthlyBudgetCents
-            settings.portfolioMonthlyBudgetCents?.let {
-                preferences[PreferenceKeys.PORTFOLIO_MONTHLY_BUDGET_CENTS] = it
-            } ?: preferences.remove(PreferenceKeys.PORTFOLIO_MONTHLY_BUDGET_CENTS)
-            preferences[PreferenceKeys.PAYDAY_DATE] = settings.paydayDate
-            preferences[PreferenceKeys.LAST_RESET_TIMESTAMP] = settings.lastResetTimestamp
-            settings.lastSeenDate?.let { preferences[PreferenceKeys.LAST_SEEN_DATE] = it }
-                ?: preferences.remove(PreferenceKeys.LAST_SEEN_DATE)
-            settings.pendingCycleStartDate?.let { preferences[PreferenceKeys.PENDING_CYCLE_START_DATE] = it }
-                ?: preferences.remove(PreferenceKeys.PENDING_CYCLE_START_DATE)
-            settings.pendingCycleEndDateExclusive?.let {
-                preferences[PreferenceKeys.PENDING_CYCLE_END_DATE_EXCLUSIVE] = it
-            } ?: preferences.remove(PreferenceKeys.PENDING_CYCLE_END_DATE_EXCLUSIVE)
-            preferences[PreferenceKeys.PENDING_CYCLE_DETECTED_AT_TIMESTAMP] =
-                settings.pendingCycleDetectedAtTimestamp
-            settings.selectedBucketUuid?.let { preferences[PreferenceKeys.SELECTED_BUCKET_UUID] = it }
-                ?: preferences.remove(PreferenceKeys.SELECTED_BUCKET_UUID)
-            preferences.remove(PreferenceKeys.PRIMARY_BUCKET_UUID)
-            preferences[PreferenceKeys.ONBOARDING_COMPLETED] = onboardingCompleted
-            preferences[PreferenceKeys.SETTINGS_RECORD_UUID] = settings.settingsRecordUuid
-                .takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString()
-            preferences[PreferenceKeys.SETTINGS_UPDATED_AT_EPOCH_MS] = settings.settingsUpdatedAtEpochMs
-            preferences[PreferenceKeys.SETTINGS_MOD_CLOCK] = settings.settingsModClock.ifBlank {
-                hybridLogicalClockService.format(
-                    epochMs = settings.settingsUpdatedAtEpochMs.coerceAtLeast(System.currentTimeMillis()),
-                    counter = 0,
-                    installId = installId
-                )
-            }
-            preferences[PreferenceKeys.SETTINGS_LAST_MODIFIED_BY_INSTALL_ID] =
-                settings.settingsLastModifiedByInstallId.ifBlank { installId }
-            preferences[PreferenceKeys.INSTALL_DEVICE_ID] = installId
-            preferences.remove(PreferenceKeys.PENDING_SETTINGS_UNDO_JSON)
-        }
-    }
-
-    private fun ensureSettingsIdentity(preferences: androidx.datastore.preferences.core.MutablePreferences) {
-        val installId = preferences[PreferenceKeys.INSTALL_DEVICE_ID]
-            ?: getOrCreateInstallId(context).also {
-                preferences[PreferenceKeys.INSTALL_DEVICE_ID] = it
-            }
-        if (preferences[PreferenceKeys.SETTINGS_RECORD_UUID] == null) {
-            preferences[PreferenceKeys.SETTINGS_RECORD_UUID] = UUID.randomUUID().toString()
-        }
-        if (preferences[PreferenceKeys.SETTINGS_LAST_MODIFIED_BY_INSTALL_ID] == null) {
-            preferences[PreferenceKeys.SETTINGS_LAST_MODIFIED_BY_INSTALL_ID] = installId
-        }
-        if (preferences[PreferenceKeys.SETTINGS_MOD_CLOCK] == null) {
-            preferences[PreferenceKeys.SETTINGS_MOD_CLOCK] = hybridLogicalClockService.format(
-                epochMs = System.currentTimeMillis(),
-                counter = 0,
-                installId = installId
+                ?: UUID.randomUUID().toString()
+            currentState.copy(
+                settings = settings.toStoredState().copy(
+                    isOnboardingCompleted = onboardingCompleted,
+                    installDeviceId = restoredInstallId,
+                    settingsRecordUuid = settings.settingsRecordUuid
+                        .takeIf { it.isNotBlank() }
+                        ?: UUID.randomUUID().toString(),
+                    settingsUpdatedAtEpochMs = settings.settingsUpdatedAtEpochMs,
+                    settingsModClock = settings.settingsModClock.ifBlank {
+                        hybridLogicalClockService.format(
+                            epochMs = settings.settingsUpdatedAtEpochMs.coerceAtLeast(System.currentTimeMillis()),
+                            counter = 0,
+                            installId = restoredInstallId
+                        )
+                    },
+                    settingsLastModifiedByInstallId = settings.settingsLastModifiedByInstallId.ifBlank {
+                        restoredInstallId
+                    }
+                ),
+                pendingPaydayUndo = null
             )
         }
-        if (preferences[PreferenceKeys.SETTINGS_UPDATED_AT_EPOCH_MS] == null) {
-            preferences[PreferenceKeys.SETTINGS_UPDATED_AT_EPOCH_MS] = System.currentTimeMillis()
+    }
+
+    private suspend fun updateSettingsState(
+        transform: (StoredUserSettingsState) -> StoredUserSettingsState
+    ) {
+        dataStore.updateData { currentState ->
+            val stateWithIdentity = ensureSettingsIdentity(currentState)
+            stateWithIdentity.copy(
+                settings = touchSettingsMetadata(
+                    transform(stateWithIdentity.settings)
+                )
+            )
         }
     }
 
-    private fun touchSettingsMetadata(preferences: androidx.datastore.preferences.core.MutablePreferences) {
-        val installId = preferences[PreferenceKeys.INSTALL_DEVICE_ID].orEmpty()
+    private fun ensureSettingsIdentity(currentState: UserPreferencesState): UserPreferencesState {
+        val settings = currentState.settings
+        val installId = settings.installDeviceId.takeIf { it.isNotBlank() } ?: getOrCreateInstallId(context)
         val now = System.currentTimeMillis()
-        preferences[PreferenceKeys.SETTINGS_UPDATED_AT_EPOCH_MS] = now
-        preferences[PreferenceKeys.SETTINGS_LAST_MODIFIED_BY_INSTALL_ID] = installId
-        preferences[PreferenceKeys.SETTINGS_MOD_CLOCK] = hybridLogicalClockService.next(
-            previousClock = preferences[PreferenceKeys.SETTINGS_MOD_CLOCK],
-            nowEpochMs = now,
-            installId = installId
+        return currentState.copy(
+            settings = settings.copy(
+                installDeviceId = installId,
+                settingsRecordUuid = settings.settingsRecordUuid.ifBlank { UUID.randomUUID().toString() },
+                settingsLastModifiedByInstallId = settings.settingsLastModifiedByInstallId.ifBlank { installId },
+                settingsModClock = settings.settingsModClock.ifBlank {
+                    hybridLogicalClockService.format(
+                        epochMs = now,
+                        counter = 0,
+                        installId = installId
+                    )
+                },
+                settingsUpdatedAtEpochMs = settings.settingsUpdatedAtEpochMs.takeIf { it != 0L } ?: now
+            )
+        )
+    }
+
+    private fun touchSettingsMetadata(settings: StoredUserSettingsState): StoredUserSettingsState {
+        val installId = settings.installDeviceId
+        val now = System.currentTimeMillis()
+        return settings.copy(
+            settingsUpdatedAtEpochMs = now,
+            settingsLastModifiedByInstallId = installId,
+            settingsModClock = hybridLogicalClockService.next(
+                previousClock = settings.settingsModClock,
+                nowEpochMs = now,
+                installId = installId
+            )
         )
     }
 
