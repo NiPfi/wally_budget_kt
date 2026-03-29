@@ -23,7 +23,8 @@ Name tests with the subject under test plus `Test`, for example `BudgetCalculati
 For any change to bucket allocation math, transfers, baselines, or default-bucket repair logic, add or update a unit test that proves portfolio totals are conserved and funds do not "appear" or disappear across internal bucket movements.
 
 ## Commit & Pull Request Guidelines
-Recent history uses short, imperative commit subjects such as `Fix onboarding snapshot restore overwrite (#48)` and `Address PR #47 review feedback`. Keep subjects concise, action-first, and reference issues or PRs when useful. PRs should describe the user-visible change, list verification steps run, and include screenshots or recordings for UI changes.
+Use short, imperative commit subjects. Keep subjects concise, action-first, and reference issues or PRs when useful.
+PR summaries must be Markdown-formatted and should describe the user-visible change, list verification steps run, and include screenshots or recordings for UI changes when relevant.
 
 ### Pull Request Review
 When there's review findings in pull requests, first check if the comments are valid and reasonable. Then try to create a minimal change that resolves the issue outlined in the comments. Where it makes sense, batch changes for multiple comments together in one commit. Then reply to the initial comment with your resolution and close the conversation.
