@@ -247,6 +247,8 @@ internal fun BucketCollapsingMetricsRow(
                     placeable.placeRelative(0, ((targetHeight - placeable.height) / 2f).roundToInt())
                 }
             },
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top,
         content = content
     )
 }
