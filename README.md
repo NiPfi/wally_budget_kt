@@ -50,6 +50,7 @@ Android targets:
 2. Make sure the Android SDK is configured on the machine.
 3. Build the debug app.
 4. Run it on an emulator or connected device.
+5. Run `./scripts/setup-git-hooks.sh` once if you want the repository's pre-commit hook to run `:app:detekt`.
 
 ```bash
 ./gradlew :app:assembleDebug
@@ -70,6 +71,12 @@ You can also run and debug the app directly from Android Studio.
 - `./gradlew :app:assembleRelease` builds the release APK.
 - `./gradlew :app:bundleRelease` builds the release app bundle.
 
+## Git Hooks
+
+The repository includes a tracked pre-commit hook in [`.githooks/pre-commit`](./.githooks/pre-commit). It runs `./gradlew :app:detekt` before allowing a commit.
+
+To enable it in a clone, run `./scripts/setup-git-hooks.sh` once. This sets `core.hooksPath` to the repository's `.githooks` directory.
+
 ## Testing Notes
 
 - Unit tests live in `app/src/test`.
@@ -77,6 +84,15 @@ You can also run and debug the app directly from Android Studio.
 - Connected Android tests are intended for emulators.
 - The Gradle build logic refuses to run connected tests when physical devices are attached.
 - `:app:seedDebugEmulator` requires exactly one running emulator and clears app data before seeding it.
+
+## Time Access
+
+Production code should not call raw wall-clock APIs such as `LocalDate.now()`, `Instant.now()`,
+`System.currentTimeMillis()`, or `ZoneId.systemDefault()` directly.
+
+Use the time shim in [WallyTime.kt](./app/src/main/java/net/loeu/wallybudget/data/time/WallyTime.kt)
+for non-injected code, and prefer `CurrentDateProvider` / `CurrentEpochTimeProvider` in injected
+business logic. The full convention is documented in [docs/time-access.md](./docs/time-access.md).
 
 ## Project Structure
 

@@ -1,16 +1,16 @@
-name: Build Master Release Artifacts
+name: Build Main Release Artifacts
 
 on:
   push:
     branches:
-      - master
+      - main
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: build-master-release-artifacts
+  group: build-main-release-artifacts
   cancel-in-progress: true
 
 jobs:
@@ -75,20 +75,20 @@ jobs:
           mkdir -p dist
           find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' -print0 | while IFS= read -r -d '' apk; do
             filename="$(basename "${apk}")"
-            cp "${apk}" "dist/WallyBudget-master-${GITHUB_SHA}-${filename}"
+            cp "${apk}" "dist/WallyBudget-main-${GITHUB_SHA}-${filename}"
           done
-          cp app/build/outputs/bundle/release/app-release.aab "dist/WallyBudget-master-${GITHUB_SHA}-release.aab"
+          cp app/build/outputs/bundle/release/app-release.aab "dist/WallyBudget-main-${GITHUB_SHA}-release.aab"
 
       - name: Upload signed release artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: WallyBudget-master-release-${{ github.sha }}
+          name: WallyBudget-main-release-${{ github.sha }}
           path: dist/
           if-no-files-found: error
           retention-days: 14
 
       - name: Generate release notes
-        if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -173,7 +173,7 @@ jobs:
           )
           pr = pulls[0] if pulls else None
 
-          lines = [f"Automated prerelease build for master commit `{github_sha}`.", ""]
+          lines = [f"Automated prerelease build for main commit `{github_sha}`.", ""]
           if pr:
               summary = extract_summary(pr.get("body", ""))
               lines.extend(
@@ -197,7 +197,7 @@ jobs:
               lines.extend(
                   [
                       "## Changes",
-                      "- No pull request was associated with this master commit.",
+                      "- No pull request was associated with this main commit.",
                       "",
                   ]
               )
@@ -212,12 +212,12 @@ jobs:
           PY
 
       - name: Publish GitHub prerelease
-        if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: master-${{ github.sha }}
+          RELEASE_TAG: main-${{ github.sha }}
         run: |
-          release_title="Master prerelease ${GITHUB_SHA}"
+          release_title="Main prerelease ${GITHUB_SHA}"
           release_notes="${RUNNER_TEMP}/release-notes.md"
 
           if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
@@ -240,10 +240,10 @@ jobs:
           {
             echo "## Signed Release Artifacts"
             echo
-            echo "- Branch: \`master\`"
+            echo "- Branch: \`main\`"
             echo "- Commit: \`${GITHUB_SHA}\`"
-            echo "- Artifact: \`WallyBudget-master-release-${GITHUB_SHA}\`"
-            echo "- GitHub prerelease: \`master-${GITHUB_SHA}\`"
+            echo "- Artifact: \`WallyBudget-main-release-${GITHUB_SHA}\`"
+            echo "- GitHub prerelease: \`main-${GITHUB_SHA}\`"
             echo "- APK files: one per ABI from \`app/build/outputs/apk/release/\`"
-            echo "- App Bundle file: \`WallyBudget-master-${GITHUB_SHA}-release.aab\`"
+            echo "- App Bundle file: \`WallyBudget-main-${GITHUB_SHA}-release.aab\`"
           } >> "${GITHUB_STEP_SUMMARY}"

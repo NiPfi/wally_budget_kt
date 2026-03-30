@@ -33,10 +33,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import net.loeu.wallybudget.data.time.WallyTime
 import net.loeu.wallybudget.domain.model.SnapshotImportPreview
 import net.loeu.wallybudget.util.CurrencyFormatter
 import java.time.LocalDate
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 private data class OnboardingSubmission(
@@ -67,7 +67,7 @@ fun OnboardingScreen(
     var paydayText by remember { mutableStateOf("") }
     var showError by remember { mutableStateOf(false) }
 
-    val today = LocalDate.now()
+    val today = WallyTime.currentDate()
 
     Column(
         modifier = modifier
@@ -267,10 +267,7 @@ private fun SnapshotPreviewCard(
 ) {
     val exportedAt = remember(preview.exportedAtEpochMs) {
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").format(
-            preview.exportedAtEpochMs
-                .let { java.time.Instant.ofEpochMilli(it) }
-                .atZone(ZoneId.systemDefault())
-                .toLocalDateTime()
+            WallyTime.zonedDateTimeAtEpochTimeMs(preview.exportedAtEpochMs).toLocalDateTime()
         )
     }
     Card(

@@ -38,6 +38,7 @@ class AnalysisScreenTest {
         composeRule.onNodeWithTag("analysis_verdict_section").assertIsDisplayed()
         composeRule.onNodeWithTag("analysis_evidence_section").assertIsDisplayed()
 
+        val expandedHeight = composeRule.onNodeWithTag("analysis_verdict_section").getBoundsInRoot().height
         val verdictTop = composeRule.onNodeWithTag("analysis_verdict_section").getBoundsInRoot().top
         val evidenceTop = composeRule.onNodeWithTag("analysis_evidence_section").getBoundsInRoot().top
 
@@ -45,6 +46,11 @@ class AnalysisScreenTest {
 
         composeRule.onNodeWithTag("analysis_list")
             .performScrollToNode(hasTestTag("analysis_actions_section"))
+        composeRule.waitForIdle()
+
+        val collapsedHeight = composeRule.onNodeWithTag("analysis_verdict_section").getBoundsInRoot().height
+
+        assertTrue(collapsedHeight < expandedHeight)
         composeRule.onNodeWithTag("analysis_actions_section").assertIsDisplayed()
         composeRule.onNodeWithTag("analysis_list")
             .performScrollToNode(hasTestTag("analysis_confidence_section"))

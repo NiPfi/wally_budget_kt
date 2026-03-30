@@ -8,6 +8,7 @@ import net.loeu.wallybudget.data.local.db.TransactionRunner
 import net.loeu.wallybudget.data.local.entity.toDomainModel
 import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
+import net.loeu.wallybudget.data.time.WallyTime
 import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
@@ -20,7 +21,6 @@ import net.loeu.wallybudget.domain.usecase.internal.resolveSelectedOpenBucketUui
 import net.loeu.wallybudget.domain.usecase.internal.resolveCurrentCycleDefaultAllocation
 import net.loeu.wallybudget.domain.usecase.internal.upsertCurrentCycleBucketBaselineAmount
 import java.time.LocalDate
-import java.time.ZoneId
 
 class EnsureDefaultBucketStateUseCase(
     private val transactionRunner: TransactionRunner,
@@ -54,7 +54,7 @@ class EnsureDefaultBucketStateUseCase(
             settings.resolvedPortfolioMonthlyBudgetCents - openOtherBuckets.sumOf { it.defaultAllocatedAmountCents }
         ).coerceAtLeast(0L)
         val defaultBucket = allBuckets.firstOrNull { it.bucketUuid == DEFAULT_SPENDING_BUCKET_UUID }
-        val nowEpochMs = now.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val nowEpochMs = WallyTime.startOfDayEpochTimeMs(now)
         val installId = settings.installDeviceId
         val currentCycleDefaultRepair = currentCycleDefaultRepair(settings, now, allBuckets)
 

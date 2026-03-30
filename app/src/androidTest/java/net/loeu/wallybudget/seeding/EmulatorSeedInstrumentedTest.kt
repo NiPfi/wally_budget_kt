@@ -3,7 +3,6 @@ package net.loeu.wallybudget.seeding
 import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import net.loeu.wallybudget.data.local.db.BUDGET_DATABASE_NAME
 import net.loeu.wallybudget.data.local.db.BudgetDatabaseFactory
 import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.data.local.preferences.UserPreferencesManager
@@ -83,7 +82,7 @@ class EmulatorSeedInstrumentedTest {
     }
 
     private fun resetAppStorage(targetContext: android.content.Context) {
-        targetContext.deleteDatabase(BUDGET_DATABASE_NAME)
+        targetContext.deleteDatabase(DATABASE_NAME)
         DATASTORE_FILES.forEach { dataStoreName ->
             targetContext.filesDir.resolve("datastore/$dataStoreName").delete()
             targetContext.filesDir.resolve("datastore/$dataStoreName.bak").delete()
@@ -323,6 +322,7 @@ class EmulatorSeedInstrumentedTest {
     }
 
     companion object {
+        private const val DATABASE_NAME = "budget_database"
         private val DATASTORE_FILES = listOf(
             "user_settings.preferences_pb",
             "user_settings.json"

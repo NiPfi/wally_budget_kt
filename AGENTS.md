@@ -23,11 +23,10 @@ Name tests with the subject under test plus `Test`, for example `BudgetCalculati
 For any change to bucket allocation math, transfers, baselines, or default-bucket repair logic, add or update a unit test that proves portfolio totals are conserved and funds do not "appear" or disappear across internal bucket movements.
 
 ## Commit & Pull Request Guidelines
-Use short, imperative commit subjects. Keep subjects concise, action-first, and reference issues or PRs when useful.
-PR summaries must be Markdown-formatted and should describe the user-visible change, list verification steps run, and include screenshots or recordings for UI changes when relevant.
+Use short, imperative commit subjects. Keep subjects concise, action-first, and reference issues or PRs when useful. PR summaries must be Markdown-formatted and should describe the user-visible change, list verification steps run, and include screenshots or recordings for UI changes when relevant.
 
 ### Pull Request Review
-When there's review findings in pull requests, first check if the comments are valid and reasonable. Then try to create a minimal change that resolves the issue outlined in the comments. Where it makes sense, batch changes for multiple comments together in one commit. Then reply to the initial comment with your resolution and close the conversation.
+When there are review findings in pull requests, first check if the comments are valid and reasonable. Then try to create a minimal change that resolves the issue outlined in the comments. Where it makes sense, batch changes for multiple comments together in one commit. Then reply to the initial comment with your resolution and close the conversation.
 
 ## Security & Configuration Tips
 Do not commit signing secrets. Release signing is read from `WALLYBUDGET_RELEASE_STORE_FILE`, `WALLYBUDGET_RELEASE_STORE_PASSWORD`, `WALLYBUDGET_RELEASE_KEY_ALIAS`, and `WALLYBUDGET_RELEASE_KEY_PASSWORD`, or equivalent Gradle properties. Keep SDK paths in local machine config such as `local.properties`.

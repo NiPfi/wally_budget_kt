@@ -4,11 +4,10 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.ColumnInfo
+import net.loeu.wallybudget.data.time.WallyTime
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
-import java.time.Instant
-import java.time.ZoneId
 
 /**
  * Represents a single expense entry
@@ -31,11 +30,8 @@ data class ExpenseEntity(
     val bucketUuid: String = DEFAULT_SPENDING_BUCKET_UUID,
     val amountCents: Long,
     val description: String,
-    val timestamp: Long = Instant.now().toEpochMilli(),
-    val expenseDate: String = Instant.ofEpochMilli(timestamp)
-        .atZone(ZoneId.systemDefault())
-        .toLocalDate()
-        .toString(),
+    val timestamp: Long = WallyTime.currentEpochTimeMs(),
+    val expenseDate: String = WallyTime.localDateAtEpochTimeMs(timestamp).toString(),
     val icon: ExpenseCategory? = null,
     val originInstallId: String,
     val lastModifiedByInstallId: String,

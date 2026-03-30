@@ -17,6 +17,7 @@ import net.loeu.wallybudget.data.local.entity.toDomainModel as baselineToDomainM
 import net.loeu.wallybudget.data.local.entity.toDomainModel
 import net.loeu.wallybudget.data.local.entity.toDomainModel as transferToDomainModel
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
+import net.loeu.wallybudget.data.time.WallyTime
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.FundTransactionType
 import net.loeu.wallybudget.domain.model.UserSettings
@@ -30,7 +31,6 @@ import net.loeu.wallybudget.domain.usecase.internal.archiveCycleIfNeeded
 import net.loeu.wallybudget.domain.usecase.internal.CycleRange
 import net.loeu.wallybudget.domain.usecase.internal.pendingCycleRangeOrNull
 import net.loeu.wallybudget.domain.usecase.internal.resolveCurrentCycleAllocationSnapshot
-import java.time.ZoneId
 import java.util.UUID
 
 class ConcludePendingCycleUseCase(
@@ -105,7 +105,7 @@ class ConcludePendingCycleUseCase(
         depositCloseoutAmounts(
             activeFunds = activeFunds,
             totalSurplusCents = totalSurplusCents,
-            closeoutEpochMs = pendingCycle.endExclusive.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+            closeoutEpochMs = WallyTime.startOfDayEpochTimeMs(pendingCycle.endExclusive),
             installId = installId
         )
     }
@@ -202,24 +202,16 @@ class ConcludePendingCycleUseCase(
                     it.settledCloseCycleEndDateExclusive == pendingCycle.endExclusive.toString()
             }
             .forEach { bucket ->
+                val closedAtEpochMs = WallyTime.startOfDayEpochTimeMs(pendingCycle.endExclusive)
                 budgetBucketDao.update(
                     bucket.copy(
                         settledCloseCycleEndDateExclusive = null,
-                        closedAtEpochMs = pendingCycle.endExclusive
-                            .atStartOfDay(ZoneId.systemDefault())
-                            .toInstant()
-                            .toEpochMilli(),
-                        updatedAtEpochMs = pendingCycle.endExclusive
-                            .atStartOfDay(ZoneId.systemDefault())
-                            .toInstant()
-                            .toEpochMilli(),
+                        closedAtEpochMs = closedAtEpochMs,
+                        updatedAtEpochMs = closedAtEpochMs,
                         lastModifiedByInstallId = installId,
                         modClock = hybridLogicalClockService.next(
                             previousClock = bucket.modClock,
-                            nowEpochMs = pendingCycle.endExclusive
-                                .atStartOfDay(ZoneId.systemDefault())
-                                .toInstant()
-                                .toEpochMilli(),
+                            nowEpochMs = closedAtEpochMs,
                             installId = installId
                         )
                     )
