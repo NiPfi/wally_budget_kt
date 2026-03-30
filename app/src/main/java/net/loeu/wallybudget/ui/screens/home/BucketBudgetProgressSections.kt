@@ -23,6 +23,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -37,16 +38,18 @@ import net.loeu.wallybudget.domain.model.displayDescription
 import net.loeu.wallybudget.ui.screens.overview.AnimatedCounter
 import net.loeu.wallybudget.util.CurrencyFormatter
 
-private val SEGMENT_COLORS = listOf(
-    Color(0xFF5B8FCC),
-    Color(0xFF5AAD8A),
-    Color(0xFFD98B4F),
-    Color(0xFF9470BC),
-    Color(0xFF4AADBD),
-    Color(0xFFCD7D6A),
-    Color(0xFF7BAA52),
-    Color(0xFFCC6E93)
-)
+@Composable
+private fun rememberSegmentColors(): List<Color> {
+    val primary = MaterialTheme.colorScheme.primary
+    return remember(primary) {
+        val hsv = FloatArray(3).also { android.graphics.Color.colorToHSV(primary.toArgb(), it) }
+        val sat = hsv[1].coerceAtLeast(0.55f)
+        val value = hsv[2].coerceAtLeast(0.70f)
+        List(8) { i ->
+            Color(android.graphics.Color.HSVToColor(floatArrayOf((hsv[0] + i * 45f) % 360f, sat, value)))
+        }
+    }
+}
 
 private data class BarSegment(val startX: Float, val endX: Float)
 
@@ -147,6 +150,7 @@ private fun CycleBudgetProgressBar(
     val trackColor = MaterialTheme.colorScheme.surfaceVariant
     val overflowColor = MaterialTheme.colorScheme.error.copy(alpha = 0.30f)
     val tickColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
+    val segmentColors = rememberSegmentColors()
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
     val scaleCents = remember(expenses, allocatedCents) {
         val total = expenses.sumOf { it.amountCents }
@@ -161,12 +165,14 @@ private fun CycleBudgetProgressBar(
             trackColor = trackColor,
             overflowColor = overflowColor,
             tickColor = tickColor,
+            segmentColors = segmentColors,
             isOverBudget = isOverBudget,
             selectedIndex = selectedIndex,
             onSelectionChange = { selectedIndex = it }
         )
         CycleBudgetProgressSelectionRow(
             expenses = expenses,
+            segmentColors = segmentColors,
             selectedIndex = selectedIndex,
             onClearSelection = { selectedIndex = null }
         )
@@ -181,6 +187,7 @@ private fun CycleBudgetProgressBarCanvas(
     trackColor: Color,
     overflowColor: Color,
     tickColor: Color,
+    segmentColors: List<Color>,
     isOverBudget: Boolean,
     selectedIndex: Int?,
     onSelectionChange: (Int?) -> Unit
@@ -211,6 +218,7 @@ private fun CycleBudgetProgressBarCanvas(
             trackColor = trackColor,
             overflowColor = overflowColor,
             tickColor = tickColor,
+            segmentColors = segmentColors,
             budgetX = budgetX,
             selectedIndex = selectedIndex,
             isOverBudget = isOverBudget
@@ -221,11 +229,12 @@ private fun CycleBudgetProgressBarCanvas(
 @Composable
 private fun CycleBudgetProgressSelectionRow(
     expenses: List<Expense>,
+    segmentColors: List<Color>,
     selectedIndex: Int?,
     onClearSelection: () -> Unit
 ) {
     val selected = selectedIndex?.let { expenses.getOrNull(it) }
-    val labelColor = selectedIndex?.let { SEGMENT_COLORS[it % SEGMENT_COLORS.size] } ?: Color.Transparent
+    val labelColor = selectedIndex?.let { segmentColors[it % segmentColors.size] } ?: Color.Transparent
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -253,6 +262,7 @@ private fun DrawScope.drawSegmentedBar(
     trackColor: Color,
     overflowColor: Color,
     tickColor: Color,
+    segmentColors: List<Color>,
     budgetX: Float,
     selectedIndex: Int?,
     isOverBudget: Boolean
@@ -279,7 +289,7 @@ private fun DrawScope.drawSegmentedBar(
         )
         layout.forEachIndexed { index, seg ->
             val alpha = if (selectedIndex == null || index == selectedIndex) 1f else 0.55f
-            val color = SEGMENT_COLORS[index % SEGMENT_COLORS.size].copy(alpha = alpha)
+            val color = segmentColors[index % segmentColors.size].copy(alpha = alpha)
             drawRect(
                 color = color,
                 topLeft = Offset(seg.startX, barTop),
