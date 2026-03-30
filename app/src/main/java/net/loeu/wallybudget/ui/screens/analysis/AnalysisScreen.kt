@@ -1,4 +1,4 @@
-@file:Suppress("LongMethod", "MaxLineLength", "TooManyFunctions")
+@file:Suppress("CyclomaticComplexMethod", "LongMethod", "MaxLineLength", "TooManyFunctions")
 
 package net.loeu.wallybudget.ui.screens.analysis
 
@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -24,19 +25,30 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
+import androidx.compose.ui.unit.sp
 import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.MonthlyHistory
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.ui.CurrencyPlaceholderSamples
 import net.loeu.wallybudget.ui.components.TimelineLockBanner
+import net.loeu.wallybudget.ui.screens.overview.CollapsingSummaryLayout
+import net.loeu.wallybudget.ui.screens.overview.CollapsingSummaryLayoutConfig
+import net.loeu.wallybudget.ui.screens.overview.LocalCollapsingHeaderIsForMeasurement
 import net.loeu.wallybudget.ui.screens.overview.LoadingValuePlaceholder
+import net.loeu.wallybudget.ui.screens.overview.rememberOverviewPageLayoutState
+import kotlin.math.roundToInt
 
 @Composable
 fun AnalysisScreen(
@@ -63,56 +75,77 @@ fun AnalysisScreen(
             null
         }
     }
+    val layoutState = rememberOverviewPageLayoutState(
+        defaultCollapsedHeader = false,
+        enableHeaderCollapse = true
+    )
 
-    LazyColumn(
-        modifier = modifier
-            .statusBarsPadding()
-            .testTag("analysis_list"),
-        contentPadding = PaddingValues(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(0.dp)
-    ) {
-        item {
+    CollapsingSummaryLayout(
+        layoutState = layoutState,
+        config = CollapsingSummaryLayoutConfig(
+            modifier = modifier,
+            enableHeaderCollapse = true,
+            bottomContentPadding = 24.dp,
+            headerHorizontalPadding = 0.dp,
+            headerTopPadding = 0.dp,
+            headerBottomSpacing = 0.dp
+        ),
+        header = { collapseProgress ->
             VerdictHeroBlock(
                 snapshot = snapshot,
                 isLoading = isLoading,
                 onNavigateBack = onNavigateBack,
-                onNavigateToSettings = onNavigateToSettings
+                onNavigateToSettings = onNavigateToSettings,
+                collapseProgress = collapseProgress,
+                showTestTags = !LocalCollapsingHeaderIsForMeasurement.current
             )
         }
+    ) { listState, contentPadding ->
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("analysis_list"),
+            contentPadding = PaddingValues(
+                top = contentPadding.calculateTopPadding(),
+                bottom = contentPadding.calculateBottomPadding()
+            ),
+            verticalArrangement = Arrangement.spacedBy(0.dp)
+        ) {
+            timelineLockReason?.let { reason ->
+                item { TimelineLockBanner(reason = reason) }
+            }
 
-        timelineLockReason?.let { reason ->
-            item { TimelineLockBanner(reason = reason) }
-        }
-
-        item {
-            SectionDivider()
-            SpendingTrajectorySection(
-                budgetState = budgetState,
-                spendingForecast = spendingForecast,
-                isLoading = isLoading
-            )
-        }
-
-        item {
-            SectionDivider()
-            EvidenceSection(snapshot = snapshot, isLoading = isLoading)
-        }
-
-        if (!isLoading && monthlyHistory.isNotEmpty()) {
             item {
                 SectionDivider()
-                RecentHistorySection(monthlyHistory = monthlyHistory)
+                SpendingTrajectorySection(
+                    budgetState = budgetState,
+                    spendingForecast = spendingForecast,
+                    isLoading = isLoading
+                )
             }
-        }
 
-        item {
-            SectionDivider()
-            RecommendationsSection(snapshot = snapshot, isLoading = isLoading)
-        }
+            item {
+                SectionDivider()
+                EvidenceSection(snapshot = snapshot, isLoading = isLoading)
+            }
 
-        item {
-            SectionDivider()
-            ConfidenceSection(snapshot = snapshot, isLoading = isLoading)
+            if (!isLoading && monthlyHistory.isNotEmpty()) {
+                item {
+                    SectionDivider()
+                    RecentHistorySection(monthlyHistory = monthlyHistory)
+                }
+            }
+
+            item {
+                SectionDivider()
+                RecommendationsSection(snapshot = snapshot, isLoading = isLoading)
+            }
+
+            item {
+                SectionDivider()
+                ConfidenceSection(snapshot = snapshot, isLoading = isLoading)
+            }
         }
     }
 }
@@ -122,8 +155,16 @@ private fun VerdictHeroBlock(
     snapshot: AnalysisSnapshot?,
     isLoading: Boolean,
     onNavigateBack: (() -> Unit)?,
-    onNavigateToSettings: (() -> Unit)?
+    onNavigateToSettings: (() -> Unit)?,
+    collapseProgress: Float,
+    showTestTags: Boolean
 ) {
+    val progress = collapseProgress.coerceIn(0f, 1f)
+    val contentOffset = lerp(0.dp, (-6).dp, progress)
+    val contentSpacing = lerp(8.dp, 4.dp, progress)
+    val bodyBottomPadding = lerp(20.dp, 10.dp, progress)
+    val headlineSize = lerp(28.sp, 22.sp, progress)
+    val detailsVisibility = (1f - progress * 1.2f).coerceIn(0f, 1f)
     val stateDescription = when {
         isLoading -> "Analysis loading"
         snapshot?.verdictLevel == AnalysisVerdictLevel.AtRisk -> "Analysis verdict at risk"
@@ -135,17 +176,20 @@ private fun VerdictHeroBlock(
         modifier = Modifier
             .fillMaxWidth()
             .background(verdictContainerColor(snapshot?.verdictLevel, isLoading))
-            .testTag("analysis_verdict_section")
+            .then(if (showTestTags) Modifier.testTag("analysis_verdict_section") else Modifier)
             .semantics { this.stateDescription = stateDescription }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 4.dp, end = 4.dp, bottom = 20.dp),
+                .padding(bottom = bodyBottomPadding),
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(start = 4.dp, end = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -182,62 +226,98 @@ private fun VerdictHeroBlock(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(horizontal = 16.dp)
+                        .offset(y = contentOffset),
+                    verticalArrangement = Arrangement.spacedBy(contentSpacing)
                 ) {
                     LoadingValuePlaceholder(
                         sampleText = "Needs attention",
-                        textStyle = MaterialTheme.typography.headlineSmall,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Start
+                        textStyle = MaterialTheme.typography.headlineSmall.copy(
+                            fontSize = headlineSize,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        textAlign = TextAlign.Start
                     )
-                    LoadingValuePlaceholder(
-                        sampleText = "Current pace and safe-today headroom still support an on-budget finish.",
-                        textStyle = MaterialTheme.typography.bodyLarge,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Start,
-                        fillWidth = true
-                    )
+                    Column(
+                        modifier = Modifier.collapseHeight(detailsVisibility),
+                        verticalArrangement = Arrangement.spacedBy(contentSpacing)
+                    ) {
+                        LoadingValuePlaceholder(
+                            sampleText = "Current pace and safe-today headroom still support an on-budget finish.",
+                            textStyle = MaterialTheme.typography.bodyLarge,
+                            textAlign = TextAlign.Start,
+                            fillWidth = true
+                        )
+                    }
                 }
             } else {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(horizontal = 16.dp)
+                        .offset(y = contentOffset),
+                    verticalArrangement = Arrangement.spacedBy(contentSpacing)
                 ) {
                     Text(
                         text = snapshot.headline,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontSize = headlineSize,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        fontWeight = FontWeight.Bold,
+                        maxLines = if (progress >= 0.5f) 1 else 2,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier.collapseHeight(detailsVisibility),
+                        verticalArrangement = Arrangement.spacedBy(contentSpacing)
                     ) {
+                        Row(
+                            modifier = Modifier.graphicsLayer { alpha = detailsVisibility },
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Confidence",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                            Text(
+                                text = "·",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                            )
+                            Text(
+                                text = snapshot.confidenceLabel,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                         Text(
-                            text = "Confidence",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                        Text(
-                            text = "·",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                        )
-                        Text(
-                            text = snapshot.confidenceLabel,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold
+                            text = snapshot.summary,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.graphicsLayer { alpha = detailsVisibility },
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
-                    Text(
-                        text = snapshot.summary,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
                 }
             }
         }
     }
 }
+
+private fun Modifier.collapseHeight(progress: Float): Modifier = this
+    .graphicsLayer { clip = true }
+    .layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints)
+        val height = (placeable.height * progress.coerceIn(0f, 1f)).roundToInt()
+        layout(placeable.width, height) {
+            if (height > 0) {
+                placeable.placeRelative(0, 0)
+            }
+        }
+    }
 
 @Composable
 private fun EvidenceSection(
