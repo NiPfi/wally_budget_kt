@@ -50,6 +50,7 @@ Android targets:
 2. Make sure the Android SDK is configured on the machine.
 3. Build the debug app.
 4. Run it on an emulator or connected device.
+5. Run `./scripts/setup-git-hooks.sh` once if you want the repository's pre-commit hook to run `:app:detekt`.
 
 ```bash
 ./gradlew :app:assembleDebug
@@ -69,6 +70,12 @@ You can also run and debug the app directly from Android Studio.
 - `./gradlew :app:seedDebugEmulator` clears app data and seeds a single running emulator with test data.
 - `./gradlew :app:assembleRelease` builds the release APK.
 - `./gradlew :app:bundleRelease` builds the release app bundle.
+
+## Git Hooks
+
+The repository includes a tracked pre-commit hook in [`.githooks/pre-commit`](./.githooks/pre-commit). It runs `./gradlew :app:detekt` before allowing a commit.
+
+To enable it in a clone, run `./scripts/setup-git-hooks.sh` once. This sets `core.hooksPath` to the repository's `.githooks` directory.
 
 ## Testing Notes
 

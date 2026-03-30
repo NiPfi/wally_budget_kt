@@ -48,11 +48,25 @@ internal fun DailyPacingSummaryCard(
         analysisTestTag = if (showTestTags) "home_page_header_analysis" else null,
         settingsTestTag = if (showTestTags) "home_page_header_settings" else null
     ) { contentColor, progress ->
-        BucketCollapsingMetricsRow(visibilityProgress = (1f - progress * 1.15f).coerceIn(0f, 1f)) {
-            BucketSummaryMetricColumn("Allocated", CurrencyFormatter.format(summary.allocatedThisCycleCents), contentColor)
-            BucketSummaryMetricColumn("Spent", CurrencyFormatter.format(summary.spentThisCycleCents), contentColor)
+        BucketCollapsingMetricsRow(
+            visibilityProgress = (1f - progress * 1.15f).coerceIn(0f, 1f)
+        ) {
+            BucketSummaryMetricColumn(
+                "Allocated",
+                CurrencyFormatter.format(summary.allocatedThisCycleCents),
+                contentColor
+            )
+            BucketSummaryMetricColumn(
+                "Spent",
+                CurrencyFormatter.format(summary.spentThisCycleCents),
+                contentColor
+            )
             if (summary.earmarkedBalanceCents > 0L) {
-                BucketSummaryMetricColumn("Earmarked", CurrencyFormatter.format(summary.earmarkedBalanceCents), contentColor)
+                BucketSummaryMetricColumn(
+                    "Earmarked",
+                    CurrencyFormatter.format(summary.earmarkedBalanceCents),
+                    contentColor
+                )
             }
         }
     }
@@ -82,10 +96,24 @@ internal fun MonthlyTotalSummaryCard(
         analysisTestTag = if (showTestTags) "home_page_header_analysis" else null,
         settingsTestTag = if (showTestTags) "home_page_header_settings" else null
     ) { contentColor, progress ->
-        BucketCollapsingMetricsRow(visibilityProgress = (1f - progress * 1.15f).coerceIn(0f, 1f)) {
-            BucketSummaryMetricColumn("Allocated", CurrencyFormatter.format(summary.allocatedThisCycleCents), contentColor)
-            BucketSummaryMetricColumn("Spent", CurrencyFormatter.format(summary.spentThisCycleCents), contentColor)
-            BucketSummaryMetricColumn("Days left", budgetState?.daysRemainingInCycle?.toString() ?: "—", contentColor)
+        BucketCollapsingMetricsRow(
+            visibilityProgress = (1f - progress * 1.15f).coerceIn(0f, 1f)
+        ) {
+            BucketSummaryMetricColumn(
+                "Allocated",
+                CurrencyFormatter.format(summary.allocatedThisCycleCents),
+                contentColor
+            )
+            BucketSummaryMetricColumn(
+                "Spent",
+                CurrencyFormatter.format(summary.spentThisCycleCents),
+                contentColor
+            )
+            BucketSummaryMetricColumn(
+                "Days left",
+                budgetState?.daysRemainingInCycle?.toString() ?: "—",
+                contentColor
+            )
         }
     }
 }
