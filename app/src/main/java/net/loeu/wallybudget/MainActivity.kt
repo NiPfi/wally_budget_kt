@@ -526,6 +526,7 @@ private fun MainNavigationHost(
         addAnalysisDestination(
             navController = navController,
             selectedBucketOverview = selectedBucketOverview,
+            effectiveCurrentDate = effectiveCurrentDate,
             budgetState = budgetState,
             spendingForecast = spendingForecast,
             monthlyHistoryState = monthlyHistoryState,

@@ -14,18 +14,19 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import net.loeu.wallybudget.data.time.WallyTime
 import net.loeu.wallybudget.domain.model.BudgetState
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.ui.screens.overview.ForecastProjectionChart
 import net.loeu.wallybudget.ui.screens.overview.LoadingValuePlaceholder
 import net.loeu.wallybudget.util.CurrencyFormatter
+import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
 @Composable
 internal fun SpendingTrajectorySection(
     budgetState: BudgetState?,
     spendingForecast: SpendingForecast?,
+    effectiveCurrentDate: LocalDate,
     isLoading: Boolean
 ) {
     Column(
@@ -49,7 +50,11 @@ internal fun SpendingTrajectorySection(
                 fillWidth = true
             )
         } else {
-            TrajectoryContent(budgetState = budgetState, spendingForecast = spendingForecast)
+            TrajectoryContent(
+                budgetState = budgetState,
+                spendingForecast = spendingForecast,
+                effectiveCurrentDate = effectiveCurrentDate
+            )
         }
     }
 }
@@ -57,11 +62,14 @@ internal fun SpendingTrajectorySection(
 @Composable
 private fun TrajectoryContent(
     budgetState: BudgetState,
-    spendingForecast: SpendingForecast
+    spendingForecast: SpendingForecast,
+    effectiveCurrentDate: LocalDate
 ) {
-    val today = remember { WallyTime.currentDate() }
-    val daysElapsed = remember(budgetState, today) {
-        ChronoUnit.DAYS.between(budgetState.cycleStartDate, today).toInt().coerceAtLeast(0)
+    val daysElapsed = remember(budgetState, effectiveCurrentDate) {
+        ChronoUnit.DAYS.between(
+            budgetState.cycleStartDate,
+            effectiveCurrentDate
+        ).toInt().coerceAtLeast(0)
     }
     val totalDays = daysElapsed + budgetState.daysRemainingInCycle
     ForecastProjectionChart(

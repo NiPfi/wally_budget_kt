@@ -131,6 +131,7 @@ internal fun NavGraphBuilder.addAnalysisDestination(
     navController: NavHostController,
     @Suppress("UNUSED_PARAMETER")
     selectedBucketOverview: SelectedBucketOverview?,
+    effectiveCurrentDate: LocalDate,
     budgetState: BudgetState?,
     spendingForecast: SpendingForecast?,
     monthlyHistoryState: StateFlow<List<MonthlyHistory>?>,
@@ -144,6 +145,7 @@ internal fun NavGraphBuilder.addAnalysisDestination(
             budgetState = budgetState,
             spendingForecast = spendingForecast,
             monthlyHistory = monthlyHistory.orEmpty(),
+            effectiveCurrentDate = effectiveCurrentDate,
             timelineLockReason = timelineLockReason,
             isLoading = isHomeDataLoading || monthlyHistory == null,
             onNavigateBack = { navController.popBackStack() },

@@ -48,6 +48,7 @@ import net.loeu.wallybudget.ui.screens.overview.CollapsingSummaryLayoutConfig
 import net.loeu.wallybudget.ui.screens.overview.LocalCollapsingHeaderIsForMeasurement
 import net.loeu.wallybudget.ui.screens.overview.LoadingValuePlaceholder
 import net.loeu.wallybudget.ui.screens.overview.rememberOverviewPageLayoutState
+import java.time.LocalDate
 import kotlin.math.roundToInt
 
 @Composable
@@ -55,6 +56,7 @@ fun AnalysisScreen(
     budgetState: BudgetState?,
     spendingForecast: SpendingForecast?,
     monthlyHistory: List<MonthlyHistory>,
+    effectiveCurrentDate: LocalDate,
     timelineLockReason: String?,
     isLoading: Boolean,
     modifier: Modifier = Modifier,
@@ -121,6 +123,7 @@ fun AnalysisScreen(
                 SpendingTrajectorySection(
                     budgetState = budgetState,
                     spendingForecast = spendingForecast,
+                    effectiveCurrentDate = effectiveCurrentDate,
                     isLoading = isLoading
                 )
             }
