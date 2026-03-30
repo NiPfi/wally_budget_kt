@@ -21,7 +21,8 @@ internal fun buildForecastEvidence(
             detail =
                 "Current projection ends above your " +
                     "${CurrencyFormatter.format(budgetState.monthlyBudgetCents)} cycle budget.",
-            tone = AnalysisEvidenceTone.Critical
+            tone = AnalysisEvidenceTone.Critical,
+            gauge = forecastGauge(budgetState, spendingForecast)
         )
 
         upperRangeOverrunCents > 0L -> AnalysisEvidenceItem(
@@ -32,7 +33,8 @@ internal fun buildForecastEvidence(
                 upperBoundCents = spendingForecast.upperBoundCents,
                 behaviorProfile = behaviorProfile
             ),
-            tone = AnalysisEvidenceTone.Neutral
+            tone = AnalysisEvidenceTone.Neutral,
+            gauge = forecastGauge(budgetState, spendingForecast)
         )
 
         else -> AnalysisEvidenceItem(
@@ -47,9 +49,28 @@ internal fun buildForecastEvidence(
                 )
                 append(" in the cycle.")
             },
-            tone = AnalysisEvidenceTone.Positive
+            tone = AnalysisEvidenceTone.Positive,
+            gauge = forecastGauge(budgetState, spendingForecast)
         )
     }
+}
+
+private fun forecastGauge(
+    budgetState: BudgetState,
+    spendingForecast: SpendingForecast
+): EvidenceGauge {
+    val maxCents = maxOf(
+        spendingForecast.upperBoundCents,
+        spendingForecast.projectedTotalSpentCents,
+        budgetState.monthlyBudgetCents
+    ) * 11 / 10
+    return EvidenceGauge(
+        valueCents = spendingForecast.projectedTotalSpentCents,
+        targetCents = budgetState.monthlyBudgetCents,
+        maxCents = maxCents,
+        lowerCents = spendingForecast.lowerBoundCents,
+        upperCents = spendingForecast.upperBoundCents
+    )
 }
 
 private fun buildForecastRangeValue(
