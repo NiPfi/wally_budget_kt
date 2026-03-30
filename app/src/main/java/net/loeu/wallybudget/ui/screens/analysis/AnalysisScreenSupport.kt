@@ -21,6 +21,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import net.loeu.wallybudget.ui.charts.drawRoundedHorizontalTrackBar
 
 @Composable
 internal fun RecommendationRow(
@@ -105,8 +106,14 @@ internal fun MiniGaugeBar(
         val w = size.width
         val h = size.height
         val cornerR = CornerRadius(h / 2f)
-
-        drawRoundRect(color = trackColor, size = size, cornerRadius = cornerR)
+        drawRoundedHorizontalTrackBar(
+            trackColor = trackColor,
+            fillColor = Color.Transparent,
+            topLeft = Offset.Zero,
+            size = Size(w, h),
+            fillWidth = 0f,
+            cornerRadius = cornerR
+        )
 
         val lower = gauge.lowerCents
         val upper = gauge.upperCents
@@ -122,13 +129,14 @@ internal fun MiniGaugeBar(
         }
 
         val valueX = (gauge.valueCents.toFloat() / gauge.maxCents * w).coerceIn(0f, w)
-        if (valueX > 0f) {
-            drawRoundRect(
-                color = fillColor,
-                size = Size(valueX, h),
-                cornerRadius = cornerR
-            )
-        }
+        drawRoundedHorizontalTrackBar(
+            trackColor = Color.Transparent,
+            fillColor = fillColor,
+            topLeft = Offset.Zero,
+            size = Size(w, h),
+            fillWidth = valueX,
+            cornerRadius = cornerR
+        )
 
         val targetX = (gauge.targetCents.toFloat() / gauge.maxCents * w).coerceIn(0f, w)
         drawLine(

@@ -37,6 +37,7 @@ import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.SelectedBucketOverview
 import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.ui.CurrencyPlaceholderSamples
+import net.loeu.wallybudget.ui.charts.drawRoundedHorizontalTrackBar
 import net.loeu.wallybudget.ui.screens.expenses.ExpenseItem
 import net.loeu.wallybudget.ui.screens.overview.AnimatedCounter
 import net.loeu.wallybudget.ui.screens.overview.CollapsingSummaryLayout
@@ -708,25 +709,16 @@ private fun CycleBudgetProgressBar(
         val barHeight = 14.dp.toPx()
         val barTop = (size.height - barHeight) / 2f
         val cornerRadius = barHeight / 2f
-
-        // Background track
-        drawRoundRect(
-            color = trackColor,
+        val roundedCornerRadius = CornerRadius(cornerRadius, cornerRadius)
+        val spentWidth = (spentFraction.coerceAtMost(1f) * size.width).coerceAtLeast(0f)
+        drawRoundedHorizontalTrackBar(
+            trackColor = trackColor,
+            fillColor = spentColor,
             topLeft = Offset(0f, barTop),
             size = Size(size.width, barHeight),
-            cornerRadius = CornerRadius(cornerRadius, cornerRadius)
+            fillWidth = spentWidth,
+            cornerRadius = roundedCornerRadius
         )
-
-        // Spent portion
-        val spentWidth = (spentFraction.coerceAtMost(1f) * size.width).coerceAtLeast(0f)
-        if (spentWidth > 0f) {
-            drawRoundRect(
-                color = spentColor,
-                topLeft = Offset(0f, barTop),
-                size = Size(spentWidth, barHeight),
-                cornerRadius = CornerRadius(cornerRadius, cornerRadius)
-            )
-        }
 
         // Overspent pulsing edge indicator
         if (spentFraction > 1f) {
@@ -735,7 +727,7 @@ private fun CycleBudgetProgressBar(
                 color = spentColor.copy(alpha = 0.4f),
                 topLeft = Offset(size.width - overflowWidth, barTop),
                 size = Size(overflowWidth, barHeight),
-                cornerRadius = CornerRadius(cornerRadius, cornerRadius)
+                cornerRadius = roundedCornerRadius
             )
         }
     }
