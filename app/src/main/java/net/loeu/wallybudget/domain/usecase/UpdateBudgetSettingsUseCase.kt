@@ -19,6 +19,7 @@ import net.loeu.wallybudget.data.local.entity.toDomainModel as bucketTransferToD
 import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.time.CurrentDateProvider
+import net.loeu.wallybudget.data.time.WallyTime
 import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BucketAllocationPolicy
 import net.loeu.wallybudget.domain.model.BucketCycleBaseline
@@ -254,7 +255,7 @@ class UpdateBudgetSettingsUseCase(
             return false
         }
 
-        val nowEpochMs = System.currentTimeMillis()
+        val nowEpochMs = WallyTime.currentEpochTimeMs()
         transactionRunner.inTransaction {
             pendingUndo.policiesToDeactivate.forEach {
                 deactivateInsertedPolicy(budgetPolicyDao, it, settings.installDeviceId, nowEpochMs, hybridLogicalClockService)
@@ -442,7 +443,7 @@ class UpdateBudgetSettingsUseCase(
         bucketDrafts: List<BucketDraft>
     ): BucketMutationResult {
         val settings = context.settings
-        val nowEpochMs = context.today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val nowEpochMs = WallyTime.startOfDayEpochTimeMs(context.today)
         val existingByUuid = context.buckets.associateBy { it.bucketUuid }
         val openDrafts = bucketDrafts.filterNot { it.closeRequested }
         val selectedBucketUuid = resolveSelectedOpenBucketUuid(
@@ -842,7 +843,7 @@ class UpdateBudgetSettingsUseCase(
         context: UpdateBudgetSettingsContext,
         targetBudgetCents: Long
     ) {
-        val nowEpochMs = context.today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val nowEpochMs = WallyTime.startOfDayEpochTimeMs(context.today)
         upsertCurrentCyclePortfolioPolicyAmount(
             budgetPolicyDao = budgetPolicyDao,
             cycleStart = context.currentPolicy.cycleStart,
@@ -874,7 +875,7 @@ class UpdateBudgetSettingsUseCase(
             return emptyList()
         }
 
-        val nowEpochMs = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val nowEpochMs = WallyTime.startOfDayEpochTimeMs(today)
         softDeletePolicies(futurePolicies, settings, nowEpochMs)
         if (!needsNextCyclePolicy) {
             return emptyList()

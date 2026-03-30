@@ -189,7 +189,11 @@ internal object AnalysisSnapshotFactory {
             behaviorProfile = behaviorProfile
         )
         items += paceEvidence(budgetState, spendingForecast, paceGapCents)
-        items += safeTodayEvidence(safeToSpendNowCents, availableRecoverableOverspendCents, budgetState.dailyBudgetCents)
+        items += safeTodayEvidence(
+            safeToSpendNowCents,
+            availableRecoverableOverspendCents,
+            budgetState.dailyBudgetCents
+        )
 
         behaviorEvidence(behaviorProfile)?.let { items += it }
 

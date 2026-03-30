@@ -85,6 +85,15 @@ To enable it in a clone, run `./scripts/setup-git-hooks.sh` once. This sets `cor
 - The Gradle build logic refuses to run connected tests when physical devices are attached.
 - `:app:seedDebugEmulator` requires exactly one running emulator and clears app data before seeding it.
 
+## Time Access
+
+Production code should not call raw wall-clock APIs such as `LocalDate.now()`, `Instant.now()`,
+`System.currentTimeMillis()`, or `ZoneId.systemDefault()` directly.
+
+Use the time shim in [WallyTime.kt](./app/src/main/java/net/loeu/wallybudget/data/time/WallyTime.kt)
+for non-injected code, and prefer `CurrentDateProvider` / `CurrentEpochTimeProvider` in injected
+business logic. The full convention is documented in [docs/time-access.md](./docs/time-access.md).
+
 ## Project Structure
 
 - `app/src/main/java/net/loeu/wallybudget/ui` contains Compose screens, UI components, navigation, theming, and view models.

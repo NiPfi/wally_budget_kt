@@ -5,12 +5,12 @@ import net.loeu.wallybudget.data.local.db.TransactionRunner
 import net.loeu.wallybudget.data.local.entity.FundEntity
 import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
+import net.loeu.wallybudget.data.time.WallyTime
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.Fund
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import java.time.LocalDate
-import java.time.ZoneId
 
 class EnsureDefaultFundUseCase(
     private val transactionRunner: TransactionRunner,
@@ -21,7 +21,7 @@ class EnsureDefaultFundUseCase(
     suspend operator fun invoke(now: LocalDate) {
         val settings = userSettingsStore.ensureIdentity()
         val installId = settings.installDeviceId
-        val nowEpochMs = now.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val nowEpochMs = WallyTime.startOfDayEpochTimeMs(now)
         transactionRunner.inTransaction {
             val existing = fundDao.findByUuid(DEFAULT_FUND_UUID)
             when {

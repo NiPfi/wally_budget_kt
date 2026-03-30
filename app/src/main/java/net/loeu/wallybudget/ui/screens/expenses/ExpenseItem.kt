@@ -17,15 +17,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import net.loeu.wallybudget.data.time.WallyTime
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.model.description
 import net.loeu.wallybudget.domain.model.displayDescription
 import net.loeu.wallybudget.domain.model.iconRes
 import net.loeu.wallybudget.ui.screens.overview.AnimatedCounter
 import net.loeu.wallybudget.util.CurrencyFormatter
-import java.time.Instant
 import java.time.LocalTime
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @Composable
@@ -94,7 +93,7 @@ fun ExpenseItem(
 }
 
 private fun formatTime(timestamp: Long): String {
-    val zonedDateTime = Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault())
+    val zonedDateTime = WallyTime.zonedDateTimeAtEpochTimeMs(timestamp)
     val localTime = zonedDateTime.toLocalTime()
 
     if (localTime == LocalTime.MIDNIGHT) {

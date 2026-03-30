@@ -15,6 +15,11 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 
+/**
+ * Injectable source for the current observed calendar date.
+ *
+ * Prefer this in domain and view-model code. For non-injected call sites, use [WallyTime].
+ */
 interface CurrentDateProvider {
     fun currentDate(): LocalDate
     fun observeCurrentDate(): Flow<LocalDate>
@@ -22,10 +27,10 @@ interface CurrentDateProvider {
 
 class SystemCurrentDateProvider(
     private val context: Context,
-    private val zoneId: ZoneId = ZoneId.systemDefault()
+    private val zoneId: ZoneId = WallyTime.systemZoneId()
 ) : CurrentDateProvider {
 
-    override fun currentDate(): LocalDate = LocalDate.now(zoneId)
+    override fun currentDate(): LocalDate = WallyTime.currentDate(zoneId)
 
     override fun observeCurrentDate(): Flow<LocalDate> = callbackFlow {
         fun emitCurrentDate() {
@@ -67,7 +72,7 @@ class SystemCurrentDateProvider(
     }.distinctUntilChanged()
 
     private fun millisUntilNextMidnight(): Long {
-        val now = LocalDateTime.now(zoneId)
+        val now = WallyTime.currentLocalDateTime(zoneId)
         val today = now.toLocalDate()
         val nextMidnight = today.plusDays(1)
             .atStartOfDay(zoneId)

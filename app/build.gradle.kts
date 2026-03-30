@@ -1,6 +1,7 @@
 import dev.detekt.gradle.Detekt
 import dev.detekt.gradle.DetektCreateBaselineTask
 import java.io.File
+import org.gradle.api.GradleException
 import java.util.Properties
 
 plugins {
@@ -188,6 +189,7 @@ detekt {
 }
 
 tasks.withType<Detekt>().configureEach {
+    dependsOn("verifyAppTimeUsage")
     jvmTarget.set("17")
     reports {
         html.required.set(true)
@@ -197,6 +199,59 @@ tasks.withType<Detekt>().configureEach {
 
 tasks.withType<DetektCreateBaselineTask>().configureEach {
     jvmTarget.set("17")
+}
+
+tasks.register("verifyAppTimeUsage") {
+    group = "verification"
+    description = "Rejects raw date/time access outside the app time shim."
+
+    val forbiddenPatterns = listOf(
+        Regex("""\bLocalDate\.now\s*\(""") to
+            "Use WallyTime.currentDate() or an injected CurrentDateProvider.",
+        Regex("""\bLocalDateTime\.now\s*\(""") to
+            "Use WallyTime.currentLocalDateTime() or an injected time provider.",
+        Regex("""\bZonedDateTime\.now\s*\(""") to
+            "Use WallyTime.zonedDateTimeAtEpochTimeMs(...) or an injected time provider.",
+        Regex("""\bOffsetDateTime\.now\s*\(""") to
+            "Use WallyTime or an injected time provider instead of OffsetDateTime.now().",
+        Regex("""\bInstant\.now\s*\(""") to
+            "Use WallyTime.currentEpochTimeMs() or an injected CurrentEpochTimeProvider.",
+        Regex("""\bSystem\.currentTimeMillis\s*\(""") to
+            "Use WallyTime.currentEpochTimeMs() or an injected CurrentEpochTimeProvider.",
+        Regex("""\bZoneId\.systemDefault\s*\(""") to
+            "Use WallyTime.systemZoneId() instead of ZoneId.systemDefault().",
+    )
+
+    doLast {
+        val violations = mutableListOf<String>()
+        fileTree("src/main/java") {
+            include("**/*.kt")
+            exclude("net/loeu/wallybudget/data/time/**")
+        }
+            .files
+            .sorted()
+            .forEach { file ->
+                file.readLines().forEachIndexed { index, line ->
+                    forbiddenPatterns.forEach { (pattern, guidance) ->
+                        if (pattern.containsMatchIn(line)) {
+                            val path = file.relativeTo(project.projectDir).invariantSeparatorsPath
+                            violations += "$path:${index + 1}: $guidance"
+                        }
+                    }
+                }
+            }
+
+        if (violations.isNotEmpty()) {
+            throw GradleException(
+                buildString {
+                    appendLine("Found direct wall-clock access in production code.")
+                    appendLine("Use WallyTime or an injected current date/time provider instead.")
+                    appendLine()
+                    violations.forEach { appendLine(it) }
+                }.trimEnd()
+            )
+        }
+    }
 }
 
 dependencies {

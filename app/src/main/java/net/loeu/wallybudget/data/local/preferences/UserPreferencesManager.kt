@@ -3,6 +3,7 @@ package net.loeu.wallybudget.data.local.preferences
 import android.content.Context
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import net.loeu.wallybudget.data.time.WallyTime
 import net.loeu.wallybudget.domain.model.PendingPaydayUndo
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
@@ -133,7 +134,7 @@ class UserPreferencesManager(
                     settingsUpdatedAtEpochMs = settings.settingsUpdatedAtEpochMs,
                     settingsModClock = settings.settingsModClock.ifBlank {
                         hybridLogicalClockService.format(
-                            epochMs = settings.settingsUpdatedAtEpochMs.coerceAtLeast(System.currentTimeMillis()),
+                            epochMs = settings.settingsUpdatedAtEpochMs.coerceAtLeast(WallyTime.currentEpochTimeMs()),
                             counter = 0,
                             installId = restoredInstallId
                         )
@@ -163,7 +164,7 @@ class UserPreferencesManager(
     private fun ensureSettingsIdentity(currentState: UserPreferencesState): UserPreferencesState {
         val settings = currentState.settings
         val installId = settings.installDeviceId.takeIf { it.isNotBlank() } ?: getOrCreateInstallId(context)
-        val now = System.currentTimeMillis()
+        val now = WallyTime.currentEpochTimeMs()
         return currentState.copy(
             settings = settings.copy(
                 installDeviceId = installId,
@@ -183,7 +184,7 @@ class UserPreferencesManager(
 
     private fun touchSettingsMetadata(settings: StoredUserSettingsState): StoredUserSettingsState {
         val installId = settings.installDeviceId
-        val now = System.currentTimeMillis()
+        val now = WallyTime.currentEpochTimeMs()
         return settings.copy(
             settingsUpdatedAtEpochMs = now,
             settingsLastModifiedByInstallId = installId,
