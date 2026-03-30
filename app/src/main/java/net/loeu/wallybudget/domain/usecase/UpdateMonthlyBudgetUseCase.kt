@@ -5,6 +5,7 @@ import net.loeu.wallybudget.data.local.dao.ExpenseDao
 import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.time.CurrentDateProvider
+import net.loeu.wallybudget.data.time.WallyTime
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import net.loeu.wallybudget.domain.usecase.internal.newBudgetPolicy
@@ -29,7 +30,7 @@ class UpdateMonthlyBudgetUseCase(
 
         if (currentCycleExpenseCount == 0) {
             val currentPolicy = budgetPolicyDao.findActivePolicyForCycle(cycleStart.toString())
-            val now = System.currentTimeMillis()
+            val now = WallyTime.currentEpochTimeMs()
             if (currentPolicy == null) {
                 budgetPolicyDao.insert(
                     newBudgetPolicy(

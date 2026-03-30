@@ -1,8 +1,7 @@
 package net.loeu.wallybudget.domain.model
 
-import java.time.Instant
+import net.loeu.wallybudget.data.time.WallyTime
 import java.time.LocalDate
-import java.time.ZoneId
 import java.time.format.DateTimeParseException
 
 /**
@@ -14,11 +13,8 @@ data class Expense(
     val bucketUuid: String = DEFAULT_SPENDING_BUCKET_UUID,
     val amountCents: Long,
     val description: String,
-    val timestamp: Long = Instant.now().toEpochMilli(),
-    val expenseDate: String = Instant.ofEpochMilli(timestamp)
-        .atZone(ZoneId.systemDefault())
-        .toLocalDate()
-        .toString(),
+    val timestamp: Long = WallyTime.currentEpochTimeMs(),
+    val expenseDate: String = WallyTime.localDateAtEpochTimeMs(timestamp).toString(),
     val icon: ExpenseCategory? = null,
     val originInstallId: String = "",
     val lastModifiedByInstallId: String = "",

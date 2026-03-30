@@ -189,7 +189,11 @@ internal object AnalysisSnapshotFactory {
             behaviorProfile = behaviorProfile
         )
         items += paceEvidence(budgetState, spendingForecast, paceGapCents)
-        items += safeTodayEvidence(safeToSpendNowCents, availableRecoverableOverspendCents)
+        items += safeTodayEvidence(
+            safeToSpendNowCents,
+            availableRecoverableOverspendCents,
+            budgetState.dailyBudgetCents
+        )
 
         behaviorEvidence(behaviorProfile)?.let { items += it }
 
@@ -207,22 +211,30 @@ internal object AnalysisSnapshotFactory {
         spendingForecast: SpendingForecast,
         paceGapCents: Long
     ): AnalysisEvidenceItem {
+        val projected = spendingForecast.projectedDailySpendCents
+        val target = budgetState.dailyBudgetCents
+        val gauge = EvidenceGauge(
+            valueCents = projected,
+            targetCents = target,
+            maxCents = maxOf(projected, target) * 3 / 2
+        )
         return if (paceGapCents > 0L) {
             AnalysisEvidenceItem(
                 title = "Daily pace",
                 value = "${CurrencyFormatter.format(paceGapCents)} above target",
                 detail = buildString {
                     append("Projected pace is ")
-                    append(CurrencyFormatter.format(spendingForecast.projectedDailySpendCents))
+                    append(CurrencyFormatter.format(projected))
                     append(" vs ")
-                    append(CurrencyFormatter.format(budgetState.dailyBudgetCents))
+                    append(CurrencyFormatter.format(target))
                     append(" daily budget.")
                 },
-                tone = if (paceGapCents >= max(500L, budgetState.dailyBudgetCents / 10)) {
+                tone = if (paceGapCents >= max(500L, target / 10)) {
                     AnalysisEvidenceTone.Warning
                 } else {
                     AnalysisEvidenceTone.Neutral
-                }
+                },
+                gauge = gauge
             )
         } else {
             AnalysisEvidenceItem(
@@ -230,19 +242,21 @@ internal object AnalysisSnapshotFactory {
                 value = "At or below target",
                 detail = buildString {
                     append("Projected pace is ")
-                    append(CurrencyFormatter.format(spendingForecast.projectedDailySpendCents))
+                    append(CurrencyFormatter.format(projected))
                     append(" against ")
-                    append(CurrencyFormatter.format(budgetState.dailyBudgetCents))
+                    append(CurrencyFormatter.format(target))
                     append(" per day.")
                 },
-                tone = AnalysisEvidenceTone.Positive
+                tone = AnalysisEvidenceTone.Positive,
+                gauge = gauge
             )
         }
     }
 
     private fun safeTodayEvidence(
         safeToSpendNowCents: Long,
-        availableRecoverableOverspendCents: Long
+        availableRecoverableOverspendCents: Long,
+        dailyBudgetCents: Long
     ): AnalysisEvidenceItem {
         val detail = if (availableRecoverableOverspendCents > 0L) {
             CurrencyFormatter.format(availableRecoverableOverspendCents) +
@@ -250,16 +264,22 @@ internal object AnalysisSnapshotFactory {
         } else {
             "There is no recoverable buffer left beyond today's remaining allowance."
         }
-
+        val tone = when {
+            safeToSpendNowCents == 0L -> AnalysisEvidenceTone.Critical
+            availableRecoverableOverspendCents > 0L -> AnalysisEvidenceTone.Positive
+            else -> AnalysisEvidenceTone.Warning
+        }
+        val gauge = EvidenceGauge(
+            valueCents = safeToSpendNowCents,
+            targetCents = dailyBudgetCents,
+            maxCents = maxOf(safeToSpendNowCents, dailyBudgetCents)
+        )
         return AnalysisEvidenceItem(
             title = "Safe today",
             value = CurrencyFormatter.format(safeToSpendNowCents),
             detail = detail,
-            tone = when {
-                safeToSpendNowCents == 0L -> AnalysisEvidenceTone.Critical
-                availableRecoverableOverspendCents > 0L -> AnalysisEvidenceTone.Positive
-                else -> AnalysisEvidenceTone.Warning
-            }
+            tone = tone,
+            gauge = gauge
         )
     }
 

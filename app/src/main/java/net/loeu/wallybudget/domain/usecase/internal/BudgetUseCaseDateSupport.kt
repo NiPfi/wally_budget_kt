@@ -1,16 +1,13 @@
 package net.loeu.wallybudget.domain.usecase.internal
 
+import net.loeu.wallybudget.data.time.WallyTime
 import net.loeu.wallybudget.domain.model.UserSettings
-import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
 import java.time.format.DateTimeParseException
 
 internal fun UserSettings.lastResetDateOrNull(): LocalDate? {
     if (lastResetTimestamp <= 0L) return null
-    return Instant.ofEpochMilli(lastResetTimestamp)
-        .atZone(ZoneId.systemDefault())
-        .toLocalDate()
+    return WallyTime.localDateAtEpochTimeMs(lastResetTimestamp)
 }
 
 internal fun UserSettings.lastSeenDateOrNull(): LocalDate? = lastSeenDate?.parseLocalDateOrNull()
@@ -26,7 +23,7 @@ internal fun UserSettings.pendingCycleRangeOrNull(): CycleRange? {
 }
 
 internal fun LocalDate.toStartOfDayMillis(): Long {
-    return atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    return WallyTime.startOfDayEpochTimeMs(this)
 }
 
 private fun String.parseLocalDateOrNull(): LocalDate? {

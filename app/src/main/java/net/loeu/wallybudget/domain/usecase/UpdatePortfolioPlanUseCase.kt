@@ -19,6 +19,7 @@ import net.loeu.wallybudget.data.local.entity.toDomainModel as policyToDomainMod
 import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
 import net.loeu.wallybudget.data.time.CurrentDateProvider
+import net.loeu.wallybudget.data.time.WallyTime
 import net.loeu.wallybudget.domain.model.BudgetBucket
 import net.loeu.wallybudget.domain.model.BucketAllocationPolicy
 import net.loeu.wallybudget.domain.model.BucketCycleBaseline
@@ -251,7 +252,7 @@ class UpdatePortfolioPlanUseCase(
         bucketDrafts: List<BucketDraft>,
         portfolioMonthlyBudgetCents: Long
     ): PortfolioPlanMutationResult {
-        val nowEpochMs = context.today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val nowEpochMs = WallyTime.startOfDayEpochTimeMs(context.today)
         val settings = context.settings
         val existingByUuid = context.buckets.associateBy { it.bucketUuid }
         val openBuckets = bucketDrafts.filterNot { it.closeRequested }.map { draft ->

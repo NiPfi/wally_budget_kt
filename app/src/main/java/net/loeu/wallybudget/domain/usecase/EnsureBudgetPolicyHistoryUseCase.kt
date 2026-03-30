@@ -5,12 +5,12 @@ import net.loeu.wallybudget.data.local.dao.MonthlyHistoryDao
 import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.data.local.entity.toDomainModel
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
+import net.loeu.wallybudget.data.time.WallyTime
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import net.loeu.wallybudget.domain.usecase.internal.lastResetDateOrNull
 import net.loeu.wallybudget.domain.usecase.internal.newBudgetPolicy
 import java.time.LocalDate
-import java.time.ZoneId
 
 class EnsureBudgetPolicyHistoryUseCase(
     private val budgetPolicyDao: BudgetPolicyDao,
@@ -55,7 +55,7 @@ class EnsureBudgetPolicyHistoryUseCase(
                     budgetAmountCents = settings.resolvedPortfolioMonthlyBudgetCents,
                     paydayDayOfMonth = settings.paydayDate,
                     installId = settings.installDeviceId,
-                    nowEpochMs = now.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                            nowEpochMs = WallyTime.startOfDayEpochTimeMs(now),
                     hybridLogicalClockService = hybridLogicalClockService
                 ).toEntity()
             )

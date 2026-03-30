@@ -12,6 +12,7 @@ import net.loeu.wallybudget.data.local.entity.toDomainModel as policyToDomainMod
 import net.loeu.wallybudget.data.local.entity.toEntity as budgetPolicyToEntity
 import net.loeu.wallybudget.data.local.entity.toEntity
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
+import net.loeu.wallybudget.data.time.WallyTime
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
@@ -24,9 +25,7 @@ import net.loeu.wallybudget.domain.usecase.internal.newBucketCycleBaseline
 import net.loeu.wallybudget.domain.usecase.internal.newBudgetPolicy
 import net.loeu.wallybudget.domain.usecase.internal.pendingCycleRangeOrNull
 import net.loeu.wallybudget.domain.usecase.internal.toStartOfDayMillis
-import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
 
 @Suppress("LongMethod")
 class PerformMonthlyResetUseCase(
@@ -64,7 +63,7 @@ class PerformMonthlyResetUseCase(
                 userSettingsStore.setPendingCycle(
                     cycleStartDate = pendingCycle.start,
                     cycleEndDateExclusive = pendingCycle.endExclusive,
-                    detectedAtTimestamp = Instant.now().toEpochMilli()
+                    detectedAtTimestamp = WallyTime.currentEpochTimeMs()
                 )
             }
             return
@@ -152,7 +151,7 @@ class PerformMonthlyResetUseCase(
     ) {
         if (budgetPolicyDao.findActivePolicyForCycle(cycleStart.toString()) != null) return
 
-        val nowEpochMs = cycleStart.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val nowEpochMs = WallyTime.startOfDayEpochTimeMs(cycleStart)
         budgetPolicyDao.insert(
             newBudgetPolicy(
                 cycleStart = cycleStart,
@@ -170,7 +169,7 @@ class PerformMonthlyResetUseCase(
         userSettingsStore.setPendingCycle(
             cycleStartDate = cycleRange.start,
             cycleEndDateExclusive = cycleRange.endExclusive,
-            detectedAtTimestamp = Instant.now().toEpochMilli()
+            detectedAtTimestamp = WallyTime.currentEpochTimeMs()
         )
     }
 
@@ -179,7 +178,7 @@ class PerformMonthlyResetUseCase(
         cycleStart: LocalDate,
         cycleEndExclusive: LocalDate
     ) {
-        val nowEpochMs = cycleStart.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val nowEpochMs = WallyTime.startOfDayEpochTimeMs(cycleStart)
         budgetBucketDao.getAllForSnapshot()
             .filter {
                 it.deletedAtEpochMs == null &&

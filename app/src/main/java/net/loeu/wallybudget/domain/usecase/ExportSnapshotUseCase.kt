@@ -29,6 +29,7 @@ import net.loeu.wallybudget.data.snapshot.model.SnapshotExpenseRecordV1
 import net.loeu.wallybudget.data.snapshot.model.SnapshotFundRecordV5
 import net.loeu.wallybudget.data.snapshot.model.SnapshotFundTransactionRecordV5
 import net.loeu.wallybudget.data.snapshot.model.SnapshotSettingsRecordV1
+import net.loeu.wallybudget.data.time.WallyTime
 import net.loeu.wallybudget.domain.model.SnapshotError
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 
@@ -54,7 +55,7 @@ class ExportSnapshotUseCase(
 ) {
     suspend operator fun invoke(uri: Uri): Int {
         val settings = userSettingsStore.ensureIdentity()
-        val nowEpochMs = System.currentTimeMillis()
+        val nowEpochMs = WallyTime.currentEpochTimeMs()
         val envelope = SnapshotEnvelopeV1(
             format = SnapshotCompatibilityService.SNAPSHOT_FORMAT,
             schemaVersion = SnapshotCompatibilityService.CURRENT_SCHEMA_VERSION,

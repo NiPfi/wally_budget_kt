@@ -14,11 +14,25 @@ internal enum class AnalysisEvidenceTone {
     Critical
 }
 
+/**
+ * Optional visual gauge data for an evidence card.
+ * Renders as a thin horizontal bar: fill to [valueCents], tick at [targetCents],
+ * and (if present) a shaded band between [lowerCents] and [upperCents].
+ */
+internal data class EvidenceGauge(
+    val valueCents: Long,
+    val targetCents: Long,
+    val maxCents: Long,
+    val lowerCents: Long? = null,
+    val upperCents: Long? = null
+)
+
 internal data class AnalysisEvidenceItem(
     val title: String,
     val value: String,
     val detail: String,
-    val tone: AnalysisEvidenceTone
+    val tone: AnalysisEvidenceTone,
+    val gauge: EvidenceGauge? = null
 )
 
 internal data class AnalysisRecommendation(

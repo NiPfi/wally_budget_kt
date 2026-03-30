@@ -35,6 +35,7 @@ import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.TimelineLockState
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.data.time.CurrentDateProvider
+import net.loeu.wallybudget.data.time.WallyTime
 import net.loeu.wallybudget.domain.usecase.ApplyOnboardingRestoreUseCase
 import net.loeu.wallybudget.domain.usecase.AddExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.CompleteOnboardingUseCase
@@ -66,9 +67,7 @@ import net.loeu.wallybudget.domain.usecase.UpdatePaydayUseCase
 import net.loeu.wallybudget.domain.usecase.UpdatePortfolioPlanRequest
 import net.loeu.wallybudget.domain.usecase.UpdatePortfolioPlanUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateExpenseUseCase
-import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
 
 data class PaydayUndoState(
     val expiresAtExclusive: LocalDate
@@ -331,9 +330,9 @@ class BudgetViewModel(
             }
             val resolvedDate = ExpenseEntryDatePolicy.resolveRequestedDate(date, effectiveDate)
             val timestamp = if (resolvedDate == effectiveDate) {
-                Instant.now().toEpochMilli()
+                WallyTime.currentEpochTimeMs()
             } else {
-                resolvedDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                WallyTime.startOfDayEpochTimeMs(resolvedDate)
             }
             val expense = Expense(
                 amountCents = amountCents,
