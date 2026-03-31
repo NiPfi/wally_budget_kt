@@ -10,7 +10,7 @@ import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 
 /**
- * Historical migrations through schema v16 remain manual.
+ * Historical migrations through schema v17 remain manual.
  *
  * Future schema-only changes can prefer Room auto-migrations starting from v16, but any
  * data-transforming or runtime-dependent upgrade must stay manual.
@@ -1134,6 +1134,22 @@ object BudgetDatabaseMigrations {
         }
     }
 
+    val MIGRATION_16_17 = object : Migration(16, 17) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "ALTER TABLE `funds` ADD COLUMN `fundType` TEXT NOT NULL DEFAULT 'GOAL'"
+            )
+            db.execSQL(
+                """
+                UPDATE `funds`
+                SET `fundType` = 'DEFAULT_RESERVE'
+                WHERE `uuid` = '$DEFAULT_FUND_UUID'
+                    OR `name` = '$DEFAULT_FUND_NAME'
+                """.trimIndent()
+            )
+        }
+    }
+
     fun all(installId: String): Array<Migration> {
         return arrayOf(
             MIGRATION_1_2,
@@ -1150,7 +1166,8 @@ object BudgetDatabaseMigrations {
             MIGRATION_12_13,
             MIGRATION_13_14,
             MIGRATION_14_15,
-            MIGRATION_15_16
+            MIGRATION_15_16,
+            MIGRATION_16_17
         )
     }
 }

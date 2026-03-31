@@ -20,6 +20,7 @@ import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.Fund
+import net.loeu.wallybudget.domain.model.FundType
 import net.loeu.wallybudget.domain.model.PortfolioState
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.ui.screens.funds.FundsScreen
@@ -37,7 +38,7 @@ class FundsScreenNavigationTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun tappingFundsSectionOpensFundsScreenAndBackReturnsToPortfolio() {
+    fun tappingViewFundsOpensFundsScreenAndBackReturnsToPortfolio() {
         composeRule.setContent {
             var showFunds by remember { mutableStateOf(false) }
 
@@ -63,13 +64,13 @@ class FundsScreenNavigationTest {
             }
         }
 
-        composeRule.onNodeWithTag("funds_section_card").assertIsDisplayed().performClick()
+        composeRule.onNodeWithText("View funds").assertIsDisplayed().performClick()
         composeRule.onNodeWithText("Default reserve").assertIsDisplayed()
         composeRule.onNodeWithText("Priority 1").assertIsDisplayed()
         composeRule.onNodeWithText("Priority 2").assertIsDisplayed()
 
         composeRule.onNodeWithContentDescription("Back").assertIsDisplayed().performClick()
-        composeRule.onNodeWithTag("funds_section_card").assertIsDisplayed()
+        composeRule.onNodeWithText("View funds").assertIsDisplayed()
     }
 
     @Test
@@ -81,6 +82,7 @@ class FundsScreenNavigationTest {
                         fund(
                             uuid = DEFAULT_FUND_UUID,
                             name = "Savings",
+                            fundType = FundType.DEFAULT_RESERVE,
                             balanceCents = 40_00L,
                             targetAmountCents = 80_00L,
                             sortOrder = 0,
@@ -103,6 +105,7 @@ class FundsScreenNavigationTest {
             fund(
                 uuid = DEFAULT_FUND_UUID,
                 name = "Savings",
+                fundType = FundType.DEFAULT_RESERVE,
                 balanceCents = 40_00L,
                 targetAmountCents = 100_00L,
                 sortOrder = 0,
@@ -111,6 +114,7 @@ class FundsScreenNavigationTest {
             fund(
                 uuid = "goal-b",
                 name = "Vacation",
+                fundType = FundType.GOAL,
                 balanceCents = 15_00L,
                 targetAmountCents = 60_00L,
                 sortOrder = 2,
@@ -119,6 +123,7 @@ class FundsScreenNavigationTest {
             fund(
                 uuid = "goal-a",
                 name = "Emergency",
+                fundType = FundType.GOAL,
                 balanceCents = 25_00L,
                 targetAmountCents = 50_00L,
                 sortOrder = 1,
@@ -172,6 +177,7 @@ class FundsScreenNavigationTest {
     private fun fund(
         uuid: String,
         name: String,
+        fundType: FundType,
         balanceCents: Long,
         targetAmountCents: Long?,
         sortOrder: Int,
@@ -179,6 +185,7 @@ class FundsScreenNavigationTest {
     ) = Fund(
         uuid = uuid,
         name = name,
+        fundType = fundType,
         balanceCents = balanceCents,
         allocationPerCycleCents = 0L,
         targetAmountCents = targetAmountCents,

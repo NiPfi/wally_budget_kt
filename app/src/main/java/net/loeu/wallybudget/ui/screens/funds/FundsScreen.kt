@@ -26,8 +26,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import net.loeu.wallybudget.R
-import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.Fund
+import net.loeu.wallybudget.domain.model.FundType
 import net.loeu.wallybudget.util.CurrencyFormatter
 
 internal data class FundsOverviewUiState(
@@ -91,9 +91,9 @@ fun FundsScreen(
 
 internal fun buildFundsOverviewUiState(funds: List<Fund>): FundsOverviewUiState {
     val activeFunds = funds.filterNot { it.isClosed }
-    val reserveFund = activeFunds.firstOrNull { it.uuid == DEFAULT_FUND_UUID }
+    val reserveFund = activeFunds.firstOrNull { it.fundType == FundType.DEFAULT_RESERVE }
     val activeGoals = activeFunds
-        .filterNot { it.uuid == DEFAULT_FUND_UUID }
+        .filterNot { it.fundType == FundType.DEFAULT_RESERVE }
         .sortedWith(compareBy<Fund> { it.sortOrder }.thenBy { it.createdAtEpochMs }.thenBy { it.uuid })
         .mapIndexed { index, fund -> fund.toFundGoalUiState(priorityOrder = index + 1) }
 

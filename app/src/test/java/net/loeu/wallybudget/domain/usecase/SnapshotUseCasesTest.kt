@@ -12,13 +12,14 @@ import net.loeu.wallybudget.data.snapshot.model.SnapshotBudgetBucketRecordV3
 import net.loeu.wallybudget.data.snapshot.model.SnapshotBucketAllocationPolicyRecordV3
 import net.loeu.wallybudget.data.snapshot.model.SnapshotEnvelopeV1
 import net.loeu.wallybudget.data.snapshot.model.SnapshotExpenseRecordV1
-import net.loeu.wallybudget.data.snapshot.model.SnapshotFundRecordV5
+import net.loeu.wallybudget.data.snapshot.model.SnapshotFundRecordV6
 import net.loeu.wallybudget.data.snapshot.model.SnapshotFundTransactionRecordV5
 import net.loeu.wallybudget.data.snapshot.model.SnapshotSettingsRecordV1
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.service.BucketAllocationResolver
 import net.loeu.wallybudget.domain.model.SnapshotError
+import net.loeu.wallybudget.domain.model.FundType
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
@@ -74,6 +75,27 @@ class SnapshotUseCasesTest {
         assertEquals(1, preparedEnvelope.budgetPolicies.size)
         assertEquals("expense-1", preparedEnvelope.expenses.single().recordUuid)
         assertEquals(100_000L, preparedEnvelope.settings.defaultMonthlyBudgetCents)
+        assertEquals(FundType.DEFAULT_RESERVE.name, preparedEnvelope.funds?.single()?.fundType)
+    }
+
+    @Test
+    fun prepareSnapshotImport_infersLegacyFundTypesDuringImport() = runBlocking {
+        val bytes = GzipSnapshotCodec().encodeToGzip(
+            """
+            {"format":"wallybudget-snapshot","schemaVersion":5,"snapshotId":"snapshot-1","baseSnapshotId":null,"exportedAtEpochMs":1234,"writerInstallId":"install-a","snapshotModClock":"0000000001234-0000-install-a","appVersionName":"1.0","settings":{"recordUuid":"settings-1","defaultMonthlyBudgetCents":100000,"paydayDate":25,"lastResetTimestamp":0,"pendingCycleStartDate":null,"pendingCycleEndDateExclusive":null,"pendingCycleDetectedAtTimestamp":0,"updatedAtEpochMs":1234,"modClock":"0000000001234-0000-install-a","lastModifiedByInstallId":"install-a"},"budgetPolicies":[{"policyUuid":"policy-1","cycleStartDate":"2026-03-25","cycleEndDateExclusive":"2026-04-25","budgetAmountCents":100000,"paydayDayOfMonth":25,"originInstallId":"install-a","lastModifiedByInstallId":"install-a","createdAtEpochMs":1234,"updatedAtEpochMs":1234,"deletedAtEpochMs":null,"modClock":"0000000001234-0000-install-a"}],"budgetAdjustments":[],"expenses":[],"budgetBuckets":[],"bucketAllocationPolicies":[],"bucketAllocationAdjustments":[],"funds":[{"uuid":"fund-1","name":"Savings","balanceCents":1000,"allocationPerCycleCents":0,"targetAmountCents":null,"sortOrder":0,"originInstallId":"install-a","lastModifiedByInstallId":"install-a","createdAtEpochMs":1234,"updatedAtEpochMs":1234,"closedAtEpochMs":null,"deletedAtEpochMs":null,"modClock":"0000000001234-0000-install-a"},{"uuid":"fund-2","name":"Travel","balanceCents":2000,"allocationPerCycleCents":0,"targetAmountCents":null,"sortOrder":1,"originInstallId":"install-a","lastModifiedByInstallId":"install-a","createdAtEpochMs":1235,"updatedAtEpochMs":1235,"closedAtEpochMs":null,"deletedAtEpochMs":null,"modClock":"0000000001235-0000-install-a"}],"fundTransactions":[]}
+            """.trimIndent()
+        )
+        val useCase = PrepareSnapshotImportUseCase(
+            documentUriGateway = FakeDocumentUriGateway(inputBytes = bytes),
+            gzipSnapshotCodec = GzipSnapshotCodec(),
+            snapshotJsonCodec = SnapshotJsonCodec(),
+            snapshotCompatibilityService = SnapshotCompatibilityService()
+        )
+
+        val prepared = useCase.prepareFromBytes(bytes)
+
+        assertEquals(FundType.DEFAULT_RESERVE, prepared.funds.single { it.uuid == "fund-1" }.fundType)
+        assertEquals(FundType.GOAL, prepared.funds.single { it.uuid == "fund-2" }.fundType)
     }
 
     @Test
@@ -654,9 +676,10 @@ private fun sampleEnvelope(): SnapshotEnvelopeV1 {
         ),
         bucketAllocationAdjustments = emptyList(),
         funds = listOf(
-            SnapshotFundRecordV5(
+            SnapshotFundRecordV6(
                 uuid = "fund-1",
                 name = "Savings",
+                fundType = FundType.DEFAULT_RESERVE.name,
                 balanceCents = 1_000L,
                 allocationPerCycleCents = 200L,
                 targetAmountCents = null,

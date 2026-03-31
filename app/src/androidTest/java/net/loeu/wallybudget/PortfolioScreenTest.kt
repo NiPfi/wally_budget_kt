@@ -24,6 +24,7 @@ import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.Fund
+import net.loeu.wallybudget.domain.model.FundType
 import net.loeu.wallybudget.domain.model.PortfolioState
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.usecase.BucketDraft
@@ -313,6 +314,7 @@ class PortfolioScreenTest {
     private fun testFund() = Fund(
         uuid = DEFAULT_FUND_UUID,
         name = "Savings",
+        fundType = FundType.DEFAULT_RESERVE,
         balanceCents = 10_00L,
         allocationPerCycleCents = 0L,
         targetAmountCents = 50_00L,

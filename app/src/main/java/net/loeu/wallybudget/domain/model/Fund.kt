@@ -6,6 +6,7 @@ const val DEFAULT_FUND_NAME = "Savings"
 data class Fund(
     val uuid: String,
     val name: String,
+    val fundType: FundType,
     val balanceCents: Long,
     // Legacy field used only as the cycle-closeout deposit weight/base contribution.
     // It is not part of current-cycle planned budget totals.

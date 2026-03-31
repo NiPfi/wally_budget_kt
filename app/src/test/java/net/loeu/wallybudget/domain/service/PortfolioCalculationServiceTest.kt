@@ -5,6 +5,7 @@ import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketSummaryState
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.Fund
+import net.loeu.wallybudget.domain.model.FundType
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.LocalDate
@@ -105,6 +106,7 @@ class PortfolioCalculationServiceTest {
     private fun fund(allocationPerCycleCents: Long) = Fund(
         uuid = "fund",
         name = "Savings",
+        fundType = FundType.GOAL,
         balanceCents = 0L,
         allocationPerCycleCents = allocationPerCycleCents,
         targetAmountCents = null,

@@ -7,6 +7,7 @@ import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.Fund
+import net.loeu.wallybudget.domain.model.FundType
 import net.loeu.wallybudget.domain.usecase.BucketDraft
 import net.loeu.wallybudget.domain.usecase.internal.resolveSelectedOpenBucketUuid
 import net.loeu.wallybudget.util.CurrencyFormatter
@@ -322,6 +323,7 @@ class HomeScreenTest {
     ) = Fund(
         uuid = uuid,
         name = name,
+        fundType = if (uuid == DEFAULT_FUND_UUID) FundType.DEFAULT_RESERVE else FundType.GOAL,
         balanceCents = balanceCents,
         allocationPerCycleCents = 0L,
         targetAmountCents = targetAmountCents,

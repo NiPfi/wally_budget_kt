@@ -2,6 +2,7 @@ package net.loeu.wallybudget.ui.screens.funds
 
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.Fund
+import net.loeu.wallybudget.domain.model.FundType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -13,6 +14,7 @@ class FundsScreenTest {
         val reserve = fund(
             uuid = DEFAULT_FUND_UUID,
             name = "Savings",
+            fundType = FundType.DEFAULT_RESERVE,
             balanceCents = 40_00L,
             targetAmountCents = 100_00L,
             sortOrder = 0,
@@ -21,6 +23,7 @@ class FundsScreenTest {
         val firstGoal = fund(
             uuid = "goal-a",
             name = "Emergency",
+            fundType = FundType.GOAL,
             balanceCents = 60_00L,
             targetAmountCents = 200_00L,
             sortOrder = 1,
@@ -29,6 +32,7 @@ class FundsScreenTest {
         val secondGoal = fund(
             uuid = "goal-b",
             name = "Vacation",
+            fundType = FundType.GOAL,
             balanceCents = 30_00L,
             targetAmountCents = 120_00L,
             sortOrder = 1,
@@ -37,6 +41,7 @@ class FundsScreenTest {
         val thirdGoal = fund(
             uuid = "goal-c",
             name = "Car",
+            fundType = FundType.GOAL,
             balanceCents = 15_00L,
             targetAmountCents = 300_00L,
             sortOrder = 3,
@@ -59,6 +64,7 @@ class FundsScreenTest {
         val reserve = fund(
             uuid = DEFAULT_FUND_UUID,
             name = "Savings",
+            fundType = FundType.DEFAULT_RESERVE,
             balanceCents = 25_00L,
             targetAmountCents = null,
             sortOrder = 0,
@@ -76,6 +82,7 @@ class FundsScreenTest {
         val reserve = fund(
             uuid = DEFAULT_FUND_UUID,
             name = "Savings",
+            fundType = FundType.DEFAULT_RESERVE,
             balanceCents = 25_00L,
             targetAmountCents = null,
             sortOrder = 0,
@@ -84,6 +91,7 @@ class FundsScreenTest {
         val closedGoal = fund(
             uuid = "goal-a",
             name = "Vacation",
+            fundType = FundType.GOAL,
             balanceCents = 10_00L,
             targetAmountCents = 50_00L,
             sortOrder = 1,
@@ -101,6 +109,7 @@ class FundsScreenTest {
         val goal = fund(
             uuid = "goal-a",
             name = "Vacation",
+            fundType = FundType.GOAL,
             balanceCents = 10_00L,
             targetAmountCents = 50_00L,
             sortOrder = 1,
@@ -116,6 +125,7 @@ class FundsScreenTest {
     private fun fund(
         uuid: String,
         name: String,
+        fundType: FundType,
         balanceCents: Long,
         targetAmountCents: Long?,
         sortOrder: Int,
@@ -123,6 +133,7 @@ class FundsScreenTest {
     ) = Fund(
         uuid = uuid,
         name = name,
+        fundType = fundType,
         balanceCents = balanceCents,
         allocationPerCycleCents = 0L,
         targetAmountCents = targetAmountCents,
