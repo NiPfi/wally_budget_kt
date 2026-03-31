@@ -38,6 +38,8 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,6 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.painterResource
@@ -365,6 +368,7 @@ internal fun PortfolioOverviewPage(
     funds: List<Fund>,
     bucketInteractionsEnabled: Boolean = true,
     onEditBucket: (String) -> Unit,
+    onNavigateToFunds: (() -> Unit)? = null,
     showTopRightSettingsAction: Boolean,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
@@ -411,7 +415,10 @@ internal fun PortfolioOverviewPage(
                 )
             }
             item {
-                FundsSection(funds = funds)
+                FundsSection(
+                    funds = funds,
+                    onNavigateToFunds = onNavigateToFunds
+                )
             }
         }
     }
@@ -469,24 +476,59 @@ private fun PortfolioSummaryCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FundsSection(funds: List<Fund>) {
+private fun FundsSection(
+    funds: List<Fund>,
+    onNavigateToFunds: (() -> Unit)?
+) {
     val defaultFund = remember(funds) { defaultFund(funds) } ?: return
     val targetProgressText = formatFundTargetProgress(defaultFund)
 
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+    val cardModifier = Modifier
+        .fillMaxWidth()
+        .testTag("funds_section_card")
+
+    if (onNavigateToFunds != null) {
+        Card(
+            onClick = onNavigateToFunds,
+            modifier = cardModifier,
+            colors = CardDefaults.cardColors()
+        ) {
+            FundsSectionContent(defaultFund, targetProgressText, showIcon = true)
+        }
+    } else {
+        Card(
+            modifier = cardModifier,
+            colors = CardDefaults.cardColors()
+        ) {
+            FundsSectionContent(defaultFund, targetProgressText, showIcon = false)
+        }
+    }
+}
+
+@Composable
+private fun FundsSectionContent(
+    defaultFund: Fund,
+    targetProgressText: String?,
+    showIcon: Boolean
+) {
+    Row(
+        modifier = Modifier.padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        SectionHeading("Funds")
         Column(
-            modifier = Modifier.padding(vertical = 8.dp),
+            modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(4.dp)
-        )
-        {
+        ) {
+            Text(
+                text = "Funds",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Text(
                 text = defaultFund.name,
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             Text(
@@ -501,6 +543,13 @@ private fun FundsSection(funds: List<Fund>) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+        if (showIcon) {
+            Icon(
+                painter = painterResource(R.drawable.ic_more_horiz),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

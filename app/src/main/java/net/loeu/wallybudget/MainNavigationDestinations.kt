@@ -20,11 +20,13 @@ import net.loeu.wallybudget.domain.model.SpendingForecast
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.usecase.BucketDraft
 import net.loeu.wallybudget.ui.navigation.AnalysisRoute
+import net.loeu.wallybudget.ui.navigation.FundsRoute
 import net.loeu.wallybudget.ui.navigation.HistoryRoute
 import net.loeu.wallybudget.ui.navigation.HomeRoute
 import net.loeu.wallybudget.ui.navigation.PortfolioRoute
 import net.loeu.wallybudget.ui.navigation.SettingsRoute
 import net.loeu.wallybudget.ui.screens.analysis.AnalysisScreen
+import net.loeu.wallybudget.ui.screens.funds.FundsScreen
 import net.loeu.wallybudget.ui.screens.history.HistoryScreen
 import net.loeu.wallybudget.ui.screens.home.HomeScreen
 import net.loeu.wallybudget.ui.screens.home.PortfolioScreen
@@ -100,9 +102,22 @@ internal fun NavGraphBuilder.addPortfolioDestination(
             allBuckets = allBuckets,
             userSettings = userSettings,
             onSavePortfolioPlan = onSavePortfolioPlan,
+            onNavigateToFunds = { navController.navigate(FundsRoute) },
             onNavigateToSettings = { navController.navigate(SettingsRoute) },
             showTopRightSettingsAction = !usesVerticalNavigation,
             interactionsEnabled = timelineLockReason == null
+        )
+    }
+}
+
+internal fun NavGraphBuilder.addFundsDestination(
+    navController: NavHostController,
+    funds: List<Fund>
+) {
+    composable<FundsRoute> {
+        FundsScreen(
+            funds = funds,
+            onNavigateBack = { navController.popBackStack() }
         )
     }
 }

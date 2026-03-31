@@ -37,6 +37,7 @@ fun PortfolioScreen(
     allBuckets: List<BudgetBucket>,
     userSettings: UserSettings,
     onSavePortfolioPlan: (Long, List<BucketDraft>) -> Unit,
+    onNavigateToFunds: (() -> Unit)? = null,
     onNavigateToSettings: () -> Unit,
     showTopRightSettingsAction: Boolean,
     modifier: Modifier = Modifier,
@@ -90,6 +91,7 @@ fun PortfolioScreen(
             funds = funds,
             interactionsEnabled = interactionsEnabled,
             onEditBucket = ::openBucketEditor,
+            onNavigateToFunds = onNavigateToFunds,
             showTopRightSettingsAction = showTopRightSettingsAction,
             onNavigateToSettings = onNavigateToSettings,
             modifier = Modifier.padding(paddingValues)
@@ -117,6 +119,7 @@ private fun PortfolioScreenContent(
     funds: List<Fund>,
     interactionsEnabled: Boolean,
     onEditBucket: (String) -> Unit,
+    onNavigateToFunds: (() -> Unit)?,
     showTopRightSettingsAction: Boolean,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
@@ -131,6 +134,7 @@ private fun PortfolioScreenContent(
                 onEditBucket(bucketUuid)
             }
         },
+        onNavigateToFunds = onNavigateToFunds,
         showTopRightSettingsAction = showTopRightSettingsAction,
         onNavigateToSettings = onNavigateToSettings,
         modifier = modifier
