@@ -24,6 +24,21 @@ For any change to bucket allocation math, transfers, baselines, or default-bucke
 
 ## Commit & Pull Request Guidelines
 Use short, imperative commit subjects. Keep subjects concise, action-first, and reference issues or PRs when useful. PR summaries must be Markdown-formatted and should describe the user-visible change, list verification steps run, and include screenshots or recordings for UI changes when relevant.
+Use this structure for every PR description:
+
+```md
+## Summary
+- What changed for users.
+- Key implementation details if needed.
+
+## Verification
+- Commands run locally.
+
+## Screenshots
+- Include only when the change is visible in the UI.
+```
+
+Keep bullets flat and concise. Do not submit a paragraph-only PR body.
 
 ### Pull Request Review
 When there are review findings in pull requests, first check if the comments are valid and reasonable. Then try to create a minimal change that resolves the issue outlined in the comments. Where it makes sense, batch changes for multiple comments together in one commit. Then reply to the initial comment with your resolution and close the conversation.
