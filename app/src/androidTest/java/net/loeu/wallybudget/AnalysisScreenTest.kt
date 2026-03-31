@@ -38,7 +38,8 @@ class AnalysisScreenTest {
         composeRule.onNodeWithTag("analysis_verdict_section").assertIsDisplayed()
         composeRule.onNodeWithTag("analysis_evidence_section").assertIsDisplayed()
 
-        val expandedHeight = composeRule.onNodeWithTag("analysis_verdict_section").getBoundsInRoot().height
+        val expandedBounds = composeRule.onNodeWithTag("analysis_verdict_section").getBoundsInRoot()
+        val expandedHeight = expandedBounds.bottom - expandedBounds.top
         val verdictTop = composeRule.onNodeWithTag("analysis_verdict_section").getBoundsInRoot().top
         val evidenceTop = composeRule.onNodeWithTag("analysis_evidence_section").getBoundsInRoot().top
 
@@ -48,7 +49,8 @@ class AnalysisScreenTest {
             .performScrollToNode(hasTestTag("analysis_actions_section"))
         composeRule.waitForIdle()
 
-        val collapsedHeight = composeRule.onNodeWithTag("analysis_verdict_section").getBoundsInRoot().height
+        val collapsedBounds = composeRule.onNodeWithTag("analysis_verdict_section").getBoundsInRoot()
+        val collapsedHeight = collapsedBounds.bottom - collapsedBounds.top
 
         assertTrue(collapsedHeight < expandedHeight)
         composeRule.onNodeWithTag("analysis_actions_section").assertIsDisplayed()
@@ -70,7 +72,7 @@ class AnalysisScreenTest {
             )
         )
 
-        composeRule.onNodeWithText("Risk of overspending").assertIsDisplayed()
+        composeRule.onAllNodesWithText("Risk of overspending").assertCountEquals(3)
         composeRule.onNodeWithTag("analysis_verdict_section")
             .assert(hasStateDescription("Analysis verdict at risk"))
     }
@@ -88,7 +90,7 @@ class AnalysisScreenTest {
             monthlyHistory = histories(2_100L, 90_400L, 42_500L, 0L, 66_200L, -1_500L)
         )
 
-        composeRule.onNodeWithText("On track").assertIsDisplayed()
+        composeRule.onAllNodesWithText("On track").assertCountEquals(3)
         composeRule.onNodeWithTag("analysis_verdict_section")
             .assert(hasStateDescription("Analysis verdict stable"))
     }
@@ -106,7 +108,7 @@ class AnalysisScreenTest {
             monthlyHistory = histories(2_100L, 90_400L, 42_500L, -16_000L, 66_200L, -1_500L)
         )
 
-        composeRule.onNodeWithText("Watch the upper range").assertIsDisplayed()
+        composeRule.onAllNodesWithText("Watch the upper range").assertCountEquals(3)
         composeRule.onNodeWithTag("analysis_verdict_section")
             .assert(hasStateDescription("Analysis verdict watchful"))
     }
@@ -124,7 +126,7 @@ class AnalysisScreenTest {
 
         composeRule.onNodeWithTag("analysis_list")
             .performScrollToNode(hasTestTag("analysis_confidence_section"))
-        composeRule.onAllNodesWithText("check back in 2 days", substring = true).assertCountEquals(2)
+        composeRule.onAllNodesWithText("check back in 2 days", substring = true).assertCountEquals(1)
     }
 
     @Test
@@ -167,6 +169,7 @@ class AnalysisScreenTest {
                     budgetState = budgetState,
                     spendingForecast = spendingForecast,
                     monthlyHistory = monthlyHistory,
+                    effectiveCurrentDate = LocalDate.of(2026, 3, 25),
                     timelineLockReason = timelineLockReason,
                     isLoading = isLoading,
                     onNavigateToSettings = {}

@@ -42,6 +42,7 @@ import net.loeu.wallybudget.domain.model.DEFAULT_FUND_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
+import net.loeu.wallybudget.domain.model.FundType
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
@@ -1064,6 +1065,11 @@ internal fun budgetAdjustmentEntity(
 internal fun fundEntity(
     uuid: String = DEFAULT_FUND_UUID,
     name: String = DEFAULT_FUND_NAME,
+    fundType: FundType = if (uuid == DEFAULT_FUND_UUID || name == DEFAULT_FUND_NAME) {
+        FundType.DEFAULT_RESERVE
+    } else {
+        FundType.GOAL
+    },
     balanceCents: Long = 0L,
     allocationPerCycleCents: Long = 0L,
     sortOrder: Int = 0,
@@ -1078,6 +1084,7 @@ internal fun fundEntity(
     return FundEntity(
         uuid = uuid,
         name = name,
+        fundType = fundType,
         balanceCents = balanceCents,
         allocationPerCycleCents = allocationPerCycleCents,
         targetAmountCents = null,

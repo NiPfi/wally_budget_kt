@@ -19,6 +19,7 @@ import net.loeu.wallybudget.data.snapshot.GzipSnapshotCodec
 import net.loeu.wallybudget.data.snapshot.SnapshotCompatibilityService
 import net.loeu.wallybudget.data.snapshot.SnapshotJsonCodec
 import net.loeu.wallybudget.data.snapshot.model.SnapshotEnvelopeV1
+import net.loeu.wallybudget.data.snapshot.model.SnapshotFundRecordV6
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
@@ -26,6 +27,7 @@ import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
 import net.loeu.wallybudget.domain.model.BucketTransferReason
 import net.loeu.wallybudget.domain.model.ExpenseCategory
 import net.loeu.wallybudget.domain.model.FundTransactionType
+import net.loeu.wallybudget.domain.model.FundType
 import net.loeu.wallybudget.domain.model.SnapshotError
 import net.loeu.wallybudget.domain.model.SnapshotImportPreview
 import net.loeu.wallybudget.domain.model.UserSettings
@@ -358,6 +360,7 @@ class PrepareSnapshotImportUseCase(
                 FundEntity(
                     uuid = record.uuid,
                     name = record.name,
+                    fundType = record.toFundType(),
                     balanceCents = record.balanceCents,
                     allocationPerCycleCents = record.allocationPerCycleCents,
                     targetAmountCents = record.targetAmountCents,
@@ -377,6 +380,7 @@ class PrepareSnapshotImportUseCase(
             FundEntity(
                 uuid = DEFAULT_FUND_UUID,
                 name = DEFAULT_FUND_NAME,
+                fundType = FundType.DEFAULT_RESERVE,
                 balanceCents = 0L,
                 allocationPerCycleCents = 0L,
                 targetAmountCents = null,
@@ -404,6 +408,21 @@ class PrepareSnapshotImportUseCase(
                 description = record.description,
                 dateEpochMs = record.dateEpochMs
             )
+        }
+    }
+
+    private fun SnapshotFundRecordV6.toFundType(): FundType {
+        val explicitType = fundType?.let { value ->
+            FundType.entries.find { it.name == value }
+                ?: throw SnapshotOperationException(SnapshotError.MalformedSnapshot)
+        }
+        if (explicitType != null) {
+            return explicitType
+        }
+        return if (uuid == DEFAULT_FUND_UUID || name == DEFAULT_FUND_NAME) {
+            FundType.DEFAULT_RESERVE
+        } else {
+            FundType.GOAL
         }
     }
 

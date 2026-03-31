@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import net.loeu.wallybudget.domain.model.Fund
+import net.loeu.wallybudget.domain.model.FundType
 
 @Entity(
     tableName = "funds",
@@ -18,6 +19,8 @@ data class FundEntity(
     @PrimaryKey
     val uuid: String,
     val name: String,
+    @ColumnInfo(defaultValue = "'GOAL'")
+    val fundType: FundType,
     @ColumnInfo(defaultValue = "0")
     val balanceCents: Long,
     @ColumnInfo(defaultValue = "0")
@@ -38,6 +41,7 @@ fun FundEntity.toDomainModel(): Fund {
     return Fund(
         uuid = uuid,
         name = name,
+        fundType = fundType,
         balanceCents = balanceCents,
         allocationPerCycleCents = allocationPerCycleCents,
         targetAmountCents = targetAmountCents,
@@ -56,6 +60,7 @@ fun Fund.toEntity(): FundEntity {
     return FundEntity(
         uuid = uuid,
         name = name,
+        fundType = fundType,
         balanceCents = balanceCents,
         allocationPerCycleCents = allocationPerCycleCents,
         targetAmountCents = targetAmountCents,
