@@ -39,6 +39,7 @@ Use this structure for every PR description:
 ```
 
 Keep bullets flat and concise. Do not submit a paragraph-only PR body.
+When editing a PR body with `gh`, preserve real newlines by using a heredoc or command substitution from a multiline string; do not pass escaped `\n` sequences.
 
 ### Pull Request Review
 When there are review findings in pull requests, first check if the comments are valid and reasonable. Then try to create a minimal change that resolves the issue outlined in the comments. Where it makes sense, batch changes for multiple comments together in one commit. Then reply to the initial comment with your resolution and close the conversation.
