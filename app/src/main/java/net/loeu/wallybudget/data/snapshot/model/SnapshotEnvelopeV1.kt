@@ -18,7 +18,7 @@ data class SnapshotEnvelopeV1(
     val bucketAllocationAdjustments: List<SnapshotBucketAllocationAdjustmentRecordV3>? = null,
     val bucketTransfers: List<SnapshotBucketTransferRecordV1>? = null,
     val bucketCycleBaselines: List<SnapshotBucketCycleBaselineRecordV1>? = null,
-    val funds: List<SnapshotFundRecordV5>? = null,
+    val funds: List<SnapshotFundRecordV6>? = null,
     val fundTransactions: List<SnapshotFundTransactionRecordV5>? = null
 )
 
@@ -161,9 +161,10 @@ data class SnapshotBucketCycleBaselineRecordV1(
     val modClock: String
 )
 
-data class SnapshotFundRecordV5(
+data class SnapshotFundRecordV6(
     val uuid: String,
     val name: String,
+    val fundType: String? = null,
     val balanceCents: Long,
     val allocationPerCycleCents: Long,
     val targetAmountCents: Long?,

@@ -9,6 +9,7 @@ import net.loeu.wallybudget.data.time.WallyTime
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.Fund
+import net.loeu.wallybudget.domain.model.FundType
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import java.time.LocalDate
 
@@ -30,6 +31,7 @@ class EnsureDefaultFundUseCase(
                         Fund(
                             uuid = DEFAULT_FUND_UUID,
                             name = DEFAULT_FUND_NAME,
+                            fundType = FundType.DEFAULT_RESERVE,
                             balanceCents = 0L,
                             allocationPerCycleCents = 0L,
                             targetAmountCents = null,
@@ -51,6 +53,8 @@ class EnsureDefaultFundUseCase(
                     }
                     fundDao.update(
                         existing.copy(
+                            name = DEFAULT_FUND_NAME,
+                            fundType = FundType.DEFAULT_RESERVE,
                             closedAtEpochMs = null,
                             deletedAtEpochMs = null,
                             sortOrder = 0,
@@ -68,6 +72,8 @@ class EnsureDefaultFundUseCase(
     private fun shouldNormalize(existing: FundEntity): Boolean {
         return existing.closedAtEpochMs != null ||
             existing.deletedAtEpochMs != null ||
+            existing.name != DEFAULT_FUND_NAME ||
+            existing.fundType != FundType.DEFAULT_RESERVE ||
             existing.sortOrder != 0 ||
             existing.originInstallId.isBlank() ||
             existing.lastModifiedByInstallId.isBlank() ||

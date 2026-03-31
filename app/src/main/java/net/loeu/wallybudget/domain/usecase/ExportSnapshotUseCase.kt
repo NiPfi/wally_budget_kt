@@ -26,7 +26,7 @@ import net.loeu.wallybudget.data.snapshot.model.SnapshotBucketCycleBaselineRecor
 import net.loeu.wallybudget.data.snapshot.model.SnapshotBucketTransferRecordV1
 import net.loeu.wallybudget.data.snapshot.model.SnapshotEnvelopeV1
 import net.loeu.wallybudget.data.snapshot.model.SnapshotExpenseRecordV1
-import net.loeu.wallybudget.data.snapshot.model.SnapshotFundRecordV5
+import net.loeu.wallybudget.data.snapshot.model.SnapshotFundRecordV6
 import net.loeu.wallybudget.data.snapshot.model.SnapshotFundTransactionRecordV5
 import net.loeu.wallybudget.data.snapshot.model.SnapshotSettingsRecordV1
 import net.loeu.wallybudget.data.time.WallyTime
@@ -260,9 +260,10 @@ class ExportSnapshotUseCase(
             funds = fundDao.getAllForSnapshot()
                 .sortedWith(compareBy({ it.sortOrder }, { it.createdAtEpochMs }, { it.uuid }))
                 .map { fund ->
-                    SnapshotFundRecordV5(
+                    SnapshotFundRecordV6(
                         uuid = fund.uuid,
                         name = fund.name,
+                        fundType = fund.fundType.name,
                         balanceCents = fund.balanceCents,
                         allocationPerCycleCents = fund.allocationPerCycleCents,
                         targetAmountCents = fund.targetAmountCents,

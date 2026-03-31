@@ -45,10 +45,10 @@ import net.loeu.wallybudget.data.local.entity.MonthlyHistoryEntity
         FundEntity::class,
         FundTransactionEntity::class
     ],
-    version = 16,
+    version = 17,
     exportSchema = true
 )
-@TypeConverters(Converters::class)
+@TypeConverters(Converters::class, FundConverters::class)
 @Suppress("TooManyFunctions")
 abstract class BudgetDatabase : RoomDatabase(), TransactionRunner {
     abstract fun expenseDao(): ExpenseDao

@@ -66,3 +66,15 @@ class Converters {
         return value?.let { BucketTransferReason.valueOf(it) }
     }
 }
+
+class FundConverters {
+    @TypeConverter
+    fun fromFundType(value: net.loeu.wallybudget.domain.model.FundType?): String? {
+        return value?.name
+    }
+
+    @TypeConverter
+    fun toFundType(value: String?): net.loeu.wallybudget.domain.model.FundType? {
+        return value?.let { net.loeu.wallybudget.domain.model.FundType.valueOf(it) }
+    }
+}

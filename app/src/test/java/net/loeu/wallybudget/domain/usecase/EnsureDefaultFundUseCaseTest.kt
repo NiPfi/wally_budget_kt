@@ -2,6 +2,7 @@ package net.loeu.wallybudget.domain.usecase
 
 import kotlinx.coroutines.runBlocking
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
+import net.loeu.wallybudget.domain.model.FundType
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -29,6 +30,7 @@ class EnsureDefaultFundUseCaseTest {
         assertNotNull(fund)
         assertEquals("test-install-id", fund?.originInstallId)
         assertEquals("test-install-id", fund?.lastModifiedByInstallId)
+        assertEquals(FundType.DEFAULT_RESERVE, fund?.fundType)
     }
 
     @Test
@@ -58,6 +60,8 @@ class EnsureDefaultFundUseCaseTest {
         val repaired = fundDao.findByUuid(DEFAULT_FUND_UUID)
         assertEquals(0, repaired?.sortOrder)
         assertNull(repaired?.closedAtEpochMs)
+        assertEquals("Savings", repaired?.name)
+        assertEquals(FundType.DEFAULT_RESERVE, repaired?.fundType)
         assertEquals("test-install-id", repaired?.originInstallId)
         assertEquals("test-install-id", repaired?.lastModifiedByInstallId)
         val expectedEpochMs = now.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
