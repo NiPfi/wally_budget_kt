@@ -13,6 +13,9 @@ object HomeRoute
 object PortfolioRoute
 
 @Serializable
+object FundsRoute
+
+@Serializable
 object HistoryRoute
 
 @Serializable

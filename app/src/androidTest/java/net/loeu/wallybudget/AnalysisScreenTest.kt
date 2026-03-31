@@ -24,6 +24,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.LocalDate
+import androidx.compose.ui.unit.height
 
 @RunWith(AndroidJUnit4::class)
 class AnalysisScreenTest {
@@ -158,6 +159,7 @@ class AnalysisScreenTest {
         budgetState: BudgetState = testBudgetState(),
         spendingForecast: SpendingForecast = testForecast(),
         monthlyHistory: List<MonthlyHistory> = listOf(history(4_000L)),
+        effectiveCurrentDate: LocalDate = LocalDate.of(2026, 3, 7),
         timelineLockReason: String? = null,
         isLoading: Boolean = false
     ) {
@@ -167,6 +169,7 @@ class AnalysisScreenTest {
                     budgetState = budgetState,
                     spendingForecast = spendingForecast,
                     monthlyHistory = monthlyHistory,
+                    effectiveCurrentDate = effectiveCurrentDate,
                     timelineLockReason = timelineLockReason,
                     isLoading = isLoading,
                     onNavigateToSettings = {}

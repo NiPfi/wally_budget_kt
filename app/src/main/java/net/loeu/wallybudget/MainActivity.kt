@@ -516,6 +516,10 @@ private fun MainNavigationHost(
             timelineLockReason = timelineLockReason,
             usesVerticalNavigation = usesVerticalNavigation
         )
+        addFundsDestination(
+            navController = navController,
+            funds = funds
+        )
         addHistoryDestination(
             navController = navController,
             historySections = historySections,
