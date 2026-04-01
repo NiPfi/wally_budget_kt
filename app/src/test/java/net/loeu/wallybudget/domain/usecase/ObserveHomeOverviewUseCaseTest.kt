@@ -4,9 +4,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
+import kotlinx.coroutines.withTimeout
 import net.loeu.wallybudget.data.local.entity.BucketMonthlyHistoryEntity
 import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
 import net.loeu.wallybudget.data.local.entity.BucketTransferEntity
@@ -289,14 +291,20 @@ class ObserveHomeOverviewUseCaseTest {
             fundDao = fundDao
         )
         val emissions = mutableListOf<List<String>>()
+        val firstEmissionReady = CompletableDeferred<Unit>()
         val collectionJob = launch {
             useCase()
                 .map { overview -> overview.funds.map { it.name } }
                 .take(2)
-                .collect { emission -> emissions += emission }
+                .collect { emission ->
+                    emissions += emission
+                    if (emissions.size == 1) {
+                        firstEmissionReady.complete(Unit)
+                    }
+                }
         }
 
-        yield()
+        firstEmissionReady.await()
         CreateGoalFundUseCase(
             fundDao = fundDao,
             userSettingsStore = settingsStore,
@@ -308,7 +316,9 @@ class ObserveHomeOverviewUseCaseTest {
             )
         )
 
-        collectionJob.join()
+        withTimeout(5_000L) {
+            collectionJob.join()
+        }
 
         assertEquals(listOf(listOf("Savings"), listOf("Savings", "Travel")), emissions)
     }

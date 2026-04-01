@@ -375,12 +375,12 @@ private fun ActiveGoalsSection(
     HorizontalDivider()
     if (activeGoals.isEmpty()) {
         ListItem(
+            modifier = Modifier.testTag("funds_empty_state"),
             headlineContent = {
                 Text(
                     text = "No active goals yet.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.testTag("funds_empty_state")
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         )

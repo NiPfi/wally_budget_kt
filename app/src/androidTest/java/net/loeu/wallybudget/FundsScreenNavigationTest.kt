@@ -7,6 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -14,11 +15,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import net.loeu.wallybudget.domain.model.BudgetBucket
-import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketSummaryState
-import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
@@ -33,6 +34,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.LocalDate
+import androidx.compose.ui.text.AnnotatedString
 
 @RunWith(AndroidJUnit4::class)
 class FundsScreenNavigationTest {
@@ -69,13 +71,13 @@ class FundsScreenNavigationTest {
             }
         }
 
-        composeRule.onNodeWithText("View funds").assertIsDisplayed().performClick()
+        composeRule.onNodeWithTag("funds_section_card").assertIsDisplayed().performClick()
         composeRule.onNodeWithText("Default reserve").assertIsDisplayed()
         composeRule.onNodeWithText("Priority 1").assertIsDisplayed()
         composeRule.onNodeWithText("Priority 2").assertIsDisplayed()
 
         composeRule.onNodeWithContentDescription("Back").assertIsDisplayed().performClick()
-        composeRule.onNodeWithText("View funds").assertIsDisplayed()
+        composeRule.onNodeWithTag("funds_section_card").assertIsDisplayed()
     }
 
     @Test
@@ -177,8 +179,12 @@ class FundsScreenNavigationTest {
         }
 
         composeRule.onNodeWithTag("fund_goal_edit_button_goal-a").performClick()
-        composeRule.onNodeWithTag("goal_name_field").assertTextContains("Emergency")
-        composeRule.onNodeWithTag("goal_target_field").assertTextContains("50")
+        composeRule.onNodeWithTag("goal_name_field").assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("Emergency"))
+        )
+        composeRule.onNodeWithTag("goal_target_field").assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("50.00"))
+        )
         composeRule.onNodeWithTag("goal_name_field").performTextClearance()
         composeRule.onNodeWithTag("goal_name_field").performTextInput("Weekend Trip")
         composeRule.onNodeWithTag("goal_target_field").performTextClearance()
@@ -224,8 +230,6 @@ class FundsScreenNavigationTest {
     private fun bucket() = BudgetBucket(
         bucketUuid = DEFAULT_SPENDING_BUCKET_UUID,
         name = DEFAULT_SPENDING_BUCKET_NAME,
-        trackingMode = BucketTrackingMode.DAILY_TARGET,
-        balanceBehavior = BucketBalanceBehavior.RETURN_TO_PORTFOLIO,
         defaultAllocatedAmountCents = 70_00L,
         sortOrder = 0,
         originInstallId = "test-install",
