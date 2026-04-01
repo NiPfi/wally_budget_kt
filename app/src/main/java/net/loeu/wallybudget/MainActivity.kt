@@ -220,6 +220,8 @@ fun BudgetApp(
                     onUpdateExpense = viewModel::updateExpense,
                     onDeleteExpense = viewModel::deleteExpense,
                     onRestoreExpense = viewModel::restoreDeletedExpense,
+                    onCreateGoalFund = viewModel::createGoalFund,
+                    onUpdateGoalFund = viewModel::updateGoalFund,
                     onSavePortfolioPlan = viewModel::updatePortfolioPlan,
                     onSavePayday = viewModel::updatePayday,
                     onUndoPaydayChange = viewModel::undoPaydayChange,
@@ -267,6 +269,8 @@ private fun MainNavigationShell(
     onUpdateExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
+    onCreateGoalFund: suspend (String, Long) -> Unit,
+    onUpdateGoalFund: suspend (String, String, Long) -> Unit,
     onSavePortfolioPlan: (Long, List<net.loeu.wallybudget.domain.usecase.BucketDraft>) -> Unit,
     onSavePayday: (Int) -> Unit,
     onUndoPaydayChange: () -> Unit,
@@ -321,6 +325,8 @@ private fun MainNavigationShell(
             onUpdateExpense = onUpdateExpense,
             onDeleteExpense = onDeleteExpense,
             onRestoreExpense = onRestoreExpense,
+            onCreateGoalFund = onCreateGoalFund,
+            onUpdateGoalFund = onUpdateGoalFund,
             onSavePortfolioPlan = onSavePortfolioPlan,
             onSavePayday = onSavePayday,
             onUndoPaydayChange = onUndoPaydayChange,
@@ -464,6 +470,8 @@ private fun MainNavigationHost(
     onUpdateExpense: (Expense) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
     onRestoreExpense: (Expense) -> Unit,
+    onCreateGoalFund: suspend (String, Long) -> Unit,
+    onUpdateGoalFund: suspend (String, String, Long) -> Unit,
     onSavePortfolioPlan: (Long, List<net.loeu.wallybudget.domain.usecase.BucketDraft>) -> Unit,
     onSavePayday: (Int) -> Unit,
     onUndoPaydayChange: () -> Unit,
@@ -518,7 +526,9 @@ private fun MainNavigationHost(
         )
         addFundsDestination(
             navController = navController,
-            funds = funds
+            funds = funds,
+            onCreateGoalFund = onCreateGoalFund,
+            onUpdateGoalFund = onUpdateGoalFund
         )
         addHistoryDestination(
             navController = navController,

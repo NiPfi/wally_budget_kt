@@ -40,6 +40,8 @@ import net.loeu.wallybudget.domain.usecase.ResolveMutationEffectiveDateUseCase
 import net.loeu.wallybudget.domain.usecase.RestoreDeletedExpenseUseCase
 import net.loeu.wallybudget.domain.usecase.RebuildBucketMonthlyHistoryUseCase
 import net.loeu.wallybudget.domain.usecase.RebuildMonthlyHistoryUseCase
+import net.loeu.wallybudget.domain.usecase.CreateGoalFundUseCase
+import net.loeu.wallybudget.domain.usecase.UpdateGoalFundUseCase
 import net.loeu.wallybudget.domain.usecase.SelectBucketUseCase
 import net.loeu.wallybudget.domain.usecase.SyncObservedDateUseCase
 import net.loeu.wallybudget.domain.usecase.UndoPaydayChangeUseCase
@@ -190,6 +192,22 @@ class BudgetViewModelFactory(
     }
     private val restoreDeletedExpenseUseCase by lazy {
         RestoreDeletedExpenseUseCase(expenseDao, userPreferencesManager, hybridLogicalClockService)
+    }
+    private val createGoalFundUseCase by lazy {
+        CreateGoalFundUseCase(
+            fundDao = fundDao,
+            userSettingsStore = userPreferencesManager,
+            currentEpochTimeProvider = SystemCurrentEpochTimeProvider(),
+            hybridLogicalClockService = hybridLogicalClockService
+        )
+    }
+    private val updateGoalFundUseCase by lazy {
+        UpdateGoalFundUseCase(
+            fundDao = fundDao,
+            userSettingsStore = userPreferencesManager,
+            currentEpochTimeProvider = SystemCurrentEpochTimeProvider(),
+            hybridLogicalClockService = hybridLogicalClockService
+        )
     }
     private val ensureBudgetPolicyHistoryUseCase by lazy {
         EnsureBudgetPolicyHistoryUseCase(
@@ -411,6 +429,8 @@ class BudgetViewModelFactory(
                 updateExpenseUseCase = updateExpenseUseCase,
                 deleteExpenseUseCase = deleteExpenseUseCase,
                 restoreDeletedExpenseUseCase = restoreDeletedExpenseUseCase,
+                createGoalFundUseCase = createGoalFundUseCase,
+                updateGoalFundUseCase = updateGoalFundUseCase,
                 updatePortfolioPlanUseCase = updatePortfolioPlanUseCase,
                 updatePaydayUseCase = updatePaydayUseCase,
                 undoPaydayChangeUseCase = undoPaydayChangeUseCase,

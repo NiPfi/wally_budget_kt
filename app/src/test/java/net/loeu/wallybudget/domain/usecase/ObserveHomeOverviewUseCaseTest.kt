@@ -1,7 +1,14 @@
 package net.loeu.wallybudget.domain.usecase
 
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
+import kotlinx.coroutines.withTimeout
 import net.loeu.wallybudget.data.local.entity.BucketMonthlyHistoryEntity
 import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
 import net.loeu.wallybudget.data.local.entity.BucketTransferEntity
@@ -9,6 +16,7 @@ import net.loeu.wallybudget.domain.model.BucketBalanceBehavior
 import net.loeu.wallybudget.domain.model.BucketTrackingMode
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_NAME
 import net.loeu.wallybudget.domain.model.DEFAULT_SPENDING_BUCKET_UUID
+import net.loeu.wallybudget.domain.model.FundType
 import net.loeu.wallybudget.domain.model.UserSettings
 import net.loeu.wallybudget.domain.model.BucketTransferReason
 import net.loeu.wallybudget.domain.model.DEFAULT_FUND_UUID
@@ -16,6 +24,7 @@ import net.loeu.wallybudget.domain.service.BucketAllocationResolver
 import net.loeu.wallybudget.domain.service.BudgetAdjustmentResolver
 import net.loeu.wallybudget.domain.service.BudgetCalculationService
 import net.loeu.wallybudget.domain.service.CycleScheduleResolver
+import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import net.loeu.wallybudget.domain.service.CurrentCycleBucketAllocationResolver
 import net.loeu.wallybudget.domain.service.PortfolioCalculationService
 import org.junit.Assert.assertEquals
@@ -260,6 +269,58 @@ class ObserveHomeOverviewUseCaseTest {
         assertEquals(225_000L, state.portfolioState.remainingThisCycleCents)
         assertEquals(225_000L, defaultBucketSummary.allocatedThisCycleCents)
         assertEquals(125_000L, billsBucketSummary.allocatedThisCycleCents)
+    }
+
+    @Test
+    fun invoke_reemitsOverviewWhenGoalFundChanges() = runBlocking {
+        val fundDao = FakeFundDao(
+            listOf(
+                fundEntity(
+                    uuid = DEFAULT_FUND_UUID,
+                    name = "Savings",
+                    fundType = FundType.DEFAULT_RESERVE,
+                    sortOrder = 0
+                )
+            )
+        )
+        val settingsStore = FakeUserSettingsStore()
+        val useCase = createUseCase(
+            expenseDao = FakeExpenseDao(),
+            settingsStore = settingsStore,
+            currentDate = LocalDate.of(2026, 4, 10),
+            fundDao = fundDao
+        )
+        val emissions = mutableListOf<List<String>>()
+        val firstEmissionReady = CompletableDeferred<Unit>()
+        val collectionJob = launch {
+            useCase()
+                .map { overview -> overview.funds.map { it.name } }
+                .take(2)
+                .collect { emission ->
+                    emissions += emission
+                    if (emissions.size == 1) {
+                        firstEmissionReady.complete(Unit)
+                    }
+                }
+        }
+
+        firstEmissionReady.await()
+        CreateGoalFundUseCase(
+            fundDao = fundDao,
+            userSettingsStore = settingsStore,
+            hybridLogicalClockService = HybridLogicalClockService()
+        )(
+            CreateGoalFundRequest(
+                name = "Travel",
+                targetAmountCents = 75_00L
+            )
+        )
+
+        withTimeout(5_000L) {
+            collectionJob.join()
+        }
+
+        assertEquals(listOf(listOf("Savings"), listOf("Savings", "Travel")), emissions)
     }
 
     private fun createUseCase(

@@ -112,12 +112,16 @@ internal fun NavGraphBuilder.addPortfolioDestination(
 
 internal fun NavGraphBuilder.addFundsDestination(
     navController: NavHostController,
-    funds: List<Fund>
+    funds: List<Fund>,
+    onCreateGoalFund: suspend (String, Long) -> Unit,
+    onUpdateGoalFund: suspend (String, String, Long) -> Unit
 ) {
     composable<FundsRoute> {
         FundsScreen(
             funds = funds,
-            onNavigateBack = { navController.popBackStack() }
+            onNavigateBack = { navController.popBackStack() },
+            onCreateGoalFund = onCreateGoalFund,
+            onUpdateGoalFund = onUpdateGoalFund
         )
     }
 }

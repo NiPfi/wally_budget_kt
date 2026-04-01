@@ -38,6 +38,8 @@ import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.data.time.WallyTime
 import net.loeu.wallybudget.domain.usecase.ApplyOnboardingRestoreUseCase
 import net.loeu.wallybudget.domain.usecase.AddExpenseUseCase
+import net.loeu.wallybudget.domain.usecase.CreateGoalFundRequest
+import net.loeu.wallybudget.domain.usecase.CreateGoalFundUseCase
 import net.loeu.wallybudget.domain.usecase.CompleteOnboardingUseCase
 import net.loeu.wallybudget.domain.usecase.ConcludePendingCycleUseCase
 import net.loeu.wallybudget.domain.usecase.ClearPendingPaydayUndoUseCase
@@ -64,6 +66,8 @@ import net.loeu.wallybudget.domain.usecase.UndoPaydayChangeUseCase
 import net.loeu.wallybudget.domain.usecase.BucketDraft
 import net.loeu.wallybudget.domain.usecase.UpdatePaydayRequest
 import net.loeu.wallybudget.domain.usecase.UpdatePaydayUseCase
+import net.loeu.wallybudget.domain.usecase.UpdateGoalFundRequest
+import net.loeu.wallybudget.domain.usecase.UpdateGoalFundUseCase
 import net.loeu.wallybudget.domain.usecase.UpdatePortfolioPlanRequest
 import net.loeu.wallybudget.domain.usecase.UpdatePortfolioPlanUseCase
 import net.loeu.wallybudget.domain.usecase.UpdateExpenseUseCase
@@ -84,6 +88,8 @@ class BudgetViewModel(
     private val updateExpenseUseCase: UpdateExpenseUseCase,
     private val deleteExpenseUseCase: DeleteExpenseUseCase,
     private val restoreDeletedExpenseUseCase: RestoreDeletedExpenseUseCase,
+    private val createGoalFundUseCase: CreateGoalFundUseCase,
+    private val updateGoalFundUseCase: UpdateGoalFundUseCase,
     private val updatePortfolioPlanUseCase: UpdatePortfolioPlanUseCase,
     private val updatePaydayUseCase: UpdatePaydayUseCase,
     private val undoPaydayChangeUseCase: UndoPaydayChangeUseCase,
@@ -400,6 +406,25 @@ class BudgetViewModel(
             }
             restoreDeletedExpenseUseCase(expense)
         }
+    }
+
+    suspend fun createGoalFund(name: String, targetAmountCents: Long) {
+        createGoalFundUseCase(
+            CreateGoalFundRequest(
+                name = name,
+                targetAmountCents = targetAmountCents
+            )
+        )
+    }
+
+    suspend fun updateGoalFund(goalUuid: String, name: String, targetAmountCents: Long) {
+        updateGoalFundUseCase(
+            UpdateGoalFundRequest(
+                fundUuid = goalUuid,
+                name = name,
+                targetAmountCents = targetAmountCents
+            )
+        )
     }
 
     fun concludePendingCycle() {
