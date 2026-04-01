@@ -2,29 +2,47 @@
 
 package net.loeu.wallybudget.ui.screens.funds
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import net.loeu.wallybudget.R
 import net.loeu.wallybudget.domain.model.Fund
 import net.loeu.wallybudget.domain.model.FundType
@@ -45,14 +63,26 @@ internal data class FundGoalUiState(
     val priorityOrder: Int
 )
 
+private data class GoalFundEditorState(
+    val fundUuid: String?,
+    val name: String,
+    val targetAmountText: String
+) {
+    val isEditing: Boolean
+        get() = fundUuid != null
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FundsScreen(
     funds: List<Fund>,
     onNavigateBack: () -> Unit,
+    onCreateGoalFund: suspend (String, Long) -> Unit,
+    onUpdateGoalFund: suspend (String, String, Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uiState = remember(funds) { buildFundsOverviewUiState(funds) }
+    var editorState by remember { mutableStateOf<GoalFundEditorState?>(null) }
 
     Scaffold(
         topBar = {
@@ -64,6 +94,24 @@ fun FundsScreen(
                             painter = painterResource(R.drawable.ic_arrow_back),
                             contentDescription = "Back"
                         )
+                    }
+                },
+                actions = {
+                    TextButton(
+                        onClick = {
+                            editorState = GoalFundEditorState(
+                                fundUuid = null,
+                                name = "",
+                                targetAmountText = ""
+                            )
+                        },
+                        modifier = Modifier.testTag("fund_goal_add_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Add,
+                            contentDescription = null
+                        )
+                        Text("Add goal")
                     }
                 }
             )
@@ -83,9 +131,29 @@ fun FundsScreen(
                 )
             }
             item(key = "goals") {
-                ActiveGoalsSection(activeGoals = uiState.activeGoals)
+                ActiveGoalsSection(
+                    activeGoals = uiState.activeGoals,
+                    onEditGoal = { goal ->
+                        editorState = GoalFundEditorState(
+                            fundUuid = goal.uuid,
+                            name = goal.name,
+                            targetAmountText = goal.targetAmountCents
+                                ?.let(CurrencyFormatter::centsToExpenseAmountInput)
+                                .orEmpty()
+                        )
+                    }
+                )
             }
         }
+    }
+
+    editorState?.let { editor ->
+        GoalFundEditorSheet(
+            editor = editor,
+            onDismiss = { editorState = null },
+            onCreateGoalFund = onCreateGoalFund,
+            onUpdateGoalFund = onUpdateGoalFund
+        )
     }
 }
 
@@ -116,6 +184,116 @@ private fun Fund.toFundGoalUiState(priorityOrder: Int): FundGoalUiState {
         progressFraction = progress,
         priorityOrder = priorityOrder
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GoalFundEditorSheet(
+    editor: GoalFundEditorState,
+    onDismiss: () -> Unit,
+    onCreateGoalFund: suspend (String, Long) -> Unit,
+    onUpdateGoalFund: suspend (String, String, Long) -> Unit
+) {
+    val coroutineScope = rememberCoroutineScope()
+    var name by remember(editor) { mutableStateOf(editor.name) }
+    var targetAmountText by remember(editor) { mutableStateOf(editor.targetAmountText) }
+    var errorMessage by remember(editor) { mutableStateOf<String?>(null) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = if (editor.isEditing) "Edit goal" else "Add goal",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Black
+            )
+            OutlinedTextField(
+                value = name,
+                onValueChange = {
+                    name = it
+                    errorMessage = null
+                },
+                label = { Text("Goal name") },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("goal_name_field")
+            )
+            OutlinedTextField(
+                value = targetAmountText,
+                onValueChange = {
+                    targetAmountText = it
+                    errorMessage = null
+                },
+                label = { Text("Target amount") },
+                supportingText = {
+                    Text("Targets must be greater than zero.")
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("goal_target_field")
+            )
+            if (errorMessage != null) {
+                Text(
+                    text = errorMessage.orEmpty(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.testTag("goal_editor_error")
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
+                Button(
+                    onClick = {
+                        val trimmedName = name.trim()
+                        val targetAmountCents = CurrencyFormatter.parseAmountToCents(targetAmountText)
+                        when {
+                            trimmedName.isBlank() -> errorMessage = "Enter a goal name."
+                            targetAmountCents == null || targetAmountCents <= 0L ->
+                                errorMessage = "Enter a positive target amount."
+                            else -> {
+                                coroutineScope.launch {
+                                    try {
+                                        if (editor.isEditing) {
+                                            onUpdateGoalFund(
+                                                requireNotNull(editor.fundUuid),
+                                                trimmedName,
+                                                targetAmountCents
+                                            )
+                                        } else {
+                                            onCreateGoalFund(trimmedName, targetAmountCents)
+                                        }
+                                        onDismiss()
+                                    } catch (exception: IllegalArgumentException) {
+                                        errorMessage = exception.message ?: "Unable to save goal."
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    modifier = Modifier.testTag("goal_save_button")
+                ) {
+                    Text(if (editor.isEditing) "Save goal" else "Create goal")
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -167,7 +345,7 @@ private fun ReserveSection(
         )
         val progress = reserveFund.progressPercent?.div(100f)
         if (progress != null) {
-            LinearProgressIndicator(
+            androidx.compose.material3.LinearProgressIndicator(
                 progress = { progress },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -179,7 +357,10 @@ private fun ReserveSection(
 }
 
 @Composable
-private fun ActiveGoalsSection(activeGoals: List<FundGoalUiState>) {
+private fun ActiveGoalsSection(
+    activeGoals: List<FundGoalUiState>,
+    onEditGoal: (FundGoalUiState) -> Unit
+) {
     HorizontalDivider()
     if (activeGoals.isEmpty()) {
         ListItem(
@@ -208,11 +389,13 @@ private fun ActiveGoalsSection(activeGoals: List<FundGoalUiState>) {
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
         }
         FundListItem(
+            uuid = goal.uuid,
             title = goal.name,
             balanceCents = goal.balanceCents,
             targetAmountCents = goal.targetAmountCents,
             progressFraction = goal.progressFraction,
             trailingLabel = "Priority ${goal.priorityOrder}",
+            onEditClick = { onEditGoal(goal) },
             modifier = Modifier.testTag("fund_goal_${goal.uuid}")
         )
     }
@@ -220,11 +403,13 @@ private fun ActiveGoalsSection(activeGoals: List<FundGoalUiState>) {
 
 @Composable
 private fun FundListItem(
+    uuid: String,
     title: String,
     balanceCents: Long,
     targetAmountCents: Long?,
     progressFraction: Float?,
     trailingLabel: String?,
+    onEditClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
@@ -248,19 +433,31 @@ private fun FundListItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
-            trailingContent = if (trailingLabel != null) {
-                {
-                    Text(
-                        text = trailingLabel,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
+            trailingContent = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (trailingLabel != null) {
+                        Text(
+                            text = trailingLabel,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onEditClick,
+                        modifier = Modifier.testTag("fund_goal_edit_button_$uuid")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Edit,
+                            contentDescription = "Edit goal"
+                        )
+                    }
                 }
-            } else null
+            }
         )
         if (progressFraction != null) {
-            LinearProgressIndicator(
+            androidx.compose.material3.LinearProgressIndicator(
                 progress = { progressFraction },
                 modifier = Modifier
                     .fillMaxWidth()

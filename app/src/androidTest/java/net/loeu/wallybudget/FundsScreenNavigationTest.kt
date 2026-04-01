@@ -6,10 +6,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performTextClearance
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import net.loeu.wallybudget.domain.model.BudgetBucket
@@ -46,7 +49,9 @@ class FundsScreenNavigationTest {
                 if (showFunds) {
                     FundsScreen(
                         funds = funds(),
-                        onNavigateBack = { showFunds = false }
+                        onNavigateBack = { showFunds = false },
+                        onCreateGoalFund = { _, _ -> },
+                        onUpdateGoalFund = { _, _, _ -> }
                     )
                 } else {
                     PortfolioScreen(
@@ -89,7 +94,9 @@ class FundsScreenNavigationTest {
                             createdAtEpochMs = 1L
                         )
                     ),
-                    onNavigateBack = {}
+                    onNavigateBack = {},
+                    onCreateGoalFund = { _, _ -> },
+                    onUpdateGoalFund = { _, _, _ -> }
                 )
             }
         }
@@ -98,6 +105,88 @@ class FundsScreenNavigationTest {
         composeRule.onNodeWithTag("fund_reserve_card").assertIsDisplayed()
         composeRule.onNodeWithText("No active goals yet.").assertIsDisplayed()
         composeRule.onNodeWithTag("funds_empty_state").assertIsDisplayed()
+    }
+
+    @Test
+    fun addGoalSheetValidatesInputsAndCreatesGoal() {
+        composeRule.setContent {
+            var funds by remember { mutableStateOf(funds()) }
+
+            WallyBudgetTheme {
+                FundsScreen(
+                    funds = funds,
+                    onNavigateBack = {},
+                    onCreateGoalFund = { name, targetAmountCents ->
+                        funds = funds + fund(
+                            uuid = "goal-new",
+                            name = name,
+                            fundType = FundType.GOAL,
+                            balanceCents = 0L,
+                            targetAmountCents = targetAmountCents,
+                            sortOrder = funds.maxOfOrNull { it.sortOrder }?.plus(1) ?: 0,
+                            createdAtEpochMs = 4L
+                        )
+                    },
+                    onUpdateGoalFund = { _, _, _ -> }
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("fund_goal_add_button").performClick()
+        composeRule.onNodeWithTag("goal_save_button").performClick()
+        composeRule.onNodeWithTag("goal_editor_error").assertTextContains("Enter a goal name.")
+
+        composeRule.onNodeWithTag("goal_name_field").performTextInput("Retirement")
+        composeRule.onNodeWithTag("goal_target_field").performTextInput("0")
+        composeRule.onNodeWithTag("goal_save_button").performClick()
+        composeRule.onNodeWithTag("goal_editor_error").assertTextContains("Enter a positive target amount.")
+
+        composeRule.onNodeWithTag("goal_target_field").performTextClearance()
+        composeRule.onNodeWithTag("goal_target_field").performTextInput("250.00")
+        composeRule.onNodeWithTag("goal_save_button").performClick()
+
+        composeRule.onNodeWithText("Retirement").assertIsDisplayed()
+    }
+
+    @Test
+    fun editGoalSheetUpdatesGoalImmediately() {
+        composeRule.setContent {
+            var funds by remember { mutableStateOf(funds()) }
+
+            WallyBudgetTheme {
+                FundsScreen(
+                    funds = funds,
+                    onNavigateBack = {},
+                    onCreateGoalFund = { _, _ -> },
+                    onUpdateGoalFund = { uuid, name, targetAmountCents ->
+                        funds = funds.map { existing ->
+                            if (existing.uuid == uuid) {
+                                existing.copy(
+                                    name = name,
+                                    targetAmountCents = targetAmountCents,
+                                    updatedAtEpochMs = existing.updatedAtEpochMs + 1L,
+                                    modClock = "${existing.updatedAtEpochMs + 1L}-0000-test-install"
+                                )
+                            } else {
+                                existing
+                            }
+                        }
+                    }
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("fund_goal_edit_button_goal-a").performClick()
+        composeRule.onNodeWithTag("goal_name_field").assertTextContains("Emergency")
+        composeRule.onNodeWithTag("goal_target_field").assertTextContains("50")
+        composeRule.onNodeWithTag("goal_name_field").performTextClearance()
+        composeRule.onNodeWithTag("goal_name_field").performTextInput("Weekend Trip")
+        composeRule.onNodeWithTag("goal_target_field").performTextClearance()
+        composeRule.onNodeWithTag("goal_target_field").performTextInput("125.00")
+        composeRule.onNodeWithTag("goal_save_button").performClick()
+
+        composeRule.onNodeWithText("Weekend Trip").assertIsDisplayed()
+        composeRule.onNodeWithTag("fund_goal_goal-a").assertIsDisplayed()
     }
 
     private fun funds(): List<Fund> {
