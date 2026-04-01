@@ -198,6 +198,7 @@ private fun GoalFundEditorSheet(
     var name by remember(editor) { mutableStateOf(editor.name) }
     var targetAmountText by remember(editor) { mutableStateOf(editor.targetAmountText) }
     var errorMessage by remember(editor) { mutableStateOf<String?>(null) }
+    var isSaving by remember(editor) { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
@@ -219,20 +220,25 @@ private fun GoalFundEditorSheet(
             OutlinedTextField(
                 value = name,
                 onValueChange = {
-                    name = it
-                    errorMessage = null
+                    if (!isSaving) {
+                        name = it
+                        errorMessage = null
+                    }
                 },
                 label = { Text("Goal name") },
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("goal_name_field")
+                    .testTag("goal_name_field"),
+                enabled = !isSaving
             )
             OutlinedTextField(
                 value = targetAmountText,
                 onValueChange = {
-                    targetAmountText = it
-                    errorMessage = null
+                    if (!isSaving) {
+                        targetAmountText = it
+                        errorMessage = null
+                    }
                 },
                 label = { Text("Target amount") },
                 supportingText = {
@@ -242,7 +248,8 @@ private fun GoalFundEditorSheet(
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("goal_target_field")
+                    .testTag("goal_target_field"),
+                enabled = !isSaving
             )
             if (errorMessage != null) {
                 Text(
@@ -260,6 +267,7 @@ private fun GoalFundEditorSheet(
                     Text("Cancel")
                 }
                 Button(
+                    enabled = !isSaving,
                     onClick = {
                         val trimmedName = name.trim()
                         val targetAmountCents = CurrencyFormatter.parseAmountToCents(targetAmountText)
@@ -268,6 +276,7 @@ private fun GoalFundEditorSheet(
                             targetAmountCents == null || targetAmountCents <= 0L ->
                                 errorMessage = "Enter a positive target amount."
                             else -> {
+                                isSaving = true
                                 coroutineScope.launch {
                                     try {
                                         if (editor.isEditing) {
@@ -282,6 +291,8 @@ private fun GoalFundEditorSheet(
                                         onDismiss()
                                     } catch (exception: IllegalArgumentException) {
                                         errorMessage = exception.message ?: "Unable to save goal."
+                                    } finally {
+                                        isSaving = false
                                     }
                                 }
                             }

@@ -197,6 +197,7 @@ class BudgetViewModelFactory(
         CreateGoalFundUseCase(
             fundDao = fundDao,
             userSettingsStore = userPreferencesManager,
+            currentEpochTimeProvider = SystemCurrentEpochTimeProvider(),
             hybridLogicalClockService = hybridLogicalClockService
         )
     }
@@ -204,6 +205,7 @@ class BudgetViewModelFactory(
         UpdateGoalFundUseCase(
             fundDao = fundDao,
             userSettingsStore = userPreferencesManager,
+            currentEpochTimeProvider = SystemCurrentEpochTimeProvider(),
             hybridLogicalClockService = hybridLogicalClockService
         )
     }

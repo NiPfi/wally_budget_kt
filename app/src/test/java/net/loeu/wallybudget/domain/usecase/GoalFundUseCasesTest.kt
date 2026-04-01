@@ -11,6 +11,7 @@ import org.junit.Test
 class GoalFundUseCasesTest {
 
     private val hybridLogicalClockService = HybridLogicalClockService()
+    private val currentEpochTimeProvider = FakeCurrentEpochTimeProvider(1_234_567_890L)
 
     @Test
     fun createGoalFundUseCase_insertsTrimmedGoalAtNextSortOrder() = runBlocking {
@@ -34,6 +35,7 @@ class GoalFundUseCasesTest {
         val useCase = CreateGoalFundUseCase(
             fundDao = fundDao,
             userSettingsStore = FakeUserSettingsStore(),
+            currentEpochTimeProvider = currentEpochTimeProvider,
             hybridLogicalClockService = hybridLogicalClockService
         )
 
@@ -59,6 +61,7 @@ class GoalFundUseCasesTest {
         val useCase = CreateGoalFundUseCase(
             fundDao = FakeFundDao(),
             userSettingsStore = FakeUserSettingsStore(),
+            currentEpochTimeProvider = currentEpochTimeProvider,
             hybridLogicalClockService = hybridLogicalClockService
         )
 
@@ -93,6 +96,7 @@ class GoalFundUseCasesTest {
         val useCase = UpdateGoalFundUseCase(
             fundDao = fundDao,
             userSettingsStore = FakeUserSettingsStore(),
+            currentEpochTimeProvider = currentEpochTimeProvider,
             hybridLogicalClockService = hybridLogicalClockService
         )
 
@@ -127,6 +131,7 @@ class GoalFundUseCasesTest {
                 )
             ),
             userSettingsStore = FakeUserSettingsStore(),
+            currentEpochTimeProvider = currentEpochTimeProvider,
             hybridLogicalClockService = hybridLogicalClockService
         )
 

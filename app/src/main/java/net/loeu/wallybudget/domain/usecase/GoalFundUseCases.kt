@@ -3,7 +3,8 @@ package net.loeu.wallybudget.domain.usecase
 import net.loeu.wallybudget.data.local.dao.FundDao
 import net.loeu.wallybudget.data.local.entity.FundEntity
 import net.loeu.wallybudget.data.local.preferences.UserSettingsStore
-import net.loeu.wallybudget.data.time.WallyTime
+import net.loeu.wallybudget.data.time.CurrentEpochTimeProvider
+import net.loeu.wallybudget.data.time.SystemCurrentEpochTimeProvider
 import net.loeu.wallybudget.domain.model.FundType
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
 import java.util.UUID
@@ -33,6 +34,7 @@ private fun FundEntity.requireEditableGoal(): FundEntity {
 class CreateGoalFundUseCase(
     private val fundDao: FundDao,
     private val userSettingsStore: UserSettingsStore,
+    private val currentEpochTimeProvider: CurrentEpochTimeProvider = SystemCurrentEpochTimeProvider(),
     private val hybridLogicalClockService: HybridLogicalClockService
 ) {
     suspend operator fun invoke(request: CreateGoalFundRequest): String {
@@ -41,7 +43,7 @@ class CreateGoalFundUseCase(
 
         val settings = userSettingsStore.ensureIdentity()
         val installId = settings.installDeviceId
-        val now = WallyTime.currentEpochTimeMs()
+        val now = currentEpochTimeProvider.currentEpochTimeMs()
         val nextSortOrder = (fundDao.getAllActive().maxOfOrNull { it.sortOrder } ?: -1) + 1
         val fundUuid = UUID.randomUUID().toString()
         fundDao.insert(
@@ -67,6 +69,7 @@ class CreateGoalFundUseCase(
 class UpdateGoalFundUseCase(
     private val fundDao: FundDao,
     private val userSettingsStore: UserSettingsStore,
+    private val currentEpochTimeProvider: CurrentEpochTimeProvider = SystemCurrentEpochTimeProvider(),
     private val hybridLogicalClockService: HybridLogicalClockService
 ) {
     suspend operator fun invoke(request: UpdateGoalFundRequest) {
@@ -78,7 +81,7 @@ class UpdateGoalFundUseCase(
 
         val settings = userSettingsStore.ensureIdentity()
         val installId = settings.installDeviceId
-        val now = WallyTime.currentEpochTimeMs()
+        val now = currentEpochTimeProvider.currentEpochTimeMs()
         fundDao.update(
             existing.copy(
                 name = trimmedName,
