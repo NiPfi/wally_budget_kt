@@ -45,7 +45,7 @@ class UpdateExpenseUseCaseTest {
     }
 
     @Test
-    fun invoke_rejectsPastDayExpense() = runBlocking {
+    fun invoke_updatesPastDayExpense() = runBlocking {
         val currentDate = LocalDate.of(2026, 3, 24)
         val existing = expenseEntity(
             id = 8L,
@@ -63,17 +63,12 @@ class UpdateExpenseUseCaseTest {
             hybridLogicalClockService = HybridLogicalClockService()
         )
 
-        val exception = try {
-            useCase(existing.toDomainModel().copy(description = "Iced coffee"))
-            throw AssertionError("Expected ExpenseEditNotAllowedException but none was thrown")
-        } catch (error: ExpenseEditNotAllowedException) {
-            error
-        }
+        useCase(existing.toDomainModel().copy(description = "Iced coffee"))
 
-        assertEquals("Only current-day expenses can be edited.", exception.message)
-        val unchanged = requireNotNull(expenseDao.findByRecordUuid("expense-2"))
-        assertEquals(existing.description, unchanged.description)
-        assertEquals(existing.modClock, unchanged.modClock)
+        val updated = requireNotNull(expenseDao.findByRecordUuid("expense-2"))
+        assertEquals("Iced coffee", updated.description)
+        assertEquals("test-install-id", updated.lastModifiedByInstallId)
+        assertNotEquals(existing.modClock, updated.modClock)
     }
 
     @Test
@@ -102,21 +97,21 @@ class UpdateExpenseUseCaseTest {
             error
         }
 
-        assertEquals("Only current-day expenses can be edited.", exception.message)
+        assertEquals("Future-dated expenses cannot be edited.", exception.message)
         val unchanged = requireNotNull(expenseDao.findByRecordUuid("expense-3"))
         assertEquals(existing.description, unchanged.description)
         assertEquals(existing.modClock, unchanged.modClock)
     }
 
     @Test
-    fun invoke_rejectsEditedExpenseWhenPersistedRecordIsNotCurrentDay() = runBlocking {
+    fun invoke_rejectsFutureDatedPersistedExpenseEvenIfEditedExpenseIsCurrentDay() = runBlocking {
         val currentDate = LocalDate.of(2026, 3, 24)
         val existing = expenseEntity(
             id = 10L,
             recordUuid = "expense-4",
             amountCents = 2_450L,
             description = "Train ticket",
-            expenseDate = currentDate.minusDays(2).toString(),
+            expenseDate = currentDate.plusDays(2).toString(),
             modClock = "0000000000001-0000-test-install-id"
         )
         val expenseDao = FakeExpenseDao(listOf(existing))
@@ -130,7 +125,6 @@ class UpdateExpenseUseCaseTest {
         val exception = try {
             useCase(
                 existing.toDomainModel().copy(
-                    expenseDate = currentDate.toString(),
                     description = "Updated train ticket"
                 )
             )
@@ -139,7 +133,7 @@ class UpdateExpenseUseCaseTest {
             error
         }
 
-        assertEquals("Only current-day expenses can be edited.", exception.message)
+        assertEquals("Future-dated expenses cannot be edited.", exception.message)
         val unchanged = requireNotNull(expenseDao.findByRecordUuid("expense-4"))
         assertEquals(existing.description, unchanged.description)
         assertEquals(existing.expenseDate, unchanged.expenseDate)

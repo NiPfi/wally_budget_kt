@@ -7,6 +7,7 @@ import net.loeu.wallybudget.data.time.CurrentDateProvider
 import net.loeu.wallybudget.data.time.WallyTime
 import net.loeu.wallybudget.domain.model.Expense
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
+import java.time.LocalDate
 
 class ExpenseEditNotAllowedException(
     message: String
@@ -20,8 +21,10 @@ class UpdateExpenseUseCase(
 ) {
     suspend operator fun invoke(expense: Expense) {
         val persistedExpense = expenseDao.findByRecordUuid(expense.recordUuid)
-        if (persistedExpense?.expenseDate != currentDateProvider.currentDate().toString()) {
-            throw ExpenseEditNotAllowedException("Only current-day expenses can be edited.")
+        val currentDate = currentDateProvider.currentDate()
+        val persistedExpenseDate = persistedExpense?.expenseDate?.let(LocalDate::parse)
+        if (persistedExpense == null || persistedExpenseDate == null || persistedExpenseDate.isAfter(currentDate)) {
+            throw ExpenseEditNotAllowedException("Future-dated expenses cannot be edited.")
         }
         val settings = userSettingsStore.ensureIdentity()
         val installId = settings.installDeviceId
