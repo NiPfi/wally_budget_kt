@@ -182,6 +182,7 @@ class BudgetViewModelFactory(
     private val updateExpenseUseCase by lazy {
         UpdateExpenseUseCase(
             expenseDao = expenseDao,
+            budgetBucketDao = budgetBucketDao,
             userSettingsStore = userPreferencesManager,
             currentDateProvider = currentDateProvider,
             hybridLogicalClockService = hybridLogicalClockService

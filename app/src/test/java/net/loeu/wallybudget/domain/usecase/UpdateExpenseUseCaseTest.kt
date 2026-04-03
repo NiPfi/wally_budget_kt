@@ -1,6 +1,7 @@
 package net.loeu.wallybudget.domain.usecase
 
 import kotlinx.coroutines.runBlocking
+import net.loeu.wallybudget.data.local.entity.BudgetBucketEntity
 import net.loeu.wallybudget.data.local.entity.ExpenseEntity
 import net.loeu.wallybudget.data.local.entity.toDomainModel
 import net.loeu.wallybudget.domain.service.HybridLogicalClockService
@@ -25,6 +26,7 @@ class UpdateExpenseUseCaseTest {
         val expenseDao = FakeExpenseDao(listOf(existing))
         val useCase = UpdateExpenseUseCase(
             expenseDao = expenseDao,
+            budgetBucketDao = FakeBudgetBucketDao(listOf(bucketEntity(monthScoped = false))),
             userSettingsStore = FakeUserSettingsStore(),
             currentDateProvider = FakeCurrentDateProvider(currentDate),
             hybridLogicalClockService = HybridLogicalClockService()
@@ -45,7 +47,7 @@ class UpdateExpenseUseCaseTest {
     }
 
     @Test
-    fun invoke_rejectsPastDayExpense() = runBlocking {
+    fun invoke_updatesPastDayExpenseInMonthScopedBucket() = runBlocking {
         val currentDate = LocalDate.of(2026, 3, 24)
         val existing = expenseEntity(
             id = 8L,
@@ -58,22 +60,18 @@ class UpdateExpenseUseCaseTest {
         val expenseDao = FakeExpenseDao(listOf(existing))
         val useCase = UpdateExpenseUseCase(
             expenseDao = expenseDao,
+            budgetBucketDao = FakeBudgetBucketDao(listOf(bucketEntity(monthScoped = true))),
             userSettingsStore = FakeUserSettingsStore(),
             currentDateProvider = FakeCurrentDateProvider(currentDate),
             hybridLogicalClockService = HybridLogicalClockService()
         )
 
-        val exception = try {
-            useCase(existing.toDomainModel().copy(description = "Iced coffee"))
-            throw AssertionError("Expected ExpenseEditNotAllowedException but none was thrown")
-        } catch (error: ExpenseEditNotAllowedException) {
-            error
-        }
+        useCase(existing.toDomainModel().copy(description = "Iced coffee"))
 
-        assertEquals("Only current-day expenses can be edited.", exception.message)
-        val unchanged = requireNotNull(expenseDao.findByRecordUuid("expense-2"))
-        assertEquals(existing.description, unchanged.description)
-        assertEquals(existing.modClock, unchanged.modClock)
+        val updated = requireNotNull(expenseDao.findByRecordUuid("expense-2"))
+        assertEquals("Iced coffee", updated.description)
+        assertEquals("test-install-id", updated.lastModifiedByInstallId)
+        assertNotEquals(existing.modClock, updated.modClock)
     }
 
     @Test
@@ -90,6 +88,7 @@ class UpdateExpenseUseCaseTest {
         val expenseDao = FakeExpenseDao(listOf(existing))
         val useCase = UpdateExpenseUseCase(
             expenseDao = expenseDao,
+            budgetBucketDao = FakeBudgetBucketDao(listOf(bucketEntity(monthScoped = true))),
             userSettingsStore = FakeUserSettingsStore(),
             currentDateProvider = FakeCurrentDateProvider(currentDate),
             hybridLogicalClockService = HybridLogicalClockService()
@@ -102,14 +101,14 @@ class UpdateExpenseUseCaseTest {
             error
         }
 
-        assertEquals("Only current-day expenses can be edited.", exception.message)
+        assertEquals("Future-dated expenses cannot be edited.", exception.message)
         val unchanged = requireNotNull(expenseDao.findByRecordUuid("expense-3"))
         assertEquals(existing.description, unchanged.description)
         assertEquals(existing.modClock, unchanged.modClock)
     }
 
     @Test
-    fun invoke_rejectsEditedExpenseWhenPersistedRecordIsNotCurrentDay() = runBlocking {
+    fun invoke_rejectsPastDayExpenseInRegularBucket() = runBlocking {
         val currentDate = LocalDate.of(2026, 3, 24)
         val existing = expenseEntity(
             id = 10L,
@@ -122,6 +121,45 @@ class UpdateExpenseUseCaseTest {
         val expenseDao = FakeExpenseDao(listOf(existing))
         val useCase = UpdateExpenseUseCase(
             expenseDao = expenseDao,
+            budgetBucketDao = FakeBudgetBucketDao(listOf(bucketEntity(monthScoped = false))),
+            userSettingsStore = FakeUserSettingsStore(),
+            currentDateProvider = FakeCurrentDateProvider(currentDate),
+            hybridLogicalClockService = HybridLogicalClockService()
+        )
+
+        val exception = try {
+            useCase(
+                existing.toDomainModel().copy(
+                    description = "Updated train ticket"
+                )
+            )
+            throw AssertionError("Expected ExpenseEditNotAllowedException but none was thrown")
+        } catch (error: ExpenseEditNotAllowedException) {
+            error
+        }
+
+        assertEquals("Only current-day expenses can be edited.", exception.message)
+        val unchanged = requireNotNull(expenseDao.findByRecordUuid("expense-4"))
+        assertEquals(existing.description, unchanged.description)
+        assertEquals(existing.expenseDate, unchanged.expenseDate)
+        assertEquals(existing.modClock, unchanged.modClock)
+    }
+
+    @Test
+    fun invoke_rejectsFutureDatedPersistedExpenseEvenIfEditedExpenseIsCurrentDay() = runBlocking {
+        val currentDate = LocalDate.of(2026, 3, 24)
+        val existing = expenseEntity(
+            id = 11L,
+            recordUuid = "expense-5",
+            amountCents = 2_450L,
+            description = "Train ticket",
+            expenseDate = currentDate.plusDays(2).toString(),
+            modClock = "0000000000001-0000-test-install-id"
+        )
+        val expenseDao = FakeExpenseDao(listOf(existing))
+        val useCase = UpdateExpenseUseCase(
+            expenseDao = expenseDao,
+            budgetBucketDao = FakeBudgetBucketDao(listOf(bucketEntity(monthScoped = true))),
             userSettingsStore = FakeUserSettingsStore(),
             currentDateProvider = FakeCurrentDateProvider(currentDate),
             hybridLogicalClockService = HybridLogicalClockService()
@@ -139,8 +177,42 @@ class UpdateExpenseUseCaseTest {
             error
         }
 
-        assertEquals("Only current-day expenses can be edited.", exception.message)
-        val unchanged = requireNotNull(expenseDao.findByRecordUuid("expense-4"))
+        assertEquals("Future-dated expenses cannot be edited.", exception.message)
+        val unchanged = requireNotNull(expenseDao.findByRecordUuid("expense-5"))
+        assertEquals(existing.description, unchanged.description)
+        assertEquals(existing.expenseDate, unchanged.expenseDate)
+        assertEquals(existing.modClock, unchanged.modClock)
+    }
+
+    @Test
+    fun invoke_rejectsInvalidPersistedExpenseDate() = runBlocking {
+        val currentDate = LocalDate.of(2026, 3, 24)
+        val existing = expenseEntity(
+            id = 12L,
+            recordUuid = "expense-6",
+            amountCents = 1_000L,
+            description = "Broken record",
+            expenseDate = "03/24/2026",
+            modClock = "0000000000001-0000-test-install-id"
+        )
+        val expenseDao = FakeExpenseDao(listOf(existing))
+        val useCase = UpdateExpenseUseCase(
+            expenseDao = expenseDao,
+            budgetBucketDao = FakeBudgetBucketDao(listOf(bucketEntity(monthScoped = true))),
+            userSettingsStore = FakeUserSettingsStore(),
+            currentDateProvider = FakeCurrentDateProvider(currentDate),
+            hybridLogicalClockService = HybridLogicalClockService()
+        )
+
+        val exception = try {
+            useCase(existing.toDomainModel().copy(description = "Still broken"))
+            throw AssertionError("Expected ExpenseEditNotAllowedException but none was thrown")
+        } catch (error: ExpenseEditNotAllowedException) {
+            error
+        }
+
+        assertEquals("Invalid expense date.", exception.message)
+        val unchanged = requireNotNull(expenseDao.findByRecordUuid("expense-6"))
         assertEquals(existing.description, unchanged.description)
         assertEquals(existing.expenseDate, unchanged.expenseDate)
         assertEquals(existing.modClock, unchanged.modClock)
@@ -167,4 +239,20 @@ class UpdateExpenseUseCaseTest {
         updatedAtEpochMs = 1_710_000_000_000L,
         modClock = modClock
     )
+
+    private fun bucketEntity(monthScoped: Boolean): BudgetBucketEntity {
+        return BudgetBucketEntity(
+            id = if (monthScoped) 2L else 1L,
+            bucketUuid = "bucket-1",
+            name = if (monthScoped) "Month scoped" else "Daily",
+            defaultAllocatedAmountCents = 10_000L,
+            sortOrder = if (monthScoped) 2 else 1,
+            originInstallId = "test-install-id",
+            lastModifiedByInstallId = "test-install-id",
+            createdAtEpochMs = 1_710_000_000_000L,
+            updatedAtEpochMs = 1_710_000_000_000L,
+            modClock = "0000000000001-0000-test-install-id",
+            monthScoped = monthScoped
+        )
+    }
 }
